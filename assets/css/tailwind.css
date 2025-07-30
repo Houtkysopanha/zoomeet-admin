@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --text-gradient: linear-gradient(79deg, #4D66A6 7.31%, #B61EEB 98.95%);
+  
+}
+.bg-gradient-to-t {
+  background: var(--New-Brand-color, linear-gradient(79deg, #4D66A6 7.31%, #B61EEB 98.95%));
+
+}
