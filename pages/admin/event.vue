@@ -1,5 +1,5 @@
 <template>
-  <div class="p-6">
+  <div class="p-6 bg-[#F8F8FF]">
     <div class="mb-6">
       <div class="flex items-center justify-between">
         <div>
@@ -74,15 +74,16 @@
       optionLabel="label"
       optionValue="value"
       placeholder="Sort"
-      class="w-30 p-dropdown-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+      class="w-30 p-dropdown-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg"
       @change="applySort"
     >
       <template #value="slotProps">
+       <i class="pi pi-sort-amount-up mr-2 text-black"></i>
         <span v-if="slotProps.value" class="">{{ slotProps.value }}</span>
-        <span v-else class="ml-14 text-gray-400">Sort</span>
+        <span v-else class="ml-14 text-black">Sort</span>
       </template>
     </Dropdown>
-    <span class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">▼</span>
+    <span class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"></span>
   </div>
     <p class="text-xl font-medium text-gray-700">Show</p>
   <Dropdown
@@ -110,7 +111,7 @@
       :sortOrder="sortOrder"
       class="p-datatable-sm shadow-md overflow-hidden"
     >
-      <Column field="name" header="Event" sortable  class="w-[23%] text-[14px] border-b border-gray-300">
+      <Column field="name" header="Event" sortable  class="w-[23%] text-[14px] border-b border-gray-300 ba">
         <template #body="slotProps">
           <div class="text-blue-900 font-medium">
             <span>{{ slotProps.data.name }}</span>
@@ -162,7 +163,8 @@ import Dropdown from 'primevue/dropdown'
 import Menu from 'primevue/menu'
 import CardCommon from '~/components/common/CardCommon.vue'
 import { useToast } from 'primevue/usetoast'
-
+import { useRouter } from 'vue-router'
+const router = useRouter()
 const toast = useToast()
 
 const eventStats = [
@@ -290,8 +292,12 @@ const actionItems = (event) => [
   {
     label: 'Manage Booking',
     icon: 'pi pi-cog',
-    command: () => manageBooking(currentEvent.value),
-    visible: currentEvent.value?.status === 'Active'
+    command: () => {
+      currentEvent.value = event
+      router.push('/admin/actions/manage-booking')
+    },
+    visible: currentEvent.value?.status === 'Active',
+    
   },
   { label: 'Edit Event', icon: 'pi pi-pencil', command: () => editEvent(currentEvent.value) },
   {
@@ -338,5 +344,31 @@ definePageMeta({
   outline: none !important;
   box-shadow: none !important;
   border: none !important;
+}
+
+
+:deep(.p-datatable .p-datatable-thead > tr) {
+  background-color: #F6F9F9; /* Custom header background color (purple) */
+  color: black; /* Custom text color (white) */
+}
+
+:deep(.p-datatable .p-datatable-thead > tr > th) {
+  background-color: transparent; /* Inherits from tr for consistency */
+  color: inherit; /* Inherits text color from tr */
+  transition: background-color 0.3s ease; /* Smooth hover transition */
+}
+
+:deep(.p-datatable .p-datatable-thead > td:hover) {
+  background-color: #6A3ABF; /* Darker purple on hover */
+}
+/* Updated td styles for row hover */
+:deep(.p-datatable .p-datatable-tbody > tr > td) {
+  background-color: white; /* Light gray background for td */
+  color: #1F2937; /* Dark text color */
+}
+
+:deep(.p-datatable .p-datatable-tbody > tr:hover > td) {
+  background-color: #E6F2FF; /* Slightly darker gray on hover for the entire row */
+  transition: background-color 0.3s ease; /* Smooth hover transition */
 }
 </style>
