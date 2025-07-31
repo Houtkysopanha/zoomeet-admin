@@ -58,48 +58,7 @@
             </NuxtLink>
           </div>
         </div>
-
-        <!-- User Menu -->
-        <div class="flex items-center justify-center p-4 space-x-4 mt-auto">
-          <div class="relative">
-            <button
-              @click="toggleUserMenu"
-              class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <div class="w-8 h-8 bg-[#E6F2FF] rounded-full flex items-center justify-center">
-                <Icon name="i-heroicons-user" class="text-white text-sm" />
-              </div>
-              <div class="text-left hidden md:block">
-                <div class="text-sm font-medium text-gray-800">Admin User</div>
-                <div class="text-xs text-gray-500">Administrator</div>
-              </div>
-              <Icon name="i-heroicons-chevron-down" class="text-gray-600 text-sm" />
-            </button>
-
-            <!-- User Dropdown -->
-            <div
-              v-if="showUserMenu"
-              class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
-            >
-              <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                <Icon name="i-heroicons-user-circle" class="mr-3 text-gray-400" />
-                Profile
-              </a>
-              <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                <Icon name="i-heroicons-cog-6-tooth" class="mr-3 text-gray-400" />
-                Settings
-              </a>
-              <hr class="my-2 border-gray-200" />
-              <button
-                @click="logoutWithToast"
-                class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-              >
-                <Icon name="i-heroicons-arrow-right-on-rectangle" class="mr-3 text-red-500" />
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
+        
       </nav>
     </div>
   </div>

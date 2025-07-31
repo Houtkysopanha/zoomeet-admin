@@ -1,5 +1,5 @@
 <template>
-  <div class="event-stats-card bg-[#F5F5F5] rounded-xl border border-gray-200 p-6">
+  <div class="event-stats-card bg-amber-50 rounded-xl border border-gray-200 p-6">
    <div class="flex items-center justify-between mb-4">
      <div class=" text-xl  font-bold mb-1">{{ title }}</div>
          <Icon :name="icon" class="text-purple-500 w-10 h-10" />
