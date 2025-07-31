@@ -248,7 +248,7 @@ const events = ref([
   },
 ])
 const goToManageTicket = () => {
-  router.push('/manage-tickets')
+  router.push('/admin/manage-tickets')
 }
 const dateRange = ref(null)
 const displayRange = ref('')

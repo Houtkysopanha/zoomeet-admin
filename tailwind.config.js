@@ -9,7 +9,11 @@ export default {
     "./error.vue",
   ],
   theme: {
-    extend: {},
+    extend: {
+       backgroundImage: {
+        'custom-gradient': 'linear-gradient(79deg, #4D66A6 7.31%, #B61EEB 98.95%)',
+      },
+    },
   },
   plugins: [],
 }

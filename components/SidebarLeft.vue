@@ -1,8 +1,8 @@
 <template>
   <div class="flex flex-col h-full">
-    <div class="p-5">
+    <div class="p-5 h-full">
       <!-- Navigation Menu -->
-      <nav class="flex-1 p-5 space-y-2 overflow-y-auto bg-white rounded-3xl shadow-xl min-h-screen">
+      <nav class="flex-1 p-5 space-y-2 overflow-y-auto bg-white rounded-3xl shadow-xl min-h-full">
         <!-- Logo Section -->
         <div class="p-6">
           <div class="items-center mx-auto">
@@ -18,9 +18,18 @@
           class="flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 hover:bg-gray-100 text-black"
           :class="{ 'bg-[#E6F2FF]': isActive(item.to) }"
         >
-          <Icon :name="`i-heroicons-${item.icon}`" class="text-lg" />
-          <span class="font-medium">{{ item.text }}</span>
-          <span v-if="item.count" class="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">{{ item.count }}</span>
+           <Icon
+    :name="item.icon"
+    class="text-lg"
+    :class="isActive(item.to) ? 'bg-gradient-to-r from-[#4D66A6] to-[#B61EEB] ' : 'text-black'"
+  />
+  <span
+    class="font-bold"
+    :class="isActive(item.to) ? 'bg-gradient-to-r from-[#4D66A6] to-[#B61EEB] bg-clip-text text-transparent font-bold' : 'text-black font-medium'"
+  >
+    {{ item.text }}
+  </span>
+          <span v-if="item.count" class="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">{{ item.count }}</span>
         </NuxtLink>
 
         <!-- Settings Dropdown -->
@@ -31,11 +40,12 @@
             :class="{ 'bg-[#E6F2FF]': showSettingsDropdown }"
           >
             <div class="flex items-center space-x-3">
-              <Icon name="i-heroicons-cog-6-tooth" class="text-lg" />
+              <Icon name="lets-icons:setting-fill" class="text-lg" 
+              />
               <span class="font-medium">Settings</span>
             </div>
             <Icon
-              name="i-heroicons-chevron-down"
+              name="i-heroicons-chevron-up"
               class="text-sm transition-transform duration-200"
               :class="{ 'rotate-180': showSettingsDropdown }"
             />
@@ -50,10 +60,10 @@
               v-for="(setting, index) in settingsLinks"
               :key="index"
               :to="setting.to"
-              class="flex items-center space-x-3 px-4 py-2 rounded-lg transition-all duration-200 hover:bg-gray-100 text-gray-400 text-sm"
+              class="flex items-center space-x-3 px-2 py-2 rounded-lg transition-all duration-200 hover:bg-gray-100 text-gray-400 text-sm"
               :class="{ 'bg-[#E6F2FF]': isActive(setting.to) }"
             >
-              <Icon :name="`i-heroicons-${setting.icon}`" class="text-base" />
+              <Icon :name="`${setting.icon}`" class="text-base" />
               <span class="font-medium">{{ setting.text }}</span>
             </NuxtLink>
           </div>
@@ -78,16 +88,16 @@ const showSettingsDropdown = ref(false)
 const showUserMenu = ref(false)
 
 const navLinks = [
-  { to: "/admin/dashboard", icon: "home", text: "Dashboard", activeClass: "bg-[#E6F2FF]" },
-  { to: "/admin/event", icon: "calendar-days", text: "Event", count: 26, activeClass: "bg-[#E6F2FF]" },
-  { to: "/admin/booking", icon: "clipboard-document-check", text: "Booking", count: 26, activeClass: "bg-[#E6F2FF]" },
-  { to: "/admin/check-in", icon: "check-circle", text: "Check-in Service", activeClass: "bg-[#E6F2FF]" },
+  { to: "/admin/dashboard", icon: "ic:round-dashboard", text: "Dashboard", activeClass: "bg-[#E6F2FF]" },
+  { to: "/admin/event", icon: "clarity:event-solid", text: "Event", count: 26, activeClass: "bg-[#E6F2FF]" },
+  { to: "/admin/booking", icon: "material-symbols-light:receipt-rounded", text: "Booking", count: 26, activeClass: "bg-[#E6F2FF]" },
+  { to: "/admin/check-in", icon: "mdi:invoice-text-check", text: "Check-in Service", activeClass: "bg-[#E6F2FF]" },
 ]
 
 const settingsLinks = [
-  { to: "/admin/settings/roles", icon: "users", text: "Manage Role and Staff", activeClass: "bg-[#E6F2FF]" },
-  { to: "/admin/settings/audit", icon: "document-text", text: "Audit Logs", activeClass: "bg-[#E6F2FF]" },
-  { to: "/admin/settings/report", icon: "chart-bar", text: "Report", activeClass: "bg-[#E6F2FF]" },
+  { to: "/admin/settings/roles", icon: "mingcute:user-setting-fill", text: "Manage Role and Staff", activeClass: "bg-[#E6F2FF]" },
+  { to: "/admin/settings/audit", icon: "mynaui:activity-square-solid", text: "Audit Logs", activeClass: "bg-[#E6F2FF]" },
+  { to: "/admin/settings/report", icon: "bxs:report", text: "Report", activeClass: "bg-[#E6F2FF]" },
 ]
 
 function toggleSettingsDropdown() {
