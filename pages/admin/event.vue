@@ -22,6 +22,7 @@
   icon="pi pi-plus"
   class="p-button-indigo w-60 h-12 p-4 rounded-full text-white bg-gradient-to-t from-indigo-600 to-indigo-400 hover:from-indigo-700 hover:to-indigo-500"
   raised
+  @click="goToCreateEvent"
 />
         </div>
       </div>
@@ -166,6 +167,10 @@ import { useToast } from 'primevue/usetoast'
 import { useRouter } from 'vue-router'
 const router = useRouter()
 const toast = useToast()
+
+const goToCreateEvent = () => {
+  router.push('/admin/CreateEvent')
+}
 
 const eventStats = [
   { title: 'Total Events', count: '28', icon: 'i-heroicons-calendar', weekChange: '2' },
