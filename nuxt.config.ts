@@ -17,5 +17,10 @@ export default defineNuxtConfig({
   build: {
     transpile: ['primevue']
   },
-  modules: ['@nuxt/fonts', '@nuxt/icon']
+  modules: ['@nuxt/fonts', '@nuxt/icon'],
+  runtimeConfig: {
+    public: {
+      baseToken: process.env.VUE_APP_BEARER_TOKEN || ''
+    }
+  }
 })
