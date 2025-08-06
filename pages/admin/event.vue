@@ -17,13 +17,20 @@
   placeholder="Select Date Range"
   @date-select="updateDisplay"
 />
-<Button
+<div>
+  <!-- <Button
   label="Create Event"
-  icon="pi pi-plus"
+  Icon="mdi:event-add"
   class="p-button-indigo w-60 h-12 p-4 rounded-full text-white bg-gradient-to-t from-indigo-600 to-indigo-400 hover:from-indigo-700 hover:to-indigo-500"
   raised
   @click="goToCreateEvent"
+/> -->
+<IconnButton
+label="Create Event"
+    icon="mdi:event-add"
+    @click="goToCreateEvent()"
 />
+</div>
         </div>
       </div>
     </div>
@@ -51,14 +58,14 @@
           v-model="searchQuery"
           type="text"
           placeholder="Search"
-          class="w-full pl-14  border-0 focus:ring-0 focus:outline-none bg-white p-3 rounded-full"
+          class="w-full pl-14  border-0 focus:ring-0 focus:outline-none bg-transparent p-3 rounded-full"
         />
       </div>
-      <div class="relative ">
-        <Button
+      <div class=" relative space-x-5">
+     <Icon name="mynaui:filter" class="absolute w-8 h-8 left-3 top-1/2 bg-gradient-to-t from-blue-900 to-purple-800 transform -translate-y-1/2 text-grad" />
+       <Button
           label="Filters"
-          icon="pi pi-filter"
-          class="p-button-outlined p-button-purple text-purple-600 border-purple-600 hover:bg-purple-50 w-full h-full rounded-none p-3"
+          class="p-button-outlined px-5 p-button-purple text-purple-600 border-purple-600 w-full h-full rounded-none p-3"
           @click="toggleFilters"
         />
       </div>
@@ -68,35 +75,34 @@
 
     <div class="flex items-center space-x-4">
   <div class="relative">
-    <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 font-medium">Sort</span>
+    <!-- <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 font-medium">Sort</span> -->
     <Dropdown
       v-model="sortOption"
       :options="sortOptions"
       optionLabel="label"
       optionValue="value"
-      placeholder="Sort"
-      class="w-30 p-dropdown-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg"
+      class="w-30 p-dropdown-sm border bg-transparent border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg"
       @change="applySort"
     >
       <template #value="slotProps">
-       <i class="pi pi-sort-amount-up mr-2 text-black"></i>
+       <!-- <i class="pi pi-sort-amount-up mr-2 text-black"></i> -->
         <span v-if="slotProps.value" class="">{{ slotProps.value }}</span>
-        <span v-else class="ml-14 text-black">Sort</span>
+        <span v-else class="ml-14 text-black"></span>
       </template>
     </Dropdown>
     <span class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"></span>
   </div>
-    <p class="text-xl font-medium text-gray-700">Show</p>
+    <p class="text-xl font-normal text-gray-700">Show</p>
   <Dropdown
     v-model="itemsPerPage"
     :options="pageOptions"
     optionLabel="label"
     optionValue="value"
     placeholder=""
-    class=" border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+    class=" border border-gray-300 bg-transparent rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
     @change="applyPageChange"
   />
-  <span class="text-lg text-gray-700 border-l pl-2 border-gray-500"> Show {{ currentPage * itemsPerPage - (itemsPerPage - 1) }} to {{ Math.min(currentPage * itemsPerPage, totalItems) }} of {{ totalItems }}</span>
+  <span class="text-lg text-gray-700  border-l pl-2 border-gray-500"> Show {{ currentPage * itemsPerPage - (itemsPerPage - 1) }} to {{ Math.min(currentPage * itemsPerPage, totalItems) }} of {{ totalItems }}</span>
 </div>
     </div>
 
@@ -144,10 +150,10 @@
         <template #body="slotProps">
           <Button
             icon="pi pi-ellipsis-v"
-            class="p-button-rounded p-button-outlined p-button-indigo"
+            class="p-button-rounded p-button-outlined p-button-indigo "
             @click="(event) => toggleActionMenu(event, slotProps.data)"
           />
-          <Menu ref="actionMenu" :model="actionItems(slotProps.data)" :popup="true" class="rounded-xl" />
+          <Menu ref="actionMenu" :model="actionItems(slotProps.data)" :popup="true" class="rounded-xl shadow-md " />
         </template>
       </Column>
     </DataTable>
@@ -157,6 +163,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import Button from 'primevue/button'
+import IconnButton from '~/components/ui/IconnButton.vue'
 import Calendar from 'primevue/calendar'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -173,10 +180,10 @@ const goToCreateEvent = () => {
 }
 
 const eventStats = [
-  { title: 'Total Events', count: '28', icon: 'i-heroicons-calendar', weekChange: '2' },
-  { title: 'Complete Event', count: '23', icon: 'i-heroicons-check-circle', weekChange: '2' },
-  { title: 'Ongoing', count: '5', icon: 'i-heroicons-play', weekChange: '2' },
-  { title: 'Draft', count: '24', icon: 'i-heroicons-pencil', weekChange: '2' },
+  { title: 'Total Events', count: '28', icon: 'clarity:event-solid', weekChange: '2' },
+  { title: 'Complete Event', count: '23', icon: 'clarity:event-solid-badged', weekChange: '2' },
+  { title: 'Ongoing', count: '5', icon: 'mdi:movie-check', weekChange: '2' },
+  { title: 'Draft', count: '24', icon: 'mdi:clipboard-text-date', weekChange: '2' },
 ]
 
 const dateRange = ref(null)
@@ -218,7 +225,7 @@ const events = ref([
 ])
 
 const sortOptions = ref([
-  { label: 'Date (Ascending)', value: 'Sort',},
+  { label: 'Date (Ascending)', value: 'Date (Ascending)',},
   { label: 'Date (Descending)', value: 'date-desc' },
   { label: 'Name (A-Z)', value: 'name-asc' },
   { label: 'Name (Z-A)', value: 'name-desc' },

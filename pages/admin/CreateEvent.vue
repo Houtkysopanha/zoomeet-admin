@@ -91,7 +91,10 @@
         >
           <div
             :key="activeIndex"
-            class="p-4 bg-white rounded-3xl shadow-lg"
+            :class="[
+    'rounded-3xl ',
+    activeIndex === 1 ? '' : 'bg-white shadow-lg p-4'
+  ]"
             v-motion
             :initial="{ opacity: 0, x: 50 }"
             :enter="{ 

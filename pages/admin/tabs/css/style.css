@@ -157,3 +157,23 @@
   @apply border-0;
 }
 
+
+.p-tabview .p-tabview-nav {
+  @apply border-b border-gray-200;
+}
+
+.p-tabview .p-tabview-nav li .p-tabview-nav-link {
+  @apply px-4 py-2 text-gray-600 font-medium rounded-t-lg;
+}
+
+.p-tabview .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+  @apply text-purple-600 border-b-2 border-purple-600;
+}
+
+/* Ensure NuxtIcon is styled correctly */
+.nuxt-icon svg {
+  width: 1em;
+  height: 1em;
+  display: inline-block;
+  vertical-align: middle;
+}

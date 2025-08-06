@@ -5,15 +5,12 @@
         <div>
           <h1 class="text-3xl text-gray-500 mb-2">Event /<span class="text-[#7A49C9] font-bold">Manage Booking</span></h1>
         </div>
-        <div class="date-range-picker flex space-x-4 items-center">
-          <Button
-           @click="goToManageTicket"
-            label="Manage Ticket"
-            icon="pi pi-ticket"
-            class="p-button-indigo w-44 h-12 p-4 rounded-full text-white bg-gradient-to-t from-indigo-600 to-indigo-400 hover:from-indigo-700 hover:to-indigo-500"
-            raised
-          />
-        </div>
+        <IconnButton 
+        label=" Manage Ticket"
+        icon="icon-park-solid:ticket"
+        @click="goToManageTicket()"
+        />
+
       </div>
     </div>
 
@@ -191,7 +188,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import Button from 'primevue/button'
+import IconnButton from '~/components/ui/IconnButton.vue'
 import EventCard from '~/components/common/EventCard.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -204,10 +201,10 @@ const router = useRouter()
 const toast = useToast()
 import poster from '@/assets/image/poster-manage-booking.png'
 const eventStats = [
-  { title: 'Total Events', count: '28', icon: 'i-heroicons-calendar', weekChange: '2' },
-  { title: 'Complete Event', count: '23', icon: 'i-heroicons-check-circle', weekChange: '2' },
-  { title: 'Ongoing', count: '5', icon: 'i-heroicons-play', weekChange: '2' },
-  { title: 'Draft', count: '24', icon: 'i-heroicons-pencil', weekChange: '2' },
+  { title: 'Total Income', count: '28', icon: 'lsicon:amount-dollar-filled', weekChange: '2' },
+  { title: 'Total Booking', count: '23', icon: 'material-symbols-light:order-approve', weekChange: '2' },
+  { title: 'Total Refund', count: '5', icon: 'mdi:recurring-payment', weekChange: '2' },
+  { title: 'Fail Payment', count: '24', icon: 'icon-park-outline:database-fail', weekChange: '2' },
 ]
 const events = ref([
   {
