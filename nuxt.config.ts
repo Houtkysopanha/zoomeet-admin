@@ -20,7 +20,8 @@ export default defineNuxtConfig({
   modules: ['@nuxt/fonts', '@nuxt/icon'],
   runtimeConfig: {
     public: {
-      baseToken: process.env.VUE_APP_BEARER_TOKEN || ''
-    }
-  }
+      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL,
+      bearerToken: process.env.NUXT_PUBLIC_BEARER_TOKEN,
+    },
+  },
 })

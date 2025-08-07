@@ -91,13 +91,13 @@ const navLinks = [
   { to: "/admin/dashboard", icon: "ic:round-dashboard", text: "Dashboard", activeClass: "bg-[#E6F2FF]" },
   { to: "/admin/event", icon: "clarity:event-solid", text: "Event", count: 26, activeClass: "bg-[#E6F2FF]" },
   { to: "/admin/booking", icon: "material-symbols-light:receipt-rounded", text: "Booking", count: 26, activeClass: "bg-[#E6F2FF]" },
-  { to: "/admin/check-in", icon: "mdi:invoice-text-check", text: "Check-in Service", activeClass: "bg-[#E6F2FF]" },
+  { to: "/admin/checkIn", icon: "mdi:invoice-text-check", text: "Check-in Service", activeClass: "bg-[#E6F2FF]" },
 ]
 
 const settingsLinks = [
-  { to: "/admin/settings/roles", icon: "mingcute:user-setting-fill", text: "Manage Role and Staff", activeClass: "bg-[#E6F2FF]" },
-  { to: "/admin/settings/audit", icon: "mynaui:activity-square-solid", text: "Audit Logs", activeClass: "bg-[#E6F2FF]" },
-  { to: "/admin/settings/report", icon: "bxs:report", text: "Report", activeClass: "bg-[#E6F2FF]" },
+  { to: "", icon: "mingcute:user-setting-fill", text: "Manage Role and Staff", activeClass: "bg-[#E6F2FF]" },
+  { to: "", icon: "mynaui:activity-square-solid", text: "Audit Logs", activeClass: "bg-[#E6F2FF]" },
+  { to: "", icon: "bxs:report", text: "Report", activeClass: "bg-[#E6F2FF]" },
 ]
 
 function toggleSettingsDropdown() {

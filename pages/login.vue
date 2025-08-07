@@ -66,7 +66,7 @@
 
 <script setup>
 import { ref } from "vue";
-import { useFetch } from '#app';
+import { login } from '@/composables/api';
 import { useRouter } from "vue-router";
 import { useMotion } from "@vueuse/motion";
 import { useToast } from "primevue/usetoast";
@@ -86,31 +86,17 @@ const toast = useToast();
 
 async function handleLogin() {
   try {
-    const { data, error: fetchError } = await useFetch('https://dev-gateway.prestigealliance.co/api/v1/login', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.VUE_APP_BEARER_TOKEN}`
-      },
-      body: {
-        identifier: username.value,
-        password: password.value
-      }
+    const data = await login(username.value, password.value);
+    localStorage.setItem("auth", "true");
+    toast.add({
+      severity: "success",
+      summary: "Login Success",
+      detail: "Welcome, Admin!",
+      life: 3000,
     });
-
-    if (!fetchError.value && data.value) {
-      localStorage.setItem("auth", "true");
-      toast.add({
-        severity: "success",
-        summary: "Login Success",
-        detail: "Welcome, Admin!",
-        life: 3000,
-      });
-      setTimeout(() => {
-        router.push("/admin/dashboard");
-      }, 1000);
-    } else {
-      throw new Error(fetchError.value || 'Login failed');
-    }
+    setTimeout(() => {
+      router.push("/admin/dashboard");
+    }, 1000);
   } catch (error) {
     toast.add({
       severity: "error",

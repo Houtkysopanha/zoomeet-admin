@@ -13,6 +13,8 @@ import InputText from 'primevue/inputtext';
 import Dropdown from 'primevue/dropdown';
 import Textarea from 'primevue/textarea';
 import Calendar from 'primevue/calendar';
+import Sidebar from 'primevue/sidebar';
+
 
 export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.vueApp.use(PrimeVue, { ripple: true })
@@ -29,4 +31,5 @@ export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.vueApp.component('Dropdown', Dropdown),
   nuxtApp.vueApp.component('Textarea', Textarea),
   nuxtApp.vueApp.component('Calendar', Calendar)
+  nuxtApp.vueApp.component('Sidebar', Sidebar)
 })

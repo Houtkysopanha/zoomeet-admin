@@ -47,10 +47,14 @@
         v-if="showUserMenu"
         class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
       >
-        <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-          <Icon name="i-heroicons-user-circle" class="mr-3 text-gray-400" />
-          Profile
-        </a>
+      <NuxtLink
+  to="/admin/profile"
+  class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+>
+  <Icon name="i-heroicons-user-circle" class="mr-3 text-gray-400" />
+  Profile
+</NuxtLink>
+
         <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
           <Icon name="i-heroicons-cog-6-tooth" class="mr-3 text-gray-400" />
           Settings
