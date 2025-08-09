@@ -4,9 +4,9 @@
       <!-- Navigation Menu -->
       <nav class="flex-1 p-5 space-y-2 overflow-y-auto bg-white rounded-3xl shadow-xl min-h-full">
         <!-- Logo Section -->
-        <div class="p-6">
+        <div class="p-2 mt-5 mb-8">
           <div class="items-center mx-auto">
-            <img :src="logo" alt="ZoomMeet logo" class="w-52" />
+            <img :src="logo1" alt="ZoomMeet logo" class=" " />
           </div>
         </div>
 
@@ -75,7 +75,8 @@
 </template>
 
 <script setup>
-import logo from '@/assets/image/logo.png'
+// import logo from '@/assets/image/logo.png'
+import logo1 from '@/assets/image/eticketsasia.png'
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useToast } from 'primevue/usetoast'

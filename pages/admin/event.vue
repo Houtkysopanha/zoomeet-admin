@@ -1,9 +1,9 @@
 <template>
-  <div class="p-6 bg-[#F8F8FF]">
+  <div class="p-4 bg-[#F8F8FF]">
     <div class="mb-6">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-3xl font-bold text-[#7A49C9] mb-2">Event</h1>
+          <h1 class="text-3xl font-bold text-[#7A49C9] ">Event</h1>
         </div>
         <div class="date-range-picker flex space-x-4 items-center">
          <Calendar
@@ -118,7 +118,7 @@ label="Create Event"
       :sortOrder="sortOrder"
       class="p-datatable-sm shadow-md overflow-hidden"
     >
-      <Column field="name" header="Event" sortable  class="w-[23%] text-[14px] border-b border-gray-300 ba">
+      <Column field="name" header="Event" sortable  class="w-[23%] text-[12px] border-b border-gray-300 ba">
         <template #body="slotProps">
           <div class="text-blue-900 font-medium">
             <span>{{ slotProps.data.name }}</span>
@@ -127,26 +127,26 @@ label="Create Event"
           </div>
         </template>
       </Column>
-      <Column field="date" header="Date" sortable class="text-[14px] border-b border-gray-300">
+      <Column field="date" header="Date" sortable class="text-[12px] border-b border-gray-300">
         <template #body="slotProps">
           <span>{{ formatDate(slotProps.data.date) }}</span>
         </template>
       </Column>
-      <Column field="venue" header="Venue"  class="text-[14px] border-b border-gray-300" />
-      <Column field="type" header="Event Type"  class="text-[14px] border-b border-gray-300" />
-      <Column field="revenue" header="Revenue"  class="text-[14px] border-b border-gray-300">
+      <Column field="venue" header="Venue"  class="text-[12px] border-b border-gray-300" />
+      <Column field="type" header="Event Type"  class="text-[12px] border-b border-gray-300" />
+      <Column field="revenue" header="Revenue"  class="text-[12px] border-b border-gray-300">
         <template #body="slotProps">
           <span>{{ formatCurrency(slotProps.data.revenue) }}</span>
         </template>
       </Column>
-      <Column field="bookings" header="Number of Booking"  class="text-[14px] text-center border-b border-gray-300"/>
-      <Column field="tickets" header="Tickets"  class="text-[14px] text-center border-b border-gray-300"/>
-      <Column field="status" header="Status"  class="text-[14px] border-b border-gray-300">
+      <Column field="bookings" header="Number of Booking"  class="text-[12px] text-center border-b border-gray-300"/>
+      <Column field="tickets" header="Tickets"  class="text-[12px] text-center border-b border-gray-300"/>
+      <Column field="status" header="Status"  class="text-[12px] border-b border-gray-300">
         <template #body="slotProps">
           <span :class="getStatusClass(slotProps.data.status)">{{ slotProps.data.status }}</span>
         </template>
       </Column>
-      <Column field="actions" header="Actions" class="border-b border-gray-300  text-start">
+      <Column field="actions" header="Actions" class="border-b border-gray-300 text-[12px]  text-start">
         <template #body="slotProps">
           <Button
             icon="pi pi-ellipsis-v"
@@ -306,7 +306,7 @@ const actionItems = (event) => [
     icon: 'pi pi-cog',
     command: () => {
       currentEvent.value = event
-      router.push('/admin/actions/manage-booking')
+      router.push('/admin/manage-booking')
     },
     visible: currentEvent.value?.status === 'Active',
     
@@ -360,8 +360,8 @@ definePageMeta({
 
 
 :deep(.p-datatable .p-datatable-thead > tr) {
-  background-color: #F6F9F9; /* Custom header background color (purple) */
-  color: black; /* Custom text color (white) */
+  background-color: #F6F9F9;
+  color: #667085;
 }
 
 :deep(.p-datatable .p-datatable-thead > tr > th) {
@@ -377,6 +377,12 @@ definePageMeta({
 :deep(.p-datatable .p-datatable-tbody > tr > td) {
   background-color: white; /* Light gray background for td */
   color: #1F2937; /* Dark text color */
+}
+:deep(.p-paginator .p-paginator-pages .p-paginator-page.p-highlight) {
+  @apply bg-gradient-to-tr from-[#4D66A6] to-[#B61EEB] text-white border-none;
+  border-color: linear-gradient(79deg, #4D66A6 7.31%, #B61EEB 98.95%);
+  border-radius: 10px;
+  color: white;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr:hover > td) {

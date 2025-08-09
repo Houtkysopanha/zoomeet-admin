@@ -8,7 +8,7 @@
         <img
           :src="imageSrc"
           :alt="altText"
-          class="w-full h-full object-cover"
+          class="w-full h-full lg:h-full lg:w-full object-cover"
           :onerror="`this.onerror=null;this.src='${fallbackImage}';`"
         />
         <!-- <div class="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-500 opacity-70"></div> -->

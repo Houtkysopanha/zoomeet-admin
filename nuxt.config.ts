@@ -17,7 +17,7 @@ export default defineNuxtConfig({
   build: {
     transpile: ['primevue']
   },
-  modules: ['@nuxt/fonts', '@nuxt/icon'],
+  modules: ['@nuxt/fonts','@nuxt/icon'],
   runtimeConfig: {
     public: {
       apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL,

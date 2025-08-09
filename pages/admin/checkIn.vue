@@ -1,66 +1,121 @@
 <template>
-  <div class=" min-h-screen flex bg-[#F8F8FF] flex-col items-center p-6">
-    <!-- Header Section -->
-    <div class="relative w-full bg-gradient-to-r from-blue-800 to-purple-600 py-20 text-center rounded-3xl shadow-xl overflow-hidden transform transition-all duration-500 hover:scale-[1.02]">
-      <!-- Animated Background Decorative Elements -->
-      <Icon name="heroicons:ticket" class="absolute top-8 left-10 text-blue-200 w-12 h-12 animate-pulse" />
-      <Icon name="heroicons:ticket" class="absolute top-1/2 left-20 text-blue-200 w-16 h-16 animate-spin-slow" />
-      <Icon name="heroicons:ticket" class="absolute bottom-10 left-40 text-blue-200 w-10 h-10 animate-bounce" />
-      <Icon name="heroicons:cube" class="absolute top-16 right-16 text-blue-200 w-20 h-20 animate-float" />
-      <Icon name="heroicons:cube" class="absolute bottom-8 right-32 text-blue-200 w-14 h-14 animate-pulse-slow" />
-      <Icon name="heroicons:ticket" class="absolute top-1/4 right-10 text-blue-200 w-12 h-12 animate-spin" />
-      <Icon name="heroicons:ticket" class="absolute bottom-1/4 right-20 text-blue-200 w-16 h-16 animate-bounce-slow" />
-      
-
-      <h1 class="text-5xl font-extrabold text-white mb-6 relative z-10 drop-shadow-lg">Search Identity Verification Tickets</h1>
+  <div class="min-h-screen flex bg-[#F8F8FF] flex-col items-center p-6 overflow-y-hidden">
+    <div
+      class="relative w-full bg-gradient-to-r from-[#6A3ABF] to-[#A060F0] py-20 text-center rounded-3xl shadow-xl overflow-hidden transform transition-all duration-500 hover:scale-[1.02]"
+    >
+      <Icon name="heroicons:ticket" class="absolute top-8 left-10 text-white/20 w-12 h-12 animate-pulse" />
+      <Icon name="heroicons:ticket" class="absolute top-1/2 left-20 text-white/20 w-16 h-16 animate-spin-slow" />
+      <Icon name="heroicons:ticket" class="absolute bottom-10 left-40 text-white/20 w-10 h-10 animate-bounce" />
+      <Icon name="heroicons:cube" class="absolute top-16 right-16 text-white/20 w-20 h-20 animate-float" />
+      <Icon name="heroicons:cube" class="absolute bottom-8 right-32 text-white/20 w-14 h-14 animate-pulse-slow" />
+      <Icon name="heroicons:ticket" class="absolute top-1/4 right-10 text-white/20 w-12 h-12 animate-spin" />
+      <Icon name="heroicons:ticket" class="absolute bottom-1/4 right-20 text-white/20 w-16 h-16 animate-bounce-slow" />
+      <h1 class="text-5xl font-extrabold text-white mb-6 relative z-10 drop-shadow-lg">
+        Search Identity Verification Tickets
+      </h1>
       <p class="text-xl text-white/90 mb-10 relative z-10 drop-shadow-md">
-        Easily verify ticket holders by searching with booking reference, phone number, or ID.
+        Search by booking reference, phone number, or ID to verify ticket holder identity
       </p>
-
-      <!-- Enhanced Search Input and Button -->
-      <div class="relative z-50 flex justify-center">
-        <div class="flex w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden transform transition-all duration-300 hover:shadow-2xl">
+      <div class="absolute -bottom-8 left-1/2 -translate-x-1/2 z-20 w-full max-w-2xl">
+        <div class="flex w-full bg-white rounded-xl shadow-lg overflow-hidden">
           <InputText
-            v-model="searchQuery"
-            placeholder="Enter booking ref, phone, or ID..."
-            class="flex-1 p-6 text-lg border-none focus:ring-2 focus:ring-purple-500 focus:outline-none rounded-l-full placeholder-gray-400"
-            @keyup.enter="performSearch"
+            v-model="generalSearchQuery"
+            placeholder="Search identity tickets"
+            class="flex-1 p-4 text-lg border-none focus:ring-2 focus:ring-purple-500 focus:outline-none rounded-l-xl placeholder-gray-400"
+            @keyup.enter="performGeneralSearch"
           />
           <Button
             label="Search"
-            class="bg-purple-600 text-white p-3 m-4 text-xl rounded-2xl bg-gradient-to-t from-blue-800 to-purple-600 hover:bg-purple-700 transition-all duration-300 flex items-center gap-3"
-            @click="performSearch"
+            class="bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white py-3 px-6 rounded-r-xl hover:from-purple-700 hover:to-fuchsia-700 transition-all duration-200 flex items-center gap-2 text-lg font-semibold shadow-md"
+            @click="performGeneralSearch"
           >
-            <Icon name="heroicons:magnifying-glass" class="w-6 h-6" />
-            Search Now
+            <Icon name="heroicons:magnifying-glass" class="w-5 h-5" />
+            Search
           </Button>
         </div>
       </div>
     </div>
-
-    <!-- Content Area - Dynamic Results or Empty State -->
-    <div class="flex-1 w-full max-w-7xl mt-12 p-6">
+    <div class="flex-1 w-full mt-12 p-2">
       <Transition name="fade" mode="out-in">
-        <div v-if="searchResults.length === 0 && !loading" key="empty" class="flex flex-col items-center justify-center text-center min-h-[400px]">
-          <img :src="img1" alt="No results found" class="mb-6 " />
-          <p class="text-2xl font-semibold text-gray-700 mb-4">No Tickets Found</p>
-          <p class="text-gray-500 max-w-md">Please try a different booking reference, phone number, or ID. Ensure the details are correct!</p>
+        <div v-if="!searchPerformed" key="searchForm" class="bg-white rounded-xl shadow-lg p-8 space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label for="bookingReference" class="block text-gray-700 text-sm font-medium mb-2"
+                >Booking reference</label
+              >
+              <InputText
+                id="bookingReference"
+                v-model="bookingReference"
+                placeholder="ZM2025001"
+                class="w-full p-3 rounded-lg bg-blue-50 border-none focus:ring-2 focus:ring-blue-200 focus:outline-none text-gray-800"
+              />
+            </div>
+            <div>
+              <label for="ticketId" class="block text-gray-700 text-sm font-medium mb-2">Ticket ID</label>
+              <InputText
+                id="ticketId"
+                v-model="ticketId"
+                placeholder="e.g. #1234"
+                class="w-full p-3 rounded-lg bg-blue-50 border-none focus:ring-2 focus:ring-blue-200 focus:outline-none text-gray-800"
+              />
+            </div>
+            <div>
+              <label for="email" class="block text-gray-700 text-sm font-medium mb-2">Email</label>
+              <InputText
+                id="email"
+                v-model="email"
+                placeholder="e.g. info@gmail.com"
+                class="w-full p-3 rounded-lg bg-blue-50 border-none focus:ring-2 focus:ring-blue-200 focus:outline-none text-gray-800"
+              />
+            </div>
+            <div>
+              <label for="phoneNumber" class="block text-gray-700 text-sm font-medium mb-2">Phone number</label>
+              <InputText
+                id="phoneNumber"
+                v-model="phoneNumber"
+                placeholder="e.g. +855 976028424"
+                class="w-full p-3 rounded-lg bg-blue-50 border-none focus:ring-2 focus:ring-blue-200 focus:outline-none text-gray-800"
+              />
+            </div>
+          </div>
+          <div class="flex justify-end mt-6">
+            <Button
+              label="Search"
+              class="bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white py-3 px-6 rounded-lg hover:from-purple-700 hover:to-fuchsia-700 transition-all duration-200 flex items-center gap-2 text-lg font-semibold shadow-md"
+              @click="performDetailedSearch"
+            >
+              <Icon name="heroicons:magnifying-glass" class="w-5 h-5" />
+              Search
+            </Button>
+          </div>
         </div>
         <div v-else-if="loading" key="loading" class="flex items-center justify-center min-h-[400px]">
           <div class="text-xl text-gray-600">Loading tickets...</div>
         </div>
-        <div v-else key="results" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div v-for="result in searchResults" :key="result.id" class="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300">
-            <h3 class="text-xl font-semibold text-gray-800 mb-2">{{ result.bookingId }}</h3>
-            <p class="text-gray-600 mb-2">Name: {{ result.customerName }}</p>
-            <p class="text-gray-600 mb-2">Phone: {{ result.phoneNumber }}</p>
-            <p class="text-gray-600 mb-2">Date: {{ result.purchaseDate }}</p>
-            <span class="inline-block px-3 py-1 rounded-full text-sm font-medium" :class="result.status === 'Verified' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'">{{ result.status }}</span>
-            <Button
-              label="Verify"
-              class="mt-4 w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200"
-              @click="verifyTicket(result.id)"
-            />
+        <div v-else key="results">
+          <h2 class="text-2xl font-semibold text-gray-800 mb-6">Result ({{ searchResults.length }})</h2>
+          <div class="space-y-6">
+            <div
+              v-for="result in searchResults"
+              :key="result.id"
+              class="bg-white rounded-xl shadow-lg p-6 grid grid-cols-1 lg:grid-cols-4 gap-6 items-center"
+            >
+               <!-- Use the new TicketDetailsCard component here  -->
+              <TicketCard :result="result" />
+            </div>
+          </div>
+        </div>
+      </Transition>
+      <Transition name="fade" mode="out-in">
+        <div v-if="showError" class="mt-6 text-center">
+          <div
+            class="inline-flex items-center bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg shadow-sm"
+          >
+            <Icon name="heroicons:exclamation-triangle" class="w-6 h-6 mr-3 text-red-500" />
+            <div>
+              <p class="font-semibold">Insufficient information</p>
+              <p class="text-sm">To search, you must fill in two or more pieces of information.</p>
+            </div>
           </div>
         </div>
       </Transition>
@@ -69,66 +124,152 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import InputText from 'primevue/inputtext'
 import Button from 'primevue/button'
-import img1 from '@/assets/image/not-found.png'
-// import { Icon } from '@iconify/vue'
+import { definePageMeta } from '#imports'
+import img from '@/assets/image/poster-manage-booking.png'
+import TicketCard from '~/components/common/TicketCard.vue'
+import Divider from 'primevue/divider' // Import Divider if you use it directly in this file
 
 definePageMeta({
-  middleware: "auth",
-  layout: "admin",
+  middleware: 'auth',
+  layout: 'admin',
 })
 
-const searchQuery = ref('')
+const generalSearchQuery = ref('')
+const bookingReference = ref('')
+const ticketId = ref('')
+const email = ref('')
+const phoneNumber = ref('')
+const showError = ref(false)
 const loading = ref(false)
 const searchResults = ref([])
+const searchPerformed = ref(false) // New state to control initial view
 
-// Sample data for demonstration
+// Sample data for demonstration, matching the UI fields
 const sampleTickets = ref([
   {
     id: 1,
-    bookingId: 'TK2025001',
-    customerName: 'Sok Chenmeng',
-    phoneNumber: '+855 123456789',
-    purchaseDate: 'Aug 3, 2025',
-    status: 'Pending',
+    status: 'Check-in',
+    image: img,
+    eventTitle: 'Navigating the future of cybersecurity in Cambodia 2015',
+    owner: 'Fussac',
+    ticketHolder: 'Sok Chenmeng',
+    bookingRef: '1',
+    phoneNumberOrEmail: '###### 424',
+    ticketId: '1234',
+    location: 'Hayatt Regency, Phnom Penh',
+    ticketType: 'Premium',
+    date: '14-16 July, 2025',
+    gate: '3',
+    time: '10:00 AM GMT+7',
+    seatNumber: '-',
   },
   {
     id: 2,
-    bookingId: 'TK2025002',
-    customerName: 'Sok Chenmeng',
-    phoneNumber: '+855 987654321',
-    purchaseDate: 'Aug 4, 2025',
-    status: 'Verified',
+    status: 'Not Check-in',
+    image: img,
+    eventTitle: 'Quer deixar seu cliente IMPRESSIONADO?',
+    owner: 'Fussac',
+    ticketHolder: '-',
+    bookingRef: 'ZM2025001',
+    phoneNumberOrEmail: '-',
+    ticketId: '1234',
+    location: 'Hayatt Regency, Phnom Penh',
+    ticketType: 'Premium',
+    date: '14-16 July, 2025',
+    gate: '3',
+    time: '10:00 AM GMT+7',
+    seatNumber: '-',
+  },
+  {
+    id: 3,
+    status: 'Check-in',
+    image: img,
+    eventTitle: 'Tech Innovation Summit 2025',
+    owner: 'Global Tech',
+    ticketHolder: 'Jane Doe',
+    bookingRef: 'TX2025003',
+    phoneNumberOrEmail: '+855 11223344',
+    ticketId: '5678',
+    location: 'Phnom Penh Convention Center',
+    ticketType: 'VIP',
+    date: '20-22 August, 2025',
+    gate: '1',
+    time: '09:00 AM GMT+7',
+    seatNumber: 'A12',
   },
 ])
 
-const performSearch = () => {
+const performGeneralSearch = () => {
   loading.value = true
-  console.log('Searching for:', searchQuery.value)
-  // Simulate API call with a delay
+  searchPerformed.value = true // Indicate that a search has been performed
+  showError.value = false // Hide error message from detailed search
+  console.log('Performing general search for:', generalSearchQuery.value)
   setTimeout(() => {
-    searchResults.value = sampleTickets.value.filter((ticket) =>
-      ticket.bookingId.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      ticket.phoneNumber.includes(searchQuery.value) ||
-      ticket.customerName.toLowerCase().includes(searchQuery.value.toLowerCase())
+    const query = generalSearchQuery.value.toLowerCase()
+    searchResults.value = sampleTickets.value.filter(
+      (ticket) =>
+        ticket.bookingRef.toLowerCase().includes(query) ||
+        ticket.ticketId.toLowerCase().includes(query) ||
+        ticket.phoneNumberOrEmail.toLowerCase().includes(query) ||
+        ticket.ticketHolder.toLowerCase().includes(query)
     )
     loading.value = false
-  }, 1000) // 1-second delay to simulate loading
+  }, 1000)
 }
 
-const verifyTicket = (id) => {
-  const ticket = searchResults.value.find((t) => t.id === id)
-  if (ticket) {
-    ticket.status = 'Verified'
-    console.log(`Ticket ${ticket.bookingId} verified at ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Phnom_Penh' })}`)
+const performDetailedSearch = () => {
+  const filledFields = [bookingReference.value, ticketId.value, email.value, phoneNumber.value].filter(
+    (field) => field && field.trim() !== ''
+  ).length
+  if (filledFields < 2) {
+    showError.value = true
+    searchPerformed.value = false // Keep form visible if validation fails
+    searchResults.value = [] // Clear previous results
+  } else {
+    showError.value = false
+    loading.value = true
+    searchPerformed.value = true // Indicate that a search has been performed
+    console.log('Performing detailed search with:', {
+      bookingReference: bookingReference.value,
+      ticketId: ticketId.value,
+      email: email.value,
+      phoneNumber: phoneNumber.value,
+    })
+    setTimeout(() => {
+      const refQuery = bookingReference.value.toLowerCase()
+      const idQuery = ticketId.value.toLowerCase()
+      const emailPhoneQuery = (email.value || phoneNumber.value).toLowerCase()
+      searchResults.value = sampleTickets.value.filter((ticket) => {
+        const matchesRef = refQuery ? ticket.bookingRef.toLowerCase().includes(refQuery) : true
+        const matchesId = idQuery ? ticket.ticketId.toLowerCase().includes(idQuery) : true
+        const matchesEmailPhone = emailPhoneQuery
+          ? ticket.phoneNumberOrEmail.toLowerCase().includes(emailPhoneQuery) ||
+            ticket.email?.toLowerCase().includes(emailPhoneQuery)
+          : true
+        // Logic to match at least two fields (simplified for demo, adjust as needed)
+        let matchCount = 0
+        if (refQuery && ticket.bookingRef.toLowerCase().includes(refQuery)) matchCount++
+        if (idQuery && ticket.ticketId.toLowerCase().includes(idQuery)) matchCount++
+        if (email.value && ticket.phoneNumberOrEmail.toLowerCase().includes(email.value.toLowerCase())) matchCount++
+        if (phoneNumber.value && ticket.phoneNumberOrEmail.toLowerCase().includes(phoneNumber.value.toLowerCase()))
+          matchCount++
+        return matchCount >= 2 // Ensure at least two fields match
+      })
+      loading.value = false
+    }, 1000)
   }
 }
+
+// The assignTicket function is now part of TicketDetailsCard.vue,
+// but if you need to call it from the parent, you'd emit an event from the child.
+// For now, I've kept the console.log in the child component.
 </script>
 
 <style scoped>
-/* Custom animations */
+/* Custom animations (retained from your original code) */
 .animate-spin-slow {
   animation: spin 4s linear infinite;
 }
@@ -141,29 +282,61 @@ const verifyTicket = (id) => {
 .animate-pulse-slow {
   animation: pulse 3s infinite;
 }
-
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 @keyframes bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }
 @keyframes float {
-  from { transform: translateY(0); }
-  to { transform: translateY(-15px); }
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-15px);
+  }
 }
 @keyframes pulse {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
 }
-
-/* Fade transition */
-.fade-enter-active, .fade-leave-active {
+/* Fade transition for error message and content */
+.fade-enter-active,
+.fade-leave-active {
   transition: opacity 0.5s ease;
 }
-.fade-enter-from, .fade-leave-to {
+.fade-enter-from,
+.fade-leave-to {
   opacity: 0;
+}
+/* PrimeVue InputText overrides for blue background */
+:deep(.p-inputtext) {
+  background-color: #ebf8ff !important; /* Light blue background */
+  border: none !important;
+  box-shadow: none !important;
+}
+:deep(.p-inputtext:focus) {
+  box-shadow: 0 0 0 2px rgba(147, 197, 253, 0.5) !important; /* Focus ring for blue-200 */
+}
+/* PrimeVue Button overrides for search button */
+:deep(.p-button) {
+  border: none !important;
+  box-shadow: none !important;
 }
 </style>

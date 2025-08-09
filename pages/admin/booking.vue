@@ -1,11 +1,11 @@
 <template>
-  <div class="min-h-screen bg-gray-50 p-6">
+  <div class=" bg-[#F8F8FF] p-4 ">
     <!-- Header with Tabs -->
-    <div class="flex items-center justify-between mb-8">
-      <h1 class="text-2xl font-bold text-purple-600">Booking Service</h1>
+    <div class="flex items-center justify-between mb-6 mt-2">
+      <h1 class="text-3xl font-bold text-purple-600">Booking Service</h1>
       <div class="flex items-center gap-4">
         <!-- Tabs (Custom HTML/Tailwind with gradient) -->
-        <div class="flex bg-gray-100 rounded-full p-1">
+        <div class="flex bg-gray-100 rounded-full ">
           <button
             @click="activeTab = 'customer'"
             :class="[

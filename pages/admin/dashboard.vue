@@ -1,9 +1,9 @@
 <template>
-  <div class="p-6 bg-[#F8F8FF]">
+  <div class="p-4 bg-[#F8F8FF]">
     <div class="">
      <div class="flex flex-wrap items-center justify-between gap-4">
   <!-- Left: Title -->
-  <div class="min-w-[200px]">
+  <div class="">
     <h1 class="text-3xl font-bold text-[#7A49C9] mb-0">Dashboard Overview</h1>
   </div>
 
@@ -17,7 +17,7 @@
       :showIcon="true"
       :showButtonBar="true"
       :dateFormat="'dd MM, yy'"
-      class="max-w-xs p-inputtext-lg  rounded-xl border border-gray-200 p-2 text-center text-blue-950 font-medium text-lg focus:ring-0 focus:outline-none"
+      class="max-w-xs p-inputtext-lg  rounded-xl border border-gray-200 p-3 text-center text-blue-950 font-medium text-lg focus:ring-0 focus:outline-none"
       placeholder="Select Date Range"
       @date-select="updateDisplay"
     />
