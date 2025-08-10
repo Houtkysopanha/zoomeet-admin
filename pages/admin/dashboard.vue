@@ -36,7 +36,7 @@
           <Icon name="i-heroicons-user" class="text-black text-base" />
         </div>
         <div class="text-left hidden md:block">
-          <div class="text-sm font-medium text-gray-800">Admin User</div>
+          <div class="text-sm font-medium text-gray-800">{{ userName }}</div>
           <div class="text-xs text-gray-500">Administrator</div>
         </div>
         <Icon name="i-heroicons-chevron-down" class="text-gray-600 text-sm" />
@@ -104,6 +104,7 @@ import CardCommon from '~/components/common/CardCommon.vue'
 import { useToast } from 'primevue/usetoast'
 import RecentEvent from './RecentEvent.vue'
 import ComingEvent from './ComingEvent.vue'
+const config = useRuntimeConfig() // add this at the top of script setup
 
 const router = useRouter()
 const route = useRoute()
@@ -121,6 +122,9 @@ const dateRange = ref(null)
 const showUserMenu = ref(false)
 const currentDate = ref('')
 const currentTime = ref('')
+
+const userName = ref('Loading...')
+const userRole = ref('Administrator') // or default role string
 
 const toggleUserMenu = () => {
   showUserMenu.value = !showUserMenu.value
@@ -152,6 +156,47 @@ const updateDisplay = () => {
     console.log(`Selected range: ${formattedStart} - ${formattedEnd}`)
   }
 }
+const API_BASE_URL = import.meta.env.NUXT_PUBLIC_API_BASE_URL
+
+async function fetchUserInfo() {
+  try {
+    const auth = JSON.parse(localStorage.getItem('auth'))
+    const token = auth?.token
+    if (!token) throw new Error('No token found in localStorage')
+
+    console.log('Using token:', token)
+    const res = await fetch(`${config.public.apiBaseUrl}/info`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    console.log('Fetch response status:', res.status)
+    if (!res.ok) {
+      const errorText = await res.text()
+      console.error('Fetch error:', errorText)
+      throw new Error('Failed to fetch user info')
+    }
+
+    const data = await res.json()
+    console.log('User info:', data)
+    userName.value = data.name || data.preferred_username || 'No Name'
+    userRole.value = 'User'
+  } catch (error) {
+    console.error(error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Unable to fetch user info',
+      life: 3000,
+    })
+    userName.value = 'Unknown User'
+  }
+}
+
+onMounted(() => {
+  fetchUserInfo()
+})
 
 const updateDateTime = () => {
   const now = new Date()

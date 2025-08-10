@@ -21,7 +21,9 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL,
-      bearerToken: process.env.NUXT_PUBLIC_BEARER_TOKEN,
+      apiAdminBaseUrl: process.env.NUXT_PUBLIC_API_ADMIN_BASE_URL,
+      bearerToken: process.env.NUXT_PUBLIC_BEARER_TOKEN, // Ensure this line is uncommented
+
     },
   },
 })

@@ -122,62 +122,70 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
-import { login } from '@/composables/api'; // Assuming this composable exists
-import { useRouter } from "vue-router";
+import { ref, onMounted } from "vue";
+import { login } from '@/composables/api'; // Your API call helper
 import { useMotion } from "@vueuse/motion";
 import { useToast } from "primevue/usetoast";
 import Toast from 'primevue/toast';
 
-// Import images
+// Images
 import logo1 from '@/assets/image/eticketsasia.png';
-// import abstractPattern from '@/public/images/abstract-pattern.png'; 
+const abstractPattern = '/images/abstract-pattern.png';
 
 definePageMeta({
   layout: "default",
-  // middleware: 'auth'
 });
 
 const username = ref("");
 const password = ref("");
 const phoneNumber = ref("");
-const currentTab = ref("username-password"); // 'username-password' or 'phone-number'
+const currentTab = ref("username-password");
 
-const router = useRouter();
 const formRef = ref(null);
 const toast = useToast();
 
+const { apply: applyMotion, set: setMotion } = useMotion(formRef, {
+  initial: { x: 0 },
+  shake: {
+    x: [-10, 10, -8, 8, -6, 6, -4, 4, 0],
+    transition: { duration: 0.5, ease: "easeInOut" },
+  },
+});
+
+onMounted(() => {
+  setMotion("initial");
+});
+
 const applyShake = () => {
   if (formRef.value) {
-    const { apply } = useMotion(formRef);
-    apply({
-      initial: { x: 0 },
-      shake: {
-        x: [-10, 10, -8, 8, -6, 6, -4, 4, 0],
-        transition: {
-          duration: 500,
-          ease: "easeInOut",
-        },
-      },
-    });
-    apply("shake");
+    applyMotion("shake");
   }
 };
 
 async function handleLogin() {
   try {
-    // Use your existing login composable
-    const data = await login(username.value, password.value); 
-    localStorage.setItem("auth", "true");
+    const data = await login(username.value, password.value);
+
+    // Your API returns token inside tokens.access_token, not tokens.access
+    const tokens = data?.tokens || {};
+    const token = tokens.access_token || data?.access_token;
+    const role = tokens.role || data?.role || "user"; // fallback role
+
+    if (!token) {
+      throw new Error("Missing token in login response");
+    }
+
+    // Save token and role in localStorage
+    localStorage.setItem("auth", JSON.stringify({ token, role }));
+
     toast.add({
       severity: "success",
       summary: "Login Success",
       detail: "Welcome, Admin!",
-      life: 3000,
+      life: 2000,
     });
-    setTimeout(() => {
-      router.push("/admin/dashboard");
-    }, 1000);
+
+    await navigateTo("/admin/dashboard");
   } catch (error) {
     toast.add({
       severity: "error",
@@ -189,21 +197,24 @@ async function handleLogin() {
   }
 }
 
+
 async function handlePhoneLogin() {
   try {
     if (phoneNumber.value.length < 10) {
       throw new Error("Please enter a valid phone number.");
     }
-    // Simulate API response for phone login
-    const { setAuth } = useAuth();
+
+    // Simulate login success for phone login
     const data = { token: 'phone-token', role: 'admin', phone: phoneNumber.value };
-    setAuth(data);
+    localStorage.setItem("auth", JSON.stringify(data));
+
     toast.add({
       severity: "success",
       summary: "Phone Login Success",
       detail: `Welcome, user with phone ${phoneNumber.value}!`,
       life: 2000,
     });
+
     await navigateTo("/admin/dashboard");
   } catch (error) {
     toast.add({
@@ -217,6 +228,3 @@ async function handlePhoneLogin() {
 }
 </script>
 
-<style scoped>
-/* Add any custom styles here if needed, though Tailwind should cover most */
-</style>
