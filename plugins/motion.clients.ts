@@ -1,5 +1,8 @@
 import { MotionPlugin } from '@vueuse/motion'
 
 export default defineNuxtPlugin((nuxtApp) => {
-  nuxtApp.vueApp.use(MotionPlugin)
+  // Only register on client side to avoid SSR issues
+  if (import.meta.client) {
+    nuxtApp.vueApp.use(MotionPlugin)
+  }
 })

@@ -133,7 +133,6 @@ import TicketCard from '~/components/common/TicketCard.vue'
 import Divider from 'primevue/divider' // Import Divider if you use it directly in this file
 
 definePageMeta({
-  middleware: 'auth',
   layout: 'admin',
 })
 

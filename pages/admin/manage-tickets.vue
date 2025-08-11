@@ -311,7 +311,6 @@ const toggleFilters = () => {
 }
 
 definePageMeta({
-  middleware: "auth",
   layout: "admin",
 })
 </script>

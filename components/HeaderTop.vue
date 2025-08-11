@@ -111,14 +111,16 @@ function updateTime() {
 function logoutWithToast() {
   showUserMenu.value = false
 
+  // Use the auth composable to clear authentication
+  const { clearAuth } = useAuth()
+  clearAuth()
+
   toast.add({
     severity: "info",
     summary: "Logged out",
     detail: "You have been logged out successfully.",
     life: 3000,
   })
-
-  localStorage.removeItem("auth")
 
   setTimeout(() => {
     router.push("/login")

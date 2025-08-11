@@ -20,7 +20,7 @@
         @click="addRoom"
         class="add-room-btn"
       >
-        <Icon icon="mdi:plus" class="mr-2" />
+        <Icon name="heroicons:plus" class="mr-2" />
         Add Breakout Room
       </Button>
     </div>
@@ -29,7 +29,7 @@
 
 <script setup>
 import { ref, onMounted } from "vue"
-import { Icon } from "@iconify/vue"
+// Icon is auto-imported by Nuxt
 import Button from "primevue/button"
 import BreakoutRoomForm from '~/components/common/BreakoutRoomForm.vue' // Import the new component
 

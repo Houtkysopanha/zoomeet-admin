@@ -223,7 +223,6 @@ onMounted(() => {
 })
 
 definePageMeta({
-  middleware: 'auth',
   layout: 'admin',
 })
 </script>

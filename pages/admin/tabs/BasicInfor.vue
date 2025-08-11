@@ -8,7 +8,7 @@
         <div class="mb-6">
           <div class="header">
             <h3 class="text-purple-700 font-medium mb-2 flex items-center">
-              <Icon icon="fluent:info-12-filled" class="text-2xl mr-2" />
+              <Icon name="heroicons:information-circle" class="text-2xl mr-2" />
               About Event
             </h3>
           </div>
@@ -44,7 +44,6 @@
               <InputText v-model="location" class="w-full p-3 mt-1 bg-gray-100 rounded-2xl" placeholder="Enter location" />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700">Map URL</label>
               <InputText v-model="mapUrl" class="w-full p-3 mt-1 bg-gray-100 rounded-2xl" placeholder="Enter map URL" />
             </div>
           </div>
@@ -75,7 +74,7 @@
                 Event Slug</label>
               <div class="flex gap-4 ">
                 <InputText v-model="eventSlug" placeholder="my-awesome-event" class="w-full p-3 h-12 rounded-2xl bg-gray-100 border-gray-200 focus:border-purple-400 focus:ring-purple-400" @input="validateSlug" />
-                <Button icon="pi pi-refresh" text rounded size="small" class=" bg-gray-100 rounded-2xl h-12 w-20 transform -translate-y-1/2 text-gray-400 hover:text-purple-600 transition-colors duration-200" @click="generateSlug" v-tooltip.top="'Generate new slug'" v-motion :hover="{ scale: 1.1, rotate: 180 }" :tap="{ scale: 0.9 }" />
+                <Button icon="pi pi-refresh" text rounded size="small" class=" bg-gray-100 rounded-2xl h-12 w-20 transform -translate-y-1/2 text-gray-400 hover:text-purple-600 transition-colors duration-200" @click="generateSlug" title="Generate new slug" />
               </div>
               <p class="text-xs text-gray-500 mt-2">
                 This will be used to create your event's short URL. Only letters, numbers, and hyphens allowed.</p>
@@ -89,8 +88,8 @@
                     {{ generatedUrl }}</span>
                 </div>
                 <div class="flex gap-2">
-                  <Button icon="pi pi-copy" text rounded size="small" class="text-gray-500 bg-white rounded-2xl h-12 w-20 hover:text-purple-600 hover:bg-purple-50 transition-all duration-200" @click="copyUrl" v-tooltip.top="'Copy URL'" v-motion :hover="{ scale: 1.1 }" :tap="{ scale: 0.9 }" />
-                  <Button icon="pi pi-external-link" text rounded size="small" class="text-gray-500 bg-white rounded-2xl h-12 w-20 hover:text-purple-600 hover:bg-purple-50 transition-all duration-200" @click="openUrl" v-tooltip.top="'Open in new tab'" v-motion :hover="{ scale: 1.1 }" :tap="{ scale: 0.9 }" />
+                  <Button icon="pi pi-copy" text rounded size="small" class="text-gray-500 bg-white rounded-2xl h-12 w-20 hover:text-purple-600 hover:bg-purple-50 transition-all duration-200" @click="copyUrl" title="Copy URL" />
+                  <Button icon="pi pi-external-link" text rounded size="small" class="text-gray-500 bg-white rounded-2xl h-12 w-20 hover:text-purple-600 hover:bg-purple-50 transition-all duration-200" @click="openUrl" title="Open in new tab" />
                 </div>
               </div>
               <p class="text-xs text-purple-600 mt-3 flex items-center gap-1">
@@ -104,7 +103,7 @@
       <section class="online mt-10">
         <div class="flex items-center gap-3 mb-6">
           <div class="w-6 h-6 bg-purple-600 rounded flex items-center justify-center">
-            <Icon icon="icon-park-solid:online-meeting" class="text-sm text-white" />
+            <Icon name="heroicons:video-camera" class="text-sm text-white" />
           </div>
           <h3 class="text-lg font-semibold text-purple-700">Online</h3>
         </div>
@@ -118,10 +117,10 @@
       <section class="chair">
         <div class="flex items-center justify-between mb-5">
           <div class="flex items-center gap-3">
-            <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-              <i class="pi pi-volume-up text-purple-600 text-lg"></i>
+            <div class="w-6 h-6 bg-purple-600 rounded-lg flex items-center justify-center">
+            <Icon name="heroicons:megaphone" class="text-sm text-white" />
             </div>
-            <h2 class="text-xl font-semibold text-gray-800">Chair</h2>
+            <h2 class="text-lg font-semibold text-purple-700">Chair</h2>
           </div>
           <Button @click="addChair" class="add-chair-btn">
             <template #default>
@@ -153,9 +152,9 @@
               <Column header="Action" class="action-column">
                 <template #body="slotProps">
                   <div class="flex items-center justify-center gap-2">
-                    <Button icon="pi pi-pencil" text rounded size="small" class="action-btn edit-btn" @click="editChair(slotProps.data)" v-tooltip.top="'Edit Chair'" />
+                    <Button icon="pi pi-pencil" text rounded size="small" class="action-btn edit-btn" @click="editChair(slotProps.data)" title="Edit Chair" />
                     <span class="text-gray-300">|</span>
-                    <Button icon="pi pi-trash" text rounded size="small" class="action-btn delete-btn" @click="deleteChair(slotProps.data)" v-tooltip.top="'Delete Chair'" />
+                    <Button icon="pi pi-trash" text rounded size="small" class="action-btn delete-btn" @click="deleteChair(slotProps.data)" title="Delete Chair" />
                   </div>
                 </template>
               </Column>
@@ -184,10 +183,10 @@
       <section class="Member mt-10">
         <div class="flex items-center justify-between mb-5">
           <div class="flex items-center gap-3">
-            <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-              <i class="pi pi-volume-up text-purple-600 text-lg"></i>
-            </div>
-            <h2 class="text-xl font-semibold text-gray-800">Member</h2>
+            <div class="w-6 h-6 bg-purple-600 rounded flex items-center justify-center">
+            <Icon name="heroicons:user-group" class="text-sm text-white" />
+          </div>
+            <h2 class="text-lg font-semibold text-purple-700">Member</h2>
           </div>
           <div>
             <Dropdown v-model="member" :options="members" placeholder="Select Member" class="w-80 p-1 rounded-2xl focus:outline-none focus:bg-transparent bg-gray-100 transition-all duration-300" />
@@ -214,7 +213,7 @@
               <Column header="Action" class="action-column">
                 <template #body="slotProps">
                   <div class="flex items-center justify-center gap-2">
-                    <Button icon="pi pi-trash" text rounded size="small" class="action-btn delete-btn" @click="deleteChair(slotProps.data)" v-tooltip.top="'Delete Chair'" />
+                    <Button icon="pi pi-trash" text rounded size="small" class="action-btn delete-btn" @click="deleteChair(slotProps.data)" title="Delete Chair" />
                   </div>
                 </template>
               </Column>
@@ -267,7 +266,7 @@
 <script setup>
 import './css/style.css'
 import { ref, computed, onMounted, watch } from "vue";
-import { Icon } from "@iconify/vue";
+// Icon is auto-imported by Nuxt
 import Button from "primevue/button";
 import { useToast } from "primevue/usetoast";
 import { useRouter } from "vue-router";
@@ -281,13 +280,10 @@ import Calendar from "primevue/calendar";
 import Avatar from 'primevue/avatar'
 import InputSwitch from 'primevue/inputswitch'; // Import InputSwitch
 import UploadPhoto from '~/components/common/UploadPhoto.vue'
-import { useRuntimeConfig } from '#app' // Import useRuntimeConfig
+import { createEvent } from '@/composables/api'
 
 const toast = useToast()
 const router = useRouter()
-const runtimeConfig = useRuntimeConfig() // Get runtime config
-const API_ADMIN_BASE_URL = runtimeConfig.public.apiAdminBaseUrl // Use from runtime config
-const BEARER_TOKEN = runtimeConfig.public.bearerToken // Get bearer token
 
 const loading = ref(false)
 
@@ -318,6 +314,7 @@ const categories = ref([
   { label: "Networking", value: 4 },
 ])
 
+const member = ref(null);
 const members = ref(['Kim', 'ly', 'meng']) // Kept from original, not part of event creation form
 
 // Computed URL based on slug
@@ -391,97 +388,78 @@ const submitEvent = async () => {
       return;
     }
 
-    const formData = new FormData();
-    formData.append('name', eventName.value);
-    formData.append('category_id', category.value);
-    formData.append('description', description.value);
-    formData.append('start_date', formatDateForApi(startDate.value));
-    formData.append('end_date', formatDateForApi(endDate.value));
-    formData.append('location', location.value);
-    formData.append('map_url', mapUrl.value || ''); // mapUrl can be null
-    formData.append('company', company.value || '');
-    formData.append('organizer', organizer.value || '');
-    formData.append('event_slug', eventSlug.value);
-    formData.append('online_link_meeting', onlineLinkMeeting.value || ''); // Add online link
-    formData.append('is_published', isPublished.value ? '1' : '0');
+    // Prepare event data object
+    const eventData = {
+      name: eventName.value,
+      category_id: category.value,
+      description: description.value,
+      start_date: formatDateForApi(startDate.value),
+      end_date: formatDateForApi(endDate.value),
+      location: location.value,
+      map_url: mapUrl.value || '',
+      company: company.value || '',
+      organizer: organizer.value || '',
+      event_slug: eventSlug.value,
+      online_link_meeting: onlineLinkMeeting.value || '',
+      is_published: isPublished.value ? '1' : '0'
+    };
 
+    // Add file uploads if they exist
     if (coverImageFile.value) {
-      formData.append('cover_image', coverImageFile.value);
+      eventData.cover_image = coverImageFile.value;
     }
     if (eventBackgroundFile.value) {
-      formData.append('event_background_url', eventBackgroundFile.value); // API expects event_background_url
+      eventData.event_background_url = eventBackgroundFile.value;
     }
     if (cardBackgroundFile.value) {
-      formData.append('card_background_url', cardBackgroundFile.value); // API expects card_background_url
+      eventData.card_background_url = cardBackgroundFile.value;
     }
 
-    const url = `${API_ADMIN_BASE_URL}/events/create`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${BEARER_TOKEN}`,
-        // 'Content-Type': 'multipart/form-data' is automatically set by fetch when using FormData
-      },
-      body: formData,
-    });
+    // Use the API composable to create the event
+    const result = await createEvent(eventData);
 
-    // Log the raw response text for debugging
-    const responseText = await response.text();
-    console.log('Raw API Response:', responseText);
+    if (result.success) {
+      toast.add({ severity: 'success', summary: 'Event Created', detail: result.message || 'Event created successfully!', life: 3000 });
 
-    // Check Content-Type header before parsing
-    const contentType = response.headers.get('Content-Type');
-    if (!contentType || !contentType.includes('application/json')) {
-      console.error('Server did not return JSON. Content-Type:', contentType);
-      toast.add({ severity: 'error', summary: 'Response Error', detail: `Server returned non-JSON response (${contentType}). Check console for details.`, life: 5000 });
-      return; // Stop execution if not JSON
-    }
-
-    // Try to parse as JSON
-    let result;
-    try {
-      result = JSON.parse(responseText);
-    } catch (jsonError) {
-      console.error('Failed to parse response as JSON:', jsonError);
-      toast.add({ severity: 'error', summary: 'Response Error', detail: 'Failed to parse response as JSON. Check console for details.', life: 5000 });
-      return; // Stop execution if not JSON
-    }
-
-    if (response.ok && result.success) {
-      toast.add({ severity: 'success', summary: 'Event Created', detail: result.message, life: 3000 });
       // Clear form fields
-      eventName.value = '';
-      category.value = null;
-      description.value = '';
-      startDate.value = null;
-      endDate.value = null;
-      location.value = '';
-      mapUrl.value = '';
-      company.value = '';
-      organizer.value = '';
-      onlineLinkMeeting.value = null;
-      eventSlug.value = '';
-      isPublished.value = false;
-      coverImageFile.value = null;
-      eventBackgroundFile.value = null;
-      cardBackgroundFile.value = null;
+      clearForm();
 
       // Redirect to event list page
-      router.push('/admin/events');
+      await router.push('/admin/event');
     } else {
       toast.add({ severity: 'error', summary: 'Creation Failed', detail: result.message || 'An error occurred.', life: 3000 });
     }
   } catch (error) {
-    toast.add({ severity: 'error', summary: 'Network Error', detail: error.message, life: 3000 });
+    console.error('Event creation error:', error);
+    toast.add({ severity: 'error', summary: 'Network Error', detail: error.message || 'Failed to create event', life: 3000 });
   } finally {
     loading.value = false;
   }
 };
 
+// Helper function to clear form
+const clearForm = () => {
+  eventName.value = '';
+  category.value = null;
+  description.value = '';
+  startDate.value = null;
+  endDate.value = null;
+  location.value = '';
+  mapUrl.value = '';
+  company.value = '';
+  organizer.value = '';
+  onlineLinkMeeting.value = null;
+  eventSlug.value = '';
+  isPublished.value = false;
+  coverImageFile.value = null;
+  eventBackgroundFile.value = null;
+  cardBackgroundFile.value = null;
+};
+
 // Sample chair data
 const chairs = ref([
-  { id: 1, name: 'H.E Liv Sophanarith', position: 'Secretary of State', company: 'Minister of Telecommunication Technology and Transport', avatar: '/placeholder.svg?height=60&width=60' },
-  { id: 2, name: 'Sovanpahanvuth', position: 'Full Stack Developer/QA Testing', company: 'Prestige Consulting', avatar: '/placeholder.svg?height=60&width=60' }
+  { id: 1, name: 'H.E Liv Sophanarith', position: 'Secretary of State', company: 'Minister of Telecommunication Technology and Transport', avatar: '' },
+  { id: 2, name: 'Sovanpahanvuth', position: 'Full Stack Developer/QA Testing', company: 'Prestige Consulting', avatar: '' }
 ])
 
 // Methods for chair management (kept from original)

@@ -1,12 +1,26 @@
 // server/api/login.post.ts
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
+  const config = useRuntimeConfig()
 
-  const response = await $fetch('https://your-api.com/login', {
-    method: 'POST',
-    body,
-  })
+  try {
+    console.log('Server-side login attempt:', { identifier: body.identifier })
 
-  // You can customize the response, log, or filter data
-  return response
+    const response = await $fetch(`${config.public.apiBaseUrl}/login`, {
+      method: 'POST',
+      body: body,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+
+    console.log('Server-side login response:', response)
+    return response
+  } catch (error: any) {
+    console.error('Server-side login error:', error)
+    throw createError({
+      statusCode: error.statusCode || 500,
+      statusMessage: error.data?.message || error.message || 'Login failed'
+    })
+  }
 })

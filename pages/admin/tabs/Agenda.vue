@@ -19,15 +19,15 @@
                   <div class="flex-1 pl-4 border-l-2 border-gray-400">
                     <div class="flex items-center justify-between mb-2">
                       <div class="flex items-center text-gray-500 text-sm">
-                        <Icon icon="heroicons:clock" class="w-4 h-4 mr-1" />
+                        <Icon name="heroicons:clock" class="w-4 h-4 mr-1" />
                         <span>{{ item.time }}</span>
                       </div>
                       <div class="flex space-x-2">
                         <button class="text-gray-400 hover:text-purple-600 transition-colors">
-                          <Icon icon="heroicons:pencil-square" class="w-5 h-5" />
+                          <Icon name="heroicons:pencil-square" class="w-5 h-5" />
                         </button>
                         <button class="text-gray-400 hover:text-red-500 transition-colors">
-                          <Icon icon="heroicons:trash" class="w-5 h-5" />
+                          <Icon name="heroicons:trash" class="w-5 h-5" />
                         </button>
                       </div>
                     </div>
@@ -72,7 +72,7 @@
     <div>
       <label class="block text-xs font-medium text-gray-600 mb-2">Time</label>
       <div class="relative">
-        <Icon icon="heroicons-outline:clock" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+        <Icon name="heroicons-outline:clock" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
         <Dropdown
           v-model="eventForm.timeRange"
           :options="timeOptions"
@@ -159,7 +159,7 @@
           @click="removeSpeakerField(index)"
           class="mt-2 text-red-500 hover:text-red-700"
         >
-          <Icon icon="heroicons:trash" class="w-5 h-5" />
+          <Icon name="heroicons:trash" class="w-5 h-5" />
         </button>
         </div>
       </div>
@@ -168,7 +168,7 @@
         type="button"
         class="w-full flex items-center justify-center mt-5 py-3 px-4 border border-purple-400 border-dashed text-purple-600 rounded-xl hover:bg-purple-50 transition-colors font-semibold"
       >
-        <Icon icon="heroicons:plus" class="w-5 h-5 mr-2" />
+        <Icon name="heroicons:plus" class="w-5 h-5 mr-2" />
         Add More
       </button>
       </div>
@@ -182,7 +182,7 @@
       class="w-full flex items-center justify-center py-3 px-6 rounded-full shadow-lg text-white font-semibold
              bg-gradient-to-r from-purple-600 to-blue-800 hover:from-purple-700 hover:to-purple-900 transition-all duration-300 ease-in-out"
     >
-      <Icon icon="heroicons:document-plus" class="w-5 h-5 mr-2" />
+      <Icon name="heroicons:document-plus" class="w-5 h-5 mr-2" />
       Add Agenda
     </button>
   </form>
@@ -201,7 +201,7 @@ import Dropdown from 'primevue/dropdown';
 import TabView from 'primevue/tabview';
 import TabPanel from 'primevue/tabpanel';
 import SpeakerInput from '~/components/common/SpeakerInput.vue';
-import { Icon } from '@iconify/vue';
+// Icon is auto-imported by Nuxt
 
 const agendaItems = ref([
   {

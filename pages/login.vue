@@ -1,6 +1,6 @@
 <template>
-  <div class=" flex items-center justify-center p-4 bg-cover bg-center" :style="{ backgroundImage: `url(${abstractPattern})` }">
-    <div class="w-[600px] mx-auto">
+  <div class=" flex items-center justify-center p-4 bg-cover bg-center" >
+    <div class="w-full mx-auto">
       <div class="text-center mb-8">
         <img :src="logo1" alt="Logo" class="w-96 h-auto mx-auto mb-4 filter drop-shadow-lg" />
       </div>
@@ -130,7 +130,6 @@ import Toast from 'primevue/toast';
 
 // Images
 import logo1 from '@/assets/image/eticketsasia.png';
-const abstractPattern = '/images/abstract-pattern.png';
 
 definePageMeta({
   layout: "default",
@@ -164,29 +163,82 @@ const applyShake = () => {
 
 async function handleLogin() {
   try {
+    // Show loading
+    const { $loading } = useNuxtApp()
+    $loading.show('Authenticating...', 0)
+
+    console.log('Login attempt with:', { username: username.value })
+
+    // Update progress
+    $loading.updateProgress(25)
+
     const data = await login(username.value, password.value);
 
-    // Your API returns token inside tokens.access_token, not tokens.access
-    const tokens = data?.tokens || {};
-    const token = tokens.access_token || data?.access_token;
-    const role = tokens.role || data?.role || "user"; // fallback role
+    // Update progress
+    $loading.updateProgress(50)
 
-    if (!token) {
-      throw new Error("Missing token in login response");
+    console.log('Login response received:', data)
+
+    // Handle the specific API response structure
+    let token = null;
+    let user = null;
+
+    // The API returns: { message: "Login successful", tokens: { access_token: "...", ... } }
+    if (data?.tokens?.access_token) {
+      token = data.tokens.access_token;
+
+      // Extract user info from the JWT token if needed
+      user = {
+        username: username.value,
+        message: data.message,
+        loginTime: new Date().toISOString()
+      };
     }
 
-    // Save token and role in localStorage
-    localStorage.setItem("auth", JSON.stringify({ token, role }));
+    console.log('Extracted token info:', {
+      token: token ? 'present' : 'missing',
+      user,
+      tokenLength: token ? token.length : 0
+    })
+
+    if (!token) {
+      console.error('No token found in response structure:', data)
+      throw new Error("Missing access token in login response. Please check your credentials.");
+    }
+
+    // Update progress
+    $loading.updateProgress(75)
+
+    // Use the auth composable to set authentication data (no role needed)
+    const { setAuth } = useAuth();
+    setAuth({ token, user });
+
+    // Update progress
+    $loading.updateProgress(100)
 
     toast.add({
       severity: "success",
       summary: "Login Success",
-      detail: "Welcome, Admin!",
+      detail: "Welcome to the Admin Panel!",
       life: 2000,
     });
 
-    await navigateTo("/admin/dashboard");
+    // Handle redirect parameter
+    const route = useRoute()
+    const redirectTo = route.query.redirect
+
+    if (redirectTo && redirectTo.startsWith('/admin')) {
+      await navigateTo(redirectTo)
+    } else {
+      await navigateTo("/admin/dashboard")
+    }
   } catch (error) {
+    console.error('Login error:', error)
+
+    // Hide loading on error
+    const { $loading } = useNuxtApp()
+    $loading.hide()
+
     toast.add({
       severity: "error",
       summary: "Login Failed",
@@ -204,14 +256,24 @@ async function handlePhoneLogin() {
       throw new Error("Please enter a valid phone number.");
     }
 
-    // Simulate login success for phone login
-    const data = { token: 'phone-token', role: 'admin', phone: phoneNumber.value };
-    localStorage.setItem("auth", JSON.stringify(data));
+    // Simulate login success for phone login (replace with actual API call)
+    const authData = {
+      token: 'phone-token-' + Date.now(),
+      user: {
+        phone: phoneNumber.value,
+        loginMethod: 'phone',
+        loginTime: new Date().toISOString()
+      }
+    };
+
+    // Use the auth composable to set authentication data
+    const { setAuth } = useAuth();
+    setAuth(authData);
 
     toast.add({
       severity: "success",
       summary: "Phone Login Success",
-      detail: `Welcome, user with phone ${phoneNumber.value}!`,
+      detail: `Welcome to the Admin Panel!`,
       life: 2000,
     });
 

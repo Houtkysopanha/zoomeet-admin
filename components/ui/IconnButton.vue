@@ -8,7 +8,7 @@
     >
       <template #default>
         <div class="flex items-center justify-center gap-2">
-          <Icon v-if="icon" :icon="icon" :class="iconClass" />
+          <Icon v-if="icon" :name="icon" :class="iconClass" />
           <span v-if="label" :class="labelClass">{{ label }}</span>
         </div>
       </template>
@@ -18,7 +18,7 @@
 
 <script setup>
 import Button from 'primevue/button'
-import { Icon } from '@iconify/vue';
+// Icon is auto-imported by Nuxt
 const emit = defineEmits(['click']);
 
 const props = defineProps({

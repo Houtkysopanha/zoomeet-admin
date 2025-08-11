@@ -46,7 +46,6 @@ import CustomerBooking from '~/components/Booking/CustomerBookng.vue'
 import CashPayment from '~/components/Booking/CasePayement.vue'
 
 definePageMeta({
-  middleware: "auth",
   layout: "admin",
 })
 

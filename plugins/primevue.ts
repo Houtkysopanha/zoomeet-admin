@@ -15,6 +15,7 @@ import Textarea from 'primevue/textarea';
 import Calendar from 'primevue/calendar';
 import Sidebar from 'primevue/sidebar';
 import Divider from 'primevue/divider'
+import Tooltip from 'primevue/tooltip'
 
 
 export default defineNuxtPlugin((nuxtApp) => {
@@ -34,4 +35,5 @@ export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.vueApp.component('Calendar', Calendar)
   nuxtApp.vueApp.component('Sidebar', Sidebar),
   nuxtApp.vueApp.component('Divider', Divider)
+  nuxtApp.vueApp.directive('tooltip', Tooltip)
 })

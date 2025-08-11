@@ -287,7 +287,6 @@ const toggleMenu = (event, data) => {
 }
 
 definePageMeta({
-  middleware: "auth",
   layout: "admin",
 })
 </script>

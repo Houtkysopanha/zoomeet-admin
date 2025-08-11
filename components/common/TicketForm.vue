@@ -2,7 +2,7 @@
   <div class="ticket-form-container ">
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-purple-700 font-medium flex items-center">
-        <Icon icon="mdi:ticket-confirmation" class="text-2xl mr-2" />
+        <Icon name="mdi:ticket-confirmation" class="text-2xl mr-2" />
         Ticket {{ ticketIndex + 1 }}
       </h3>
       <Button
@@ -13,7 +13,7 @@
         severity="danger"
         size="small"
         @click="$emit('remove-ticket', ticketIndex)"
-        v-tooltip.top="'Remove Ticket Package'"
+        title="Remove Ticket Package"
       />
     </div>
     
@@ -77,7 +77,7 @@
 
 <script setup>
 import { ref, computed } from "vue"
-import { Icon } from "@iconify/vue"
+// Icon is auto-imported by Nuxt
 import Button from "primevue/button"
 import InputText from "primevue/inputtext"
 import InputNumber from "primevue/inputnumber"

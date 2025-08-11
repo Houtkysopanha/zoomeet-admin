@@ -134,7 +134,7 @@
         </template>
       </Column>
 
-      <Column field="venue" header="Venue" class="text-[12px] border-b border-gray-300" />
+    <Column field="venue" header="Venue" class="text-[12px] border-b border-gray-300" />
       <Column field="type" header="Event Type" class="text-[12px] border-b border-gray-300" />
 
       <Column
@@ -208,9 +208,7 @@ import { useRuntimeConfig } from '#app' // Import useRuntimeConfig
 
 const router = useRouter()
 const toast = useToast()
-const runtimeConfig = useRuntimeConfig() // Get runtime config
-const API_ADMIN_BASE_URL = runtimeConfig.public.apiAdminBaseUrl // Use from runtime config
-const BEARER_TOKEN = runtimeConfig.public.bearerToken // Get bearer token
+import { fetchEvents } from '@/composables/api'
 
 const goToCreateEvent = () => { router.push('/admin/CreateEvent') }
 
@@ -236,6 +234,16 @@ const updateDisplay = () => {
 
 const searchQuery = ref('')
 const sortOption = ref('Sort') // default sorting by date ascending
+
+// Sort options for dropdown
+const sortOptions = ref([
+  { label: 'Sort', value: 'Sort' },
+  { label: 'Date (Ascending)', value: 'date-asc' },
+  { label: 'Date (Descending)', value: 'date-desc' },
+  { label: 'Name (A-Z)', value: 'name-asc' },
+  { label: 'Name (Z-A)', value: 'name-desc' },
+])
+
 const itemsPerPage = ref(10)
 const currentPage = ref(1)
 const totalItems = ref(0)
@@ -245,16 +253,10 @@ const sortOrder = ref(1) // 1 ascending, -1 descending
 const events = ref([])
 
 // Fetch events from API
-const fetchEvents = async () => {
+const loadEvents = async () => {
   try {
-    const url = `${API_ADMIN_BASE_URL}/events`
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${BEARER_TOKEN}`, // Use the retrieved token
-        'Content-Type': 'application/json',
-      },
-    })
-    const data = await res.json()
+    const data = await fetchEvents()
+
     if (data.status === 200 && data.data.success) {
       events.value = data.data.data.map(ev => ({
         id: ev.id,
@@ -274,12 +276,13 @@ const fetchEvents = async () => {
       toast.add({ severity: 'error', summary: 'API Error', detail: 'Failed to fetch events', life: 3000 })
     }
   } catch (error) {
-    toast.add({ severity: 'error', summary: 'Fetch Error', detail: error.message, life: 3000 })
+    console.error('Fetch events error:', error)
+    toast.add({ severity: 'error', summary: 'Fetch Error', detail: error.message || 'Failed to load events', life: 3000 })
   }
 }
 
 onMounted(() => {
-  fetchEvents()
+  loadEvents()
 })
 
 const applySort = () => {
@@ -407,7 +410,6 @@ const getSortLabel = (value) => {
 }
 
 definePageMeta({
-  middleware: 'auth',
   layout: 'admin',
 })
 </script>

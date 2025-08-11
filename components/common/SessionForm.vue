@@ -2,7 +2,7 @@
   <div class="session-form-container">
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-purple-700 font-medium flex items-center">
-        <Icon icon="fluent:slide-text-title-edit-24-filled" class="text-2xl mr-2" />
+        <Icon name="heroicons:document-text" class="text-2xl mr-2" />
         Session {{ sessionIndex + 1 }}
       </h3>
       <Button
@@ -13,7 +13,7 @@
         severity="danger"
         size="small"
         @click="$emit('remove-session', sessionIndex)"
-        v-tooltip.top="'Remove Session'"
+        title="Remove Session"
       />
     </div>
     
@@ -120,7 +120,7 @@
 
 <script setup>
 import { ref, computed, watch } from "vue"
-import { Icon } from "@iconify/vue"
+// Icon is auto-imported by Nuxt
 import Button from "primevue/button"
 import InputText from "primevue/inputtext"
 import Dropdown from "primevue/dropdown"
