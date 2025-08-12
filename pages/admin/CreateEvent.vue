@@ -1,32 +1,60 @@
 <template>
-  <div class="p-6 bg-[#F8F8FF]">
-    <div class="mb-6">
-      <div class="flex items-center justify-between">
+  <div class="p-4 lg:p-6 bg-[#F8F8FF]">
+    <div class="mb-4 lg:mb-6">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 class="text-3xl text-gray-400 mb-2">
-            Event / <span class="text-3xl font-bold text-[#7A49C9]">Create Event</span>
+          <h1 class="text-xl lg:text-3xl text-gray-400 mb-2">
+            Event / <span class="text-xl lg:text-3xl font-bold text-[#7A49C9]">Create Event</span>
           </h1>
         </div>
-        <div class="date-range-picker flex space-x-4 items-center">
+        <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 items-stretch sm:items-center">
           <div class="bt-preview">
             <Button
-              class="w-52 h-14 p-4 rounded-full text-white bg-[#9E9E9E] hover:bg-[#8E8E8E] flex items-center justify-center gap-2 transition-all duration-300"
+              @click="handlePreview"
+              :disabled="!isBasicInfoCompleted"
+              :class="[
+                'w-full sm:w-40 lg:w-52 h-12 lg:h-14 p-3 lg:p-4 rounded-full flex items-center justify-center gap-2 transition-all duration-300 text-sm lg:text-base',
+                isBasicInfoCompleted
+                  ? 'text-white bg-[#9E9E9E] hover:bg-[#8E8E8E] cursor-pointer'
+                  : 'text-gray-400 bg-gray-200 cursor-not-allowed opacity-50'
+              ]"
               raised
+              :title="!isBasicInfoCompleted ? 'Complete and save Basic Info first to preview' : 'Preview your event'"
             >
               <template #default>
-                <Icon name="heroicons:eye" class="text-2xl" />
+                <Icon name="heroicons:eye" class="text-lg lg:text-2xl" />
                 <span>Preview</span>
               </template>
             </Button>
           </div>
           <div class="bt-saveDraft">
             <Button
-              class="w-52 h-14 p-4 rounded-full bg-white border-2 border-purple-800 hover:bg-purple-50 flex items-center justify-center gap-2 transition-all duration-300"
+              @click="handleSaveDraft"
+              :disabled="!isBasicInfoCompleted || isSubmitting"
+              :class="[
+                'w-full sm:w-40 lg:w-52 h-12 lg:h-14 p-3 lg:p-4 rounded-full border-2 border-purple-800 flex items-center justify-center gap-2 transition-all duration-300 text-sm lg:text-base',
+                isBasicInfoCompleted && !isSubmitting
+                  ? 'bg-white hover:bg-purple-50 cursor-pointer'
+                  : 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-50'
+              ]"
               raised
             >
               <template #default>
-                <Icon name="heroicons:document-arrow-down" class="text-2xl text-purple-800" />
-                <span class="bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent font-semibold">
+                <Icon
+                  name="heroicons:document-arrow-down"
+                  :class="[
+                    'text-lg lg:text-2xl',
+                    isBasicInfoCompleted && !isSubmitting ? 'text-purple-800' : 'text-gray-400'
+                  ]"
+                />
+                <span
+                  :class="[
+                    'font-semibold',
+                    isBasicInfoCompleted && !isSubmitting
+                      ? 'bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent'
+                      : 'text-gray-400'
+                  ]"
+                >
                   Save Draft
                 </span>
               </template>
@@ -34,11 +62,18 @@
           </div>
           <div class="bt-publishEvent">
             <Button
-              class="w-52 h-14 p-4 rounded-full text-white bg-gradient-to-t from-indigo-600 to-indigo-400 hover:from-indigo-700 hover:to-indigo-500 flex items-center justify-center gap-2 transition-all duration-300 shadow-lg hover:shadow-xl"
+              @click="handlePublishEvent"
+              :disabled="activeIndex !== 0 || isSubmitting"
+              :class="[
+                'w-full sm:w-40 lg:w-52 h-12 lg:h-14 p-3 lg:p-4 rounded-full flex items-center justify-center gap-2 transition-all duration-300 shadow-lg text-sm lg:text-base',
+                activeIndex === 0 && !isSubmitting
+                  ? 'text-white bg-gradient-to-t from-indigo-600 to-indigo-400 hover:from-indigo-700 hover:to-indigo-500 hover:shadow-xl cursor-pointer'
+                  : 'text-gray-400 bg-gray-200 cursor-not-allowed opacity-50'
+              ]"
               raised
             >
               <template #default>
-                <Icon name="heroicons:paper-airplane" class="text-2xl" />
+                <Icon name="heroicons:paper-airplane" class="text-lg lg:text-2xl" />
                 <span>Publish Event</span>
               </template>
             </Button>
@@ -49,23 +84,34 @@
 
     <div class="min-h-0">
       <!-- Enhanced Tab Menu -->
-      <div class="mb-6 w-full">
-        <div class="flex space-x-2 bg-gray-100 p-2 rounded-full">
+      <div class="mb-4 lg:mb-6 w-full">
+        <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 bg-gray-100 p-2 rounded-full">
           <button
             v-for="(item, index) in items"
             :key="index"
             @click="changeTab(index)"
-            :disabled="isChangingTab"
+            :disabled="isChangingTab || !isTabAccessible(index)"
             :class="[
-              'flex-1 flex items-center justify-center gap-3 px-6 py-4 rounded-full font-semibold transition-all duration-300 ease-in-out',
+              'flex-1 flex items-center justify-center gap-2 lg:gap-3 px-3 lg:px-6 py-3 lg:py-4 rounded-full font-semibold transition-all duration-300 ease-in-out text-sm lg:text-base relative',
               activeIndex === index
                 ? 'bg-gradient-to-r from-blue-800 to-purple-600 text-white shadow-lg transform scale-105'
-                : 'text-gray-600 hover:text-purple-600 hover:bg-white hover:shadow-md',
-              isChangingTab ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                : isTabAccessible(index)
+                  ? 'text-gray-600 hover:text-purple-600 hover:bg-white hover:shadow-md cursor-pointer'
+                  : 'text-gray-400 bg-gray-50 cursor-not-allowed opacity-60',
+              isChangingTab ? 'opacity-50 cursor-not-allowed' : ''
             ]"
+            :title="!isTabAccessible(index) ? 'Complete Basic Info first to access this tab' : ''"
           >
-            <i :class="item.icon" class="text-lg"></i>
-            <span>{{ item.label }}</span>
+            <i :class="item.icon" class="text-base lg:text-lg"></i>
+            <span class="hidden sm:inline">{{ item.label }}</span>
+            <span class="sm:hidden">{{ item.shortLabel || item.label }}</span>
+
+            <!-- Lock icon for disabled tabs -->
+            <Icon
+              v-if="!isTabAccessible(index)"
+              name="heroicons:lock-closed"
+              class="absolute -top-1 -right-1 text-xs bg-gray-300 text-gray-600 rounded-full p-1 w-5 h-5"
+            />
           </button>
         </div>
       </div>
@@ -74,8 +120,8 @@
       <div class="relative overflow-hidden">
         <div
           :class="[
-            'rounded-3xl transition-all duration-300 ease-in-out',
-            activeIndex === 1 ? '' : 'bg-white shadow-lg p-4'
+            'rounded-2xl lg:rounded-3xl transition-all duration-300 ease-in-out',
+            activeIndex === 1 ? '' : 'bg-white shadow-lg p-3 lg:p-4'
           ]"
         >
           <!-- Render all components with smooth fade transitions -->
@@ -86,7 +132,7 @@
           >
             <div
               :key="activeIndex"
-              class="min-h-[400px] relative"
+              class="min-h-[300px] lg:min-h-[400px] relative"
             >
               <!-- Loading Overlay for Tab Content -->
               <div
@@ -123,30 +169,61 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, provide, onMounted } from 'vue'
 // Icon is auto-imported by Nuxt
 import Button from 'primevue/button'
+import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
 import BasicInfor from '~/pages/admin/tabs/BasicInfor.vue'
 import Agenda from '~/pages/admin/tabs/Agenda.vue'
 import TicketPacket from '~/pages/admin/tabs/TicketPacket.vue'
 import BreakoutRooms from '~/pages/admin/tabs/BreakoutRooms.vue'
 import SettingPolicy from '~/pages/admin/tabs/SettingPolicy.vue'
+import { useToast } from "primevue/usetoast"
+import { useRouter, useRoute } from "vue-router"
 
-// Toast removed - not needed for tab switching
+const toast = useToast()
+const router = useRouter()
 
 // Tab Menu Items
 const items = ref([
-  { label: 'Basic Info', icon: 'pi pi-info-circle' },
-  { label: 'Agenda', icon: 'pi pi-calendar' },
-  { label: 'Ticket Package', icon: 'pi pi-ticket' },
-  { label: 'Breakout Room', icon: 'pi pi-video' },
-  { label: 'Setting & Policies', icon: 'pi pi-cog' }
+  { label: 'Basic Info', shortLabel: 'Info', icon: 'pi pi-info-circle' },
+  { label: 'Agenda', shortLabel: 'Agenda', icon: 'pi pi-calendar' },
+  { label: 'Ticket Package', shortLabel: 'Tickets', icon: 'pi pi-ticket' },
+  { label: 'Breakout Room', shortLabel: 'Rooms', icon: 'pi pi-video' },
+  { label: 'Setting & Policies', shortLabel: 'Settings', icon: 'pi pi-cog' }
 ])
 
 // Active Tab Index
 const activeIndex = ref(0)
 const isChangingTab = ref(false)
 const isLoading = ref(false)
+
+// Check for tab query parameter on mount
+onMounted(() => {
+  const route = useRoute()
+  if (route.query.tab === 'tickets') {
+    // Check if we have an event ID in localStorage (from manage tickets)
+    const storedEventId = localStorage.getItem('currentEventId')
+    if (storedEventId) {
+      // Set basic info as completed and switch to tickets tab
+      isBasicInfoCompleted.value = true
+      eventId.value = storedEventId
+      activeIndex.value = 2 // Ticket Package tab
+
+      toast.add({
+        severity: 'info',
+        summary: 'Ticket Management',
+        detail: 'You can now manage tickets for this event.',
+        life: 3000
+      })
+    }
+  }
+})
+
+// Event creation state management
+const isBasicInfoCompleted = ref(false)
+const eventId = ref(null)
+const isSubmitting = ref(false)
 
 // Match tab index with component
 const tabComponents = [
@@ -157,10 +234,37 @@ const tabComponents = [
   SettingPolicy
 ]
 
+// Provide state to child components
+provide('eventCreationState', {
+  isBasicInfoCompleted,
+  eventId,
+  setBasicInfoCompleted: (completed, id = null) => {
+    isBasicInfoCompleted.value = completed
+    if (id) eventId.value = id
+  }
+})
+
+// Check if tab is accessible
+const isTabAccessible = (index) => {
+  if (index === 0) return true // Basic Info is always accessible
+  return isBasicInfoCompleted.value // Other tabs only accessible after Basic Info completion
+}
+
 // Methods
 const changeTab = async (index) => {
   // Prevent rapid tab switching
   if (isChangingTab.value) return
+
+  // Check if tab is accessible
+  if (!isTabAccessible(index)) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Complete Basic Info First',
+      detail: 'Please complete and save the Basic Info section before accessing other tabs.',
+      life: 4000
+    })
+    return
+  }
 
   if (index >= 0 && index < tabComponents.length && activeIndex.value !== index) {
     isChangingTab.value = true
@@ -184,6 +288,76 @@ const changeTab = async (index) => {
       }, 100)
     }
   }
+}
+
+// Handle Save Draft button
+const handleSaveDraft = async () => {
+  // Trigger save draft based on current tab
+  const tabContentElement = document.querySelector('.tab-content')
+  if (tabContentElement) {
+    if (activeIndex.value === 0) {
+      // BasicInfo tab
+      window.dispatchEvent(new CustomEvent('saveDraft'))
+    } else if (activeIndex.value === 2) {
+      // TicketPacket tab
+      window.dispatchEvent(new CustomEvent('saveTickets'))
+    } else {
+      // Other tabs - generic save
+      window.dispatchEvent(new CustomEvent('saveCurrentTab'))
+      toast.add({
+        severity: 'info',
+        summary: 'Save Draft',
+        detail: 'Saving current tab data...',
+        life: 3000
+      })
+    }
+  }
+}
+
+// Handle Publish Event button
+const handlePublishEvent = async () => {
+  if (activeIndex.value !== 0) {
+    toast.add({
+      severity: 'info',
+      summary: 'Switch to Basic Info',
+      detail: 'Please go to Basic Info tab to publish your event.',
+      life: 3000
+    })
+    return
+  }
+
+  // Trigger publish event in BasicInfo component
+  const basicInfoComponent = document.querySelector('.tab-content')
+  if (basicInfoComponent) {
+    // We'll emit an event that BasicInfo can listen to
+    window.dispatchEvent(new CustomEvent('publishEvent'))
+  }
+}
+
+// Handle Preview button
+const handlePreview = () => {
+  if (!isBasicInfoCompleted.value) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Complete Basic Info First',
+      detail: 'Please complete and save the Basic Info section before previewing the event.',
+      life: 4000
+    })
+    return
+  }
+
+  if (!eventId.value) {
+    toast.add({
+      severity: 'error',
+      summary: 'No Event Found',
+      detail: 'Event ID not found. Please save the event first.',
+      life: 3000
+    })
+    return
+  }
+
+  // Navigate to preview page with event ID
+  router.push(`/admin/PreviewEvent/${eventId.value}`)
 }
 
 definePageMeta({

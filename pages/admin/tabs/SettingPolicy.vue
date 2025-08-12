@@ -87,11 +87,14 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import Calendar from 'primevue/calendar'
 import Dropdown from 'primevue/dropdown'
 import Textarea from 'primevue/textarea'
 import Checkbox from 'primevue/checkbox'
+import { useToast } from "primevue/usetoast"
+
+const toast = useToast()
 
 const settings = ref({
   registrationDeadline: null,
@@ -110,6 +113,92 @@ const refundPolicyOptions = ref([
 const minimumAgeOptions = ref([
  '18 years old', '19 years old', '20 years old'
 ])
+
+// Auto-save functionality
+const isAutoSaving = ref(false)
+
+// Check if settings are complete for auto-save
+const areSettingsComplete = computed(() => {
+  return !!(
+    settings.value.registrationDeadline &&
+    settings.value.refundPolicy &&
+    settings.value.termsAndConditions
+  )
+})
+
+// Auto-save watcher
+watch(areSettingsComplete, async (newValue) => {
+  if (newValue && !isAutoSaving.value) {
+    isAutoSaving.value = true
+
+    try {
+      // Auto-save settings data
+      const settingsData = {
+        ...settings.value,
+        autoSavedAt: new Date().toISOString()
+      }
+      localStorage.setItem('settingsPolicyData', JSON.stringify(settingsData))
+
+      toast.add({
+        severity: 'info',
+        summary: 'Auto-Saved Settings ⚙️',
+        detail: 'Your settings and policies have been automatically saved.',
+        life: 3000
+      })
+    } catch (error) {
+      console.error('Auto-save settings failed:', error)
+    } finally {
+      setTimeout(() => {
+        isAutoSaving.value = false
+      }, 2000)
+    }
+  }
+}, { deep: true })
+
+// Event listeners for parent component actions
+const handleSaveSettings = () => {
+  const settingsData = {
+    ...settings.value,
+    savedAt: new Date().toISOString()
+  }
+  localStorage.setItem('settingsPolicyData', JSON.stringify(settingsData))
+
+  toast.add({
+    severity: 'success',
+    summary: 'Settings Saved',
+    detail: 'Settings and policies have been saved successfully.',
+    life: 3000
+  })
+}
+
+onMounted(() => {
+  // Load saved settings data
+  const savedSettings = localStorage.getItem('settingsPolicyData')
+  if (savedSettings) {
+    try {
+      const settingsData = JSON.parse(savedSettings)
+      settings.value = {
+        registrationDeadline: settingsData.registrationDeadline ? new Date(settingsData.registrationDeadline) : null,
+        refundPolicy: settingsData.refundPolicy || null,
+        termsAndConditions: settingsData.termsAndConditions || '',
+        specialInstructions: settingsData.specialInstructions || '',
+        requireAgeVerification: settingsData.requireAgeVerification || false,
+        minimumAge: settingsData.minimumAge || null,
+        requiredIdentityDocuments: settingsData.requiredIdentityDocuments || []
+      }
+    } catch (error) {
+      console.error('Failed to load saved settings:', error)
+    }
+  }
+
+  // Add event listeners
+  window.addEventListener('saveCurrentTab', handleSaveSettings)
+})
+
+// Remove event listeners when component unmounts
+onUnmounted(() => {
+  window.removeEventListener('saveCurrentTab', handleSaveSettings)
+})
 
 const identityDocumentOptions = ref([
   { label: 'Driver\'s License', value: 'drivers_license' },

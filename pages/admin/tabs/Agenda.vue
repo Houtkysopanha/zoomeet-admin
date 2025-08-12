@@ -193,7 +193,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import InputText from 'primevue/inputtext';
 import Textarea from 'primevue/textarea';
 import Calendar from 'primevue/calendar';
@@ -201,7 +201,10 @@ import Dropdown from 'primevue/dropdown';
 import TabView from 'primevue/tabview';
 import TabPanel from 'primevue/tabpanel';
 import SpeakerInput from '~/components/common/SpeakerInput.vue';
+import { useToast } from "primevue/usetoast";
 // Icon is auto-imported by Nuxt
+
+const toast = useToast();
 
 const agendaItems = ref([
   {
@@ -248,9 +251,22 @@ const eventForm = ref({
 
 const addAgenda = () => {
   console.log('Adding Agenda:', eventForm.value);
-  // Simulated toast
-  // const toast = useToast();
-  // toast.success('Agenda item added (simulated)!');
+
+  // Auto-save agenda data to localStorage
+  const agendaData = {
+    ...eventForm.value,
+    savedAt: new Date().toISOString()
+  }
+  localStorage.setItem('agendaData', JSON.stringify(agendaData))
+
+  // Show success message
+  toast.add({
+    severity: 'success',
+    summary: 'Agenda Saved',
+    detail: 'Agenda item has been saved successfully.',
+    life: 3000
+  })
+
   eventForm.value = {
     date: null,
     timeRange: '',
@@ -261,6 +277,82 @@ const addAgenda = () => {
     speakers: [{ name: '', about: '' }],
   };
 };
+
+// Auto-save functionality
+const isAutoSaving = ref(false)
+
+// Check if agenda form is complete
+const isAgendaComplete = computed(() => {
+  return !!(
+    eventForm.value.date &&
+    eventForm.value.timeRange &&
+    eventForm.value.sessionTitle &&
+    eventForm.value.venue
+  )
+})
+
+// Auto-save watcher
+watch(isAgendaComplete, async (newValue) => {
+  if (newValue && !isAutoSaving.value) {
+    isAutoSaving.value = true
+
+    try {
+      // Auto-save agenda data
+      const agendaData = {
+        ...eventForm.value,
+        autoSavedAt: new Date().toISOString()
+      }
+      localStorage.setItem('agendaData', JSON.stringify(agendaData))
+
+      toast.add({
+        severity: 'info',
+        summary: 'Auto-Saved Agenda 📅',
+        detail: 'Your agenda has been automatically saved.',
+        life: 3000
+      })
+    } catch (error) {
+      console.error('Auto-save agenda failed:', error)
+    } finally {
+      setTimeout(() => {
+        isAutoSaving.value = false
+      }, 2000)
+    }
+  }
+}, { deep: true })
+
+// Event listeners for parent component actions
+const handleSaveAgenda = () => {
+  addAgenda()
+}
+
+onMounted(() => {
+  // Load saved agenda data
+  const savedAgenda = localStorage.getItem('agendaData')
+  if (savedAgenda) {
+    try {
+      const agendaData = JSON.parse(savedAgenda)
+      eventForm.value = {
+        date: agendaData.date ? new Date(agendaData.date) : null,
+        timeRange: agendaData.timeRange || '',
+        sessionTitle: agendaData.sessionTitle || '',
+        venue: agendaData.venue || '',
+        roomNumber: agendaData.roomNumber || '',
+        eventDescription: agendaData.eventDescription || '',
+        speakers: agendaData.speakers || [{ name: '', about: '' }],
+      }
+    } catch (error) {
+      console.error('Failed to load saved agenda:', error)
+    }
+  }
+
+  // Add event listeners
+  window.addEventListener('saveCurrentTab', handleSaveAgenda)
+})
+
+// Remove event listeners when component unmounts
+onUnmounted(() => {
+  window.removeEventListener('saveCurrentTab', handleSaveAgenda)
+})
 
 const showTimeSelector = ref(false);
 

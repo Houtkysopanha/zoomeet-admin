@@ -1,16 +1,40 @@
 <template>
   <div class="flex h-screen overflow-hidden bg-[#F8F8FF]">
+    <!-- Mobile Overlay -->
+    <div
+      v-if="isMobileMenuOpen"
+      class="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+      @click="closeMobileMenu"
+    ></div>
+
     <!-- Sidebar -->
-    <SidebarLeft class="w-64 md:w-[20rem] fixed h-full z-10 bg-transparent" />
+    <SidebarLeft
+      :class="[
+        'fixed h-full z-50 bg-transparent transition-transform duration-300 ease-in-out',
+        'w-64 lg:w-80',
+        // Mobile: slide in from left
+        'lg:translate-x-0',
+        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+      ]"
+      @close-mobile="closeMobileMenu"
+    />
+
+    <!-- Mobile Menu Button -->
+    <button
+      @click="toggleMobileMenu"
+      class="fixed top-4 left-4 z-60 lg:hidden bg-white rounded-lg p-2 shadow-lg"
+    >
+      <Icon
+        :name="isMobileMenuOpen ? 'heroicons:x-mark' : 'heroicons:bars-3'"
+        class="w-6 h-6 text-gray-700"
+      />
+    </button>
 
     <!-- Main Content Area -->
-    <div class="flex-1 flex flex-col ml-64 md:ml-[20rem]">
-      <!-- Header (optional) -->
-      <!-- <HeaderTop class="h-16 fixed top-0 right-0 left-64 bg-white shadow-sm z-20 border-b border-gray-200" /> -->
-
+    <div class="flex-1 flex flex-col lg:ml-80 transition-all duration-300 ease-in-out">
       <!-- Main Content -->
-      <main class="mt-8 flex-1 overflow-y-auto bg-white">
-        <div class="h-full">
+      <main class="flex-1 overflow-y-auto bg-[#F8F8FF]">
+        <div class="h-full pt-16 lg:pt-8 px-4 lg:px-0">
           <slot />
         </div>
       </main>
@@ -19,8 +43,13 @@
 </template>
 
 <script setup>
+import { ref, onMounted, onUnmounted } from 'vue'
+
 // Track page loading state
 const pending = ref(false)
+
+// Mobile menu state
+const isMobileMenuOpen = ref(false)
 
 // Listen to route changes
 const nuxtApp = useNuxtApp()
@@ -39,6 +68,36 @@ nuxtApp.hook('page:finish', () => {
 // Handle errors
 nuxtApp.hook('vue:error', () => {
   pending.value = false
+})
+
+// Mobile menu functions
+const toggleMobileMenu = () => {
+  isMobileMenuOpen.value = !isMobileMenuOpen.value
+}
+
+const closeMobileMenu = () => {
+  isMobileMenuOpen.value = false
+}
+
+// Close mobile menu on route change
+const router = useRouter()
+router.afterEach(() => {
+  closeMobileMenu()
+})
+
+// Handle window resize
+const handleResize = () => {
+  if (window.innerWidth >= 1024) {
+    closeMobileMenu()
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
 })
 </script>
 

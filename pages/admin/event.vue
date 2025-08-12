@@ -1,11 +1,11 @@
 <template>
-  <div class="p-4 bg-[#F8F8FF]">
-    <div class="mb-6">
-      <div class="flex items-center justify-between">
+  <div class="p-3 lg:p-4 bg-[#F8F8FF]">
+    <div class="mb-4 lg:mb-6">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 class="text-3xl font-bold text-[#7A49C9]">Event</h1>
+          <h1 class="text-2xl lg:text-3xl font-bold text-[#7A49C9]">Event</h1>
         </div>
-        <div class="date-range-picker flex space-x-4 items-center">
+        <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 items-stretch sm:items-center">
           <Calendar
             v-model="dateRange"
             selectionMode="range"
@@ -13,15 +13,16 @@
             :showIcon="true"
             :showButtonBar="true"
             dateFormat="dd MM, yy"
-            class="w-full max-w-xs p-inputtext-lg rounded-xl border border-gray-200 p-3 text-center text-blue-950 font-medium text-lg bg-transparent focus:ring-0 focus:outline-none"
+            class="w-full sm:max-w-xs p-inputtext-lg rounded-xl border border-gray-200 p-2 lg:p-3 text-center text-blue-950 font-medium text-sm lg:text-lg bg-transparent focus:ring-0 focus:outline-none"
             placeholder="Select Date Range"
             @date-select="updateDisplay"
           />
-          <div>
+          <div class="w-full sm:w-auto">
             <IconnButton
               label="Create Event"
               icon="mdi:event-add"
               @click="goToCreateEvent"
+              class="w-full sm:w-auto"
             />
           </div>
         </div>
@@ -29,7 +30,7 @@
     </div>
 
     <!-- Event Stats -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
       <CardCommon
         v-for="(stat, index) in eventStats"
         :key="index"
@@ -40,74 +41,80 @@
       />
     </div>
 
-     <!-- Filters and Search -->
-     <div class="mb-6 flex items-center justify-between mt-10  rounded-lg">
-     <div class="flex items-center space-x-4">
-  <div class="relative w-full">
-    <div class="border border-gray-300 rounded-full overflow-hidden flex">
-      <div class="relative flex-1">
-        <Icon name="i-heroicons-magnifying-glass" class="absolute w-8 h-8 left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Search"
-          class="w-full pl-14  border-0 focus:ring-0 focus:outline-none bg-transparent p-3 rounded-full"
-        />
+    <!-- Filters and Search -->
+    <div class="mb-4 lg:mb-6 flex flex-col lg:flex-row lg:items-center justify-between mt-6 lg:mt-10 gap-4 rounded-lg">
+      <div class="flex items-center space-x-4 w-full lg:w-auto">
+        <div class="relative w-full">
+          <div class="border border-gray-300 rounded-full overflow-hidden flex">
+            <div class="relative flex-1">
+              <Icon name="i-heroicons-magnifying-glass" class="absolute w-6 h-6 lg:w-8 lg:h-8 left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
+              <input
+                v-model="searchQuery"
+                type="text"
+                placeholder="Search"
+                class="w-full pl-12 lg:pl-14 border-0 focus:ring-0 focus:outline-none bg-transparent p-2 lg:p-3 rounded-full text-sm lg:text-base"
+              />
+            </div>
+            <div class="relative">
+              <Icon name="mynaui:filter" class="absolute w-6 h-6 lg:w-8 lg:h-8 left-3 top-1/2 bg-gradient-to-t from-blue-900 to-purple-800 transform -translate-y-1/2" />
+              <Button
+                label="Filters"
+                class="p-button-outlined px-4 lg:px-5 text-purple-600 border-purple-600 w-full h-full rounded-none p-2 lg:p-3 text-sm lg:text-base"
+                @click="toggleFilters"
+              />
+            </div>
+          </div>
+        </div>
       </div>
-      <div class=" relative space-x-5">
-     <Icon name="mynaui:filter" class="absolute w-8 h-8 left-3 top-1/2 bg-gradient-to-t from-blue-900 to-purple-800 transform -translate-y-1/2 text-grad" />
-       <Button
-          label="Filters"
-          class="p-button-outlined px-5  text-purple-600 border-purple-600 w-full h-full rounded-none p-3"
-          @click="toggleFilters"
-        />
-      </div>
-    </div>
-  </div>
-</div>
 
-    <div class="flex items-center space-x-4">
-  <div class="relative">
-    <!-- <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 font-medium">Sort</span> -->
-    <Dropdown
-      v-model="sortOption"
-      :options="sortOptions"
-      optionLabel="label"
-      optionValue="value"
-      class="w-30 p-dropdown-sm border bg-transparent border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg"
-      @change="applySort"
-    >
-      <template #value="slotProps">
-       <!-- <i class="pi pi-sort-amount-up mr-2 text-black"></i> -->
-        <span v-if="slotProps.value" class="">{{ slotProps.value }}</span>
-        <span v-else class="ml-14 text-black"></span>
-      </template>
-    </Dropdown>
-    <span class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"></span>
-  </div>
-    <p class="text-xl font-normal text-gray-700">Show</p>
-  <Dropdown
-    v-model="itemsPerPage"
-    :options="pageOptions"
-    optionLabel="label"
-    optionValue="value"
-    placeholder=""
-    class=" border border-gray-300 bg-transparent rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-    @change="applyPageChange"
-  />
-  <span class="text-lg text-gray-700  border-l pl-2 border-gray-500"> Show {{ currentPage * itemsPerPage - (itemsPerPage - 1) }} to {{ Math.min(currentPage * itemsPerPage, totalItems) }} of {{ totalItems }}</span>
-</div>
+      <div class="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 w-full lg:w-auto">
+        <div class="relative w-full sm:w-auto">
+          <Dropdown
+            v-model="sortOption"
+            :options="sortOptions"
+            optionLabel="label"
+            optionValue="value"
+            class="w-full sm:w-32 lg:w-40 p-dropdown-sm border bg-transparent border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            @change="applySort"
+          >
+            <template #value="slotProps">
+              <span v-if="slotProps.value" class="text-sm lg:text-base">{{ slotProps.value }}</span>
+              <span v-else class="text-sm lg:text-base text-black">Sort</span>
+            </template>
+          </Dropdown>
+        </div>
+
+        <div class="flex items-center space-x-2 lg:space-x-4 w-full sm:w-auto">
+          <p class="text-sm lg:text-xl font-normal text-gray-700 whitespace-nowrap">Show</p>
+          <Dropdown
+            v-model="itemsPerPage"
+            :options="pageOptions"
+            optionLabel="label"
+            optionValue="value"
+            placeholder=""
+            class="w-20 lg:w-24 border border-gray-300 bg-transparent rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            @change="applyPageChange"
+          />
+        </div>
+
+        <span class="text-xs lg:text-lg text-gray-700 border-l pl-2 border-gray-500 whitespace-nowrap">
+          Show {{ currentPage * itemsPerPage - (itemsPerPage - 1) }} to {{ Math.min(currentPage * itemsPerPage, totalItems) }} of {{ totalItems }}
+        </span>
+      </div>
     </div>
     <!-- Events Table -->
-    <DataTable
-      :value="filteredEvents"
-      :paginator="true"
-      :rows="itemsPerPage"
-      :totalRecords="totalItems"
-      :lazy="true"
-      @page="onPage"
-      class="p-datatable-sm shadow-md overflow-hidden"
-    >
+    <div class="overflow-x-auto">
+      <DataTable
+        :value="filteredEvents"
+        :paginator="true"
+        :rows="itemsPerPage"
+        :totalRecords="totalItems"
+        :lazy="true"
+        @page="onPage"
+        class="p-datatable-sm shadow-md overflow-hidden min-w-full"
+        :scrollable="true"
+        scrollHeight="flex"
+      >
       <Column
         field="name"
         header="Event"
@@ -188,7 +195,8 @@
           />
         </template>
       </Column>
-    </DataTable>
+      </DataTable>
+    </div>
   </div>
 </template>
 
@@ -204,8 +212,6 @@ import Menu from 'primevue/menu'
 import CardCommon from '~/components/common/CardCommon.vue'
 import { useToast } from 'primevue/usetoast'
 import { useRouter } from 'vue-router'
-import { useRuntimeConfig } from '#app' // Import useRuntimeConfig
-
 const router = useRouter()
 const toast = useToast()
 import { fetchEvents } from '@/composables/api'
@@ -242,6 +248,13 @@ const sortOptions = ref([
   { label: 'Date (Descending)', value: 'date-desc' },
   { label: 'Name (A-Z)', value: 'name-asc' },
   { label: 'Name (Z-A)', value: 'name-desc' },
+])
+
+const pageOptions = ref([
+  { label: '5', value: 5 },
+  { label: '10', value: 10 },
+  { label: '25', value: 25 },
+  { label: '50', value: 50 },
 ])
 
 const itemsPerPage = ref(10)
@@ -373,6 +386,11 @@ const actionItems = (event) => [
     visible: event?.status === 'Active',
   },
   {
+    label: 'Manage Tickets',
+    icon: 'pi pi-ticket',
+    command: () => manageTickets(event),
+  },
+  {
     label: 'Edit Event',
     icon: 'pi pi-pencil',
     command: () => editEvent(event),
@@ -390,24 +408,28 @@ const actionItems = (event) => [
   },
 ]
 
-const manageBooking = (event) =>
-  toast.add({ severity: 'info', summary: 'Manage Booking', detail: `Managing ${event.name}`, life: 3000 })
+const manageTickets = (event) => {
+  // Store event data in localStorage for ticket management
+  localStorage.setItem('currentEventId', event.id)
+  localStorage.setItem('currentEventName', event.name)
+
+  toast.add({
+    severity: 'info',
+    summary: 'Manage Tickets',
+    detail: `Opening ticket management for ${event.name}`,
+    life: 3000
+  })
+
+  // Navigate to Create Event page with Ticket tab
+  router.push('/admin/CreateEvent?tab=tickets')
+}
+
 const editEvent = (event) =>
   toast.add({ severity: 'info', summary: 'Edit Event', detail: `Editing ${event.name}`, life: 3000 })
 const endEvent = (event) =>
   toast.add({ severity: 'info', summary: 'End Event', detail: `Ending ${event.name}`, life: 3000 })
 const removeEvent = (event) =>
   toast.add({ severity: 'info', summary: 'Remove Event', detail: `Removing ${event.name}`, life: 3000 })
-
-const getSortLabel = (value) => {
-  const map = {
-    'date-asc': 'Date (Ascending)',
-    'date-desc': 'Date (Descending)',
-    'name-asc': 'Name (A-Z)',
-    'name-desc': 'Name (Z-A)',
-  }
-  return map[value] || value
-}
 
 definePageMeta({
   layout: 'admin',

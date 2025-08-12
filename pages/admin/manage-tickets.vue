@@ -90,17 +90,36 @@
       </div>
     </div>
 
-    <DataTable
-      :value="filteredEvents"
-      :paginator="true"
-      :rows="itemsPerPage"
-      :totalRecords="totalItems"
-      :lazy="true"
-      @page="onPage"
-      :sortField="sortField"
-      :sortOrder="sortOrder"
-      class="p-datatable-sm shadow-md overflow-hidden"
+    <!-- Enhanced Responsive Table with Loading -->
+    <TableLoader
+      :loading="isLoading"
+      text="Loading tickets..."
+      size="md"
+      :showSkeleton="!filteredEvents.length"
+      :skeletonRows="itemsPerPage"
+      :skeletonHeaders="[
+        { width: 'col-span-2' }, // Booking Ref
+        { width: 'col-span-2' }, // Ticket ID
+        { width: 'col-span-2' }, // Ticket Holder
+        { width: 'col-span-2' }, // Phone/Email
+        { width: 'col-span-1' }, // Price
+        { width: 'col-span-1' }, // Check-in
+        { width: 'col-span-2' }, // Actions
+      ]"
     >
+      <div class="table-responsive bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+          <DataTable
+            :value="filteredEvents"
+            :paginator="true"
+            :rows="itemsPerPage"
+            :totalRecords="totalItems"
+            :lazy="true"
+            @page="onPage"
+            :sortField="sortField"
+            :sortOrder="sortOrder"
+            class="p-datatable-sm min-w-full"
+          >
       <!-- Booking Reference -->
       <Column field="bookingRefNo" header="Booking Ref. No." class="text-[12px] test-start border-b border-gray-300" />
       <!-- Ticket ID -->
@@ -158,7 +177,10 @@
           </span>
         </template>
       </Column>
-    </DataTable>
+          </DataTable>
+        </div>
+      </div>
+    </TableLoader>
   </div>
 </template>
 
@@ -170,6 +192,7 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Dropdown from 'primevue/dropdown'
 import CardCommon from '~/components/common/CardCommon.vue'
+import TableLoader from '~/components/ui/TableLoader.vue'
 import { useToast } from 'primevue/usetoast'
 import { useRouter } from 'vue-router'
 import poster from '@/assets/image/poster-manage-booking.png'
@@ -177,6 +200,9 @@ import { definePageMeta } from '#imports';
 
 const router = useRouter()
 const toast = useToast()
+
+// Loading state for table data
+const isLoading = ref(false)
 
 const eventStats = [
   { title: 'Check-Ins', count: '28', icon: 'majesticons:ticket', weekChange: '2' },

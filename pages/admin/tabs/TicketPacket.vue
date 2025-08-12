@@ -46,22 +46,32 @@
 
       <Button
         @click="saveTickets"
-        :loading="loading"
-        :disabled="!currentEventId || tickets.length === 0"
-        class="save-tickets-btn"
+        :disabled="!currentEventId || tickets.length === 0 || loading"
+        :class="[
+          'save-tickets-btn flex items-center justify-center',
+          loading ? 'opacity-75 cursor-not-allowed' : ''
+        ]"
       >
-        <Icon name="heroicons:check" class="mr-2" />
-        Save All Tickets
+        <LoadingSpinner
+          v-if="loading"
+          size="sm"
+          color="white"
+          :showText="false"
+          class="mr-2"
+        />
+        <Icon v-else name="heroicons:check" class="mr-2" />
+        {{ loading ? 'Saving Tickets...' : 'Save All Tickets' }}
       </Button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue"
+import { ref, onMounted, onUnmounted, watch, computed } from "vue"
 // Icon is auto-imported by Nuxt
 import Button from "primevue/button"
 import TicketForm from '~/components/common/TicketForm.vue'
+import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
 import { createTicketTypes } from '@/composables/api'
 import { useToast } from "primevue/usetoast"
 
@@ -191,6 +201,46 @@ const saveTickets = async () => {
   }
 }
 
+// Auto-save functionality
+const isAutoSaving = ref(false)
+const hasAutoSaved = ref(false)
+
+// Check if all tickets are valid for auto-save
+const areTicketsValid = computed(() => {
+  return tickets.value.length > 0 && tickets.value.every(ticket =>
+    ticket.name && ticket.price && ticket.quantity
+  )
+})
+
+// Auto-save watcher
+watch(areTicketsValid, async (newValue) => {
+  if (newValue && !hasAutoSaved.value && !isAutoSaving.value && currentEventId.value) {
+    console.log('🔄 All tickets are valid, auto-saving...')
+    isAutoSaving.value = true
+
+    try {
+      await saveTickets()
+      hasAutoSaved.value = true
+
+      toast.add({
+        severity: 'info',
+        summary: 'Auto-Saved Tickets 🎫',
+        detail: 'Your tickets have been automatically saved.',
+        life: 3000
+      })
+    } catch (error) {
+      console.error('Auto-save tickets failed:', error)
+    } finally {
+      isAutoSaving.value = false
+    }
+  }
+}, { deep: true })
+
+// Event listeners for parent component actions
+const handleSaveTickets = () => {
+  saveTickets()
+}
+
 onMounted(() => {
   // Load event ID from localStorage
   const storedEventId = localStorage.getItem('currentEventId')
@@ -210,6 +260,16 @@ onMounted(() => {
   } else {
     console.log('⚠️ No event ID found. User needs to create an event first.')
   }
+
+  // Add event listeners
+  window.addEventListener('saveTickets', handleSaveTickets)
+  window.addEventListener('saveCurrentTab', handleSaveTickets)
+})
+
+// Remove event listeners when component unmounts
+onUnmounted(() => {
+  window.removeEventListener('saveTickets', handleSaveTickets)
+  window.removeEventListener('saveCurrentTab', handleSaveTickets)
 })
 </script>
 

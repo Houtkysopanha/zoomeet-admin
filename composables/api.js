@@ -109,6 +109,35 @@ export async function fetchEvents() {
   }
 }
 
+// Fetch single event by ID
+export async function fetchEventById(eventId) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!API_ADMIN_BASE_URL) {
+    throw new Error('API admin base URL is not configured.')
+  }
+
+  if (!eventId) {
+    throw new Error('Event ID is required.')
+  }
+
+  try {
+    console.log('Fetching event by ID:', eventId)
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}`, {
+      method: 'GET',
+      headers: createAuthHeaders(),
+    })
+
+    console.log('Event by ID response:', response)
+    return response
+  } catch (error) {
+    console.error('Fetch event by ID error:', error)
+    throw new Error(error.data?.message || error.message || 'Failed to fetch event details')
+  }
+}
+
 // Create event API
 export async function createEvent(eventData) {
   const config = useRuntimeConfig()

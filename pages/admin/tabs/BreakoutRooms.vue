@@ -28,10 +28,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue"
+import { ref, onMounted, onUnmounted, watch, computed } from "vue"
 // Icon is auto-imported by Nuxt
 import Button from "primevue/button"
 import BreakoutRoomForm from '~/components/common/BreakoutRoomForm.vue' // Import the new component
+import { useToast } from "primevue/usetoast"
+
+const toast = useToast()
 
 const loading = ref(false)
 
@@ -56,16 +59,99 @@ const removeRoom = (index) => {
   console.log('Breakout room removed. Total rooms:', rooms.value.length)
 }
 
+// Auto-save functionality
+const isAutoSaving = ref(false)
+
+// Check if rooms are valid for auto-save
+const areRoomsValid = computed(() => {
+  return rooms.value.length > 0 && rooms.value.every(room =>
+    room.name && room.capacity
+  )
+})
+
+// Auto-save watcher
+watch(areRoomsValid, async (newValue) => {
+  if (newValue && !isAutoSaving.value) {
+    isAutoSaving.value = true
+
+    try {
+      // Auto-save rooms data
+      const roomsData = {
+        rooms: rooms.value,
+        autoSavedAt: new Date().toISOString()
+      }
+      localStorage.setItem('breakoutRoomsData', JSON.stringify(roomsData))
+
+      toast.add({
+        severity: 'info',
+        summary: 'Auto-Saved Rooms 🏢',
+        detail: 'Your breakout rooms have been automatically saved.',
+        life: 3000
+      })
+    } catch (error) {
+      console.error('Auto-save rooms failed:', error)
+    } finally {
+      setTimeout(() => {
+        isAutoSaving.value = false
+      }, 2000)
+    }
+  }
+}, { deep: true })
+
+// Event listeners for parent component actions
+const handleSaveRooms = () => {
+  const roomsData = {
+    rooms: rooms.value,
+    savedAt: new Date().toISOString()
+  }
+  localStorage.setItem('breakoutRoomsData', JSON.stringify(roomsData))
+
+  toast.add({
+    severity: 'success',
+    summary: 'Rooms Saved',
+    detail: 'Breakout rooms have been saved successfully.',
+    life: 3000
+  })
+}
+
 onMounted(() => {
-  // Add two initial breakout rooms when the component mounts
-  addRoom() // Room 1
-  addRoom() // Room 2
-  
+  // Load saved rooms data
+  const savedRooms = localStorage.getItem('breakoutRoomsData')
+  if (savedRooms) {
+    try {
+      const roomsData = JSON.parse(savedRooms)
+      if (roomsData.rooms && roomsData.rooms.length > 0) {
+        rooms.value = roomsData.rooms
+      } else {
+        // Add default rooms if no saved data
+        addRoom() // Room 1
+        addRoom() // Room 2
+      }
+    } catch (error) {
+      console.error('Failed to load saved rooms:', error)
+      // Add default rooms on error
+      addRoom() // Room 1
+      addRoom() // Room 2
+    }
+  } else {
+    // Add two initial breakout rooms when the component mounts
+    addRoom() // Room 1
+    addRoom() // Room 2
+  }
+
   // Simulate initial loading (if needed, though not directly used here)
   loading.value = true
   setTimeout(() => {
     loading.value = false
   }, 1000)
+
+  // Add event listeners
+  window.addEventListener('saveCurrentTab', handleSaveRooms)
+})
+
+// Remove event listeners when component unmounts
+onUnmounted(() => {
+  window.removeEventListener('saveCurrentTab', handleSaveRooms)
 })
 </script>
 

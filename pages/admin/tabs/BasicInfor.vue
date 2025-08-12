@@ -267,21 +267,14 @@
         />
       </section>
 
-      <div class="flex items-center mt-6">
-        <InputSwitch v-model="isPublished" inputId="isPublished" />
-        <label for="isPublished" class="ml-2 text-sm font-medium text-gray-700">Publish Event</label>
-      </div>
-
-      <div class="flex justify-end mt-8">
-        <Button label="Save Event" icon="pi pi-save" @click="submitEvent" class="p-button-primary" :loading="loading" />
-      </div>
+      <!-- Note: Save and Publish buttons are now in the main Create Event page header -->
     </div>
   </div>
 </template>
 
 <script setup>
 import './css/style.css'
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, inject } from "vue";
 // Icon is auto-imported by Nuxt
 import Button from "primevue/button";
 import { useToast } from "primevue/usetoast";
@@ -294,12 +287,14 @@ import Dropdown from "primevue/dropdown";
 import Textarea from "primevue/textarea";
 import Calendar from "primevue/calendar";
 import Avatar from 'primevue/avatar'
-import InputSwitch from 'primevue/inputswitch'; // Import InputSwitch
 import UploadPhoto from '~/components/common/UploadPhoto.vue'
 import { createEvent } from '@/composables/api'
 
 const toast = useToast()
 const router = useRouter()
+
+// Inject event creation state from parent
+const eventCreationState = inject('eventCreationState')
 
 const loading = ref(false)
 
@@ -321,6 +316,73 @@ const isPublished = ref(false)
 const coverImageFile = ref(null)
 const eventBackgroundFile = ref(null)
 const cardBackgroundFile = ref(null)
+
+// Event listeners for parent component actions
+const handleSaveDraft = () => {
+  isPublished.value = false
+  submitEvent()
+}
+
+const handlePublishEvent = () => {
+  isPublished.value = true
+  submitEvent()
+}
+
+// Add event listeners when component mounts
+onMounted(() => {
+  window.addEventListener('saveDraft', handleSaveDraft)
+  window.addEventListener('publishEvent', handlePublishEvent)
+})
+
+// Remove event listeners when component unmounts
+onUnmounted(() => {
+  window.removeEventListener('saveDraft', handleSaveDraft)
+  window.removeEventListener('publishEvent', handlePublishEvent)
+})
+
+// Auto-save functionality
+const isAutoSaving = ref(false)
+const hasAutoSaved = ref(false)
+
+// Check if all required fields are filled
+const areRequiredFieldsFilled = computed(() => {
+  return !!(
+    eventName.value &&
+    category.value &&
+    description.value &&
+    startDate.value &&
+    endDate.value &&
+    location.value &&
+    eventSlug.value &&
+    coverImageFile.value
+  )
+})
+
+// Auto-save watcher
+watch(areRequiredFieldsFilled, async (newValue) => {
+  if (newValue && !hasAutoSaved.value && !isAutoSaving.value) {
+    console.log('🔄 All required fields filled, auto-saving as draft...')
+    isAutoSaving.value = true
+
+    try {
+      // Auto-save as draft
+      isPublished.value = false
+      await submitEvent()
+      hasAutoSaved.value = true
+
+      toast.add({
+        severity: 'info',
+        summary: 'Auto-Saved as Draft 💾',
+        detail: 'Your event has been automatically saved as draft.',
+        life: 3000
+      })
+    } catch (error) {
+      console.error('Auto-save failed:', error)
+    } finally {
+      isAutoSaving.value = false
+    }
+  }
+}, { deep: true })
 
 // Category Options (updated with value for category_id)
 const categories = ref([
@@ -483,9 +545,15 @@ const submitEvent = async () => {
       const eventData = result.data?.data;
       const eventId = eventData?.id;
 
+      // Notify parent component that BasicInfo is completed
+      if (eventCreationState && eventCreationState.setBasicInfoCompleted) {
+        eventCreationState.setBasicInfoCompleted(true, eventId);
+      }
+
+      const actionText = isPublished.value ? 'Published' : 'Saved as Draft';
       toast.add({
         severity: 'success',
-        summary: 'Event Created Successfully! 🎉',
+        summary: `Event ${actionText} Successfully! 🎉`,
         detail: `${message}${eventData?.name ? ` - "${eventData.name}"` : ''}`,
         life: 5000
       });
@@ -503,13 +571,11 @@ const submitEvent = async () => {
         console.log('✅ Event ID ready for ticket creation:', eventId);
       }
 
-      // Clear form fields
-      clearForm();
-
-      // Redirect to event list page after a short delay to show the toast
-      setTimeout(async () => {
-        await router.push('/admin/event');
-      }, 1500);
+      // Don't clear form or navigate - user can now access other tabs
+      // clearForm();
+      // setTimeout(async () => {
+      //   await router.push('/admin/event');
+      // }, 1500);
     } else {
       // This shouldn't happen if we reach here, but just in case
       const errorMessage = result?.data?.message || result?.message || 'Unknown error occurred';

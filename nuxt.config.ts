@@ -46,11 +46,11 @@ export default defineNuxtConfig({
     },
     // Global head configuration
     head: {
-      title: 'Zoomet Admin',
+      title: 'eTicketsAsia',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'description', content: 'Zoomet Admin Dashboard - Event Management System' }
+        { name: 'description', content: 'eTicketsAsia - Event Management System' }
       ]
     }
   },
