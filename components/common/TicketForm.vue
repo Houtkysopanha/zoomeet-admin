@@ -42,15 +42,15 @@
         />
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Total Available</label>
         <InputNumber
           v-model="ticketData.quantity"
           showButtons
           buttonLayout="horizontal"
-          :min="0"
+          :min="1"
           class="w-full bg-gray-100 rounded-2xl"
           inputClass="w-full p-3 bg-gray-100 rounded-2xl"
-          placeholder="ticket quantity"
+          placeholder="total tickets available"
         >
           <template #incrementbutton>
             <Button icon="pi pi-plus" class="p-button-text p-button-secondary" />
@@ -62,14 +62,14 @@
       </div>
     </div>
 
-    <!-- Ticket Description -->
+    <!-- Ticket Tag/Description -->
     <div class="mb-6">
-      <label class="block text-sm font-medium text-gray-700 mb-2">Ticket Description</label>
+      <label class="block text-sm font-medium text-gray-700 mb-2">Ticket Tag (Optional)</label>
       <Textarea
         v-model="ticketData.description"
         class="w-full p-3 bg-gray-100 rounded-2xl"
-        placeholder="Brief description of this ticket"
-        rows="4"
+        placeholder="e.g., premium, early-bird, vip (optional)"
+        rows="2"
       />
     </div>
   </div>

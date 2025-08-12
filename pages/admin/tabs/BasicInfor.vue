@@ -30,12 +30,12 @@
         <div class="mb-6">
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700">Start Date</label>
-              <Calendar showIcon iconDisplay="input" placeholder="31/07/2025" v-model="startDate" class="w-full p-3 mt-1 bg-gray-100 rounded-2xl" dateFormat="dd/mm/yy" />
+              <label class="block text-sm font-medium text-gray-700">Start Date & Time</label>
+              <Calendar showIcon iconDisplay="input" placeholder="31/07/2025 09:00" v-model="startDate" class="w-full p-3 mt-1 bg-gray-100 rounded-2xl" dateFormat="dd/mm/yy" showTime hourFormat="24" />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700">End Date</label>
-              <Calendar v-model="endDate" showIcon placeholder="31/07/2025" iconDisplay="input" class="w-full p-3 mt-1 bg-gray-100 rounded-2xl" dateFormat="dd/mm/yy" />
+              <label class="block text-sm font-medium text-gray-700">End Date & Time</label>
+              <Calendar v-model="endDate" showIcon placeholder="31/07/2025 17:00" iconDisplay="input" class="w-full p-3 mt-1 bg-gray-100 rounded-2xl" dateFormat="dd/mm/yy" showTime hourFormat="24" />
             </div>
           </div>
           <div class="grid grid-cols-2 gap-4 mt-4">
@@ -44,6 +44,7 @@
               <InputText v-model="location" class="w-full p-3 mt-1 bg-gray-100 rounded-2xl" placeholder="Enter location" />
             </div>
             <div>
+              <label class="block text-sm font-medium text-gray-700">Map URL</label>
               <InputText v-model="mapUrl" class="w-full p-3 mt-1 bg-gray-100 rounded-2xl" placeholder="Enter map URL" />
             </div>
           </div>
@@ -242,13 +243,28 @@
       <div class="border border-gray-200 my-5"></div>
 
       <section class="cover">
-        <UploadPhoto v-model:file="coverImageFile" />
+        <UploadPhoto
+          label="Cover Image (Required)"
+          :multiple="false"
+          @file-selected="coverImageFile = $event"
+          @file-removed="coverImageFile = null"
+        />
       </section>
       <section class="event-bg mt-10">
-        <UploadPhoto label="Event Background" v-model:file="eventBackgroundFile" />
+        <UploadPhoto
+          label="Event Background (Optional)"
+          :multiple="false"
+          @file-selected="eventBackgroundFile = $event"
+          @file-removed="eventBackgroundFile = null"
+        />
       </section>
       <section class="card-bg mt-10">
-        <UploadPhoto label="Card Background" v-model:file="cardBackgroundFile" />
+        <UploadPhoto
+          label="Card Background (Optional)"
+          :multiple="false"
+          @file-selected="cardBackgroundFile = $event"
+          @file-removed="cardBackgroundFile = null"
+        />
       </section>
 
       <div class="flex items-center mt-6">
@@ -365,10 +381,21 @@ const openUrl = () => {
   toast.add({ severity: 'info', summary: 'Opening URL', detail: 'Opening URL in new tab', life: 3000 })
 }
 
-// Helper to format date for API
-const formatDateForApi = (date) => {
+// Helper to format date for API (match Postman format exactly)
+const formatDateForApi = (date, isEndDate = false) => {
   if (!date) return null;
   const d = new Date(date);
+
+  // If it's an end date and no time is set, set it to end of day
+  if (isEndDate && d.getHours() === 0 && d.getMinutes() === 0) {
+    d.setHours(17, 0, 0, 0); // Default to 5 PM like Postman
+  }
+  // If it's a start date and no time is set, set it to start of day
+  else if (!isEndDate && d.getHours() === 0 && d.getMinutes() === 0) {
+    d.setHours(9, 0, 0, 0); // Default to 9 AM like Postman
+  }
+
+  // Return format exactly like Postman: "2025-10-01 09:00:00"
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -388,46 +415,110 @@ const submitEvent = async () => {
       return;
     }
 
-    // Prepare event data object
+    // Cover Image is REQUIRED - Event Background and Card Background are OPTIONAL
+    if (!coverImageFile.value) {
+      toast.add({
+        severity: 'error',
+        summary: 'Cover Image Required',
+        detail: 'Please upload a cover image. This field is required for event creation.',
+        life: 5000
+      });
+      return;
+    }
+
+    // Prepare event data object (only include non-empty values)
     const eventData = {
       name: eventName.value,
       category_id: category.value,
       description: description.value,
-      start_date: formatDateForApi(startDate.value),
-      end_date: formatDateForApi(endDate.value),
+      start_date: formatDateForApi(startDate.value, false),
+      end_date: formatDateForApi(endDate.value, true),
       location: location.value,
-      map_url: mapUrl.value || '',
-      company: company.value || '',
-      organizer: organizer.value || '',
       event_slug: eventSlug.value,
-      online_link_meeting: onlineLinkMeeting.value || '',
       is_published: isPublished.value ? '1' : '0'
     };
 
-    // Add file uploads if they exist
-    if (coverImageFile.value) {
+    // Add ALL required fields from your Postman example (even if empty)
+    // This ensures the API gets exactly what it expects
+    eventData.map_url = mapUrl.value ? mapUrl.value.trim() : '';
+    eventData.company = company.value ? company.value.trim() : '';
+    eventData.organizer = organizer.value ? organizer.value.trim() : '';
+
+    // Optional field - only add if has value
+    if (onlineLinkMeeting.value && onlineLinkMeeting.value.trim()) {
+      eventData.online_link_meeting = onlineLinkMeeting.value.trim();
+    }
+
+    // Add file uploads ONLY if they exist (don't add null/empty values)
+    if (coverImageFile.value && coverImageFile.value instanceof File) {
       eventData.cover_image = coverImageFile.value;
     }
-    if (eventBackgroundFile.value) {
-      eventData.event_background_url = eventBackgroundFile.value;
+    if (eventBackgroundFile.value && eventBackgroundFile.value instanceof File) {
+      eventData.event_background = eventBackgroundFile.value;
     }
-    if (cardBackgroundFile.value) {
-      eventData.card_background_url = cardBackgroundFile.value;
+    if (cardBackgroundFile.value && cardBackgroundFile.value instanceof File) {
+      eventData.card_background = cardBackgroundFile.value;
     }
+
+    // Debug: Log the event data being sent
+    console.log('Event data being sent:', eventData);
+    console.log('Start date formatted:', eventData.start_date);
+    console.log('End date formatted:', eventData.end_date);
+
+    // Log file uploads
+    console.log('📸 File uploads:');
+    console.log('  - Cover Image:', coverImageFile.value ? `${coverImageFile.value.name} (${coverImageFile.value.size} bytes)` : 'None');
+    console.log('  - Event Background:', eventBackgroundFile.value ? `${eventBackgroundFile.value.name} (${eventBackgroundFile.value.size} bytes)` : 'None');
+    console.log('  - Card Background:', cardBackgroundFile.value ? `${cardBackgroundFile.value.name} (${cardBackgroundFile.value.size} bytes)` : 'None');
 
     // Use the API composable to create the event
     const result = await createEvent(eventData);
 
-    if (result.success) {
-      toast.add({ severity: 'success', summary: 'Event Created', detail: result.message || 'Event created successfully!', life: 3000 });
+    console.log('✅ Event creation result:', result);
+
+    // Check the API response structure
+    // API returns: { status: 201, data: { success: true, message: "...", data: {...} } }
+    if (result && (result.status === 201 || (result.data && result.data.success))) {
+      const message = result.data?.message || result.message || 'Event created successfully!';
+      const eventData = result.data?.data;
+      const eventId = eventData?.id;
+
+      toast.add({
+        severity: 'success',
+        summary: 'Event Created Successfully! 🎉',
+        detail: `${message}${eventData?.name ? ` - "${eventData.name}"` : ''}`,
+        life: 5000
+      });
+
+      console.log('🎉 Event created successfully:', eventData);
+      console.log('💾 Event ID stored:', eventId);
+
+      // Store the event ID for ticket creation
+      if (eventId) {
+        // Store in localStorage for persistence across page navigation
+        localStorage.setItem('currentEventId', eventId);
+        localStorage.setItem('currentEventName', eventData?.name || 'Unnamed Event');
+
+        // Also emit to parent component or use composable for state management
+        console.log('✅ Event ID ready for ticket creation:', eventId);
+      }
 
       // Clear form fields
       clearForm();
 
-      // Redirect to event list page
-      await router.push('/admin/event');
+      // Redirect to event list page after a short delay to show the toast
+      setTimeout(async () => {
+        await router.push('/admin/event');
+      }, 1500);
     } else {
-      toast.add({ severity: 'error', summary: 'Creation Failed', detail: result.message || 'An error occurred.', life: 3000 });
+      // This shouldn't happen if we reach here, but just in case
+      const errorMessage = result?.data?.message || result?.message || 'Unknown error occurred';
+      toast.add({
+        severity: 'warn',
+        summary: 'Unexpected Response',
+        detail: errorMessage,
+        life: 3000
+      });
     }
   } catch (error) {
     console.error('Event creation error:', error);
