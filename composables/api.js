@@ -706,3 +706,26 @@ export const createTicketTypes = async (eventId, ticketTypesData) => {
     throw error
   }
 }
+// Fetch event ticket types
+export async function getEventTicketTypes(eventId) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl || 'https://dev-apiticket.prestigealliance.co/api/v1/admin'
+
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  try {
+    console.log('🎫 Fetching ticket types for event:', eventId)
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types`, {
+      method: 'GET',
+      headers: createAuthHeaders()
+    })
+
+    console.log('✅ Event ticket types fetched:', response)
+    return response
+  } catch (error) {
+    console.error('❌ Failed to fetch event ticket types:', error)
+    throw error
+  }
+}

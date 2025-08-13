@@ -4,9 +4,9 @@
       <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h1 class="text-xl lg:text-3xl text-gray-400 mb-2">
-            Event / <span class="text-xl lg:text-3xl font-bold text-[#7A49C9]">Edit Event</span>
+            Event / <span class="text-xl lg:text-3xl font-bold text-[#7A49C9]">{{ isEditMode ? 'Edit Event' : 'Create Event' }}</span>
           </h1>
-          <p v-if="eventData" class="text-sm text-gray-500">
+          <p v-if="isEditMode && eventData" class="text-sm text-gray-500">
             Editing: {{ eventData.name }}
           </p>
         </div>
@@ -58,7 +58,7 @@
                       : 'text-gray-400'
                   ]"
                 >
-                  Update Draft
+                  {{ isEditMode ? 'Update Draft' : 'Save Draft' }}
                 </span>
               </template>
             </Button>
@@ -77,7 +77,7 @@
             >
               <template #default>
                 <Icon name="heroicons:paper-airplane" class="text-lg lg:text-2xl" />
-                <span>Update & Publish</span>
+                <span>{{ isEditMode ? 'Update & Publish' : 'Publish Event' }}</span>
               </template>
             </Button>
           </div>
@@ -172,7 +172,7 @@
 </template>
 
 <script setup>
-import { ref, nextTick, provide, onMounted } from 'vue'
+import { ref, nextTick, provide, onMounted, onBeforeUnmount } from 'vue'
 // Icon is auto-imported by Nuxt
 import Button from 'primevue/button'
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
@@ -203,65 +203,94 @@ const activeIndex = ref(0)
 const isChangingTab = ref(false)
 const isLoading = ref(false)
 
-// Event editing state management
-const isBasicInfoCompleted = ref(true) // Always true for editing
+// Event creation/editing state management
+const isBasicInfoCompleted = ref(false)
 const eventId = ref(null)
 const isSubmitting = ref(false)
 const eventData = ref(null)
+const isEditMode = ref(false)
 
-// Initialize state on mount - EDIT MODE
+// Initialize state on mount - CLEAR CREATE VS EDIT LOGIC
 onMounted(async () => {
-  // Get event ID from route params
-  const routeEventId = route.params.id
+  console.log('🚀 Initializing CreateEvent page...')
   
-  if (routeEventId) {
+  // Check ONLY for edit event ID (from edit button click)
+  const editEventId = localStorage.getItem('editEventId')
+  
+  if (editEventId) {
+    // EDIT MODE: Load existing event data
     try {
-      eventId.value = routeEventId
+      console.log('📝 EDIT MODE: Loading event data for ID:', editEventId)
       
-      console.log('🔍 Loading event for editing:', routeEventId)
-      const data = await getEventDetails(routeEventId)
+      eventId.value = editEventId
+      isEditMode.value = true
       
-      if (data && data.data) {
-        eventData.value = data.data
+      // Load event data from API
+      const response = await getEventDetails(editEventId)
+      
+      if (response && response.data) {
+        eventData.value = response.data
+        isBasicInfoCompleted.value = true
         
-        console.log('📋 Event loaded for editing:', {
+        console.log('✅ Event data loaded for editing:', {
           id: eventId.value,
-          name: data.data.name
+          name: response.data.name
         })
         
-        // Store as current event for persistence
-        localStorage.setItem('currentEventId', routeEventId)
-        localStorage.setItem('currentEventName', data.data.name || 'Unnamed Event')
+        // Store as current event for this editing session
+        localStorage.setItem('currentEventId', editEventId)
+        localStorage.setItem('currentEventName', response.data.name || 'Unnamed Event')
+        
+        // Clear edit event ID after use (one-time trigger)
+        localStorage.removeItem('editEventId')
+        localStorage.removeItem('editEventName')
         
         toast.add({
           severity: 'success',
-          summary: 'Event Loaded',
-          detail: `Editing "${data.data.name}"`,
+          summary: 'Event Loaded for Editing',
+          detail: `Editing "${response.data.name}"`,
           life: 3000
         })
+      } else {
+        throw new Error('No event data received from API')
       }
     } catch (error) {
-      console.error('Failed to load event for editing:', error)
+      console.error('❌ Failed to load event for editing:', error)
+      
+      // Clear all event-related localStorage on error
+      localStorage.removeItem('currentEventId')
+      localStorage.removeItem('currentEventName')
+      localStorage.removeItem('editEventId')
+      localStorage.removeItem('editEventName')
+      
+      // Reset to new event creation mode
+      eventId.value = null
+      isBasicInfoCompleted.value = false
+      isEditMode.value = false
+      eventData.value = null
       
       toast.add({
         severity: 'error',
-        summary: 'Load Failed',
-        detail: 'Failed to load event data. Redirecting to event list.',
-        life: 3000
+        summary: 'Edit Load Failed',
+        detail: 'Failed to load event for editing. Starting fresh event creation.',
+        life: 4000
       })
-      
-      // Redirect back to event list
-      setTimeout(() => {
-        router.push('/admin/event')
-      }, 2000)
     }
   } else {
-    // No event ID - redirect to event list
-    router.push('/admin/event')
+    // CREATE MODE: Always start fresh
+    console.log('🆕 CREATE MODE: Starting fresh event creation')
+    isEditMode.value = false
+    isBasicInfoCompleted.value = false
+    eventId.value = null
+    eventData.value = null
+    
+    // Clear any existing event data to ensure fresh start
+    localStorage.removeItem('currentEventId')
+    localStorage.removeItem('currentEventName')
   }
 
-  // Check for tab query parameter (from manage tickets)
-  if (route.query.tab === 'tickets') {
+  // Check for tab query parameter (from manage tickets - only in edit mode)
+  if (route.query.tab === 'tickets' && isBasicInfoCompleted.value && isEditMode.value) {
     activeIndex.value = 2 // Ticket Package tab
     toast.add({
       severity: 'info',
@@ -270,6 +299,15 @@ onMounted(async () => {
       life: 3000
     })
   }
+})
+
+// Clear event data when leaving the page - ALWAYS CLEAR
+onBeforeUnmount(() => {
+  console.log('🚪 Leaving CreateEvent page - clearing all event data for fresh start')
+  localStorage.removeItem('currentEventId')
+  localStorage.removeItem('currentEventName')
+  localStorage.removeItem('editEventId')
+  localStorage.removeItem('editEventName')
 })
 
 // Match tab index with component
@@ -286,7 +324,7 @@ provide('eventCreationState', {
   isBasicInfoCompleted,
   eventId,
   eventData,
-  isEditMode: ref(true), // Always true for this page
+  isEditMode,
   setBasicInfoCompleted: (completed, id = null, data = null) => {
     console.log('🔄 Setting basic info completed:', { completed, id })
     isBasicInfoCompleted.value = completed
@@ -304,12 +342,18 @@ provide('eventCreationState', {
   }
 })
 
-// Check if tab is accessible - ALL TABS ACCESSIBLE IN EDIT MODE
+// Check if tab is accessible - STRICT FLOW CONTROL
 const isTabAccessible = (index) => {
-  // In edit mode, Basic Info and Ticket Package are always accessible
-  if (index === 0 || index === 2) return true
+  // Basic Info is always accessible
+  if (index === 0) return true
   
-  // Other tabs are still locked for now
+  // All other tabs require Basic Info to be completed first
+  if (!isBasicInfoCompleted.value) return false
+  
+  // Only Ticket Package is accessible after Basic Info is saved
+  if (index === 2) return true
+  
+  // Lock other tabs for now (Agenda, BreakoutRooms, SettingPolicy)
   return false
 }
 
@@ -320,11 +364,13 @@ const changeTab = async (index) => {
 
   // Check if tab is accessible
   if (!isTabAccessible(index)) {
+    if (index === 0) return // Basic Info should always be accessible
+    
     toast.add({
       severity: 'warn',
-      summary: 'Tab Not Available',
-      detail: 'This tab is not available yet.',
-      life: 3000
+      summary: 'Save Basic Info First',
+      detail: 'Please complete and save the Basic Info section before accessing other tabs.',
+      life: 4000
     })
     return
   }
@@ -355,27 +401,27 @@ const changeTab = async (index) => {
   }
 }
 
-// Handle Save Draft button
+// Handle Save Draft button - CONTEXT AWARE
 const handleSaveDraft = async () => {
   // Trigger save draft based on current tab
   if (activeIndex.value === 0) {
-    // BasicInfo tab
+    // BasicInfo tab - this will enable other tabs after success
     window.dispatchEvent(new CustomEvent('saveDraft'))
-  } else if (activeIndex.value === 2) {
-    // TicketPacket tab
+  } else if (activeIndex.value === 2 && isBasicInfoCompleted.value) {
+    // TicketPacket tab - only available after Basic Info is saved
     window.dispatchEvent(new CustomEvent('saveTickets'))
   } else {
-    // Other tabs - generic save
+    // Other tabs - generic save (currently disabled)
     toast.add({
-      severity: 'info',
-      summary: 'Save Draft',
-      detail: 'Saving current tab data...',
-      life: 3000
+      severity: 'warn',
+      summary: 'Save Basic Info First',
+      detail: 'Please complete and save Basic Info before saving other sections.',
+      life: 4000
     })
   }
 }
 
-// Handle Publish Event button
+// Handle Publish Event button - ONLY FROM BASIC INFO
 const handlePublishEvent = async () => {
   if (activeIndex.value !== 0) {
     toast.add({
@@ -391,13 +437,23 @@ const handlePublishEvent = async () => {
   window.dispatchEvent(new CustomEvent('publishEvent'))
 }
 
-// Handle Preview button
+// Handle Preview button - REQUIRES SAVED EVENT
 const handlePreview = () => {
+  if (!isBasicInfoCompleted.value) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Save Basic Info First',
+      detail: 'Please complete and save the Basic Info section before previewing the event.',
+      life: 4000
+    })
+    return
+  }
+
   if (!eventId.value) {
     toast.add({
       severity: 'error',
       summary: 'No Event Found',
-      detail: 'Event ID not found.',
+      detail: 'Event ID not found. Please save the event first.',
       life: 3000
     })
     return

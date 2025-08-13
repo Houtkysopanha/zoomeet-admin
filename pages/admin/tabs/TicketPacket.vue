@@ -83,7 +83,7 @@ import { ref, onMounted, onUnmounted } from "vue"
 import Button from "primevue/button"
 import TicketForm from '~/components/common/TicketForm.vue'
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
-import { createTicketTypes, updateTicketType, getEventDetails } from '@/composables/api'
+import { createTicketTypes, updateTicketType, getEventDetails, getEventTicketTypes } from '@/composables/api'
 import { useToast } from "primevue/usetoast"
 
 const loading = ref(false)
@@ -319,28 +319,30 @@ const saveTickets = async () => {
 }
 
 // Initialize on mount and add event listeners
-onMounted(() => {
+onMounted(async () => {
   // Load event ID from localStorage
-  const storedEventId = localStorage.getItem('currentEventId')
-  const storedEventName = localStorage.getItem('currentEventName')
+  const storedEventId = localStorage.getItem("currentEventId")
+  const storedEventName = localStorage.getItem("currentEventName")
 
   if (storedEventId) {
     currentEventId.value = storedEventId
-    currentEventName.value = storedEventName || 'Unnamed Event'
-    console.log('📋 Loading event for tickets:', {
+    currentEventName.value = storedEventName || "Unnamed Event"
+    console.log("📋 Loading event for tickets:", {
       id: currentEventId.value,
       name: currentEventName.value
     })
-    
-    // Load existing tickets if any
-    loadTickets()
+
+    // Load existing tickets if any (for edit mode)
+    await loadExistingTickets()
   } else {
-    console.log('⚠️ No event ID found. Complete Basic Info first.')
+    console.log("⚠️ No event ID found. Complete Basic Info first.")
   }
 
-  // Listen for save tickets event from parent
+  // Add event listeners
+  window.addEventListener("saveTickets", handleSaveTickets)
+})  // Listen for save tickets event from parent
   window.addEventListener('saveTickets', saveTickets)
-})
+
 
 // Remove event listener when component unmounts
 onUnmounted(() => {
@@ -402,3 +404,53 @@ onUnmounted(() => {
   width: 100%;
 }
 </style>
+// Load existing tickets when in edit mode
+const loadExistingTickets = async () => {
+  if (!currentEventId.value) return
+
+  try {
+    console.log('🎫 Loading existing tickets for event:', currentEventId.value)
+    const response = await getEventTicketTypes(currentEventId.value)
+    
+    if (response && response.data && Array.isArray(response.data)) {
+      const existingTickets = response.data
+      
+      if (existingTickets.length > 0) {
+        console.log('✅ Found existing tickets:', existingTickets.length)
+        
+        // Clear current tickets and load existing ones
+        tickets.value = existingTickets.map(ticket => ({
+          id: ticket.id,
+          name: ticket.name || '',
+          description: ticket.description || '',
+          price: ticket.price || 0,
+          quantity: ticket.quantity || 0,
+          maxPerOrder: ticket.max_per_order || 1,
+          saleStartDate: ticket.sale_start_date ? new Date(ticket.sale_start_date) : null,
+          saleEndDate: ticket.sale_end_date ? new Date(ticket.sale_end_date) : null,
+          isActive: ticket.is_active || false
+        }))
+        
+        hasExistingTickets.value = true
+        
+        toast.add({
+          severity: 'success',
+          summary: 'Tickets Loaded',
+          detail: `Loaded ${existingTickets.length} existing ticket(s)`,
+          life: 3000
+        })
+      } else {
+        console.log('📝 No existing tickets found, starting fresh')
+        hasExistingTickets.value = false
+      }
+    }
+  } catch (error) {
+    console.error('❌ Failed to load existing tickets:', error)
+    toast.add({
+      severity: 'warn',
+      summary: 'Load Tickets Failed',
+      detail: 'Could not load existing tickets. You can create new ones.',
+      life: 4000
+    })
+  }
+}

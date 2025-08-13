@@ -459,7 +459,7 @@ const editEvent = (event) => {
   })
 
   // Navigate to Create Event page with event ID for editing
-  router.push(`/admin/CreateEvent/${event.id}`)
+  router.push(`/admin/CreateEvent-${event.id}`)
 }
 
 const endEvent = (event) => {
