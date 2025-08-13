@@ -4,8 +4,11 @@
       <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h1 class="text-xl lg:text-3xl text-gray-400 mb-2">
-            Event / <span class="text-xl lg:text-3xl font-bold text-[#7A49C9]">Create Event</span>
+            Event / <span class="text-xl lg:text-3xl font-bold text-[#7A49C9]">Edit Event</span>
           </h1>
+          <p v-if="eventData" class="text-sm text-gray-500">
+            Editing: {{ eventData.name }}
+          </p>
         </div>
         <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 items-stretch sm:items-center">
           <div class="bt-preview">
@@ -30,10 +33,10 @@
           <div class="bt-saveDraft">
             <Button
               @click="handleSaveDraft"
-              :disabled="!isBasicInfoCompleted || isSubmitting"
+              :disabled="isSubmitting"
               :class="[
                 'w-full sm:w-40 lg:w-52 h-12 lg:h-14 p-3 lg:p-4 rounded-full border-2 border-purple-800 flex items-center justify-center gap-2 transition-all duration-300 text-sm lg:text-base',
-                isBasicInfoCompleted && !isSubmitting
+                !isSubmitting
                   ? 'bg-white hover:bg-purple-50 cursor-pointer'
                   : 'bg-gray-100 border-gray-300 cursor-not-allowed opacity-50'
               ]"
@@ -44,18 +47,18 @@
                   name="heroicons:document-arrow-down"
                   :class="[
                     'text-lg lg:text-2xl',
-                    isBasicInfoCompleted && !isSubmitting ? 'text-purple-800' : 'text-gray-400'
+                    !isSubmitting ? 'text-purple-800' : 'text-gray-400'
                   ]"
                 />
                 <span
                   :class="[
                     'font-semibold',
-                    isBasicInfoCompleted && !isSubmitting
+                    !isSubmitting
                       ? 'bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent'
                       : 'text-gray-400'
                   ]"
                 >
-                  Save Draft
+                  Update Draft
                 </span>
               </template>
             </Button>
@@ -74,7 +77,7 @@
             >
               <template #default>
                 <Icon name="heroicons:paper-airplane" class="text-lg lg:text-2xl" />
-                <span>Publish Event</span>
+                <span>Update & Publish</span>
               </template>
             </Button>
           </div>
@@ -100,7 +103,7 @@
                   : 'text-gray-400 bg-gray-50 cursor-not-allowed opacity-60',
               isChangingTab ? 'opacity-50 cursor-not-allowed' : ''
             ]"
-            :title="!isTabAccessible(index) ? 'Complete Basic Info first to access this tab' : ''"
+            :title="!isTabAccessible(index) ? 'Complete and save Basic Info first to access this tab' : ''"
           >
             <i :class="item.icon" class="text-base lg:text-lg"></i>
             <span class="hidden sm:inline">{{ item.label }}</span>
@@ -180,9 +183,11 @@ import BreakoutRooms from '~/pages/admin/tabs/BreakoutRooms.vue'
 import SettingPolicy from '~/pages/admin/tabs/SettingPolicy.vue'
 import { useToast } from "primevue/usetoast"
 import { useRouter, useRoute } from "vue-router"
+import { getEventDetails } from '@/composables/api'
 
 const toast = useToast()
 const router = useRouter()
+const route = useRoute()
 
 // Tab Menu Items
 const items = ref([
@@ -198,32 +203,74 @@ const activeIndex = ref(0)
 const isChangingTab = ref(false)
 const isLoading = ref(false)
 
-// Check for tab query parameter on mount
-onMounted(() => {
-  const route = useRoute()
-  if (route.query.tab === 'tickets') {
-    // Check if we have an event ID in localStorage (from manage tickets)
-    const storedEventId = localStorage.getItem('currentEventId')
-    if (storedEventId) {
-      // Set basic info as completed and switch to tickets tab
-      isBasicInfoCompleted.value = true
-      eventId.value = storedEventId
-      activeIndex.value = 2 // Ticket Package tab
-
-      toast.add({
-        severity: 'info',
-        summary: 'Ticket Management',
-        detail: 'You can now manage tickets for this event.',
-        life: 3000
-      })
-    }
-  }
-})
-
-// Event creation state management
-const isBasicInfoCompleted = ref(false)
+// Event editing state management
+const isBasicInfoCompleted = ref(true) // Always true for editing
 const eventId = ref(null)
 const isSubmitting = ref(false)
+const eventData = ref(null)
+
+// Initialize state on mount - EDIT MODE
+onMounted(async () => {
+  // Get event ID from route params
+  const routeEventId = route.params.id
+  
+  if (routeEventId) {
+    try {
+      eventId.value = routeEventId
+      
+      console.log('🔍 Loading event for editing:', routeEventId)
+      const data = await getEventDetails(routeEventId)
+      
+      if (data && data.data) {
+        eventData.value = data.data
+        
+        console.log('📋 Event loaded for editing:', {
+          id: eventId.value,
+          name: data.data.name
+        })
+        
+        // Store as current event for persistence
+        localStorage.setItem('currentEventId', routeEventId)
+        localStorage.setItem('currentEventName', data.data.name || 'Unnamed Event')
+        
+        toast.add({
+          severity: 'success',
+          summary: 'Event Loaded',
+          detail: `Editing "${data.data.name}"`,
+          life: 3000
+        })
+      }
+    } catch (error) {
+      console.error('Failed to load event for editing:', error)
+      
+      toast.add({
+        severity: 'error',
+        summary: 'Load Failed',
+        detail: 'Failed to load event data. Redirecting to event list.',
+        life: 3000
+      })
+      
+      // Redirect back to event list
+      setTimeout(() => {
+        router.push('/admin/event')
+      }, 2000)
+    }
+  } else {
+    // No event ID - redirect to event list
+    router.push('/admin/event')
+  }
+
+  // Check for tab query parameter (from manage tickets)
+  if (route.query.tab === 'tickets') {
+    activeIndex.value = 2 // Ticket Package tab
+    toast.add({
+      severity: 'info',
+      summary: 'Ticket Management',
+      detail: 'You can now manage tickets for this event.',
+      life: 3000
+    })
+  }
+})
 
 // Match tab index with component
 const tabComponents = [
@@ -238,16 +285,32 @@ const tabComponents = [
 provide('eventCreationState', {
   isBasicInfoCompleted,
   eventId,
-  setBasicInfoCompleted: (completed, id = null) => {
+  eventData,
+  isEditMode: ref(true), // Always true for this page
+  setBasicInfoCompleted: (completed, id = null, data = null) => {
+    console.log('🔄 Setting basic info completed:', { completed, id })
     isBasicInfoCompleted.value = completed
-    if (id) eventId.value = id
+    if (id) {
+      eventId.value = id
+      localStorage.setItem('currentEventId', id.toString())
+    }
+    if (data) {
+      eventData.value = data
+      localStorage.setItem('currentEventName', data.name || 'Unnamed Event')
+    }
+  },
+  updateEventData: (data) => {
+    eventData.value = { ...eventData.value, ...data }
   }
 })
 
-// Check if tab is accessible
+// Check if tab is accessible - ALL TABS ACCESSIBLE IN EDIT MODE
 const isTabAccessible = (index) => {
-  if (index === 0) return true // Basic Info is always accessible
-  return isBasicInfoCompleted.value // Other tabs only accessible after Basic Info completion
+  // In edit mode, Basic Info and Ticket Package are always accessible
+  if (index === 0 || index === 2) return true
+  
+  // Other tabs are still locked for now
+  return false
 }
 
 // Methods
@@ -259,9 +322,9 @@ const changeTab = async (index) => {
   if (!isTabAccessible(index)) {
     toast.add({
       severity: 'warn',
-      summary: 'Complete Basic Info First',
-      detail: 'Please complete and save the Basic Info section before accessing other tabs.',
-      life: 4000
+      summary: 'Tab Not Available',
+      detail: 'This tab is not available yet.',
+      life: 3000
     })
     return
   }
@@ -278,6 +341,8 @@ const changeTab = async (index) => {
       await new Promise(resolve => setTimeout(resolve, 200))
 
       activeIndex.value = index
+      
+      console.log('📑 Switched to tab:', items.value[index].label)
     } catch (error) {
       console.error('Tab change error:', error)
     } finally {
@@ -293,24 +358,20 @@ const changeTab = async (index) => {
 // Handle Save Draft button
 const handleSaveDraft = async () => {
   // Trigger save draft based on current tab
-  const tabContentElement = document.querySelector('.tab-content')
-  if (tabContentElement) {
-    if (activeIndex.value === 0) {
-      // BasicInfo tab
-      window.dispatchEvent(new CustomEvent('saveDraft'))
-    } else if (activeIndex.value === 2) {
-      // TicketPacket tab
-      window.dispatchEvent(new CustomEvent('saveTickets'))
-    } else {
-      // Other tabs - generic save
-      window.dispatchEvent(new CustomEvent('saveCurrentTab'))
-      toast.add({
-        severity: 'info',
-        summary: 'Save Draft',
-        detail: 'Saving current tab data...',
-        life: 3000
-      })
-    }
+  if (activeIndex.value === 0) {
+    // BasicInfo tab
+    window.dispatchEvent(new CustomEvent('saveDraft'))
+  } else if (activeIndex.value === 2) {
+    // TicketPacket tab
+    window.dispatchEvent(new CustomEvent('saveTickets'))
+  } else {
+    // Other tabs - generic save
+    toast.add({
+      severity: 'info',
+      summary: 'Save Draft',
+      detail: 'Saving current tab data...',
+      life: 3000
+    })
   }
 }
 
@@ -327,30 +388,16 @@ const handlePublishEvent = async () => {
   }
 
   // Trigger publish event in BasicInfo component
-  const basicInfoComponent = document.querySelector('.tab-content')
-  if (basicInfoComponent) {
-    // We'll emit an event that BasicInfo can listen to
-    window.dispatchEvent(new CustomEvent('publishEvent'))
-  }
+  window.dispatchEvent(new CustomEvent('publishEvent'))
 }
 
 // Handle Preview button
 const handlePreview = () => {
-  if (!isBasicInfoCompleted.value) {
-    toast.add({
-      severity: 'warn',
-      summary: 'Complete Basic Info First',
-      detail: 'Please complete and save the Basic Info section before previewing the event.',
-      life: 4000
-    })
-    return
-  }
-
   if (!eventId.value) {
     toast.add({
       severity: 'error',
       summary: 'No Event Found',
-      detail: 'Event ID not found. Please save the event first.',
+      detail: 'Event ID not found.',
       life: 3000
     })
     return

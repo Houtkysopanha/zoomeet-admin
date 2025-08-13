@@ -59,7 +59,7 @@
               <Icon name="mynaui:filter" class="absolute w-6 h-6 lg:w-8 lg:h-8 left-3 top-1/2 bg-gradient-to-t from-blue-900 to-purple-800 transform -translate-y-1/2" />
               <Button
                 label="Filters"
-                class="p-button-outlined px-4 lg:px-5 text-purple-600 border-purple-600 w-full h-full rounded-none p-2 lg:p-3 text-sm lg:text-base"
+                class="p-button-outlined px-4 lg:px-5 text-purple-600 border-purple-600 w-full h-full rounded-none p-2 ml-5 lg:p-3 text-sm lg:text-base"
                 @click="toggleFilters"
               />
             </div>
@@ -212,9 +212,10 @@ import Menu from 'primevue/menu'
 import CardCommon from '~/components/common/CardCommon.vue'
 import { useToast } from 'primevue/usetoast'
 import { useRouter } from 'vue-router'
+import { fetchEvents } from '@/composables/api'
+
 const router = useRouter()
 const toast = useToast()
-import { fetchEvents } from '@/composables/api'
 
 const goToCreateEvent = () => { router.push('/admin/CreateEvent') }
 
@@ -268,29 +269,50 @@ const events = ref([])
 // Fetch events from API
 const loadEvents = async () => {
   try {
-    const data = await fetchEvents()
+    const { status, data } = await fetchEvents()
+    console.log('loadEvents response:', { status, data })
 
-    if (data.status === 200 && data.data.success) {
-      events.value = data.data.data.map(ev => ({
+    if (status === 200 && data.success && Array.isArray(data.data)) {
+      events.value = data.data.map(ev => ({
         id: ev.id,
-        name: ev.name,
-        description: ev.description,
-        organizer: ev.organizer,
-        date: new Date(ev.start_date),
-        venue: ev.location,
-        type: ev.category_name,
-        revenue: 0, // Not in API, keep 0
-        bookings: 0, // Not in API, keep 0
-        tickets: 0, // Not in API, keep 0
+        name: ev.name || 'Untitled Event',
+        description: ev.description || '',
+        organizer: ev.organizer || 'Unknown Organizer',
+        date: ev.start_date ? new Date(ev.start_date) : new Date(),
+        venue: ev.location || 'TBD',
+        type: ev.category_name || 'Uncategorized',
+        revenue: ev.revenue || 0,
+        bookings: ev.bookings_count || 0,
+        tickets: ev.tickets_count || 0,
         status: ev.is_published ? 'Active' : 'Draft',
       }))
       totalItems.value = events.value.length
+      
+      if (events.value.length === 0) {
+        toast.add({ 
+          severity: 'info', 
+          summary: 'No Events', 
+          detail: 'No events found. Create your first event!', 
+          life: 3000 
+        })
+      }
     } else {
-      toast.add({ severity: 'error', summary: 'API Error', detail: 'Failed to fetch events', life: 3000 })
+      console.error('API Error Response:', data)
+      toast.add({ 
+        severity: 'error', 
+        summary: 'API Error', 
+        detail: data.message || 'Failed to fetch events', 
+        life: 3000 
+      })
     }
   } catch (error) {
     console.error('Fetch events error:', error)
-    toast.add({ severity: 'error', summary: 'Fetch Error', detail: error.message || 'Failed to load events', life: 3000 })
+    toast.add({ 
+      severity: 'error', 
+      summary: 'Fetch Error', 
+      detail: error.message || 'Failed to load events', 
+      life: 3000 
+    })
   }
 }
 
@@ -424,12 +446,39 @@ const manageTickets = (event) => {
   router.push('/admin/CreateEvent?tab=tickets')
 }
 
-const editEvent = (event) =>
-  toast.add({ severity: 'info', summary: 'Edit Event', detail: `Editing ${event.name}`, life: 3000 })
-const endEvent = (event) =>
-  toast.add({ severity: 'info', summary: 'End Event', detail: `Ending ${event.name}`, life: 3000 })
-const removeEvent = (event) =>
-  toast.add({ severity: 'info', summary: 'Remove Event', detail: `Removing ${event.name}`, life: 3000 })
+const editEvent = (event) => {
+  // Store event data for editing
+  localStorage.setItem("editEventId", event.id)
+  localStorage.setItem("editEventName", event.name)
+
+  toast.add({
+    severity: "info",
+    summary: "Edit Event",
+    detail: `Opening ${event.name} for editing`,
+    life: 3000
+  })
+
+  // Navigate to Create Event page with event ID for editing
+  router.push(`/admin/CreateEvent/${event.id}`)
+}
+
+const endEvent = (event) => {
+  toast.add({
+    severity: "info",
+    summary: "End Event",
+    detail: `Ending ${event.name}`,
+    life: 3000
+  })
+}
+
+const removeEvent = (event) => {
+  toast.add({
+    severity: "info",
+    summary: "Remove Event",
+    detail: `Removing ${event.name}`,
+    life: 3000
+  })
+}
 
 definePageMeta({
   layout: 'admin',

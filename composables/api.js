@@ -49,8 +49,12 @@ const createAuthHeaders = (includeContentType = true) => {
   const token = getAuthToken()
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
+    console.log('✅ Auth token added to request')
   } else {
     console.warn('⚠️ No authentication token available for API request')
+    // Redirect to login if no token
+    const router = useRouter()
+    router.push('/login')
   }
 
   return headers
@@ -90,22 +94,60 @@ export async function fetchEvents() {
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
 
   if (!API_ADMIN_BASE_URL) {
-    throw new Error('API admin base URL is not configured.')
+    return { status: 500, data: { success: false, data: [], message: 'API admin base URL is not configured.' } }
   }
 
   try {
     console.log('Fetching events from:', `${API_ADMIN_BASE_URL}/events`)
+    
+    const headers = createAuthHeaders()
+    console.log('Request headers:', headers)
 
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events`, {
       method: 'GET',
-      headers: createAuthHeaders(),
+      headers: headers,
     })
 
-    console.log('Events response:', response)
-    return response
+    console.log('Events API response:', response)
+
+    // Ensure the response structure is always predictable
+    if (response && response.data && Array.isArray(response.data)) {
+      return {
+        status: 200,
+        data: {
+          success: true,
+          data: response.data
+        }
+      }
+    } else if (response && Array.isArray(response)) {
+      return {
+        status: 200,
+        data: {
+          success: true,
+          data: response
+        }
+      }
+    } else {
+      console.warn('Unexpected API response structure:', response)
+      return {
+        status: 200,
+        data: {
+          success: false,
+          data: [],
+          message: 'Unexpected API response format'
+        }
+      }
+    }
   } catch (error) {
     console.error('Fetch events error:', error)
-    throw new Error(error.data?.message || error.message || 'Failed to fetch events')
+    return {
+      status: error?.status || 500,
+      data: {
+        success: false,
+        data: [],
+        message: error?.data?.message || error?.message || 'Failed to fetch events'
+      }
+    }
   }
 }
 
@@ -139,9 +181,9 @@ export async function fetchEventById(eventId) {
 }
 
 // Create event API
-export async function createEvent(eventData) {
+export async function createEvent(eventData, isDraft = true) {
   const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl || 'https://dev-apiticket.prestigealliance.co/api/v1/admin'
 
   if (!API_ADMIN_BASE_URL) {
     throw new Error('API admin base URL is not configured.')
@@ -182,13 +224,8 @@ export async function createEvent(eventData) {
     }
   })
 
-  // Special handling for image uploads:
-  // - cover_image: REQUIRED (server expects this)
-  // - event_background: OPTIONAL
-  // - card_background: OPTIONAL
-
   try {
-    console.log('Creating event at:', `${API_ADMIN_BASE_URL}/events/create`)
+    console.log('Creating event at:', `${API_ADMIN_BASE_URL}/events`)
     console.log('Auth token present:', !!token)
     console.log('Auth token (first 50 chars):', token ? token.substring(0, 50) + '...' : 'No token')
 
@@ -210,7 +247,7 @@ export async function createEvent(eventData) {
     console.log('=' .repeat(50))
     console.log('📊 Summary of all fields:', formDataSummary)
 
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/create`, {
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events`, {
       method: 'POST',
       body: formData,
       headers: {
@@ -220,14 +257,53 @@ export async function createEvent(eventData) {
     })
 
     console.log('✅ Create event response:', response)
-    console.log('📊 Response structure:', {
-      status: response.status,
-      hasData: !!response.data,
-      dataSuccess: response.data?.success,
-      message: response.data?.message || response.message,
-      eventId: response.data?.data?.id
-    })
-    return response
+    
+    // Normalize response structure - handle different API response formats
+    let normalizedResponse = {
+      success: false,
+      data: null,
+      message: 'Unknown response format'
+    }
+
+    // Handle different response structures from the API
+    if (response) {
+      // Case 1: Direct response with data property
+      if (response.data && response.data.id) {
+        normalizedResponse = {
+          success: true,
+          data: response.data,
+          message: response.message || 'Event created successfully'
+        }
+      }
+      // Case 2: Response with success flag and nested data
+      else if (response.success !== undefined) {
+        normalizedResponse = {
+          success: response.success,
+          data: response.data,
+          message: response.message || (response.success ? 'Event created successfully' : 'Event creation failed')
+        }
+      }
+      // Case 3: Direct event data (API returns event object directly)
+      else if (response.id) {
+        normalizedResponse = {
+          success: true,
+          data: response,
+          message: 'Event created successfully'
+        }
+      }
+      // Case 4: Response with status and data structure
+      else if (response.status && response.data) {
+        normalizedResponse = {
+          success: response.status >= 200 && response.status < 300,
+          data: response.data.data || response.data,
+          message: response.data.message || response.message || 'Event processed'
+        }
+      }
+    }
+
+    console.log('📊 Normalized response:', normalizedResponse)
+    return normalizedResponse
+    
   } catch (error) {
     console.error('Create event error:', error)
     console.error('Error details:', {
@@ -258,17 +334,36 @@ export async function createEvent(eventData) {
       console.error('📋 Validation details:', error.data)
 
       // Extract validation errors if available
-      if (error.data && error.data.data && error.data.data.errors) {
-        const errors = error.data.data.errors
+      if (error.data && error.data.errors) {
+        const errors = error.data.errors
         console.error('🔍 Specific validation errors:')
         Object.keys(errors).forEach(field => {
-          console.error(`  - ${field}: ${errors[field].join(', ')}`)
+          const fieldErrors = Array.isArray(errors[field]) ? errors[field] : [errors[field]]
+          console.error(`  - ${field}: ${fieldErrors.join(', ')}`)
         })
 
         // Create user-friendly error message
-        const errorMessages = Object.keys(errors).map(field =>
-          `${field}: ${errors[field].join(', ')}`
-        ).join('\n')
+        const errorMessages = Object.keys(errors).map(field => {
+          const fieldErrors = Array.isArray(errors[field]) ? errors[field] : [errors[field]]
+          return `${field}: ${fieldErrors.join(', ')}`
+        }).join('\n')
+
+        throw new Error(`Validation failed:\n${errorMessages}`)
+      }
+
+      // Check for nested error structure
+      if (error.data && error.data.data && error.data.data.errors) {
+        const errors = error.data.data.errors
+        console.error('🔍 Nested validation errors:')
+        Object.keys(errors).forEach(field => {
+          const fieldErrors = Array.isArray(errors[field]) ? errors[field] : [errors[field]]
+          console.error(`  - ${field}: ${fieldErrors.join(', ')}`)
+        })
+
+        const errorMessages = Object.keys(errors).map(field => {
+          const fieldErrors = Array.isArray(errors[field]) ? errors[field] : [errors[field]]
+          return `${field}: ${fieldErrors.join(', ')}`
+        }).join('\n')
 
         throw new Error(`Validation failed:\n${errorMessages}`)
       }
@@ -305,12 +400,16 @@ export async function createEvent(eventData) {
       throw new Error('Server error (500). Please check server logs or try again.')
     }
 
-    // Try to get more detailed error information
-    if (error.data) {
-      console.error('Server error data:', error.data)
+    // For other errors, try to extract meaningful message
+    let errorMessage = 'Failed to create event'
+    
+    if (error.data && error.data.message) {
+      errorMessage = error.data.message
+    } else if (error.message) {
+      errorMessage = error.message
     }
 
-    throw error // Throw the original error to preserve all details
+    throw new Error(errorMessage)
   }
 }
 
@@ -339,6 +438,194 @@ export async function fetchUserInfo() {
   }
 }
 
+// Fetch event details
+export async function getEventDetails(eventId) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl || 'https://dev-apiticket.prestigealliance.co/api/v1/admin'
+
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  try {
+    console.log('🔍 Fetching event details for:', eventId)
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}`, {
+      method: 'GET',
+      headers: createAuthHeaders()
+    })
+
+    console.log('✅ Event details fetched:', response)
+    return response
+  } catch (error) {
+    console.error('❌ Failed to fetch event details:', error)
+    throw error
+  }
+}
+
+// Update event
+export async function updateEvent(eventId, eventData) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl || 'https://dev-apiticket.prestigealliance.co/api/v1/admin'
+
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  const token = getAuthToken()
+  if (!token) {
+    console.error('❌ No authentication token found for event update')
+    throw new Error('Authentication required. Please login again.')
+  }
+
+  try {
+    console.log('📝 Updating event:', eventId)
+    console.log('📋 Update data:', eventData)
+
+    // Check if we have files to upload
+    const hasFiles = Object.values(eventData).some(value => value instanceof File)
+    
+    let body, headers
+    
+    if (hasFiles) {
+      // Use FormData for file uploads
+      const formData = new FormData()
+      
+      Object.keys(eventData).forEach(key => {
+        const value = eventData[key]
+        if (value !== null && value !== undefined && value !== '') {
+          formData.append(key, value)
+          if (value instanceof File) {
+            console.log(`📎 Adding file for update: ${key} = ${value.name} (${value.size} bytes)`)
+          }
+        }
+      })
+      
+      body = formData
+      headers = {
+        'Authorization': `Bearer ${token}`,
+        // Don't set Content-Type for FormData, let the browser set it
+      }
+    } else {
+      // Use JSON for regular updates
+      body = eventData
+      headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    }
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}`, {
+      method: 'PUT',
+      body: body,
+      headers: headers
+    })
+
+    console.log('✅ Event updated successfully:', response)
+    
+    // Normalize response structure
+    let normalizedResponse = {
+      success: false,
+      data: null,
+      message: 'Unknown response format'
+    }
+
+    if (response) {
+      // Case 1: Direct response with data property
+      if (response.data && response.data.id) {
+        normalizedResponse = {
+          success: true,
+          data: response.data,
+          message: response.message || 'Event updated successfully'
+        }
+      }
+      // Case 2: Response with success flag
+      else if (response.success !== undefined) {
+        normalizedResponse = {
+          success: response.success,
+          data: response.data,
+          message: response.message || (response.success ? 'Event updated successfully' : 'Event update failed')
+        }
+      }
+      // Case 3: Direct event data
+      else if (response.id) {
+        normalizedResponse = {
+          success: true,
+          data: response,
+          message: 'Event updated successfully'
+        }
+      }
+    }
+
+    return normalizedResponse
+  } catch (error) {
+    console.error('❌ Failed to update event:', error)
+    
+    // Handle specific error cases
+    if (error.status === 401 || error.statusCode === 401) {
+      console.error('🚫 Authentication failed for event update')
+      const { clearAuth } = useAuth()
+      clearAuth()
+      throw new Error('Authentication failed. Please login again.')
+    }
+
+    if (error.status === 404 || error.statusCode === 404) {
+      console.error('🚫 Event not found for update')
+      throw new Error('Event not found. Please make sure the event exists.')
+    }
+
+    if (error.status === 422 || error.statusCode === 422) {
+      console.error('🚫 Event update validation error')
+      
+      // Extract validation errors
+      if (error.data && error.data.errors) {
+        const errors = error.data.errors
+        const errorMessages = Object.keys(errors).map(field => {
+          const fieldErrors = Array.isArray(errors[field]) ? errors[field] : [errors[field]]
+          return `${field}: ${fieldErrors.join(', ')}`
+        }).join('\n')
+        throw new Error(`Validation failed:\n${errorMessages}`)
+      }
+      
+      throw new Error('Validation failed. Please check your input data.')
+    }
+
+    // For other errors, try to extract meaningful message
+    let errorMessage = 'Failed to update event'
+    if (error.data && error.data.message) {
+      errorMessage = error.data.message
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+
+    throw new Error(errorMessage)
+  }
+}
+
+// Update ticket type
+export async function updateTicketType(eventId, ticketTypeId, ticketData) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl || 'https://dev-apiticket.prestigealliance.co/api/v1/admin'
+
+  if (!eventId || !ticketTypeId) {
+    throw new Error('Event ID and Ticket Type ID are required')
+  }
+
+  try {
+    console.log('🎫 Updating ticket type:', { eventId, ticketTypeId, ticketData })
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types/${ticketTypeId}`, {
+      method: 'PUT',
+      body: ticketData,
+      headers: createAuthHeaders()
+    })
+
+    console.log('✅ Ticket type updated:', response)
+    return response
+  } catch (error) {
+    console.error('❌ Failed to update ticket type:', error)
+    throw error
+  }
+}
+
 // Create Ticket Types for an Event
 export const createTicketTypes = async (eventId, ticketTypesData) => {
   const token = getAuthToken()
@@ -359,9 +646,9 @@ export const createTicketTypes = async (eventId, ticketTypesData) => {
   try {
     console.log('🎫 Creating ticket types for event:', eventId)
     console.log('📝 Ticket types data:', ticketTypesData)
-    console.log('🔗 API URL:', `${API_ADMIN_BASE_URL}/events/ticket-types/create/${eventId}`)
+    console.log('🔗 API URL:', `${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types`)
 
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/ticket-types/create/${eventId}`, {
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types`, {
       method: 'POST',
       body: ticketTypesData,
       headers: {
