@@ -66,11 +66,21 @@ export async function login(identifier, password) {
   const API_BASE_URL = config.public.apiBaseUrl
 
   if (!API_BASE_URL) {
-    throw new Error('API base URL is not configured.')
+    console.error('API Configuration Error:', {
+      apiBaseUrl: API_BASE_URL,
+      environment: config.public.environment,
+      nodeEnv: process.env.NODE_ENV
+    })
+    throw new Error(`API base URL is not configured for ${process.env.NODE_ENV} environment.`)
   }
 
   try {
-    console.log('Attempting login with:', { identifier, API_BASE_URL })
+    console.log('🔐 Login attempt:', { 
+      identifier,
+      apiUrl: API_BASE_URL,
+      env: process.env.NODE_ENV,
+      environment: config.public.environment
+    })
 
     const response = await $fetch(`${API_BASE_URL}/login`, {
       method: 'POST',

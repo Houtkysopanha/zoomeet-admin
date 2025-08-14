@@ -66,9 +66,23 @@ export default defineNuxtConfig({
   // Runtime configuration
   runtimeConfig: {
     public: {
-      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || process.env.API_BASE_URL || 'https://api.zoomet.asia/api',
-      apiAdminBaseUrl: process.env.NUXT_PUBLIC_API_ADMIN_BASE_URL,
-      // bearerToken removed - using dynamic tokens from login
+      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || (
+        process.env.NODE_ENV === 'development'
+          ? 'https://dev-gateway.prestigealliance.co/api/v1'
+          : 'https://gateway.etickets.asia/api/v1'
+      ),
+      apiAdminBaseUrl: process.env.NUXT_PUBLIC_API_ADMIN_BASE_URL || (
+        process.env.NODE_ENV === 'development'
+          ? 'https://dev-apiticket.prestigealliance.co/api/v1/admin'
+          : 'https://api-ticket.etickets.asia/api/v1/admin'
+      ),
+      appName: process.env.NUXT_PUBLIC_APP_NAME || (
+        process.env.NODE_ENV === 'development'
+          ? 'eTicketsAsia (Dev)'
+          : 'eTicketsAsia'
+      ),
+      appVersion: process.env.NUXT_PUBLIC_APP_VERSION || '1.0.0',
+      environment: process.env.NODE_ENV || 'production'
     },
   },
 })

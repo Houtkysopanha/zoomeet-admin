@@ -39,7 +39,7 @@
               </div>
               <div class="text-left flex-1 sm:hidden lg:block">
                 <div class="text-sm font-medium text-gray-800 truncate">{{ userName }}</div>
-                <div class="text-xs text-gray-500">Administrator</div>
+                <div class="text-xs text-gray-500">{{ userRole }}</div>
               </div>
               <Icon name="i-heroicons-chevron-down" class="text-gray-600 text-sm flex-shrink-0" />
             </button>
@@ -131,7 +131,7 @@ const currentDate = ref('')
 const currentTime = ref('')
 
 const userName = ref('Loading...')
-const userRole = ref('Administrator') // or default role string
+const userRole = ref('') // or default role string
 
 const toggleUserMenu = () => {
   showUserMenu.value = !showUserMenu.value
@@ -186,7 +186,7 @@ async function fetchUserInfo() {
     const data = await res.json()
     console.log('User info:', data)
     userName.value = data.name || data.preferred_username || 'No Name'
-    userRole.value = 'User'
+    userRole.value = data.role || 'No Role'
   } catch (error) {
     console.error(error)
     toast.add({
