@@ -183,7 +183,7 @@ import BreakoutRooms from '~/pages/admin/tabs/BreakoutRooms.vue'
 import SettingPolicy from '~/pages/admin/tabs/SettingPolicy.vue'
 import { useToast } from "primevue/usetoast"
 import { useRouter, useRoute } from "vue-router"
-import { getEventDetails } from '@/composables/api'
+import { useEventStore } from '~/composables/useEventStore'
 
 const toast = useToast()
 const router = useRouter()
@@ -210,65 +210,58 @@ const isSubmitting = ref(false)
 const eventData = ref(null)
 const isEditMode = ref(false)
 
-// Initialize state on mount - CLEAR CREATE VS EDIT LOGIC
+// Initialize state on mount
 onMounted(async () => {
   console.log('🚀 Initializing CreateEvent page...')
-  
-  // Check ONLY for edit event ID (from edit button click)
-  const editEventId = localStorage.getItem('editEventId')
-  
-  if (editEventId) {
-    // EDIT MODE: Load existing event data
+  const eventStore = useEventStore()
+
+  // Determine if we're in edit mode from the query parameters
+  const isEdit = route.query.mode === 'edit'
+  const queryEventId = route.query.id?.toString()
+
+  if (isEdit && queryEventId) {
+    // EDIT MODE
     try {
-      console.log('📝 EDIT MODE: Loading event data for ID:', editEventId)
-      
-      eventId.value = editEventId
+      console.log('📝 EDIT MODE: Loading event data for ID:', queryEventId)
+
+      eventId.value = queryEventId
       isEditMode.value = true
-      
-      // Load event data from API
-      const response = await getEventDetails(editEventId)
-      
-      if (response && response.data) {
-        eventData.value = response.data
+
+      // Event data should already be in store, but if not, load it
+      if (!eventStore.currentEvent) {
+        await eventStore.loadEventById(queryEventId)
+      }
+
+      if (eventStore.currentEvent) {
+        eventData.value = { ...eventStore.currentEvent }
         isBasicInfoCompleted.value = true
-        
+
         console.log('✅ Event data loaded for editing:', {
           id: eventId.value,
-          name: response.data.name
+          name: eventData.value.name
         })
-        
-        // Store as current event for this editing session
-        localStorage.setItem('currentEventId', editEventId)
-        localStorage.setItem('currentEventName', response.data.name || 'Unnamed Event')
-        
-        // Clear edit event ID after use (one-time trigger)
-        localStorage.removeItem('editEventId')
-        localStorage.removeItem('editEventName')
-        
+
         toast.add({
           severity: 'success',
           summary: 'Event Loaded for Editing',
-          detail: `Editing "${response.data.name}"`,
+          detail: `Editing "${eventData.value.name}"`,
           life: 3000
         })
       } else {
-        throw new Error('No event data received from API')
+        throw new Error('No event data received')
       }
     } catch (error) {
       console.error('❌ Failed to load event for editing:', error)
-      
-      // Clear all event-related localStorage on error
-      localStorage.removeItem('currentEventId')
-      localStorage.removeItem('currentEventName')
-      localStorage.removeItem('editEventId')
-      localStorage.removeItem('editEventName')
-      
+
       // Reset to new event creation mode
       eventId.value = null
       isBasicInfoCompleted.value = false
       isEditMode.value = false
       eventData.value = null
       
+      // Clear event from store
+      eventStore.clearCurrentEvent()
+
       toast.add({
         severity: 'error',
         summary: 'Edit Load Failed',
@@ -277,16 +270,15 @@ onMounted(async () => {
       })
     }
   } else {
-    // CREATE MODE: Always start fresh
+    // CREATE MODE
     console.log('🆕 CREATE MODE: Starting fresh event creation')
     isEditMode.value = false
     isBasicInfoCompleted.value = false
     eventId.value = null
     eventData.value = null
     
-    // Clear any existing event data to ensure fresh start
-    localStorage.removeItem('currentEventId')
-    localStorage.removeItem('currentEventName')
+    // Clear event store
+    eventStore.clearCurrentEvent()
   }
 
   // Check for tab query parameter (from manage tickets - only in edit mode)
@@ -301,13 +293,11 @@ onMounted(async () => {
   }
 })
 
-// Clear event data when leaving the page - ALWAYS CLEAR
+// Clear event data when leaving the page
 onBeforeUnmount(() => {
-  console.log('🚪 Leaving CreateEvent page - clearing all event data for fresh start')
-  localStorage.removeItem('currentEventId')
-  localStorage.removeItem('currentEventName')
-  localStorage.removeItem('editEventId')
-  localStorage.removeItem('editEventName')
+  console.log('🚪 Leaving CreateEvent page - clearing event store')
+  const eventStore = useEventStore()
+  eventStore.clearCurrentEvent()
 })
 
 // Match tab index with component
@@ -327,18 +317,21 @@ provide('eventCreationState', {
   isEditMode,
   setBasicInfoCompleted: (completed, id = null, data = null) => {
     console.log('🔄 Setting basic info completed:', { completed, id })
+    const eventStore = useEventStore()
+
     isBasicInfoCompleted.value = completed
     if (id) {
       eventId.value = id
-      localStorage.setItem('currentEventId', id.toString())
     }
     if (data) {
       eventData.value = data
-      localStorage.setItem('currentEventName', data.name || 'Unnamed Event')
+      eventStore.setCurrentEvent(data)
     }
   },
   updateEventData: (data) => {
+    const eventStore = useEventStore()
     eventData.value = { ...eventData.value, ...data }
+    eventStore.setCurrentEvent({ ...eventData.value, ...data })
   }
 })
 

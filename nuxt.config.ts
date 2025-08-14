@@ -17,7 +17,11 @@ export default defineNuxtConfig({
   build: {
     transpile: ['primevue']
   },
-  modules: ['@nuxt/fonts','@nuxt/icon'],
+  modules: [
+    '@nuxt/fonts',
+    '@nuxt/icon',
+    '@pinia/nuxt'
+  ],
   imports: {
     autoImport: true
   },

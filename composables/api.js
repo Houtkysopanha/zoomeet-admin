@@ -98,17 +98,29 @@ export async function fetchEvents() {
   }
 
   try {
-    console.log('Fetching events from:', `${API_ADMIN_BASE_URL}/events`)
+    console.log('🔍 Fetching events from:', `${API_ADMIN_BASE_URL}/events`)
     
     const headers = createAuthHeaders()
-    console.log('Request headers:', headers)
+    console.log('📨 Request headers:', headers)
 
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events`, {
       method: 'GET',
       headers: headers,
     })
 
-    console.log('Events API response:', response)
+    // Validate and log each event ID
+    if (response && Array.isArray(response.data)) {
+      response.data.forEach((event, index) => {
+        const eventId = event.id?.toString()
+        if (!eventId || !eventId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+          console.error(`❌ Invalid UUID for event at index ${index}:`, event)
+        } else {
+          console.log(`✅ Valid event UUID: ${eventId} - ${event.name}`)
+        }
+      })
+    }
+
+    console.log('📊 Events API response:', response)
 
     // Ensure the response structure is always predictable
     if (response && response.data && Array.isArray(response.data)) {
@@ -447,17 +459,66 @@ export async function getEventDetails(eventId) {
     throw new Error('Event ID is required')
   }
 
+  console.log('🔍 Fetching event details for:', eventId)
+  console.log('🔗 API URL:', `${API_ADMIN_BASE_URL}/events/${eventId}`)
+
   try {
-    console.log('🔍 Fetching event details for:', eventId)
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}`, {
       method: 'GET',
       headers: createAuthHeaders()
     })
 
-    console.log('✅ Event details fetched:', response)
-    return response
+    console.log('📥 Raw API response:', response)
+
+    // Validate the response structure
+    if (!response) {
+      throw new Error('Empty response from server')
+    }
+
+    // Return the response directly if it has the expected structure
+    if (response.success === true && response.data && response.message) {
+      console.log('✅ Event details fetched successfully:', {
+        id: response.data.id,
+        name: response.data.name,
+        category: `${response.data.category_id} - ${response.data.category_name}`
+      })
+      return response
+    }
+
+    // If we got direct event data without wrapper
+    if (response.id && response.name) {
+      console.log('✅ Event details fetched (unwrapped):', {
+        id: response.id,
+        name: response.name
+      })
+      return {
+        success: true,
+        message: 'Event retrieved successfully',
+        data: response
+      }
+    }
+
+    // If we got a wrapped response but different structure
+    if (response.data && response.data.id) {
+      console.log('✅ Event details fetched (wrapped):', {
+        id: response.data.id,
+        name: response.data.name
+      })
+      return {
+        success: true,
+        message: 'Event retrieved successfully',
+        data: response.data
+      }
+    }
+
+    throw new Error('Invalid response structure from server')
   } catch (error) {
     console.error('❌ Failed to fetch event details:', error)
+    console.error('Error details:', {
+      status: error.status,
+      message: error.message,
+      data: error.data
+    })
     throw error
   }
 }
@@ -467,46 +528,84 @@ export async function updateEvent(eventId, eventData) {
   const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl || 'https://dev-apiticket.prestigealliance.co/api/v1/admin'
 
+  // Input validation
   if (!eventId) {
     throw new Error('Event ID is required')
   }
 
+  if (!eventData) {
+    throw new Error('Event data is required')
+  }
+
+  // Convert to string and validate UUID format
+  const eventIdStr = eventId.toString()
+  
+  // Validate UUID format (8-4-4-4-12)
+  if (!eventIdStr.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+    console.error('❌ Invalid event ID format:', eventIdStr)
+    throw new Error('Invalid event ID format. Expected UUID format.')
+  }
+
+  console.log('📝 Update requested for event:', eventIdStr)
+
+  // Verify authentication
   const token = getAuthToken()
   if (!token) {
-    console.error('❌ No authentication token found for event update')
-    throw new Error('Authentication required. Please login again.')
+    console.error('❌ No authentication token')
+    throw new Error('Authentication required')
   }
 
   try {
-    console.log('📝 Updating event:', eventId)
-    console.log('📋 Update data:', eventData)
+    // Pre-update validation
+    if (eventData.id && eventData.id.toString() !== eventIdStr) {
+      console.error('� Event ID mismatch:', {
+        updateId: eventIdStr,
+        dataId: eventData.id.toString()
+      })
+      throw new Error('Event ID mismatch')
+    }
 
-    // Check if we have files to upload
+    console.log('📋 Update data:', {
+      id: eventIdStr,
+      name: eventData.name,
+      fields: Object.keys(eventData)
+    })
+
+    // Prepare request data
     const hasFiles = Object.values(eventData).some(value => value instanceof File)
     
     let body, headers
     
     if (hasFiles) {
-      // Use FormData for file uploads
+      // FormData for files
       const formData = new FormData()
       
-      Object.keys(eventData).forEach(key => {
-        const value = eventData[key]
-        if (value !== null && value !== undefined && value !== '') {
-          formData.append(key, value)
-          if (value instanceof File) {
-            console.log(`📎 Adding file for update: ${key} = ${value.name} (${value.size} bytes)`)
-          }
+      Object.entries(eventData).forEach(([key, value]) => {
+        if (value === null || value === undefined) {
+          console.log(`⚠️ Skipping null/undefined field: ${key}`)
+          return
+        }
+
+        if (value === '') {
+          console.log(`⚠️ Empty string for field: ${key}`)
+        }
+
+        formData.append(key, value)
+        
+        if (value instanceof File) {
+          console.log(`📎 File field: ${key}`, {
+            name: value.name,
+            size: value.size,
+            type: value.type
+          })
         }
       })
       
       body = formData
-      headers = {
-        'Authorization': `Bearer ${token}`,
-        // Don't set Content-Type for FormData, let the browser set it
-      }
+      headers = { 'Authorization': `Bearer ${token}` }
+      
     } else {
-      // Use JSON for regular updates
+      // JSON for regular updates
       body = eventData
       headers = {
         'Authorization': `Bearer ${token}`,
@@ -514,13 +613,20 @@ export async function updateEvent(eventId, eventData) {
       }
     }
 
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}`, {
+    // Make the request
+    console.log('🔄 Sending update request...')
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventIdStr}`, {
       method: 'PUT',
       body: body,
       headers: headers
     })
 
-    console.log('✅ Event updated successfully:', response)
+    // Validate response
+    if (!response) {
+      throw new Error('No response from server')
+    }
+
+    console.log('✅ Update response received:', response)
     
     // Normalize response structure
     let normalizedResponse = {
@@ -530,24 +636,43 @@ export async function updateEvent(eventId, eventData) {
     }
 
     if (response) {
-      // Case 1: Direct response with data property
+      // Case 1: Standard API response
       if (response.data && response.data.id) {
         normalizedResponse = {
           success: true,
           data: response.data,
           message: response.message || 'Event updated successfully'
         }
+
+        // Verify returned ID
+        const returnedId = response.data.id.toString()
+        if (returnedId !== eventIdStr) {
+          console.error('🚫 Response ID mismatch:', {
+            sent: eventIdStr,
+            received: returnedId
+          })
+          throw new Error('Response ID mismatch')
+        }
       }
-      // Case 2: Response with success flag
+      // Case 2: Success flag response
       else if (response.success !== undefined) {
         normalizedResponse = {
           success: response.success,
           data: response.data,
-          message: response.message || (response.success ? 'Event updated successfully' : 'Event update failed')
+          message: response.message || (response.success ? 'Event updated' : 'Update failed')
         }
       }
       // Case 3: Direct event data
       else if (response.id) {
+        const returnedId = response.id.toString()
+        if (returnedId !== eventIdStr) {
+          console.error('🚫 Direct response ID mismatch:', {
+            sent: eventIdStr,
+            received: returnedId
+          })
+          throw new Error('Response ID mismatch')
+        }
+
         normalizedResponse = {
           success: true,
           data: response,
@@ -556,50 +681,44 @@ export async function updateEvent(eventId, eventData) {
       }
     }
 
+    console.log('📊 Normalized response:', normalizedResponse)
     return normalizedResponse
+
   } catch (error) {
-    console.error('❌ Failed to update event:', error)
+    console.error('❌ Update failed:', error)
     
     // Handle specific error cases
     if (error.status === 401 || error.statusCode === 401) {
-      console.error('🚫 Authentication failed for event update')
-      const { clearAuth } = useAuth()
-      clearAuth()
+      console.error('🚫 Authentication failed')
       throw new Error('Authentication failed. Please login again.')
     }
 
     if (error.status === 404 || error.statusCode === 404) {
-      console.error('🚫 Event not found for update')
-      throw new Error('Event not found. Please make sure the event exists.')
+      console.error('🚫 Event not found:', eventIdStr)
+      throw new Error('Event not found')
     }
 
     if (error.status === 422 || error.statusCode === 422) {
-      console.error('🚫 Event update validation error')
+      console.error('🚫 Validation error')
       
       // Extract validation errors
       if (error.data && error.data.errors) {
         const errors = error.data.errors
-        const errorMessages = Object.keys(errors).map(field => {
-          const fieldErrors = Array.isArray(errors[field]) ? errors[field] : [errors[field]]
-          return `${field}: ${fieldErrors.join(', ')}`
-        }).join('\n')
-        throw new Error(`Validation failed:\n${errorMessages}`)
+        const messages = Object.entries(errors)
+          .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+          .join('\n')
+        throw new Error(`Validation failed:\n${messages}`)
       }
       
-      throw new Error('Validation failed. Please check your input data.')
+      throw new Error('Invalid event data')
     }
 
-    // For other errors, try to extract meaningful message
-    let errorMessage = 'Failed to update event'
-    if (error.data && error.data.message) {
-      errorMessage = error.data.message
-    } else if (error.message) {
-      errorMessage = error.message
-    }
-
-    throw new Error(errorMessage)
+    // Re-throw with context
+    throw new Error(`Failed to update event: ${error.message || 'Unknown error'}`)
   }
-}
+
+    return normalizedResponse
+  }
 
 // Update ticket type
 export async function updateTicketType(eventId, ticketTypeId, ticketData) {

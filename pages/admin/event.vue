@@ -273,20 +273,81 @@ const loadEvents = async () => {
     console.log('loadEvents response:', { status, data })
 
     if (status === 200 && data.success && Array.isArray(data.data)) {
-      events.value = data.data.map(ev => ({
-        id: ev.id,
-        name: ev.name || 'Untitled Event',
-        description: ev.description || '',
-        organizer: ev.organizer || 'Unknown Organizer',
-        date: ev.start_date ? new Date(ev.start_date) : new Date(),
-        venue: ev.location || 'TBD',
-        type: ev.category_name || 'Uncategorized',
-        revenue: ev.revenue || 0,
-        bookings: ev.bookings_count || 0,
-        tickets: ev.tickets_count || 0,
-        status: ev.is_published ? 'Active' : 'Draft',
-      }))
+      // Clear existing events first
+      events.value = []
+      
+      // Map and validate each event
+      events.value = data.data.map(ev => {
+        // Keep ALL original data
+        const originalData = { ...ev }
+        
+        // Ensure we have a valid UUID
+        const eventId = ev.id?.toString()
+        if (!eventId || !eventId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+          console.error('Invalid UUID format for event:', ev)
+          return null
+        }
+
+        // Log each unique event ID for debugging
+        console.log('Processing event:', { 
+          id: eventId, 
+          name: ev.name,
+          category: `${ev.category_id} - ${ev.category_name}`,
+          is_published: ev.is_published
+        })
+
+        // Return an object with display fields AND all original data
+        return {
+          // Display fields for the table
+          id: eventId,
+          name: ev.name || 'Untitled Event',
+          description: ev.description || '',
+          organizer: ev.organizer || 'Unknown Organizer',
+          date: ev.start_date ? new Date(ev.start_date) : new Date(),
+          venue: ev.location || 'TBD',
+          type: ev.category_name || 'Uncategorized',
+          revenue: ev.revenue || 0,
+          bookings: ev.bookings_count || 0,
+          tickets: ev.tickets_count || 0,
+          status: ev.is_published ? 'Active' : 'Draft',
+          
+          // Category info
+          category_id: ev.category_id,
+          category_name: ev.category_name,
+          
+          // Dates
+          start_date: ev.start_date,
+          end_date: ev.end_date,
+          created_at: ev.created_at,
+          updated_at: ev.updated_at,
+          
+          // Location info
+          location: ev.location,
+          map_url: ev.map_url,
+          online_link_meeting: ev.online_link_meeting,
+          
+          // Organization info
+          company: ev.company,
+          event_slug: ev.event_slug,
+          
+          // Images
+          cover_image_url: ev.cover_image_url,
+          event_background_url: ev.event_background_url,
+          card_background_url: ev.card_background_url,
+          
+          // Related data
+          chairs: ev.chairs || [],
+          members: ev.members || [],
+          agendas: ev.agendas || [],
+          settings: ev.settings,
+          
+          // Keep complete original data
+          _original: originalData
+        }
+      }).filter(Boolean) // Remove any null entries
+
       totalItems.value = events.value.length
+      console.log('Loaded events:', events.value.map(e => ({ id: e.id, name: e.name })))
       
       if (events.value.length === 0) {
         toast.add({ 
@@ -431,35 +492,143 @@ const actionItems = (event) => [
 ]
 
 const manageTickets = (event) => {
-  // Store event data in localStorage for ticket management
-  localStorage.setItem('currentEventId', event.id)
-  localStorage.setItem('currentEventName', event.name)
+  const eventStore = useEventStore()
 
-  toast.add({
-    severity: 'info',
-    summary: 'Manage Tickets',
-    detail: `Opening ticket management for ${event.name}`,
-    life: 3000
-  })
+  try {
+    // Store event in Pinia instead of localStorage
+    eventStore.setCurrentEvent(event)
 
-  // Navigate to Create Event page with Ticket tab
-  router.push('/admin/CreateEvent?tab=tickets')
+    toast.add({
+      severity: 'info',
+      summary: 'Manage Tickets',
+      detail: `Opening ticket management for ${event.name}`,
+      life: 3000
+    })
+
+    // Navigate to Create Event page with Ticket tab
+    router.push({
+      path: '/admin/CreateEvent',
+      query: {
+        tab: 'tickets',
+        mode: 'edit',
+        id: event.id,
+        timestamp: Date.now()
+      }
+    })
+  } catch (error) {
+    console.error('Failed to setup ticket management:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Setup Failed',
+      detail: 'Failed to prepare ticket management',
+      life: 3000
+    })
+  }
 }
 
-const editEvent = (event) => {
-  // Store event data for editing
-  localStorage.setItem("editEventId", event.id)
-  localStorage.setItem("editEventName", event.name)
+const editEvent = async (event) => {
+  const eventStore = useEventStore()
 
-  toast.add({
-    severity: "info",
-    summary: "Edit Event",
-    detail: `Opening ${event.name} for editing`,
-    life: 3000
-  })
+  try {
+    // Basic validation
+    if (!event?.id) {
+      throw new Error('No event ID provided for editing')
+    }
 
-  // Navigate to Create Event page with event ID for editing
-  router.push(`/admin/CreateEvent-${event.id}`)
+    // Use complete original data
+    const eventData = event._original || event
+    const eventId = eventData.id.toString()
+    const eventName = eventData.name || 'Untitled Event'
+
+    // Log complete event data
+    console.log('📝 Edit request for complete event:', {
+      id: eventId,
+      name: eventName,
+      category: `${eventData.category_id} - ${eventData.category_name}`,
+      fields: Object.keys(eventData)
+    })
+
+    console.log('📝 Edit request:', {
+      id: eventId,
+      name: eventName
+    })
+
+    // Pre-edit checks
+    // Validate UUID format (8-4-4-4-12)
+    if (!eventId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      console.error('❌ Invalid event ID format:', eventId)
+      throw new Error('Invalid event ID format. Expected UUID format.')
+    }
+
+    // Start fresh - clear all previous state
+    console.log('🧹 Clearing previous state...')
+    eventStore.clearCurrentEvent()
+    eventStore.clearCache()
+
+    // Show loading feedback
+    toast.add({
+      severity: "info",
+      summary: "Loading",
+      detail: `Preparing "${eventName}" for editing...`,
+      life: 3000
+    })
+
+    // Load fresh event data
+    console.log('🔄 Loading fresh event data...')
+    const loadedEvent = await eventStore.loadEventById(eventId)
+
+    // Validate loaded data
+    if (!loadedEvent) {
+      throw new Error(`Failed to load event ${eventId}`)
+    }
+
+    if (!eventStore.hasCurrentEvent) {
+      throw new Error('Event loaded but not set in store')
+    }
+
+    const loadedId = loadedEvent.id.toString()
+    if (loadedId !== eventId) {
+      console.error('Event ID verification failed:', {
+        requested: eventId,
+        loaded: loadedId
+      })
+      throw new Error('Event ID mismatch')
+    }
+
+    console.log('✅ Event verified:', {
+      id: loadedId,
+      name: loadedEvent.name
+    })
+
+    // Create unique session
+    const sessionId = `edit-${eventId}-${Date.now()}`
+
+    // Navigate with all verification data
+    console.log('🚀 Navigating to edit view...')
+    await router.push({
+      path: '/admin/CreateEvent',
+      query: {
+        mode: 'edit',
+        id: eventId,
+        session: sessionId,
+        name: encodeURIComponent(loadedEvent.name),
+        ts: Date.now() // Force fresh page load
+      }
+    })
+
+  } catch (error) {
+    console.error('❌ Edit event error:', error)
+    toast.add({
+      severity: "error",
+      summary: "Edit Failed",
+      detail: error.message || 'Failed to prepare event for editing',
+      life: 5000
+    })
+    
+    // Clear everything on error
+    eventStore.clearCurrentEvent()
+    eventStore.clearCache()
+  }
 }
 
 const endEvent = (event) => {
