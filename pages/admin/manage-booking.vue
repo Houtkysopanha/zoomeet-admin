@@ -3,9 +3,13 @@
     <div class="mb-6">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-3xl text-gray-500 mb-2">
-            Event /<span class="text-[#7A49C9] font-bold">Manage Booking</span>
-          </h1>
+          <Breadcrumb
+            :items="[
+              { text: 'Event', to: '/admin/event' },
+              { text: 'Manage Booking' }
+            ]"
+            class="mb-2"
+          />
         </div>
         <IconnButton label=" Manage Ticket" icon="icon-park-solid:ticket" @click="goToManageTicket()" />
       </div>
@@ -138,6 +142,7 @@
 import { ref, computed } from 'vue'
 import { navigateTo } from '#app' // Nuxt 3 navigation helper
 import IconnButton from '~/components/ui/IconnButton.vue'
+import Breadcrumb from '~/components/common/Breadcrumb.vue'
 import EventCard from '~/components/common/EventCard.vue'
 import CardCommon from '~/components/common/CardCommon.vue'
 import DataTable from 'primevue/datatable'

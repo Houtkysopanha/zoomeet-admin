@@ -1,5 +1,5 @@
 <template>
-  <div class="flex items-center justify-center p-4 bg-cover bg-center min-h-screen">
+  <div class="flex items-center justify-center p-4 bg-cover bg-center min-h-full">
     <div class="w-full max-w-md lg:max-w-lg mx-auto">
       <div class="text-center mb-6 lg:mb-8">
         <img
@@ -14,7 +14,7 @@
         class="bg-gradient-to-r from-gray-800 to-gray-900 rounded-2xl text-center shadow-2xl p-6 lg:p-8 space-y-6 border border-gray-700 relative overflow-hidden"
       >
         <div class="absolute inset-0 bg-gradient-to-br from-purple-900/20 to-fuchsia-900/20 opacity-30 pointer-events-none"></div>
-        <h2 class="text-2xl lg:text-3xl font-extrabold text-white relative z-10">Admin Portal</h2>
+        <h2 class="text-2xl lg:text-3xl font-extrabold text-white relative z-10">Business Portal</h2>
         <p class="text-gray-400 mt-1 text-sm lg:text-base relative z-10">Sign in to manage your account</p>
 
         <div class="border-t border-gray-700 relative z-10"></div>
@@ -33,7 +33,7 @@
             role="tab"
           >
             <i class="pi pi-user mr-2"></i>
-            <span class="hidden sm:inline">Username/Password</span>
+            <span class="hidden sm:inline">Username</span>
             <span class="sm:hidden">Username</span>
           </button>
           <button
@@ -104,7 +104,7 @@
         </form>
 
         <!-- Phone Number Form -->
-        <form v-else-if="currentTab === 'phone-number'" @submit.prevent="handlePhoneLogin" class="space-y-4 lg:space-y-5 relative z-10" id="phone-number-form" role="tabpanel">
+        <form v-else-if="currentTab === 'phone-number'" @submit.prevent="handleLogin" class="space-y-4 lg:space-y-5 relative z-10" id="phone-number-form" role="tabpanel">
           <div>
             <label for="phone-number" class="text-sm lg:text-base font-medium text-gray-300 mb-2 flex items-center">
               <i class="pi pi-phone mr-2 lg:mr-3 text-purple-400 text-base lg:text-lg"></i> Phone Number
@@ -116,6 +116,19 @@
               required
               class="w-full px-3 lg:px-4 py-2 lg:py-3 text-sm lg:text-base bg-gray-700 text-white border border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 placeholder-gray-400"
               placeholder="Enter your phone number"
+            />
+          </div>
+            <div>
+            <label for="password" class="text-sm lg:text-base font-medium text-gray-300 mb-2 flex items-center">
+              <i class="pi pi-lock mr-2 lg:mr-3 text-purple-400 text-base lg:text-lg"></i> Password
+            </label>
+            <input
+              id="password"
+              v-model="password"
+              type="password"
+              required
+              class="w-full px-3 lg:px-4 py-2 lg:py-3 text-sm lg:text-base bg-gray-700 text-white border border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 placeholder-gray-400"
+              placeholder="Enter your password"
             />
           </div>
           <button
@@ -142,15 +155,15 @@
 
         <div class="mt-4 lg:mt-6 p-3 lg:p-4 text-start bg-gray-700 rounded-lg border border-gray-600 relative z-10">
           <p class="text-sm lg:text-base text-gray-200 font-medium mb-2 flex items-center">
-            <i class="pi pi-info-circle mr-2 lg:mr-3 text-purple-400 text-base lg:text-lg"></i> Demo Credentials:
+            <i class="pi pi-info-circle mr-2 lg:mr-3 text-purple-400 text-base lg:text-lg"></i> Welcome.
           </p>
-          <p class="text-xs lg:text-sm text-gray-300">
+          <!-- <p class="text-xs lg:text-sm text-gray-300">
             <strong>Username:</strong> admin<br />
             <strong>Password:</strong> Welcome.1#!
           </p>
           <p class="text-xs lg:text-sm text-gray-300 mt-2">
             <strong>Phone (any):</strong> 123-456-7890
-          </p>
+          </p> -->
         </div>
       </div>
 
@@ -299,64 +312,5 @@ async function handleLogin() {
   }
 }
 
-
-async function handlePhoneLogin() {
-  try {
-    isLoading.value = true
-    classicLoader.show('Validating phone number...', [
-      'Validating phone number',
-      'Sending verification',
-      'Authenticating'
-    ])
-
-    if (phoneNumber.value.length < 10) {
-      throw new Error("Please enter a valid phone number.");
-    }
-
-    // Simulate progress
-    await new Promise(resolve => setTimeout(resolve, 500))
-    classicLoader.updateProgress(40, 'Sending verification...')
-
-    await new Promise(resolve => setTimeout(resolve, 800))
-    classicLoader.updateProgress(80, 'Authenticating...')
-
-    // Simulate login success for phone login (replace with actual API call)
-    const authData = {
-      token: 'phone-token-' + Date.now(),
-      user: {
-        phone: phoneNumber.value,
-        loginMethod: 'phone',
-        loginTime: new Date().toISOString()
-      }
-    };
-
-    // Use the auth composable to set authentication data
-    const { setAuth } = useAuth();
-    setAuth(authData);
-
-    classicLoader.updateProgress(100, 'Complete!')
-
-    toast.add({
-      severity: "success",
-      summary: "Phone Login Success",
-      detail: `Welcome to the Admin Panel!`,
-      life: 2000,
-    });
-
-    await new Promise(resolve => setTimeout(resolve, 500))
-    await navigateTo("/admin/dashboard");
-  } catch (error) {
-    toast.add({
-      severity: "error",
-      summary: "Phone Login Failed",
-      detail: error.message || "Invalid phone number or OTP",
-      life: 3000,
-    });
-    applyShake();
-  } finally {
-    isLoading.value = false
-    classicLoader.hide()
-  }
-}
 </script>
 

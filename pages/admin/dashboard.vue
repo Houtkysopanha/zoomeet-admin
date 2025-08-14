@@ -4,7 +4,12 @@
       <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <!-- Left: Title -->
         <div class="">
-          <h1 class="text-2xl lg:text-3xl font-bold text-[#7A49C9] mb-0">Dashboard Overview</h1>
+          <Breadcrumb
+            :items="[
+              { text: 'Dashboard' }
+            ]"
+            class="mb-2"
+          />
         </div>
 
         <!-- Right: Controls -->
@@ -39,7 +44,7 @@
               </div>
               <div class="text-left flex-1 sm:hidden lg:block">
                 <div class="text-sm font-medium text-gray-800 truncate">{{ userName }}</div>
-                <div class="text-xs text-gray-500">Administrator</div>
+                <div class="text-xs text-gray-500">{{ userRole }}</div>
               </div>
               <Icon name="i-heroicons-chevron-down" class="text-gray-600 text-sm flex-shrink-0" />
             </button>
@@ -108,6 +113,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Calendar from 'primevue/calendar'
+import Breadcrumb from '~/components/common/Breadcrumb.vue'
 import CardCommon from '~/components/common/CardCommon.vue'
 import { useToast } from 'primevue/usetoast'
 import RecentEvent from './RecentEvent.vue'
@@ -131,7 +137,7 @@ const currentDate = ref('')
 const currentTime = ref('')
 
 const userName = ref('Loading...')
-const userRole = ref('Administrator') // or default role string
+const userRole = ref('') // or default role string
 
 const toggleUserMenu = () => {
   showUserMenu.value = !showUserMenu.value
@@ -186,7 +192,7 @@ async function fetchUserInfo() {
     const data = await res.json()
     console.log('User info:', data)
     userName.value = data.name || data.preferred_username || 'No Name'
-    userRole.value = 'User'
+    userRole.value = data.role || 'No Role'
   } catch (error) {
     console.error(error)
     toast.add({

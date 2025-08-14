@@ -3,9 +3,13 @@
     <div class="mb-4 lg:mb-6">
       <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 class="text-xl lg:text-3xl text-gray-400 mb-2">
-            Event / <span class="text-xl lg:text-3xl font-bold text-[#7A49C9]">{{ isEditMode ? 'Edit Event' : 'Create Event' }}</span>
-          </h1>
+          <Breadcrumb
+            :items="[
+              { text: 'Event', to: '/admin/event' },
+              { text: isEditMode ? 'Edit Event' : 'Create Event' }
+            ]"
+            class="mb-2"
+          />
           <p v-if="isEditMode && eventData" class="text-sm text-gray-500">
             Editing: {{ eventData.name }}
           </p>
@@ -176,6 +180,7 @@ import { ref, nextTick, provide, onMounted, onBeforeUnmount } from 'vue'
 // Icon is auto-imported by Nuxt
 import Button from 'primevue/button'
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
+import Breadcrumb from '~/components/common/Breadcrumb.vue'
 import BasicInfor from '~/pages/admin/tabs/BasicInfor.vue'
 import Agenda from '~/pages/admin/tabs/Agenda.vue'
 import TicketPacket from '~/pages/admin/tabs/TicketPacket.vue'
