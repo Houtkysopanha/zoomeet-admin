@@ -212,83 +212,108 @@ const isEditMode = ref(false)
 
 // Initialize state on mount - CLEAR CREATE VS EDIT LOGIC
 onMounted(async () => {
-  console.log('🚀 Initializing CreateEvent page...')
-  
-  // Check ONLY for edit event ID (from edit button click)
-  const editEventId = localStorage.getItem('editEventId')
-  
+  console.log("🚀 Initializing CreateEvent page...")
+
+  // Check for edit event ID (from edit button click)
+  // Check for edit event ID (from edit button click)
+  const editEventId = localStorage.getItem("editEventId")
+  const currentEventId = localStorage.getItem("currentEventId")
+
+  console.log("🔍 Checking localStorage for event IDs:", {
+    editEventId: editEventId,
+    currentEventId: currentEventId,
+    allLocalStorage: {
+      editEventId: localStorage.getItem("editEventId"),
+      editEventName: localStorage.getItem("editEventName"),
+      currentEventId: localStorage.getItem("currentEventId"),
+      currentEventName: localStorage.getItem("currentEventName")
+    }
+  })
   if (editEventId) {
-    // EDIT MODE: Load existing event data
+    // EDIT MODE: Load specific event data dynamically
     try {
-      console.log('📝 EDIT MODE: Loading event data for ID:', editEventId)
-      
+      console.log("📝 EDIT MODE: Loading dynamic event data for ID:", editEventId)
+
       eventId.value = editEventId
       isEditMode.value = true
-      
-      // Load event data from API
+
+      // Load event data from API using the DYNAMIC event ID
       const response = await getEventDetails(editEventId)
-      
+
       if (response && response.data) {
         eventData.value = response.data
         isBasicInfoCompleted.value = true
-        
-        console.log('✅ Event data loaded for editing:', {
+
+        console.log("✅ Dynamic event data loaded successfully:", {
           id: eventId.value,
-          name: response.data.name
+          name: response.data.name,
+          category_id: response.data.category_id,
+          description: response.data.description
         })
-        
+
         // Store as current event for this editing session
-        localStorage.setItem('currentEventId', editEventId)
-        localStorage.setItem('currentEventName', response.data.name || 'Unnamed Event')
-        
+        localStorage.setItem("currentEventId", editEventId)
+        localStorage.setItem("currentEventName", response.data.name || "Unnamed Event")
+
         // Clear edit event ID after use (one-time trigger)
-        localStorage.removeItem('editEventId')
-        localStorage.removeItem('editEventName')
-        
+        localStorage.removeItem("editEventId")
+        localStorage.removeItem("editEventName")
+
         toast.add({
-          severity: 'success',
-          summary: 'Event Loaded for Editing',
-          detail: `Editing "${response.data.name}"`,
-          life: 3000
+          severity: "success",
+          summary: "Event Loaded for Editing",
+          detail: `Editing "${response.data.name}" (ID: ${editEventId})`,
+          life: 4000
         })
       } else {
-        throw new Error('No event data received from API')
+        throw new Error("No event data received from API")
       }
     } catch (error) {
-      console.error('❌ Failed to load event for editing:', error)
-      
+      console.error("❌ Failed to load dynamic event for editing:", error)
+
       // Clear all event-related localStorage on error
-      localStorage.removeItem('currentEventId')
-      localStorage.removeItem('currentEventName')
-      localStorage.removeItem('editEventId')
-      localStorage.removeItem('editEventName')
-      
+      localStorage.removeItem("currentEventId")
+      localStorage.removeItem("currentEventName")
+      localStorage.removeItem("editEventId")
+      localStorage.removeItem("editEventName")
+
       // Reset to new event creation mode
       eventId.value = null
       isBasicInfoCompleted.value = false
       isEditMode.value = false
       eventData.value = null
-      
+
       toast.add({
-        severity: 'error',
-        summary: 'Edit Load Failed',
-        detail: 'Failed to load event for editing. Starting fresh event creation.',
-        life: 4000
+        severity: "error",
+        summary: "Edit Load Failed",
+        detail: `Failed to load event ${editEventId} for editing. Starting fresh event creation.`,
+        life: 5000
       })
     }
   } else {
     // CREATE MODE: Always start fresh
-    console.log('🆕 CREATE MODE: Starting fresh event creation')
+    console.log("🆕 CREATE MODE: Starting fresh event creation")
     isEditMode.value = false
     isBasicInfoCompleted.value = false
     eventId.value = null
     eventData.value = null
-    
+
     // Clear any existing event data to ensure fresh start
-    localStorage.removeItem('currentEventId')
-    localStorage.removeItem('currentEventName')
+    localStorage.removeItem("currentEventId")
+    localStorage.removeItem("currentEventName")
   }
 
+  // Check for tab query parameter (from manage tickets - only in edit mode)
+  if (route.query.tab === "tickets" && isBasicInfoCompleted.value && isEditMode.value) {
+    activeIndex.value = 2 // Ticket Package tab
+    toast.add({
+      severity: "info",
+      summary: "Ticket Management",
+      detail: "You can now manage tickets for this event.",
+      life: 3000
+    })
+  }
+})
   // Check for tab query parameter (from manage tickets - only in edit mode)
   if (route.query.tab === 'tickets' && isBasicInfoCompleted.value && isEditMode.value) {
     activeIndex.value = 2 // Ticket Package tab
@@ -299,7 +324,6 @@ onMounted(async () => {
       life: 3000
     })
   }
-})
 
 // Clear event data when leaving the page - ALWAYS CLEAR
 onBeforeUnmount(() => {

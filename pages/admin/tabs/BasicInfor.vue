@@ -274,18 +274,18 @@
 
 <script setup>
 import './css/style.css'
-import { ref, computed, onMounted, onUnmounted, watch, inject } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, inject } from "vue"
 // Icon is auto-imported by Nuxt
-import Button from "primevue/button";
-import { useToast } from "primevue/usetoast";
-import { useRouter } from "vue-router";
-import InputText from "primevue/inputtext";
+import Button from "primevue/button"
+import { useToast } from "primevue/usetoast"
+import { useRouter } from "vue-router"
+import InputText from "primevue/inputtext"
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import ProgressSpinner from 'primevue/progressspinner'
-import Dropdown from "primevue/dropdown";
-import Textarea from "primevue/textarea";
-import Calendar from "primevue/calendar";
+import Dropdown from "primevue/dropdown"
+import Textarea from "primevue/textarea"
+import Calendar from "primevue/calendar"
 import Avatar from 'primevue/avatar'
 import UploadPhoto from '~/components/common/UploadPhoto.vue'
 import { createEvent, updateEvent, getEventDetails } from '@/composables/api'
@@ -321,51 +321,20 @@ const cardBackgroundFile = ref(null)
 const isUpdateMode = ref(false)
 const currentEventId = ref(null)
 
-// Load existing event data if available
-onMounted(async () => {
-  if (eventCreationState?.eventId?.value) {
-    currentEventId.value = eventCreationState.eventId.value
-    isUpdateMode.value = true
-    
-    try {
-      console.log('📋 Loading existing event data for editing:', currentEventId.value)
-      const response = await getEventDetails(currentEventId.value)
-      
-      if (response && response.data) {
-        const eventData = response.data
-        
-        // Populate form fields with existing data
-        eventName.value = eventData.name || ''
-        category.value = eventData.category_id || null
-        description.value = eventData.description || ''
-        location.value = eventData.location || ''
-        mapUrl.value = eventData.map_url || ''
-        company.value = eventData.company || ''
-        organizer.value = eventData.organizer || ''
-        eventSlug.value = eventData.event_slug || ''
-        onlineLinkMeeting.value = eventData.online_link_meeting || null
-        isPublished.value = eventData.is_published === 1 || eventData.is_published === '1'
-        
-        // Parse dates
-        if (eventData.start_date) {
-          startDate.value = new Date(eventData.start_date)
-        }
-        if (eventData.end_date) {
-          endDate.value = new Date(eventData.end_date)
-        }
-        
-        console.log('✅ Event data loaded for editing')
-      }
-    } catch (error) {
-      console.error('❌ Failed to load event data:', error)
-      toast.add({
-        severity: 'error',
-        summary: 'Load Failed',
-        detail: 'Failed to load event data for editing',
-        life: 3000
-      })
-    }
-  }
+// Category Options (updated with value for category_id)
+const categories = ref([
+  { label: "Conference", value: 1 },
+  { label: "Workshop", value: 2 },
+  { label: "Seminar", value: 3 },
+  { label: "Networking", value: 4 },
+])
+
+const member = ref(null)
+const members = ref(['Kim', 'ly', 'meng']) // Kept from original, not part of event creation form
+
+// Computed URL based on slug
+const generatedUrl = computed(() => {
+  return `https://eticket.asia/e/${eventSlug.value}`
 })
 
 // Event listeners for parent component actions
@@ -379,32 +348,103 @@ const handlePublishEvent = () => {
   submitEvent()
 }
 
-// Add event listeners when component mounts
-onMounted(() => {
-  window.addEventListener('saveDraft', handleSaveDraft)
-  window.addEventListener('publishEvent', handlePublishEvent)
+// Load existing event data if available and add event listeners
+onMounted(async () => {
+  // Add event listeners for parent component actions
+  window.addEventListener("saveDraft", handleSaveDraft)
+  window.addEventListener("publishEvent", handlePublishEvent)
+
+  // Check if we are in edit mode and have event data
+  if (eventCreationState?.eventId?.value && eventCreationState?.eventData?.value) {
+    currentEventId.value = eventCreationState.eventId.value
+    isUpdateMode.value = true
+    
+    const eventData = eventCreationState.eventData.value
+    
+    console.log("📋 Loading event data for editing:", {
+      id: currentEventId.value,
+      name: eventData.name
+    })
+    
+    // Populate form fields with existing data
+    eventName.value = eventData.name || ""
+    category.value = eventData.category_id || null
+    description.value = eventData.description || ""
+    location.value = eventData.location || ""
+    mapUrl.value = eventData.map_url || ""
+    company.value = eventData.company || ""
+    organizer.value = eventData.organizer || ""
+    eventSlug.value = eventData.event_slug || ""
+    onlineLinkMeeting.value = eventData.online_link_meeting || null
+    isPublished.value = eventData.is_published === 1 || eventData.is_published === "1"
+    
+    // Parse dates
+    if (eventData.start_date) {
+      startDate.value = new Date(eventData.start_date)
+    }
+    if (eventData.end_date) {
+      endDate.value = new Date(eventData.end_date)
+    }
+    
+    console.log("✅ Event data loaded for editing:", {
+      name: eventName.value,
+      category: category.value,
+      isPublished: isPublished.value
+    })
+  } else if (eventCreationState?.eventId?.value) {
+    // Fallback: fetch event data if not provided
+    currentEventId.value = eventCreationState.eventId.value
+    isUpdateMode.value = true
+    
+    try {
+      console.log("📋 Fetching event data for editing:", currentEventId.value)
+      const response = await getEventDetails(currentEventId.value)
+      
+      if (response && response.data) {
+        const eventData = response.data
+        
+        // Populate form fields with existing data
+        eventName.value = eventData.name || ""
+        category.value = eventData.category_id || null
+        description.value = eventData.description || ""
+        location.value = eventData.location || ""
+        mapUrl.value = eventData.map_url || ""
+        company.value = eventData.company || ""
+        organizer.value = eventData.organizer || ""
+        eventSlug.value = eventData.event_slug || ""
+        onlineLinkMeeting.value = eventData.online_link_meeting || null
+        isPublished.value = eventData.is_published === 1 || eventData.is_published === "1"
+        
+        // Parse dates
+        if (eventData.start_date) {
+          startDate.value = new Date(eventData.start_date)
+        }
+        if (eventData.end_date) {
+          endDate.value = new Date(eventData.end_date)
+        }
+        
+        console.log("✅ Event data fetched and loaded for editing")
+      }
+    } catch (error) {
+      console.error("❌ Failed to load event data:", error)
+      toast.add({
+        severity: "error",
+        summary: "Load Failed",
+        detail: "Failed to load event data for editing",
+        life: 3000
+      })
+    }
+  } else {
+    // New event creation mode
+    console.log("🆕 Starting new event creation")
+    isUpdateMode.value = false
+  }
 })
 
 // Remove event listeners when component unmounts
 onUnmounted(() => {
-  window.removeEventListener('saveDraft', handleSaveDraft)
-  window.removeEventListener('publishEvent', handlePublishEvent)
-})
-
-// Category Options (updated with value for category_id)
-const categories = ref([
-  { label: "Conference", value: 1 },
-  { label: "Workshop", value: 2 },
-  { label: "Seminar", value: 3 },
-  { label: "Networking", value: 4 },
-])
-
-const member = ref(null);
-const members = ref(['Kim', 'ly', 'meng']) // Kept from original, not part of event creation form
-
-// Computed URL based on slug
-const generatedUrl = computed(() => {
-  return `https://eticket.asia/e/${eventSlug.value}`
+  window.removeEventListener("saveDraft", handleSaveDraft)
+  window.removeEventListener("publishEvent", handlePublishEvent)
 })
 
 // Methods
@@ -423,8 +463,8 @@ const generateSlug = () => {
       .toLowerCase()
       .replace(/[^a-z0-9-]/g, '')
       .replace(/--+/g, '-')
-      .replace(/^-|-$/g, '');
-    toast.add({ severity: 'success', summary: 'Slug Generated', detail: 'Slug generated from event name!', life: 3000 });
+      .replace(/^-|-$/g, '')
+    toast.add({ severity: 'success', summary: 'Slug Generated', detail: 'Slug generated from event name!', life: 3000 })
   } else {
     const adjectives = ['awesome', 'amazing', 'fantastic', 'incredible', 'spectacular', 'wonderful']
     const nouns = ['event', 'conference', 'summit', 'meetup', 'workshop', 'seminar']
@@ -432,7 +472,7 @@ const generateSlug = () => {
     const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)]
     const randomNoun = nouns[Math.floor(Math.random() * nouns.length)]
     eventSlug.value = `${randomAdjective}-${randomNoun}-${numbers}`
-    toast.add({ severity: 'success', summary: 'Slug Generated', detail: 'Random slug generated!', life: 3000 });
+    toast.add({ severity: 'success', summary: 'Slug Generated', detail: 'Random slug generated!', life: 3000 })
   }
 }
 
@@ -452,31 +492,31 @@ const openUrl = () => {
 
 // Helper to format date for API (match Postman format exactly)
 const formatDateForApi = (date, isEndDate = false) => {
-  if (!date) return null;
-  const d = new Date(date);
+  if (!date) return null
+  const d = new Date(date)
 
   // If it's an end date and no time is set, set it to end of day
   if (isEndDate && d.getHours() === 0 && d.getMinutes() === 0) {
-    d.setHours(17, 0, 0, 0); // Default to 5 PM like Postman
+    d.setHours(17, 0, 0, 0) // Default to 5 PM like Postman
   }
   // If it's a start date and no time is set, set it to start of day
   else if (!isEndDate && d.getHours() === 0 && d.getMinutes() === 0) {
-    d.setHours(9, 0, 0, 0); // Default to 9 AM like Postman
+    d.setHours(9, 0, 0, 0) // Default to 9 AM like Postman
   }
 
   // Return format exactly like Postman: "2025-10-01 09:00:00"
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  const seconds = String(d.getSeconds()).padStart(2, '0');
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-};
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const hours = String(d.getHours()).padStart(2, '0')
+  const minutes = String(d.getMinutes()).padStart(2, '0')
+  const seconds = String(d.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+}
 
 // Submit Event Function - SUPPORTS BOTH CREATE AND UPDATE
 const submitEvent = async () => {
-  loading.value = true;
+  loading.value = true
   try {
     // Basic validation
     if (!eventName.value || !category.value || !description.value || !startDate.value || !endDate.value || !location.value || !eventSlug.value) {
@@ -485,8 +525,8 @@ const submitEvent = async () => {
         summary: 'Validation Error', 
         detail: 'Please fill all required fields.', 
         life: 3000 
-      });
-      return;
+      })
+      return
     }
 
     // Cover Image is REQUIRED for new events, optional for updates
@@ -496,8 +536,8 @@ const submitEvent = async () => {
         summary: 'Cover Image Required',
         detail: 'Please upload a cover image. This field is required for event creation.',
         life: 5000
-      });
-      return;
+      })
+      return
     }
 
     // Prepare event data object
@@ -510,111 +550,111 @@ const submitEvent = async () => {
       location: location.value,
       event_slug: eventSlug.value,
       is_published: isPublished.value ? '1' : '0'
-    };
+    }
 
     // Add optional fields
-    eventData.map_url = mapUrl.value ? mapUrl.value.trim() : '';
-    eventData.company = company.value ? company.value.trim() : '';
-    eventData.organizer = organizer.value ? organizer.value.trim() : '';
+    eventData.map_url = mapUrl.value ? mapUrl.value.trim() : ''
+    eventData.company = company.value ? company.value.trim() : ''
+    eventData.organizer = organizer.value ? organizer.value.trim() : ''
 
     // Optional field - only add if has value
     if (onlineLinkMeeting.value && onlineLinkMeeting.value.trim()) {
-      eventData.online_link_meeting = onlineLinkMeeting.value.trim();
+      eventData.online_link_meeting = onlineLinkMeeting.value.trim()
     }
 
     // Add file uploads ONLY if they exist
     if (coverImageFile.value && coverImageFile.value instanceof File) {
-      eventData.cover_image = coverImageFile.value;
+      eventData.cover_image = coverImageFile.value
     }
     if (eventBackgroundFile.value && eventBackgroundFile.value instanceof File) {
-      eventData.event_background = eventBackgroundFile.value;
+      eventData.event_background = eventBackgroundFile.value
     }
     if (cardBackgroundFile.value && cardBackgroundFile.value instanceof File) {
-      eventData.card_background = cardBackgroundFile.value;
+      eventData.card_background = cardBackgroundFile.value
     }
 
     // Debug logging
-    console.log('📋 Event data being sent:', eventData);
-    console.log('🔄 Update mode:', isUpdateMode.value);
-    console.log('🆔 Current event ID:', currentEventId.value);
+    console.log('📋 Event data being sent:', eventData)
+    console.log('🔄 Update mode:', isUpdateMode.value)
+    console.log('🆔 Current event ID:', currentEventId.value)
 
-    let result;
+    let result
     
     if (isUpdateMode.value && currentEventId.value) {
       // UPDATE existing event
-      console.log('📝 Updating existing event...');
-      result = await updateEvent(currentEventId.value, eventData);
+      console.log('📝 Updating existing event...')
+      result = await updateEvent(currentEventId.value, eventData)
     } else {
       // CREATE new event
-      console.log('🆕 Creating new event...');
-      result = await createEvent(eventData);
+      console.log('🆕 Creating new event...')
+      result = await createEvent(eventData)
     }
 
-    console.log('✅ Event operation result:', result);
+    console.log('✅ Event operation result:', result)
 
     // Handle the normalized API response
     if (result && result.success) {
-      const responseEventData = result.data;
-      const eventId = responseEventData?.id;
+      const responseEventData = result.data
+      const eventId = responseEventData?.id
 
       // Update parent state
       if (eventCreationState && eventCreationState.setBasicInfoCompleted) {
-        eventCreationState.setBasicInfoCompleted(true, eventId, responseEventData);
+        eventCreationState.setBasicInfoCompleted(true, eventId, responseEventData)
       }
 
       // Update local state for future updates
       if (!isUpdateMode.value && eventId) {
-        isUpdateMode.value = true;
-        currentEventId.value = eventId;
+        isUpdateMode.value = true
+        currentEventId.value = eventId
       }
 
-      const actionText = isPublished.value ? 'Published' : 'Saved as Draft';
-      const operationText = isUpdateMode.value ? 'Updated' : 'Created';
+      const actionText = isPublished.value ? 'Published' : 'Saved as Draft'
+      const operationText = isUpdateMode.value ? 'Updated' : 'Created'
       
       toast.add({
         severity: 'success',
         summary: `Event ${operationText} Successfully! 🎉`,
         detail: `${result.message} - ${actionText}`,
         life: 5000
-      });
+      })
 
-      console.log(`🎉 Event ${operationText.toLowerCase()} successfully:`, responseEventData);
+      console.log(`🎉 Event ${operationText.toLowerCase()} successfully:`, responseEventData)
 
       // Store the event ID for ticket creation and persistence
       if (eventId) {
-        localStorage.setItem('currentEventId', eventId.toString());
-        localStorage.setItem('currentEventName', responseEventData?.name || eventName.value || 'Unnamed Event');
-        console.log('✅ Event ID ready for ticket creation:', eventId);
+        localStorage.setItem('currentEventId', eventId.toString())
+        localStorage.setItem('currentEventName', responseEventData?.name || eventName.value || 'Unnamed Event')
+        console.log('✅ Event ID ready for ticket creation:', eventId)
       }
 
     } else {
       // Handle failed operation
-      const errorMessage = result?.message || `Failed to ${isUpdateMode.value ? 'update' : 'create'} event`;
+      const errorMessage = result?.message || `Failed to ${isUpdateMode.value ? 'update' : 'create'} event`
       toast.add({
         severity: 'error',
         summary: `Event ${isUpdateMode.value ? 'Update' : 'Creation'} Failed`,
         detail: errorMessage,
         life: 5000
-      });
-      console.error(`❌ Event ${isUpdateMode.value ? 'update' : 'creation'} failed:`, result);
+      })
+      console.error(`❌ Event ${isUpdateMode.value ? 'update' : 'creation'} failed:`, result)
     }
   } catch (error) {
-    console.error(`Event ${isUpdateMode.value ? 'update' : 'creation'} error:`, error);
+    console.error(`Event ${isUpdateMode.value ? 'update' : 'creation'} error:`, error)
     
     // Handle different types of errors
-    let errorMessage = `Failed to ${isUpdateMode.value ? 'update' : 'create'} event`;
-    let errorSummary = 'Network Error';
+    let errorMessage = `Failed to ${isUpdateMode.value ? 'update' : 'create'} event`
+    let errorSummary = 'Network Error'
     
     if (error.message) {
-      errorMessage = error.message;
+      errorMessage = error.message
       
       // Customize error summary based on error type
       if (error.message.includes('Authentication')) {
-        errorSummary = 'Authentication Error';
+        errorSummary = 'Authentication Error'
       } else if (error.message.includes('Validation')) {
-        errorSummary = 'Validation Error';
+        errorSummary = 'Validation Error'
       } else if (error.message.includes('Permission')) {
-        errorSummary = 'Permission Error';
+        errorSummary = 'Permission Error'
       }
     }
     
@@ -623,11 +663,11 @@ const submitEvent = async () => {
       summary: errorSummary, 
       detail: errorMessage, 
       life: 5000 
-    });
+    })
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 
 // Sample chair data
 const chairs = ref([
@@ -636,10 +676,16 @@ const chairs = ref([
 ])
 
 // Methods for chair management (kept from original)
-const addChair = () => { toast.add({ severity: 'info', summary: 'Add Chair', detail: 'Add Chair dialog to be implemented', life: 3000 }) }
-const editChair = (chair) => { toast.add({ severity: 'info', summary: 'Edit Chair', detail: `Editing ${chair.name}...`, life: 3000 }) }
+const addChair = () => { 
+  toast.add({ severity: 'info', summary: 'Add Chair', detail: 'Add Chair dialog to be implemented', life: 3000 }) 
+}
+
+const editChair = (chair) => { 
+  toast.add({ severity: 'info', summary: 'Edit Chair', detail: `Editing ${chair.name}...`, life: 3000 }) 
+}
+
 const deleteChair = (chair) => {
-  toast.add({ severity: 'warn', summary: 'Confirm Deletion', detail: `Are you sure you want to delete ${chair.name}?`, life: 5000, closable: true });
+  toast.add({ severity: 'warn', summary: 'Confirm Deletion', detail: `Are you sure you want to delete ${chair.name}?`, life: 5000, closable: true })
   // For demo purposes, we'll remove after a delay
   setTimeout(() => {
     const index = chairs.value.findIndex(c => c.id === chair.id)
@@ -653,9 +699,9 @@ const deleteChair = (chair) => {
 // Watch for event name changes to suggest slug
 watch(eventName, (newName) => {
   if (newName && !eventSlug.value) {
-    generateSlug(); // Auto-generate slug if event name is entered and slug is empty
+    generateSlug()
   }
-});
+})
 </script>
 
 <style scoped>

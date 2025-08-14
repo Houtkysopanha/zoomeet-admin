@@ -15,11 +15,18 @@ export default defineNuxtConfig({
     },
   },
   build: {
-    transpile: ['primevue']
+    transpile: ['primevue'],
+    analyze: true
   },
   modules: ['@nuxt/fonts','@nuxt/icon'],
   imports: {
-    autoImport: true
+    autoImport: true,
+    imports: [
+      {
+        from: '#imports',
+        name: 'definePageMeta'
+      }
+    ]
   },
   icon: {
     serverBundle: {
@@ -62,7 +69,7 @@ export default defineNuxtConfig({
   // Runtime configuration
   runtimeConfig: {
     public: {
-      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || process.env.API_BASE_URL || 'https://api.zoomet.asia/api',
+      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || process.env.API_BASE_URL || 'https://api.zoomet.asia',
       apiAdminBaseUrl: process.env.NUXT_PUBLIC_API_ADMIN_BASE_URL,
       // bearerToken removed - using dynamic tokens from login
     },

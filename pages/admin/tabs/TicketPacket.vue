@@ -6,7 +6,7 @@
         <p class="text-gray-400">Create and manage different ticket types</p>
       </div>
       <div v-if="currentEventId" class="text-right">
-        <p class="text-sm text-green-600 font-medium">✅ Basic Info Saved</p>
+        <p class="text-sm text-green-600 font-medium bg-green-200 rounded-full p-2">Basic Info Saved</p>
         <p class="text-xs text-gray-500">{{ currentEventName }}</p>
       </div>
     </div>
@@ -55,7 +55,7 @@
           Reload Tickets
         </Button>
 
-        <Button
+        <!-- <Button
           @click="saveTickets"
           :disabled="!currentEventId || tickets.length === 0 || loading"
           :class="[
@@ -72,7 +72,7 @@
           />
           <Icon v-else name="heroicons:check" class="mr-2" />
           {{ loading ? 'Saving...' : 'Save Draft' }}
-        </Button>
+        </Button> -->
       </div>
     </div>
   </div>
@@ -95,43 +95,62 @@ const currentEventId = ref(null)
 const currentEventName = ref('')
 const tickets = ref([])
 
-// Load existing tickets if available
-const loadTickets = async () => {
+// Load existing tickets when in edit mode
+const loadExistingTickets = async () => {
   if (!currentEventId.value) return
 
-  loading.value = true
   try {
-    const response = await getEventDetails(currentEventId.value)
-    if (response?.data?.ticket_types?.length > 0) {
-      tickets.value = response.data.ticket_types.map(ticket => ({
-        id: Date.now() + Math.random(),
-        ticket_type_id: ticket.id,
-        name: ticket.name,
-        price: ticket.price,
-        quantity: ticket.total,
-        description: ticket.tag || '',
-        sort_order: ticket.sort_order,
-        is_active: ticket.is_active
-      }))
-      hasExistingTickets.value = true
-      toast.add({
-        severity: 'success',
-        summary: 'Tickets Loaded',
-        detail: `Loaded ${tickets.value.length} existing tickets`,
-        life: 3000
-      })
+    console.log('🎫 Loading existing tickets for event:', currentEventId.value)
+    const response = await getEventTicketTypes(currentEventId.value)
+    
+    if (response && response.data && Array.isArray(response.data)) {
+      const existingTickets = response.data
+      
+      if (existingTickets.length > 0) {
+        console.log('✅ Found existing tickets:', existingTickets.length)
+        
+        // Clear current tickets and load existing ones
+        tickets.value = existingTickets.map(ticket => ({
+          id: Date.now() + Math.random(),
+          ticket_type_id: ticket.id, // Store the actual ticket ID for updates
+          name: ticket.name || '',
+          description: ticket.description || ticket.tag || '',
+          price: ticket.price || 0,
+          quantity: ticket.total || ticket.quantity || 0,
+          maxPerOrder: ticket.max_per_order || 1,
+          saleStartDate: ticket.sale_start_date ? new Date(ticket.sale_start_date) : null,
+          saleEndDate: ticket.sale_end_date ? new Date(ticket.sale_end_date) : null,
+          isActive: ticket.is_active || false,
+          sort_order: ticket.sort_order || 1
+        }))
+        
+        hasExistingTickets.value = true
+        
+        toast.add({
+          severity: 'success',
+          summary: 'Tickets Loaded',
+          detail: `Loaded ${existingTickets.length} existing ticket(s)`,
+          life: 3000
+        })
+      } else {
+        console.log('📝 No existing tickets found, starting fresh')
+        hasExistingTickets.value = false
+      }
     }
   } catch (error) {
-    console.error('Failed to load tickets:', error)
+    console.error('❌ Failed to load existing tickets:', error)
     toast.add({
-      severity: 'error',
-      summary: 'Load Failed',
-      detail: 'Failed to load existing tickets',
-      life: 3000
+      severity: 'warn',
+      summary: 'Load Tickets Failed',
+      detail: 'Could not load existing tickets. You can create new ones.',
+      life: 4000
     })
-  } finally {
-    loading.value = false
   }
+}
+
+// Load existing tickets if available (legacy function for compatibility)
+const loadTickets = async () => {
+  await loadExistingTickets()
 }
 
 const createNewTicket = () => ({
@@ -283,7 +302,7 @@ const saveTickets = async () => {
 
     // Reload tickets to get updated data with fresh IDs
     setTimeout(async () => {
-      await loadTickets()
+      await loadExistingTickets()
     }, 1000) // Small delay to ensure server has processed the changes
 
   } catch (error) {
@@ -318,6 +337,11 @@ const saveTickets = async () => {
   }
 }
 
+// Handle save tickets event from parent
+const handleSaveTickets = () => {
+  saveTickets()
+}
+
 // Initialize on mount and add event listeners
 onMounted(async () => {
   // Load event ID from localStorage
@@ -340,13 +364,11 @@ onMounted(async () => {
 
   // Add event listeners
   window.addEventListener("saveTickets", handleSaveTickets)
-})  // Listen for save tickets event from parent
-  window.addEventListener('saveTickets', saveTickets)
-
+})
 
 // Remove event listener when component unmounts
 onUnmounted(() => {
-  window.removeEventListener('saveTickets', saveTickets)
+  window.removeEventListener('saveTickets', handleSaveTickets)
 })
 </script>
 
@@ -404,53 +426,3 @@ onUnmounted(() => {
   width: 100%;
 }
 </style>
-// Load existing tickets when in edit mode
-const loadExistingTickets = async () => {
-  if (!currentEventId.value) return
-
-  try {
-    console.log('🎫 Loading existing tickets for event:', currentEventId.value)
-    const response = await getEventTicketTypes(currentEventId.value)
-    
-    if (response && response.data && Array.isArray(response.data)) {
-      const existingTickets = response.data
-      
-      if (existingTickets.length > 0) {
-        console.log('✅ Found existing tickets:', existingTickets.length)
-        
-        // Clear current tickets and load existing ones
-        tickets.value = existingTickets.map(ticket => ({
-          id: ticket.id,
-          name: ticket.name || '',
-          description: ticket.description || '',
-          price: ticket.price || 0,
-          quantity: ticket.quantity || 0,
-          maxPerOrder: ticket.max_per_order || 1,
-          saleStartDate: ticket.sale_start_date ? new Date(ticket.sale_start_date) : null,
-          saleEndDate: ticket.sale_end_date ? new Date(ticket.sale_end_date) : null,
-          isActive: ticket.is_active || false
-        }))
-        
-        hasExistingTickets.value = true
-        
-        toast.add({
-          severity: 'success',
-          summary: 'Tickets Loaded',
-          detail: `Loaded ${existingTickets.length} existing ticket(s)`,
-          life: 3000
-        })
-      } else {
-        console.log('📝 No existing tickets found, starting fresh')
-        hasExistingTickets.value = false
-      }
-    }
-  } catch (error) {
-    console.error('❌ Failed to load existing tickets:', error)
-    toast.add({
-      severity: 'warn',
-      summary: 'Load Tickets Failed',
-      detail: 'Could not load existing tickets. You can create new ones.',
-      life: 4000
-    })
-  }
-}
