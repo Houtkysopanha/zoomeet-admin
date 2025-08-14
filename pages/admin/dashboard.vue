@@ -1,78 +1,84 @@
 <template>
-  <div class="p-6 bg-[#F8F8FF]">
+  <div class="p-3 lg:p-4 bg-[#F8F8FF]">
     <div class="">
-     <div class="flex flex-wrap items-center justify-between gap-4">
-  <!-- Left: Title -->
-  <div class="min-w-[200px]">
-    <h1 class="text-3xl font-bold text-[#7A49C9] mb-0">Dashboard Overview</h1>
-  </div>
-
-  <!-- Right: Controls -->
-  <div class="flex items-center gap-6 flex-wrap">
-    <!-- Calendar -->
-    <Calendar
-      v-model="dateRange"
-      selectionMode="range"
-      :manualInput="false"
-      :showIcon="true"
-      :showButtonBar="true"
-      :dateFormat="'dd MM, yy'"
-      class="max-w-xs p-inputtext-lg  rounded-xl border border-gray-200 p-2 text-center text-blue-950 font-medium text-lg focus:ring-0 focus:outline-none"
-      placeholder="Select Date Range"
-      @date-select="updateDisplay"
-    />
-
-    <!-- Bell Icon -->
-     <Icon name="mage:notification-bell-pending-fill" class=" text-3xl bg-gradient-to-t from-blue-900 to-purple-800 " />
-    <!-- <i v-badge.danger class="pi pi-bell bg-custom-gradient bg-clip-text text-transparent text-xl text-gray-600" /> -->
-
-    <!-- User Menu -->
-    <div class="relative">
-      <button
-        @click="toggleUserMenu"
-        class="flex items-center space-x-3 rounded-lg hover:bg-gray-100 transition-colors p-1"
-      >
-        <div class="w-12 h-12 bg-[#E6F2FF] rounded-full flex items-center justify-center">
-          <Icon name="i-heroicons-user" class="text-black text-base" />
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <!-- Left: Title -->
+        <div class="">
+          <h1 class="text-2xl lg:text-3xl font-bold text-[#7A49C9] mb-0">Dashboard Overview</h1>
         </div>
-        <div class="text-left hidden md:block">
-          <div class="text-sm font-medium text-gray-800">Admin User</div>
-          <div class="text-xs text-gray-500">Administrator</div>
-        </div>
-        <Icon name="i-heroicons-chevron-down" class="text-gray-600 text-sm" />
-      </button>
 
-      <!-- Dropdown -->
-      <div
-        v-if="showUserMenu"
-        class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
-      >
-        <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-          <Icon name="i-heroicons-user-circle" class="mr-3 text-gray-400" />
-          Profile
-        </a>
-        <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-          <Icon name="i-heroicons-cog-6-tooth" class="mr-3 text-gray-400" />
-          Settings
-        </a>
-        <hr class="my-2 border-gray-200" />
-        <button
-          @click="logoutWithToast"
-          class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-        >
-          <Icon name="i-heroicons-arrow-right-on-rectangle" class="mr-3 text-red-500" />
-          Logout
-        </button>
+        <!-- Right: Controls -->
+        <div class="flex items-start sm:items-center gap-3 lg:gap-6 ">
+          <!-- Calendar -->
+          <Calendar
+            v-model="dateRange"
+            selectionMode="range"
+            :manualInput="false"
+            :showIcon="true"
+            :showButtonBar="true"
+            :dateFormat="'dd MM, yy'"
+            class="w-full sm:max-w-xs p-inputtext-lg rounded-xl border border-gray-200 p-2 lg:p-3 text-center text-blue-950 font-medium text-sm lg:text-lg focus:ring-0 focus:outline-none"
+            placeholder="Select Date Range"
+            @date-select="updateDisplay"
+          />
+
+          <!-- Bell Icon -->
+          <Icon
+            name="mage:notification-bell-pending-fill"
+            class="text-xl lg:text-4xl lg:w-16 bg-gradient-to-t from-blue-900 to-purple-800 hidden sm:block"
+          />
+
+          <!-- User Menu -->
+          <div class="relative w-full sm:w-auto">
+            <button
+              @click="toggleUserMenu"
+              class="flex items-center space-x-3 rounded-lg hover:bg-gray-100 transition-colors p-1 w-full sm:w-auto"
+            >
+              <div class="w-10 h-10 lg:w-12 lg:h-12 bg-[#E6F2FF] rounded-full flex items-center justify-center flex-shrink-0">
+                <Icon name="i-heroicons-user" class="text-black text-sm lg:text-base" />
+              </div>
+              <div class="text-left flex-1 sm:hidden lg:block">
+                <div class="text-sm font-medium text-gray-800 truncate">{{ userName }}</div>
+                <div class="text-xs text-gray-500">Administrator</div>
+              </div>
+              <Icon name="i-heroicons-chevron-down" class="text-gray-600 text-sm flex-shrink-0" />
+            </button>
+
+            <!-- Dropdown -->
+            <div
+              v-if="showUserMenu"
+              class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
+            >
+              <NuxtLink
+                to="/admin/profile"
+                class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                <Icon name="i-heroicons-user-circle" class="mr-3 text-gray-400" />
+                Profile
+              </NuxtLink>
+
+              <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                <Icon name="i-heroicons-cog-6-tooth" class="mr-3 text-gray-400" />
+                Settings
+              </a>
+              <hr class="my-2 border-gray-200" />
+              <button
+                @click="logoutWithToast"
+                class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+              >
+                <Icon name="i-heroicons-arrow-right-on-rectangle" class="mr-3 text-red-500" />
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
-</div>
 
-      <div class="border border-gray-200 mt-5 mb-10">{{  }}</div>
+      <div class="border border-gray-200 mt-4 lg:mt-5 mb-6 lg:mb-10"></div>
     </div>
 
     <!-- Event Stats -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
       <CardCommon
         v-for="(stat, index) in eventStats"
         :key="index"
@@ -82,10 +88,16 @@
         :weekChange="stat.weekChange"
       />
     </div>
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8 mt-5">
-  <div class="col-span-2"><RecentEvent /></div>
-  <div ><ComingEvent /></div>
-</div>
+
+    <!-- Recent and Coming Events -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6 lg:mb-8 mt-4 lg:mt-5">
+      <div class="lg:col-span-2">
+        <RecentEvent />
+      </div>
+      <div class="lg:col-span-1">
+        <ComingEvent />
+      </div>
+    </div>
 
 
 
@@ -94,15 +106,15 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import Calendar from 'primevue/calendar'
 import CardCommon from '~/components/common/CardCommon.vue'
 import { useToast } from 'primevue/usetoast'
 import RecentEvent from './RecentEvent.vue'
 import ComingEvent from './ComingEvent.vue'
+const config = useRuntimeConfig() // add this at the top of script setup
 
 const router = useRouter()
-const route = useRoute()
 const toast = useToast()
 
 const eventStats = [
@@ -117,6 +129,9 @@ const dateRange = ref(null)
 const showUserMenu = ref(false)
 const currentDate = ref('')
 const currentTime = ref('')
+
+const userName = ref('Loading...')
+const userRole = ref('Administrator') // or default role string
 
 const toggleUserMenu = () => {
   showUserMenu.value = !showUserMenu.value
@@ -148,6 +163,45 @@ const updateDisplay = () => {
     console.log(`Selected range: ${formattedStart} - ${formattedEnd}`)
   }
 }
+async function fetchUserInfo() {
+  try {
+    const auth = JSON.parse(localStorage.getItem('auth'))
+    const token = auth?.token
+    if (!token) throw new Error('No token found in localStorage')
+
+    console.log('Using token:', token)
+    const res = await fetch(`${config.public.apiBaseUrl}/info`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    console.log('Fetch response status:', res.status)
+    if (!res.ok) {
+      const errorText = await res.text()
+      console.error('Fetch error:', errorText)
+      throw new Error('Failed to fetch user info')
+    }
+
+    const data = await res.json()
+    console.log('User info:', data)
+    userName.value = data.name || data.preferred_username || 'No Name'
+    userRole.value = 'User'
+  } catch (error) {
+    console.error(error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Unable to fetch user info',
+      life: 3000,
+    })
+    userName.value = 'Unknown User'
+  }
+}
+
+onMounted(() => {
+  fetchUserInfo()
+})
 
 const updateDateTime = () => {
   const now = new Date()
@@ -174,7 +228,6 @@ onMounted(() => {
 })
 
 definePageMeta({
-  middleware: 'auth',
   layout: 'admin',
 })
 </script>

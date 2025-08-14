@@ -206,7 +206,6 @@ import { ref } from 'vue'
 import { useToast } from 'primevue/usetoast'
 
 definePageMeta({
-  middleware: "auth",
   layout: "admin",
 })
 

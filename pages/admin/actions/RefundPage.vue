@@ -366,7 +366,6 @@ const nextPage = () => {
 }
 
 definePageMeta({
-  middleware: "auth",
   layout: "admin",
 })
 </script>

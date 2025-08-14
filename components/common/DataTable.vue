@@ -81,69 +81,107 @@
       </div>
     </div>
 
-    <!-- Events Table -->
-    <DataTable
-      :value="filteredEvents"
-      :paginator="true"
-      :rows="itemsPerPage"
-      :totalRecords="totalItems"
-      :lazy="true"
-      @page="onPage"
-      sortField="date"
-      :sortOrder="1"
-      class="p-datatable-sm"
+    <!-- Events Table with Enhanced Responsiveness and Loading -->
+    <TableLoader
+      :loading="isLoading"
+      text="Loading events..."
+      size="md"
+      :showSkeleton="!filteredEvents.length"
+      :skeletonRows="itemsPerPage"
     >
-      <Column field="name" header="Event" sortable>
-        <template #body="slotProps">
-          <span class="text-blue-900 font-medium">{{ slotProps.data.name }}</span>
-        </template>
-      </Column>
-      <Column field="date" header="Date" sortable>
-        <template #body="slotProps">
-          <span>{{ formatDate(slotProps.data.date) }}</span>
-        </template>
-      </Column>
-      <Column field="venue" header="Venue" sortable />
-      <Column field="type" header="Event Type" sortable />
-      <Column field="revenue" header="Revenue" sortable>
-        <template #body="slotProps">
-          <span>{{ formatCurrency(slotProps.data.revenue) }}</span>
-        </template>
-      </Column>
-      <Column field="bookings" header="Number of Booking" sortable />
-      <Column field="tickets" header="Tickets" sortable />
-      <Column field="status" header="Status" sortable>
-        <template #body="slotProps">
-          <span :class="getStatusClass(slotProps.data.status)">{{ slotProps.data.status }}</span>
-        </template>
-      </Column>
-      <Column field="actions" header="Actions">
-        <template #body="slotProps">
-          <Button
-            v-if="slotProps.data.status === 'Active'"
-            icon="pi pi-cog"
-            class="p-button-rounded p-button-outlined p-button-indigo mr-2"
-            @click="manageBooking(slotProps.data)"
-          />
-          <Button
-            icon="pi pi-pencil"
-            class="p-button-rounded p-button-outlined p-button-indigo mr-2"
-            @click="editEvent(slotProps.data)"
-          />
-          <Button
-            v-if="slotProps.data.status === 'Active'"
-            icon="pi pi-times"
-            class="p-button-rounded p-button-outlined p-button-red"
-            @click="endEvent(slotProps.data)"
-          />
-          <Button
-            icon="pi pi-trash"
-            class="p-button-rounded p-button-outlined p-button-red"
-            @click="removeEvent(slotProps.data)"
-          />
-        </template>
-      </Column>
-    </DataTable>
+      <div class="table-responsive bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+          <DataTable
+            :value="filteredEvents"
+            :paginator="true"
+            :rows="itemsPerPage"
+            :totalRecords="totalItems"
+            :lazy="true"
+            @page="onPage"
+            sortField="date"
+            :sortOrder="1"
+            class="p-datatable-sm min-w-full"
+          >
+          <Column field="name" header="Event" sortable class="min-w-48">
+            <template #body="slotProps">
+              <div class="text-blue-900 font-medium text-responsive-sm whitespace-nowrap overflow-hidden text-ellipsis max-w-48" :title="slotProps.data.name">
+                {{ slotProps.data.name }}
+              </div>
+            </template>
+          </Column>
+          <Column field="date" header="Date" sortable class="min-w-32">
+            <template #body="slotProps">
+              <span class="text-responsive-xs whitespace-nowrap">{{ formatDate(slotProps.data.date) }}</span>
+            </template>
+          </Column>
+          <Column field="venue" header="Venue" sortable class="min-w-40">
+            <template #body="slotProps">
+              <div class="text-responsive-xs whitespace-nowrap overflow-hidden text-ellipsis max-w-40" :title="slotProps.data.venue">
+                {{ slotProps.data.venue }}
+              </div>
+            </template>
+          </Column>
+          <Column field="type" header="Event Type" sortable class="min-w-32">
+            <template #body="slotProps">
+              <span class="text-responsive-xs whitespace-nowrap">{{ slotProps.data.type }}</span>
+            </template>
+          </Column>
+          <Column field="revenue" header="Revenue" sortable class="min-w-28">
+            <template #body="slotProps">
+              <span class="text-responsive-xs font-medium whitespace-nowrap">{{ formatCurrency(slotProps.data.revenue) }}</span>
+            </template>
+          </Column>
+          <Column field="bookings" header="Number of Booking" sortable class="min-w-32">
+            <template #body="slotProps">
+              <span class="text-responsive-xs whitespace-nowrap">{{ slotProps.data.bookings }}</span>
+            </template>
+          </Column>
+          <Column field="tickets" header="Tickets" sortable class="min-w-24">
+            <template #body="slotProps">
+              <span class="text-responsive-xs whitespace-nowrap">{{ slotProps.data.tickets }}</span>
+            </template>
+          </Column>
+          <Column field="status" header="Status" sortable class="min-w-24">
+            <template #body="slotProps">
+              <span :class="getStatusClass(slotProps.data.status)" class="whitespace-nowrap">{{ slotProps.data.status }}</span>
+            </template>
+          </Column>
+          <Column field="actions" header="Actions" class="min-w-40">
+            <template #body="slotProps">
+              <div class="flex space-x-1 justify-center">
+                <Button
+                  v-if="slotProps.data.status === 'Active'"
+                  icon="pi pi-cog"
+                  class="p-button-rounded p-button-outlined p-button-indigo p-button-sm"
+                  @click="manageBooking(slotProps.data)"
+                  v-tooltip.top="'Manage Booking'"
+                />
+                <Button
+                  icon="pi pi-pencil"
+                  class="p-button-rounded p-button-outlined p-button-indigo p-button-sm"
+                  @click="editEvent(slotProps.data)"
+                  v-tooltip.top="'Edit Event'"
+                />
+                <Button
+                  v-if="slotProps.data.status === 'Active'"
+                  icon="pi pi-times"
+                  class="p-button-rounded p-button-outlined p-button-red p-button-sm"
+                  @click="endEvent(slotProps.data)"
+                  v-tooltip.top="'End Event'"
+                />
+                <Button
+                  icon="pi pi-trash"
+                  class="p-button-rounded p-button-outlined p-button-red p-button-sm"
+                  @click="removeEvent(slotProps.data)"
+                  v-tooltip.top="'Delete Event'"
+                />
+              </div>
+            </template>
+          </Column>
+          </DataTable>
+        </div>
+      </div>
+    </TableLoader>
 
     <!-- Pagination (Redundant with DataTable paginator, kept for reference) -->
     <div class="flex items-center justify-between mt-8" v-if="false">
@@ -167,9 +205,13 @@ import Calendar from 'primevue/calendar'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import EventStatsCard from '~/components/EventStatsCard.vue'
+import TableLoader from '~/components/ui/TableLoader.vue'
 import { useToast } from 'primevue/usetoast'
 
 const toast = useToast()
+
+// Loading state for table data
+const isLoading = ref(false)
 
 const eventStats = [
   { title: 'Total Events', count: '28', icon: 'i-heroicons-calendar', weekChange: '2' },
@@ -234,6 +276,20 @@ const filteredEvents = computed(() => {
 
 const onPage = (event) => {
   currentPage.value = event.page + 1
+  // Simulate loading when changing pages
+  loadData()
+}
+
+// Simulate data loading
+const loadData = async () => {
+  isLoading.value = true
+  try {
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    // Data is already loaded in the events array
+  } finally {
+    isLoading.value = false
+  }
 }
 
 const formatDate = (date) => date.toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' })

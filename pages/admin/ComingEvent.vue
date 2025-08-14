@@ -151,35 +151,35 @@ const events = ref([
     title: 'Digital Innovation Summit 2025',
     location: 'Sofitel Phnom Penh Phokeethra',
     time: '2:00 PM GMT+7',
-    image: '/placeholder.svg?height=80&width=80'
+    image: img
   },
   {
     id: 6,
     title: 'Southeast Asia Tech Conference',
     location: 'NagaWorld Hotel & Entertainment Complex',
     time: '9:00 AM GMT+7',
-    image: '/placeholder.svg?height=80&width=80'
+    image: img
   },
    {
     id: 7,
     title: 'Southeast Asia Tech Conference',
     location: 'NagaWorld Hotel & Entertainment Complex',
     time: '9:00 AM GMT+7',
-    image: '/placeholder.svg?height=80&width=80'
+    image: img
   },
    {
     id: 8,
     title: 'Southeast Asia Tech Conference',
     location: 'NagaWorld Hotel & Entertainment Complex',
     time: '9:00 AM GMT+7',
-    image: '/placeholder.svg?height=80&width=80'
+    image: img
   },
   {
     id: 9,
     title: 'Southeast Asia Tech Conference',
     location: 'NagaWorld Hotel & Entertainment Complex',
     time: '9:00 AM GMT+7',
-    image: '/placeholder.svg?height=80&width=80'
+    image: img
   }
 ])
 
