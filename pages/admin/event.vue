@@ -3,7 +3,12 @@
     <div class="mb-4 lg:mb-6">
       <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 class="text-2xl lg:text-3xl font-bold text-[#7A49C9]">Event</h1>
+          <Breadcrumb
+            :items="[
+              { text: 'Event' }
+            ]"
+            class="mb-2"
+          />
         </div>
         <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 items-stretch sm:items-center">
           <Calendar
@@ -204,6 +209,7 @@
 import { ref, computed, onMounted } from 'vue'
 import Button from 'primevue/button'
 import IconnButton from '~/components/ui/IconnButton.vue'
+import Breadcrumb from '~/components/common/Breadcrumb.vue'
 import Calendar from 'primevue/calendar'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'

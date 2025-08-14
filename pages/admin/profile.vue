@@ -13,7 +13,7 @@
             <div class="mx-auto h-32 w-32 rounded-full bg-indigo-600 flex items-center justify-center mb-4">
               <span class="text-white text-4xl font-bold">A</span>
             </div>
-            <h3 class="text-lg font-medium text-gray-900">Admin User</h3>
+            <h3 class="text-lg font-medium text-gray-900">{{ userName }}</h3>
             <p class="text-sm text-gray-500">Administrator</p>
             <div class="mt-4 space-y-2">
               <button class="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
@@ -204,6 +204,8 @@
 <script setup>
 import { ref } from 'vue'
 import { useToast } from 'primevue/usetoast'
+const config = useRuntimeConfig() // add this at the top of script setup
+
 
 definePageMeta({
   layout: "admin",
@@ -228,5 +230,41 @@ function saveProfile() {
     detail: "Your profile has been updated successfully.",
     life: 3000,
   })
+}
+
+async function fetchUserInfo() {
+  try {
+    const auth = JSON.parse(localStorage.getItem('auth'))
+    const token = auth?.token
+    if (!token) throw new Error('No token found in localStorage')
+
+    console.log('Using token:', token)
+    const res = await fetch(`${config.public.apiBaseUrl}/info`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    console.log('Fetch response status:', res.status)
+    if (!res.ok) {
+      const errorText = await res.text()
+      console.error('Fetch error:', errorText)
+      throw new Error('Failed to fetch user info')
+    }
+
+    const data = await res.json()
+    console.log('User info:', data)
+    userName.value = data.name || data.preferred_username || 'No Name'
+    userRole.value = data.role || 'No Role'
+  } catch (error) {
+    console.error(error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Unable to fetch user info',
+      life: 3000,
+    })
+    userName.value = 'Unknown User'
+  }
 }
 </script>

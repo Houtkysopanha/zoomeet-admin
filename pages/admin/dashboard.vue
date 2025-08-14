@@ -4,7 +4,12 @@
       <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <!-- Left: Title -->
         <div class="">
-          <h1 class="text-2xl lg:text-3xl font-bold text-[#7A49C9] mb-0">Dashboard Overview</h1>
+          <Breadcrumb
+            :items="[
+              { text: 'Dashboard' }
+            ]"
+            class="mb-2"
+          />
         </div>
 
         <!-- Right: Controls -->
@@ -108,6 +113,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Calendar from 'primevue/calendar'
+import Breadcrumb from '~/components/common/Breadcrumb.vue'
 import CardCommon from '~/components/common/CardCommon.vue'
 import { useToast } from 'primevue/usetoast'
 import RecentEvent from './RecentEvent.vue'

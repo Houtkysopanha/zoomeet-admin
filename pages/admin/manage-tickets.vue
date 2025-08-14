@@ -3,7 +3,14 @@
     <div class="mb-6 mt-2">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-3xl text-gray-500 mb-2">Event / Manage Booking /<span class="text-[#7A49C9] font-bold"> Manage Tickets</span></h1>
+          <Breadcrumb
+            :items="[
+              { text: 'Event', to: '/admin/event' },
+              { text: 'Manage Booking', to: '/admin/manage-booking' },
+              { text: 'Manage Tickets' }
+            ]"
+            class="mb-2"
+          />
         </div>
         <div class="date-range-picker flex space-x-4 items-center">
           <!-- Date range picker or other buttons can go here -->
@@ -188,6 +195,7 @@
 import { ref, computed } from 'vue'
 import Button from 'primevue/button'
 import EventCard from '~/components/common/EventCard.vue'
+import Breadcrumb from '~/components/common/Breadcrumb.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Dropdown from 'primevue/dropdown'
