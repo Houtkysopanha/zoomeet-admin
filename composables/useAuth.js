@@ -19,37 +19,78 @@ export function useAuth() {
     return !!(user.value?.token)
   })
 
-  // Set authentication data
-  function setAuth(authData) {
-    try {
-      // Add timestamp and expiration if not present
-      const enhancedAuthData = {
-        ...authData,
-        loginTime: authData.loginTime || new Date().toISOString(),
-        expiresAt: authData.expiresAt || getTokenExpiration(authData.token)
-      }
+    // Set authentication data
+    function setAuth(authData) {
+      try {
+        // Validate required token
+        if (!authData?.token) {
+          throw new Error('Token is required for authentication')
+        }
 
-      cookie.value = enhancedAuthData
-      user.value = enhancedAuthData
+        // Add timestamp and expiration if not present
+        const enhancedAuthData = {
+          ...authData,
+          loginTime: authData.loginTime || new Date().toISOString(),
+          expiresAt: authData.expiresAt || getTokenExpiration(authData.token)
+        }
 
-      // Also set in localStorage for client-side access
-      if (import.meta.client) {
-        localStorage.setItem('auth', JSON.stringify(enhancedAuthData))
-      }
+        // Store in all available storage mechanisms
+        if (process.client) {
+          // First, clear any existing auth data
+          localStorage.removeItem('auth')
+          sessionStorage.removeItem('auth')
+          cookie.value = null
+          user.value = null
+
+          // Then set new auth data in all storages
+          const authString = JSON.stringify(enhancedAuthData)
+          localStorage.setItem('auth', authString)
+          sessionStorage.setItem('auth', authString)
+          cookie.value = enhancedAuthData
+          user.value = enhancedAuthData
+
+          // Verify storage
+          const stored = localStorage.getItem('auth')
+          const parsed = stored ? JSON.parse(stored) : null
+          if (!parsed?.token) {
+            throw new Error('Failed to verify token storage')
+          }
+
+          console.log('✅ Auth data stored successfully:', {
+            token: parsed.token ? 'present' : 'missing',
+            storage: 'all',
+            loginTime: enhancedAuthData.loginTime
+          })
+        }      console.log('✅ Auth data set successfully', {
+        token: authData.token ? 'present' : 'missing',
+        loginTime: enhancedAuthData.loginTime,
+        expiresAt: enhancedAuthData.expiresAt
+      })
     } catch (e) {
-      console.error('Failed to set auth data:', e)
+      console.error('❌ Failed to set auth data:', e)
       clearAuth()
+      throw e
     }
   }
 
   // Clear authentication data
   function clearAuth() {
+    console.log('🗑️ Clearing auth data...')
+    
+    // Clear reactive state
     cookie.value = null
     user.value = null
 
-    // Also clear from localStorage
-    if (import.meta.client) {
-      localStorage.removeItem('auth')
+    // Clear all storage locations
+    if (process.client) {
+      try {
+        localStorage.removeItem('auth')
+        sessionStorage.removeItem('auth')
+        document.cookie = `${AUTH_COOKIE}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`
+        console.log('✅ Auth data cleared from all storage locations')
+      } catch (e) {
+        console.error('❌ Error clearing auth data:', e)
+      }
     }
   }
 
@@ -63,19 +104,72 @@ export function useAuth() {
     return user.value?.user || null
   }
 
-  // Initialize auth state from localStorage on client-side
+  // Initialize auth state from storage
   function initAuth() {
-    if (import.meta.client) {
+    if (process.client) {
+      console.log('🔄 Initializing auth state...')
+      let authData = null
+
+      // Try getting from localStorage first (most reliable)
       const stored = localStorage.getItem('auth')
-      if (stored && !user.value) {
+      if (stored) {
+        console.log('📍 Found auth data in localStorage')
         try {
-          const parsed = JSON.parse(stored)
-          user.value = parsed
-          cookie.value = parsed
+          authData = JSON.parse(stored)
+          // Immediately set in all storages to ensure consistency
+          if (authData?.token) {
+            localStorage.setItem('auth', stored)
+            sessionStorage.setItem('auth', stored)
+            cookie.value = authData
+            user.value = authData
+            console.log('✅ Auth data restored and synchronized')
+            return
+          }
         } catch (e) {
-          console.error('Failed to parse stored auth data:', e)
+          console.error('❌ Failed to parse localStorage auth data:', e)
+        }
+      }
+
+      // Try cookie as backup
+      if (!authData?.token && cookie.value?.token) {
+        console.log('📍 Found auth data in cookie')
+        authData = cookie.value
+      }
+
+      // Finally try sessionStorage
+      if (!authData?.token) {
+        const sessionStored = sessionStorage.getItem('auth')
+        if (sessionStored) {
+          console.log('📍 Found auth data in sessionStorage')
+          try {
+            authData = JSON.parse(sessionStored)
+          } catch (e) {
+            console.error('❌ Failed to parse sessionStorage auth data:', e)
+          }
+        }
+      }
+
+      // If we found valid auth data, set it
+      if (authData?.token) {
+        try {
+          // Check if token is expired
+          const expiresAt = authData.expiresAt || getTokenExpiration(authData.token)
+          if (expiresAt && new Date() > new Date(expiresAt)) {
+            console.warn('⚠️ Stored token is expired')
+            clearAuth()
+            return
+          }
+
+          user.value = authData
+          cookie.value = authData
+          console.log('✅ Auth state initialized successfully')
+        } catch (e) {
+          console.error('❌ Failed to initialize auth state:', e)
           clearAuth()
         }
+      } else {
+        console.log('ℹ️ No valid auth data found during initialization')
+        clearAuth()
       }
     }
   }

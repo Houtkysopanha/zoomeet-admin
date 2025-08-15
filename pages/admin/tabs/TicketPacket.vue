@@ -240,19 +240,36 @@ const saveTickets = async () => {
     console.log(`🆕 Creating ${newTickets.length} new tickets`)
     
     if (newTickets.length > 0) {
-      const ticketTypesData = {
-        ticket_types: newTickets.map(ticket => ({
-          name: ticket.name,
-          price: parseFloat(ticket.price),
-          total: parseInt(ticket.quantity),
-          tag: ticket.description || '',
-          sort_order: ticket.sort_order,
+      // Map tickets to the correct format with strict validation
+      const formattedTickets = newTickets.map(ticket => {
+        // Validate required fields first
+        if (!ticket.name?.trim()) {
+          throw new Error(`Ticket name is required`)
+        }
+        if (!ticket.description?.trim()) {
+          throw new Error(`Ticket description is required`)
+        }
+        const price = parseFloat(ticket.price)
+        if (isNaN(price) || price < 0) {
+          throw new Error(`Invalid price: ${ticket.price}. Must be a number ≥ 0`)
+        }
+        const quantity = parseInt(ticket.quantity)
+        if (isNaN(quantity) || quantity < 1) {
+          throw new Error(`Invalid quantity: ${ticket.quantity}. Must be a number ≥ 1`)
+        }
+
+        return {
+          name: ticket.name.trim(),
+          price: price,
+          total: quantity,
+          tag: ticket.description.trim(),
+          sort_order: parseInt(ticket.sort_order) || 1,
           is_active: 1
-        }))
-      }
+        }
+      })
 
       try {
-        const createResponse = await createTicketTypes(currentEventId.value, ticketTypesData)
+        const createResponse = await createTicketTypes(currentEventId.value, formattedTickets)
         console.log('✅ Ticket creation response:', createResponse)
         
         // Handle different response structures
@@ -393,13 +410,48 @@ onMounted(async () => {
     currentEventId.value = eventStore.currentEvent.id
     currentEventName.value = eventStore.currentEvent.name || "Unnamed Event"
     
+    // Check if event has completed basic info
+    const hasBasicInfo = eventStore.currentEvent && 
+      eventStore.currentEvent.name && 
+      eventStore.currentEvent.category_id && 
+      eventStore.currentEvent.start_date && 
+      eventStore.currentEvent.end_date && 
+      eventStore.currentEvent.location
+    
+    if (!hasBasicInfo) {
+      console.log("⚠️ Basic info not complete.")
+      toast.add({
+        severity: 'warn',
+        summary: 'Basic Info Required',
+        detail: 'Please complete and save Basic Info first.',
+        life: 3000
+      })
+      return
+    }
+    
     console.log("📋 Loading event for tickets:", {
       id: currentEventId.value,
       name: currentEventName.value
     })
 
-    // Load existing tickets if any (for edit mode)
-    await loadExistingTickets()
+    // Load tickets from store or API
+    if (eventStore.currentEvent.ticket_types?.length > 0) {
+      console.log('📦 Using tickets from store:', eventStore.currentEvent.ticket_types.length)
+      tickets.value = eventStore.currentEvent.ticket_types.map(ticket => ({
+        id: ticket.id || Date.now() + Math.random(),
+        ticket_type_id: ticket.id,
+        name: ticket.name || '',
+        description: ticket.description || ticket.tag || '',
+        price: parseFloat(ticket.price) || 0,
+        quantity: parseInt(ticket.total) || 0,
+        sort_order: ticket.sort_order || tickets.value.length + 1,
+        is_active: ticket.is_active === undefined ? true : Boolean(ticket.is_active)
+      }))
+      hasExistingTickets.value = true
+    } else {
+      // Load from API if not in store
+      await loadExistingTickets()
+    }
   } else {
     console.log("⚠️ No event found in store. Complete Basic Info first.")
     toast.add({

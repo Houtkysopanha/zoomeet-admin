@@ -219,12 +219,57 @@ const isEditMode = ref(false)
 onMounted(async () => {
   console.log('🚀 Initializing CreateEvent page...')
   const eventStore = useEventStore()
+  const { getToken } = useAuth()
 
-  // Determine if we're in edit mode from the query parameters
+  // Verify authentication
+  const token = getToken()
+  if (!token) {
+    console.error('❌ No auth token found')
+    router.push('/login')
+    return
+  }
+
+  // Always start with clean state
+  eventStore.clearCache()
+  if (process.client) {
+    // Clear all stored states
+    localStorage.removeItem('currentEvent')
+    localStorage.removeItem('eventData')
+    localStorage.removeItem('editSession')
+    const storedEventId = sessionStorage.getItem('currentEventId')
+    if (storedEventId) {
+      console.log('� Found stored event ID:', storedEventId)
+    }
+  }
+
+  // Get parameters from route
   const isEdit = route.query.mode === 'edit'
   const queryEventId = route.query.id?.toString()
+  const verifyFlag = route.query.verify === '1'
+  const forceReload = route.query.ts ? true : false
 
+  // UUID validation
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  
+  // Validate editing session
   if (isEdit && queryEventId) {
+    // Validate UUID format
+    if (!uuidRegex.test(queryEventId)) {
+      console.error('❌ Invalid UUID format:', queryEventId)
+      toast.add({
+        severity: 'error',
+        summary: 'Invalid Event ID',
+        detail: 'The event ID format is invalid',
+        life: 5000
+      })
+      await router.replace({ path: '/admin/event' })
+      return
+    }
+
+    // Store the current event ID
+    if (process.client) {
+      sessionStorage.setItem('currentEventId', queryEventId)
+    }
     // EDIT MODE
     try {
       console.log('📝 EDIT MODE: Loading event data for ID:', queryEventId)
@@ -298,14 +343,46 @@ onMounted(async () => {
   }
 })
 
-// Clear event data when leaving the page
+  // Clear event data when leaving the page
 onBeforeUnmount(() => {
-  console.log('🚪 Leaving CreateEvent page - clearing event store')
+  console.log('🚪 Leaving CreateEvent page - cleaning up state')
   const eventStore = useEventStore()
-  eventStore.clearCurrentEvent()
-})
 
-// Match tab index with component
+  // Log current state before cleanup
+  if (eventStore.currentEvent) {
+    console.log('📝 Current event state:', {
+      id: eventStore.currentEvent.id,
+      name: eventStore.currentEvent.name,
+      isPublished: eventStore.currentEvent.is_published
+    })
+  }
+
+  // Clear all state storage
+  eventStore.clearCache()
+  
+  // Reset all local state
+  eventId.value = null
+  isEditMode.value = false
+  isBasicInfoCompleted.value = false
+  eventData.value = null
+  
+  // Clear all local storage related to event editing
+  if (process.client) {
+    localStorage.removeItem('currentEvent')
+    localStorage.removeItem('eventData')
+    localStorage.removeItem('editSession')
+  }
+
+  // Remove query parameters
+  if (route.query.id) {
+    router.replace({
+      path: route.path,
+      query: {}
+    })
+  }
+  
+  console.log('✅ State cleanup complete')
+})// Match tab index with component
 const tabComponents = [
   BasicInfor,
   Agenda,
@@ -329,8 +406,38 @@ provide('eventCreationState', {
       eventId.value = id
     }
     if (data) {
-      eventData.value = data
-      eventStore.setCurrentEvent(data)
+      try {
+        // Update local state first
+        eventData.value = data
+
+        // Validate event data before setting in store
+        if (!data.id || !data.name) {
+          console.error('❌ Invalid event data:', data)
+          return
+        }
+
+        // Update store state with normalized data
+        const normalizedData = {
+          ...data,
+          id: data.id.toString()
+        }
+        
+        console.log('📥 Updating store with event:', {
+          id: normalizedData.id,
+          name: normalizedData.name
+        })
+        
+        // Update the store using setCurrentEvent action
+        eventStore.setCurrentEvent(normalizedData)
+      } catch (error) {
+        console.error('❌ Failed to update event state:', error)
+        toast.add({
+          severity: 'error',
+          summary: 'State Update Failed',
+          detail: 'Failed to update event state. Please try again.',
+          life: 3000
+        })
+      }
     }
   },
   updateEventData: (data) => {
