@@ -544,16 +544,66 @@ export async function createTicketTypes(eventId, ticketTypesData) {
 
   try {
     console.log('🎫 Creating ticket types for event:', eventId)
+    
+    // Ensure ticketTypesData is an array
+    const ticketsArray = Array.isArray(ticketTypesData) ? ticketTypesData : [ticketTypesData]
+    
+    // Validate and normalize each ticket
+    const normalizedTickets = ticketsArray.map(ticket => {
+      // Convert and validate each field
+      const name = String(ticket.name || '').trim()
+      const price = parseFloat(ticket.price)
+      const total = parseInt(ticket.quantity || ticket.total)
+      const tag = String(ticket.description || ticket.tag || '').trim()
+
+      // Validate required fields
+      if (!name) throw new Error('Ticket name is required')
+      if (isNaN(price) || price < 0) throw new Error('Ticket price must be a valid number ≥ 0')
+      if (isNaN(total) || total < 1) throw new Error('Ticket quantity must be a valid number ≥ 1')
+      if (!tag) throw new Error('Ticket description/tag is required')
+
+      return {
+        name,
+        price,
+        total,
+        tag,
+        sort_order: parseInt(ticket.sort_order) || 1,
+        is_active: 1
+      }
+    })
+
+    // Prepare the request body in the format the API expects
+    const requestBody = { ticket_types: normalizedTickets }
+
+    console.log('📝 Normalized ticket data:', {
+      eventId,
+      ticketCount: normalizedTickets.length,
+      tickets: normalizedTickets
+    })
+
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types`, {
       method: 'POST',
-      body: ticketTypesData,
-      headers: createAuthHeaders()
+      body: requestBody,
+      headers: {
+        ...createAuthHeaders(),
+        'Accept': 'application/json'
+      }
     })
 
     console.log('✅ Ticket types created:', response)
     return response
   } catch (error) {
     console.error('❌ Failed to create ticket types:', error)
+    if (error.status === 422) {
+      console.error('Validation errors:', error.data)
+      const errorMessage = error.data?.message || 
+                          'Invalid ticket data. Please check all required fields:\n' +
+                          '- Name (required)\n' +
+                          '- Price (must be ≥ 0)\n' +
+                          '- Quantity (must be ≥ 1)\n' +
+                          '- Description (required)'
+      throw new Error(errorMessage)
+    }
     throw error
   }
 }

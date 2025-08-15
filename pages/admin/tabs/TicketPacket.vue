@@ -240,19 +240,36 @@ const saveTickets = async () => {
     console.log(`🆕 Creating ${newTickets.length} new tickets`)
     
     if (newTickets.length > 0) {
-      const ticketTypesData = {
-        ticket_types: newTickets.map(ticket => ({
-          name: ticket.name,
-          price: parseFloat(ticket.price),
-          total: parseInt(ticket.quantity),
-          tag: ticket.description || '',
-          sort_order: ticket.sort_order,
+      // Map tickets to the correct format with strict validation
+      const formattedTickets = newTickets.map(ticket => {
+        // Validate required fields first
+        if (!ticket.name?.trim()) {
+          throw new Error(`Ticket name is required`)
+        }
+        if (!ticket.description?.trim()) {
+          throw new Error(`Ticket description is required`)
+        }
+        const price = parseFloat(ticket.price)
+        if (isNaN(price) || price < 0) {
+          throw new Error(`Invalid price: ${ticket.price}. Must be a number ≥ 0`)
+        }
+        const quantity = parseInt(ticket.quantity)
+        if (isNaN(quantity) || quantity < 1) {
+          throw new Error(`Invalid quantity: ${ticket.quantity}. Must be a number ≥ 1`)
+        }
+
+        return {
+          name: ticket.name.trim(),
+          price: price,
+          total: quantity,
+          tag: ticket.description.trim(),
+          sort_order: parseInt(ticket.sort_order) || 1,
           is_active: 1
-        }))
-      }
+        }
+      })
 
       try {
-        const createResponse = await createTicketTypes(currentEventId.value, ticketTypesData)
+        const createResponse = await createTicketTypes(currentEventId.value, formattedTickets)
         console.log('✅ Ticket creation response:', createResponse)
         
         // Handle different response structures
