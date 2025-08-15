@@ -2,40 +2,62 @@
 
 // Get auth token using proper Nuxt 3 pattern
 const getAuthToken = () => {
-  // Use the useAuth composable for proper token management
-  const { getToken } = useAuth()
-  const token = getToken()
-
-  if (token) {
-    console.log('🔑 Using token from useAuth composable')
-    console.log('📝 Token preview:', token.substring(0, 50) + '...')
-    console.log('📏 Token length:', token.length)
-
-    // Decode JWT to see user info (for debugging)
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]))
-      const userInfo = {
-        username: payload.preferred_username,
-        name: payload.name,
-        exp: new Date(payload.exp * 1000).toISOString()
+  // First check localStorage
+  let token = null;
+  if (process.client) {
+    const stored = localStorage.getItem('auth')
+    if (stored) {
+      try {
+        const authData = JSON.parse(stored)
+        token = authData.token
+      } catch (e) {
+        console.error('Failed to parse stored auth:', e)
       }
-      console.log('👤 Current user:', userInfo)
-
-      // Check token expiration
-      if (new Date() > new Date(userInfo.exp)) {
-        console.log('⚠️ Token is expired!')
-        return null
-      }
-
-    } catch (e) {
-      console.log('⚠️ Could not decode token payload')
     }
+  }
 
-    return token
-  } else {
-    console.log('❌ No token found in auth state')
+  // If no token in localStorage, try useAuth
+  if (!token) {
+    const { getToken } = useAuth()
+    token = getToken()
+  }
+
+  if (!token) {
+    console.log('❌ No token found in any storage')
     return null
   }
+
+  // Validate token structure and expiration
+  try {
+    const [headerB64, payloadB64] = token.split('.')
+    if (!headerB64 || !payloadB64) {
+      console.error('❌ Invalid token format')
+      return null
+    }
+
+    const payload = JSON.parse(atob(payloadB64))
+    const expiry = new Date(payload.exp * 1000)
+    const now = new Date()
+
+    // Log token info without sensitive data
+    console.log('🔑 Token found:', { 
+      length: token.length,
+      expiresAt: expiry.toISOString(),
+      isExpired: now > expiry,
+      preview: token.substring(0, 20) + '...'
+    })
+
+    if (now > expiry) {
+      console.warn('⚠️ Token is expired')
+      return null
+    }
+
+  } catch (e) {
+    console.error('❌ Token validation error:', e)
+    return null
+  }
+
+  return token
 }
 
 // Create authenticated fetch headers
@@ -49,15 +71,25 @@ const createAuthHeaders = (includeContentType = true) => {
   const token = getAuthToken()
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
-    console.log('✅ Auth token added to request')
+    console.log('✅ Auth headers created')
   } else {
-    console.warn('⚠️ No authentication token available for API request')
-    // Redirect to login if no token
-    const router = useRouter()
-    router.push('/login')
+    console.warn('⚠️ Failed to create auth headers - no valid token')
+    handleAuthRedirect()
   }
 
   return headers
+}
+
+// Helper function to handle auth redirects
+const handleAuthRedirect = () => {
+  if (process.client) {
+    const router = useRouter()
+    const currentPath = router.currentRoute.value.fullPath
+    if (currentPath !== '/login') {
+      console.log('🔄 Auth failed - redirecting to login')
+      router.push(`/login?redirect=${encodeURIComponent(currentPath)}`)
+    }
+  }
 }
 
 // Login API
@@ -109,9 +141,55 @@ export async function fetchEvents() {
 
   try {
     console.log('🔍 Fetching events from:', `${API_ADMIN_BASE_URL}/events`)
+    console.log('🌍 Environment:', {
+      nodeEnv: process.env.NODE_ENV,
+      apiUrl: API_ADMIN_BASE_URL
+    })
     
-    const headers = createAuthHeaders()
-    console.log('📨 Request headers:', headers)
+    // First try to get token from localStorage
+    let token = null
+    if (process.client) {
+      const stored = localStorage.getItem('auth')
+      if (stored) {
+        try {
+          const authData = JSON.parse(stored)
+          token = authData.token
+        } catch (e) {
+          console.error('Failed to parse stored auth:', e)
+        }
+      }
+    }
+
+    // If no token in localStorage, try useAuth
+    if (!token) {
+      const { getToken, initAuth } = useAuth()
+      // Try to initialize auth first
+      await initAuth()
+      token = getToken()
+    }
+    
+    if (!token) {
+      console.error('❌ No auth token available for events fetch')
+      if (process.client) {
+        const router = useRouter()
+        const currentPath = router.currentRoute.value.fullPath
+        router.push(`/login?redirect=${encodeURIComponent(currentPath)}`)
+      }
+      return { status: 401, data: { success: false, data: [], message: 'Authentication required' } }
+    }
+
+    // Create headers with the token we found
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json'  // Ensure we get JSON responses
+    }
+    
+    console.log('📨 Request prepared:', {
+      url: `${API_ADMIN_BASE_URL}/events`,
+      hasToken: !!token,
+      tokenPreview: token ? `${token.substring(0, 10)}...` : 'none'
+    })
 
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events`, {
       method: 'GET',
@@ -173,268 +251,6 @@ export async function fetchEvents() {
   }
 }
 
-// Fetch single event by ID
-export async function fetchEventById(eventId) {
-  const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
-
-  if (!API_ADMIN_BASE_URL) {
-    throw new Error('API admin base URL is not configured.')
-  }
-
-  if (!eventId) {
-    throw new Error('Event ID is required.')
-  }
-
-  try {
-    console.log('Fetching event by ID:', eventId)
-
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}`, {
-      method: 'GET',
-      headers: createAuthHeaders(),
-    })
-
-    console.log('Event by ID response:', response)
-    return response
-  } catch (error) {
-    console.error('Fetch event by ID error:', error)
-    throw new Error(error.data?.message || error.message || 'Failed to fetch event details')
-  }
-}
-
-// Create event API
-export async function createEvent(eventData, isDraft = true) {
-  const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl || 'https://dev-apiticket.prestigealliance.co/api/v1/admin'
-
-  if (!API_ADMIN_BASE_URL) {
-    throw new Error('API admin base URL is not configured.')
-  }
-
-  const token = getAuthToken()
-  if (!token) {
-    console.error('❌ No authentication token found for event creation')
-    console.log('💡 Please make sure you are logged in with a user that has event creation permissions')
-    throw new Error('Authentication required. Please login again.')
-  }
-
-  // Always use FormData (like your successful Postman request)
-  const formData = new FormData()
-
-  // Required fields that must always be included (even if empty)
-  const requiredFields = [
-    'name', 'category_id', 'description', 'start_date', 'end_date',
-    'location', 'map_url', 'company', 'organizer', 'event_slug', 'is_published'
-  ]
-
-  // Add all event data to FormData
-  Object.keys(eventData).forEach(key => {
-    const value = eventData[key]
-
-    // Always include required fields (even if empty string)
-    if (requiredFields.includes(key)) {
-      formData.append(key, value || '')
-    }
-    // For files, only include if they exist and are actual File objects
-    else if (value instanceof File) {
-      formData.append(key, value)
-      console.log(`📎 Adding file: ${key} = ${value.name} (${value.size} bytes)`)
-    }
-    // For other optional fields, only include if they have values
-    else if (value !== null && value !== undefined && value !== '') {
-      formData.append(key, value)
-    }
-  })
-
-  try {
-    console.log('Creating event at:', `${API_ADMIN_BASE_URL}/events`)
-    console.log('Auth token present:', !!token)
-    console.log('Auth token (first 50 chars):', token ? token.substring(0, 50) + '...' : 'No token')
-
-    // Debug: Log FormData contents (matching your Postman format)
-    console.log('📋 FormData being sent to API:')
-    console.log('=' .repeat(50))
-
-    // Create a summary object for easier debugging
-    const formDataSummary = {}
-    for (let [key, value] of formData.entries()) {
-      if (value instanceof File) {
-        console.log(`✅ ${key}: File(${value.name}, ${value.size} bytes, ${value.type})`)
-        formDataSummary[key] = `File(${value.name})`
-      } else {
-        console.log(`✅ ${key}: "${value}"`)
-        formDataSummary[key] = value
-      }
-    }
-    console.log('=' .repeat(50))
-    console.log('📊 Summary of all fields:', formDataSummary)
-
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/events`, {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        // Don't set Content-Type for FormData, let the browser set it
-      },
-    })
-
-    console.log('✅ Create event response:', response)
-    
-    // Normalize response structure - handle different API response formats
-    let normalizedResponse = {
-      success: false,
-      data: null,
-      message: 'Unknown response format'
-    }
-
-    // Handle different response structures from the API
-    if (response) {
-      // Case 1: Direct response with data property
-      if (response.data && response.data.id) {
-        normalizedResponse = {
-          success: true,
-          data: response.data,
-          message: response.message || 'Event created successfully'
-        }
-      }
-      // Case 2: Response with success flag and nested data
-      else if (response.success !== undefined) {
-        normalizedResponse = {
-          success: response.success,
-          data: response.data,
-          message: response.message || (response.success ? 'Event created successfully' : 'Event creation failed')
-        }
-      }
-      // Case 3: Direct event data (API returns event object directly)
-      else if (response.id) {
-        normalizedResponse = {
-          success: true,
-          data: response,
-          message: 'Event created successfully'
-        }
-      }
-      // Case 4: Response with status and data structure
-      else if (response.status && response.data) {
-        normalizedResponse = {
-          success: response.status >= 200 && response.status < 300,
-          data: response.data.data || response.data,
-          message: response.data.message || response.message || 'Event processed'
-        }
-      }
-    }
-
-    console.log('📊 Normalized response:', normalizedResponse)
-    return normalizedResponse
-    
-  } catch (error) {
-    console.error('Create event error:', error)
-    console.error('Error details:', {
-      status: error.status,
-      statusCode: error.statusCode,
-      statusText: error.statusText,
-      data: error.data,
-      message: error.message,
-      cause: error.cause,
-      response: error.response
-    })
-
-    // Handle specific error cases
-    if (error.status === 401 || error.statusCode === 401) {
-      console.error('🚫 Authentication failed - token may be invalid or expired')
-      const { clearAuth } = useAuth()
-      clearAuth()
-      throw new Error('Authentication failed. Please login again.')
-    }
-
-    if (error.status === 403 || error.statusCode === 403) {
-      console.error('🚫 Permission denied - user may not have event creation permissions')
-      throw new Error('Permission denied. You may not have permission to create events.')
-    }
-
-    if (error.status === 422 || error.statusCode === 422) {
-      console.error('🚫 Validation Error (422) - Server rejected the data')
-      console.error('📋 Validation details:', error.data)
-
-      // Extract validation errors if available
-      if (error.data && error.data.errors) {
-        const errors = error.data.errors
-        console.error('🔍 Specific validation errors:')
-        Object.keys(errors).forEach(field => {
-          const fieldErrors = Array.isArray(errors[field]) ? errors[field] : [errors[field]]
-          console.error(`  - ${field}: ${fieldErrors.join(', ')}`)
-        })
-
-        // Create user-friendly error message
-        const errorMessages = Object.keys(errors).map(field => {
-          const fieldErrors = Array.isArray(errors[field]) ? errors[field] : [errors[field]]
-          return `${field}: ${fieldErrors.join(', ')}`
-        }).join('\n')
-
-        throw new Error(`Validation failed:\n${errorMessages}`)
-      }
-
-      // Check for nested error structure
-      if (error.data && error.data.data && error.data.data.errors) {
-        const errors = error.data.data.errors
-        console.error('🔍 Nested validation errors:')
-        Object.keys(errors).forEach(field => {
-          const fieldErrors = Array.isArray(errors[field]) ? errors[field] : [errors[field]]
-          console.error(`  - ${field}: ${fieldErrors.join(', ')}`)
-        })
-
-        const errorMessages = Object.keys(errors).map(field => {
-          const fieldErrors = Array.isArray(errors[field]) ? errors[field] : [errors[field]]
-          return `${field}: ${fieldErrors.join(', ')}`
-        }).join('\n')
-
-        throw new Error(`Validation failed:\n${errorMessages}`)
-      }
-
-      // If no specific errors, show generic message
-      throw new Error('Validation failed. Please check your input data and try again.')
-    }
-
-    if (error.status === 500 || error.statusCode === 500) {
-      console.error('🚫 Server error - check server logs for details')
-
-      // Try to extract more specific error information
-      if (error.data && typeof error.data === 'string') {
-        // Look for Laravel error patterns
-        if (error.data.includes('getPathname')) {
-          console.error('💡 File upload error detected - server tried to call getPathname() on null')
-          throw new Error('File upload error: The server expects a file but received null. Try uploading a cover image.')
-        }
-
-        // Try to extract error from HTML response
-        const errorMatch = error.data.match(/<title>(.*?)<\/title>/)
-        if (errorMatch) {
-          console.error('Server error title:', errorMatch[1])
-        }
-
-        // Look for Laravel exception messages
-        const exceptionMatch = error.data.match(/class="exception_message"[^>]*>([^<]+)/)
-        if (exceptionMatch) {
-          console.error('Laravel exception:', exceptionMatch[1])
-          throw new Error(`Server error: ${exceptionMatch[1]}`)
-        }
-      }
-
-      throw new Error('Server error (500). Please check server logs or try again.')
-    }
-
-    // For other errors, try to extract meaningful message
-    let errorMessage = 'Failed to create event'
-    
-    if (error.data && error.data.message) {
-      errorMessage = error.data.message
-    } else if (error.message) {
-      errorMessage = error.message
-    }
-
-    throw new Error(errorMessage)
-  }
-}
-
 // Fetch user info
 export async function fetchUserInfo() {
   const config = useRuntimeConfig()
@@ -446,7 +262,6 @@ export async function fetchUserInfo() {
 
   try {
     console.log('Fetching user info from:', `${API_BASE_URL}/info`)
-
     const response = await $fetch(`${API_BASE_URL}/info`, {
       method: 'GET',
       headers: createAuthHeaders(),
@@ -460,44 +275,54 @@ export async function fetchUserInfo() {
   }
 }
 
-// Fetch event details
+// Helper function to validate UUID
+function validateUUID(uuid) {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  return uuidRegex.test(uuid?.toString())
+}
+
+// Get event details
 export async function getEventDetails(eventId) {
   const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl || 'https://dev-apiticket.prestigealliance.co/api/v1/admin'
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
 
   if (!eventId) {
     throw new Error('Event ID is required')
   }
 
-  console.log('🔍 Fetching event details for:', eventId)
-  console.log('🔗 API URL:', `${API_ADMIN_BASE_URL}/events/${eventId}`)
+  // Clean and validate UUID
+  const cleanUUID = eventId.toString().trim()
+  if (!validateUUID(cleanUUID)) {
+    console.error('❌ Invalid UUID format:', eventId)
+    throw new Error('Invalid event ID format. Expected UUID format.')
+  }
+
+  // Store current event ID in session
+  if (process.client) {
+    sessionStorage.setItem('currentEventId', cleanUUID)
+  }
 
   try {
+    console.log('🔍 Fetching event details for:', eventId)
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}`, {
       method: 'GET',
       headers: createAuthHeaders()
     })
 
-    console.log('📥 Raw API response:', response)
-
-    // Validate the response structure
     if (!response) {
       throw new Error('Empty response from server')
     }
 
-    // Return the response directly if it has the expected structure
-    if (response.success === true && response.data && response.message) {
-      console.log('✅ Event details fetched successfully:', {
+    // Normalize response structure
+    if (response.data) {
+      console.log('✅ Event details fetched:', {
         id: response.data.id,
-        name: response.data.name,
-        category: `${response.data.category_id} - ${response.data.category_name}`
+        name: response.data.name
       })
       return response
-    }
-
-    // If we got direct event data without wrapper
-    if (response.id && response.name) {
-      console.log('✅ Event details fetched (unwrapped):', {
+    } else if (response.id) {
+      // If response is direct event data
+      console.log('✅ Event details fetched (direct):', {
         id: response.id,
         name: response.name
       })
@@ -508,27 +333,110 @@ export async function getEventDetails(eventId) {
       }
     }
 
-    // If we got a wrapped response but different structure
-    if (response.data && response.data.id) {
-      console.log('✅ Event details fetched (wrapped):', {
-        id: response.data.id,
-        name: response.data.name
-      })
-      return {
-        success: true,
-        message: 'Event retrieved successfully',
-        data: response.data
-      }
-    }
-
     throw new Error('Invalid response structure from server')
   } catch (error) {
     console.error('❌ Failed to fetch event details:', error)
-    console.error('Error details:', {
-      status: error.status,
-      message: error.message,
-      data: error.data
+    
+    if (error.status === 404) {
+      throw new Error('Event not found')
+    } else if (error.status === 401) {
+      throw new Error('Authentication required. Please login again.')
+    }
+    
+    throw error
+  }
+}
+
+// Create event
+export async function createEvent(eventData, isDraft = true) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!API_ADMIN_BASE_URL) {
+    throw new Error('API admin base URL is not configured.')
+  }
+
+  if (!eventData) {
+    throw new Error('Event data is required')
+  }
+
+  // Clear any lingering event state from localStorage to prevent conflicts
+  if (process.client) {
+    const currentEvent = localStorage.getItem('currentEvent')
+    if (currentEvent) {
+      console.log('🧹 Clearing lingering event state from localStorage')
+      localStorage.removeItem('currentEvent')
+    }
+  }
+
+  try {
+    // Validate required fields
+    const requiredFields = ['name', 'category_id', 'description', 'start_date', 'end_date', 'location', 'event_slug']
+    const missingFields = requiredFields.filter(field => !eventData[field])
+    
+    if (missingFields.length > 0) {
+      console.error('❌ Missing required fields:', missingFields)
+      throw new Error(`Missing required fields: ${missingFields.join(', ')}`)
+    }
+    
+    // Validate dates
+    const startDate = new Date(eventData.start_date)
+    const endDate = new Date(eventData.end_date)
+    
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      throw new Error('Invalid date format')
+    }
+    
+    if (endDate < startDate) {
+      throw new Error('End date must be after start date')
+    }
+    
+    // Log the data being sent
+    console.log('🎯 Creating event:', {
+      isDraft,
+      name: eventData.name,
+      category_id: eventData.category_id,
+      start_date: eventData.start_date,
+      end_date: eventData.end_date,
+      event_slug: eventData.event_slug,
+      has_cover_image: !!eventData.cover_image
     })
+
+    // Prepare request data
+    const formData = new FormData()
+    
+    // Add all event data to FormData
+    Object.entries(eventData).forEach(([key, value]) => {
+      if (value instanceof File) {
+        formData.append(key, value)
+        console.log(`📎 Adding file: ${key} = ${value.name} (${value.size} bytes)`)
+      } else if (value !== null && value !== undefined) {
+        formData.append(key, value)
+      }
+    })
+
+    // If is_published is not explicitly set in eventData, use isDraft
+    if (!('is_published' in eventData)) {
+      formData.append('is_published', isDraft ? 0 : 1);
+      formData.append('status', isDraft ? 'draft' : 'active');
+    }
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events`, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        ...createAuthHeaders(false), // Don't include Content-Type for FormData
+      },
+    })
+
+    console.log('✅ Event created:', response)
+    return response
+
+  } catch (error) {
+    console.error('❌ Failed to create event:', error)
+    if (error.status === 422) {
+      console.error('Validation errors:', error.data)
+    }
     throw error
   }
 }
@@ -536,211 +444,81 @@ export async function getEventDetails(eventId) {
 // Update event
 export async function updateEvent(eventId, eventData) {
   const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl || 'https://dev-apiticket.prestigealliance.co/api/v1/admin'
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
 
-  // Input validation
-  if (!eventId) {
-    throw new Error('Event ID is required')
+  if (!eventId || !eventData) {
+    throw new Error('Event ID and data are required')
   }
 
-  if (!eventData) {
-    throw new Error('Event data is required')
-  }
-
-  // Convert to string and validate UUID format
-  const eventIdStr = eventId.toString()
-  
-  // Validate UUID format (8-4-4-4-12)
-  if (!eventIdStr.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-    console.error('❌ Invalid event ID format:', eventIdStr)
+  // Validate UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!uuidRegex.test(eventId)) {
     throw new Error('Invalid event ID format. Expected UUID format.')
   }
 
-  console.log('📝 Update requested for event:', eventIdStr)
-
-  // Verify authentication
-  const token = getAuthToken()
-  if (!token) {
-    console.error('❌ No authentication token')
-    throw new Error('Authentication required')
-  }
-
   try {
-    // Pre-update validation
-    if (eventData.id && eventData.id.toString() !== eventIdStr) {
-      console.error('� Event ID mismatch:', {
-        updateId: eventIdStr,
-        dataId: eventData.id.toString()
-      })
-      throw new Error('Event ID mismatch')
-    }
-
-    console.log('📋 Update data:', {
-      id: eventIdStr,
+    console.log('📝 Updating event:', {
+      id: eventId,
       name: eventData.name,
       fields: Object.keys(eventData)
     })
 
     // Prepare request data
-    const hasFiles = Object.values(eventData).some(value => value instanceof File)
+    const formData = new FormData()
     
-    let body, headers
-    
-    if (hasFiles) {
-      // FormData for files
-      const formData = new FormData()
-      
-      Object.entries(eventData).forEach(([key, value]) => {
-        if (value === null || value === undefined) {
-          console.log(`⚠️ Skipping null/undefined field: ${key}`)
-          return
-        }
-
-        if (value === '') {
-          console.log(`⚠️ Empty string for field: ${key}`)
-        }
-
+    // Add all event data to FormData
+    Object.entries(eventData).forEach(([key, value]) => {
+      if (value instanceof File) {
         formData.append(key, value)
-        
-        if (value instanceof File) {
-          console.log(`📎 File field: ${key}`, {
-            name: value.name,
-            size: value.size,
-            type: value.type
-          })
+        console.log(`📎 Adding file: ${key} = ${value.name} (${value.size} bytes)`)
+      } else if (value !== null && value !== undefined) {
+        // Convert boolean/number is_published to proper format
+        if (key === 'is_published') {
+          formData.append(key, value ? 1 : 0)
+          // Also set status when is_published changes
+          formData.append('status', value ? 'active' : 'draft')
+        } else {
+          formData.append(key, value)
         }
-      })
-      
-      body = formData
-      headers = { 'Authorization': `Bearer ${token}` }
-      
-    } else {
-      // JSON for regular updates
-      body = eventData
-      headers = {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
       }
-    }
-
-    // Make the request
-    console.log('🔄 Sending update request...')
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventIdStr}`, {
-      method: 'PUT',
-      body: body,
-      headers: headers
     })
 
-    // Validate response
-    if (!response) {
-      throw new Error('No response from server')
+    // Log the FormData for debugging
+    console.log('📝 FormData contents:');
+    for (let [key, value] of formData.entries()) {
+      console.log(`${key}: ${value}`);
     }
 
-    console.log('✅ Update response received:', response)
-    
-    // Normalize response structure
-    let normalizedResponse = {
-      success: false,
-      data: null,
-      message: 'Unknown response format'
-    }
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}`, {
+      method: 'PUT',
+      body: formData,
+      headers: {
+        ...createAuthHeaders(false), // Don't include Content-Type for FormData
+      },
+    })
 
-    if (response) {
-      // Case 1: Standard API response
-      if (response.data && response.data.id) {
-        normalizedResponse = {
-          success: true,
-          data: response.data,
-          message: response.message || 'Event updated successfully'
-        }
-
-        // Verify returned ID
-        const returnedId = response.data.id.toString()
-        if (returnedId !== eventIdStr) {
-          console.error('🚫 Response ID mismatch:', {
-            sent: eventIdStr,
-            received: returnedId
-          })
-          throw new Error('Response ID mismatch')
-        }
-      }
-      // Case 2: Success flag response
-      else if (response.success !== undefined) {
-        normalizedResponse = {
-          success: response.success,
-          data: response.data,
-          message: response.message || (response.success ? 'Event updated' : 'Update failed')
-        }
-      }
-      // Case 3: Direct event data
-      else if (response.id) {
-        const returnedId = response.id.toString()
-        if (returnedId !== eventIdStr) {
-          console.error('🚫 Direct response ID mismatch:', {
-            sent: eventIdStr,
-            received: returnedId
-          })
-          throw new Error('Response ID mismatch')
-        }
-
-        normalizedResponse = {
-          success: true,
-          data: response,
-          message: 'Event updated successfully'
-        }
-      }
-    }
-
-    console.log('📊 Normalized response:', normalizedResponse)
-    return normalizedResponse
-
+    console.log('✅ Event updated:', response)
+    return response
   } catch (error) {
-    console.error('❌ Update failed:', error)
-    
-    // Handle specific error cases
-    if (error.status === 401 || error.statusCode === 401) {
-      console.error('🚫 Authentication failed')
-      throw new Error('Authentication failed. Please login again.')
+    console.error('❌ Failed to update event:', error)
+    if (error.status === 422) {
+      console.error('Validation errors:', error.data)
     }
-
-    if (error.status === 404 || error.statusCode === 404) {
-      console.error('🚫 Event not found:', eventIdStr)
-      throw new Error('Event not found')
-    }
-
-    if (error.status === 422 || error.statusCode === 422) {
-      console.error('🚫 Validation error')
-      
-      // Extract validation errors
-      if (error.data && error.data.errors) {
-        const errors = error.data.errors
-        const messages = Object.entries(errors)
-          .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
-          .join('\n')
-        throw new Error(`Validation failed:\n${messages}`)
-      }
-      
-      throw new Error('Invalid event data')
-    }
-
-    // Re-throw with context
-    throw new Error(`Failed to update event: ${error.message || 'Unknown error'}`)
+    throw error
   }
-
-    return normalizedResponse
-  }
+}
 
 // Update ticket type
 export async function updateTicketType(eventId, ticketTypeId, ticketData) {
   const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl || 'https://dev-apiticket.prestigealliance.co/api/v1/admin'
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
 
   if (!eventId || !ticketTypeId) {
     throw new Error('Event ID and Ticket Type ID are required')
   }
 
   try {
-    console.log('🎫 Updating ticket type:', { eventId, ticketTypeId, ticketData })
+    console.log('🎫 Updating ticket type:', { eventId, ticketTypeId })
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types/${ticketTypeId}`, {
       method: 'PUT',
       body: ticketData,
@@ -755,90 +533,35 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
   }
 }
 
-// Create Ticket Types for an Event
-export const createTicketTypes = async (eventId, ticketTypesData) => {
-  const token = getAuthToken()
-  if (!token) {
-    console.error('❌ No authentication token found for ticket creation')
-    throw new Error('Authentication required. Please login again.')
-  }
-
-  // Get the API base URL from runtime config
+// Create ticket types
+export async function createTicketTypes(eventId, ticketTypesData) {
   const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
 
-  if (!API_ADMIN_BASE_URL) {
-    console.error('❌ API_ADMIN_BASE_URL is not configured')
-    throw new Error('API configuration error. Please check your environment settings.')
+  if (!eventId || !ticketTypesData) {
+    throw new Error('Event ID and ticket types data are required')
   }
 
   try {
     console.log('🎫 Creating ticket types for event:', eventId)
-    console.log('📝 Ticket types data:', ticketTypesData)
-    console.log('🔗 API URL:', `${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types`)
-
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types`, {
       method: 'POST',
       body: ticketTypesData,
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
+      headers: createAuthHeaders()
     })
 
-    console.log('✅ Create ticket types response:', response)
-    console.log('📊 Ticket creation result:', {
-      status: response.status,
-      success: response.data?.success,
-      message: response.data?.message,
-      ticketCount: response.data?.data?.length || 0
-    })
-
+    console.log('✅ Ticket types created:', response)
     return response
   } catch (error) {
-    console.error('❌ Create ticket types error:', error)
-    console.error('📋 Error details:', {
-      status: error.status,
-      statusCode: error.statusCode,
-      data: error.data,
-      message: error.message
-    })
-
-    // Handle specific error cases
-    if (error.status === 401 || error.statusCode === 401) {
-      console.error('🚫 Authentication failed for ticket creation')
-      const { clearAuth } = useAuth()
-      clearAuth()
-      throw new Error('Authentication failed. Please login again.')
-    }
-
-    if (error.status === 404 || error.statusCode === 404) {
-      console.error('🚫 Event not found for ticket creation')
-      throw new Error('Event not found. Please make sure the event exists.')
-    }
-
-    if (error.status === 422 || error.statusCode === 422) {
-      console.error('🚫 Ticket validation error')
-      if (error.data && error.data.data && error.data.data.errors) {
-        const errors = error.data.data.errors
-        console.error('🔍 Ticket validation errors:', errors)
-
-        const errorMessages = Object.keys(errors).map(field =>
-          `${field}: ${errors[field].join(', ')}`
-        ).join('\n')
-
-        throw new Error(`Ticket validation failed:\n${errorMessages}`)
-      }
-      throw new Error('Ticket validation failed. Please check your ticket data.')
-    }
-
+    console.error('❌ Failed to create ticket types:', error)
     throw error
   }
 }
-// Fetch event ticket types
+
+// Get event ticket types
 export async function getEventTicketTypes(eventId) {
   const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl || 'https://dev-apiticket.prestigealliance.co/api/v1/admin'
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
 
   if (!eventId) {
     throw new Error('Event ID is required')

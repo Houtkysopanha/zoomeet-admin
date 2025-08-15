@@ -94,6 +94,7 @@ export const useEventStore = defineStore('event', () => {
       // Status Flags
       is_published: data.is_published === true || data.is_published === 1 || data.is_published === '1',
       is_ended: data.is_ended === true || data.is_ended === 1 || data.is_ended === '1',
+      status: data.status || (data.is_published ? 'active' : 'draft'), // Ensure status is always set
       
       // Images
       cover_image_url: data.cover_image_url || null,

@@ -465,12 +465,63 @@ const toggleActionMenu = (event, data) => {
   actionMenu.value.toggle(event)
 }
 
+// Helper function to validate UUID
+function validateUUID(uuid) {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid?.toString());
+}
+
+const handleEditEvent = async (event) => {
+  // Force clean all storage first
+  if (process.client) {
+    // Clear all storage
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    // Set only the essential data
+    localStorage.setItem('editingEvent', JSON.stringify({
+      id: event.id,
+      name: event.name,
+      timestamp: Date.now()
+    }));
+  }
+
+  try {
+    // Show loading state
+    toast.add({
+      severity: 'info',
+      summary: 'Loading Event',
+      detail: `Preparing "${event.name}" for editing...`,
+      life: 2000
+    });
+
+    // Generate a unique reload key
+    const reloadKey = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Force a full page reload by navigating to a temporary route first
+    await router.replace('/admin/temp-redirect');
+    
+    // Then immediately navigate to the edit page with force reload flags
+    window.location.href = `/admin/CreateEvent?mode=edit&id=${event.id}&reload=${reloadKey}&force=1`;
+
+  } catch (error) {
+    console.error('Edit navigation error:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Navigation Failed',
+      detail: 'Failed to open event editor',
+      life: 3000
+    });
+  }
+};
+
+
 const actionItems = (event) => [
   {
     label: 'Manage Booking',
     icon: 'pi pi-cog',
     command: () => {
-      router.push('/admin/manage-booking')
+      router.push('/admin/manage-booking');
     },
     visible: event?.status === 'Active',
   },
@@ -482,7 +533,7 @@ const actionItems = (event) => [
   {
     label: 'Edit Event',
     icon: 'pi pi-pencil',
-    command: () => editEvent(event),
+    command: () => handleEditEvent(event),
   },
   {
     label: 'End Event',
@@ -533,107 +584,72 @@ const manageTickets = (event) => {
 }
 
 const editEvent = async (event) => {
-  const eventStore = useEventStore()
+  const eventStore = useEventStore();
+  const { getToken } = useAuth();
 
   try {
-    // Basic validation
-    if (!event?.id) {
-      throw new Error('No event ID provided for editing')
+    // Verify authentication
+    const token = getToken();
+    if (!token) {
+      router.push('/login');
+      return;
     }
 
-    // Use complete original data
-    const eventData = event._original || event
-    const eventId = eventData.id.toString()
-    const eventName = eventData.name || 'Untitled Event'
-
-    // Log complete event data
-    console.log('📝 Edit request for complete event:', {
-      id: eventId,
-      name: eventName,
-      category: `${eventData.category_id} - ${eventData.category_name}`,
-      fields: Object.keys(eventData)
-    })
-
-    console.log('📝 Edit request:', {
-      id: eventId,
-      name: eventName
-    })
-
-    // Pre-edit checks
-    // Validate UUID format (8-4-4-4-12)
-    if (!eventId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-      console.error('❌ Invalid event ID format:', eventId)
-      throw new Error('Invalid event ID format. Expected UUID format.')
+    // Validate event data
+    if (!event?.id || !validateUUID(event.id)) {
+      toast.add({
+        severity: 'error',
+        summary: 'Invalid Event',
+        detail: 'Cannot edit: Invalid event data',
+        life: 3000
+      });
+      return;
     }
 
-    // Start fresh - clear all previous state
-    console.log('🧹 Clearing previous state...')
-    eventStore.clearCurrentEvent()
-    eventStore.clearCache()
-
-    // Show loading feedback
+    // Clear previous state
+    eventStore.clearCache();
+    
+    // Track this event selection
+    eventStore.trackEventClick(event.id);
+    
+    // Show loading state
     toast.add({
-      severity: "info",
-      summary: "Loading",
-      detail: `Preparing "${eventName}" for editing...`,
-      life: 3000
-    })
+      severity: 'info',
+      summary: 'Loading Event',
+      detail: `Preparing "${event.name}" for editing...`,
+      life: 2000
+    });
 
     // Load fresh event data
-    console.log('🔄 Loading fresh event data...')
-    const loadedEvent = await eventStore.loadEventById(eventId)
+    await eventStore.loadEventById(event.id);
 
-    // Validate loaded data
-    if (!loadedEvent) {
-      throw new Error(`Failed to load event ${eventId}`)
+    // Verify data loaded
+    if (!eventStore.currentEvent) {
+      throw new Error('Failed to load event data');
     }
 
-    if (!eventStore.hasCurrentEvent) {
-      throw new Error('Event loaded but not set in store')
-    }
-
-    const loadedId = loadedEvent.id.toString()
-    if (loadedId !== eventId) {
-      console.error('Event ID verification failed:', {
-        requested: eventId,
-        loaded: loadedId
-      })
-      throw new Error('Event ID mismatch')
-    }
-
-    console.log('✅ Event verified:', {
-      id: loadedId,
-      name: loadedEvent.name
-    })
-
-    // Create unique session
-    const sessionId = `edit-${eventId}-${Date.now()}`
-
-    // Navigate with all verification data
-    console.log('🚀 Navigating to edit view...')
+    // Navigate to edit view with timestamp to force fresh load
     await router.push({
       path: '/admin/CreateEvent',
       query: {
         mode: 'edit',
-        id: eventId,
-        session: sessionId,
-        name: encodeURIComponent(loadedEvent.name),
-        ts: Date.now() // Force fresh page load
+        id: event.id,
+        ts: Date.now(),
+        from: 'list'
       }
-    })
+    });
 
   } catch (error) {
-    console.error('❌ Edit event error:', error)
+    console.error('Edit event error:', error);
     toast.add({
-      severity: "error",
-      summary: "Edit Failed",
+      severity: 'error',
+      summary: 'Edit Failed',
       detail: error.message || 'Failed to prepare event for editing',
-      life: 5000
-    })
-    
-    // Clear everything on error
-    eventStore.clearCurrentEvent()
-    eventStore.clearCache()
+      life: 3000
+    });
+
+    // Clear state on error
+    eventStore.clearCache();
   }
 }
 

@@ -226,33 +226,42 @@ async function handleLogin() {
       'Loading dashboard'
     ])
 
-    console.log('Login attempt with:', { username: username.value })
+    console.log('🔑 Login attempt:', { 
+      username: username.value,
+      method: currentTab.value 
+    })
 
-    // Simulate progress steps
+    // Validate input
+    const identifier = currentTab.value === 'username-password' ? username.value : phoneNumber.value
+    if (!identifier || !password.value) {
+      throw new Error('Please fill in all required fields')
+    }
+
+    // Simulate initial progress
     await new Promise(resolve => setTimeout(resolve, 500))
     classicLoader.updateProgress(25, 'Authenticating credentials...')
 
-    const data = await login(username.value, password.value);
+    // Attempt login
+    const data = await login(identifier, password.value)
+    console.log('📥 Login response received:', data)
 
     // Update progress
     classicLoader.updateProgress(60, 'Verifying account...')
 
-    console.log('Login response received:', data)
+    // Validate response structure
+    if (!data?.tokens?.access_token) {
+      console.error('❌ Invalid login response structure:', data)
+      throw new Error('Invalid server response. Missing access token.')
+    }
 
-    // Handle the specific API response structure
-    let token = null;
-    let user = null;
-
-    // The API returns: { message: "Login successful", tokens: { access_token: "...", ... } }
-    if (data?.tokens?.access_token) {
-      token = data.tokens.access_token;
-
-      // Extract user info from the JWT token if needed
-      user = {
-        username: username.value,
-        message: data.message,
-        loginTime: new Date().toISOString()
-      };
+    // Extract token and user info
+    const token = data.tokens.access_token
+    const user = {
+      username: identifier,
+      message: data.message || 'Login successful',
+      loginTime: new Date().toISOString(),
+      // Add any additional user info from the response
+      ...(data.user || {})
     }
 
     console.log('Extracted token info:', {
@@ -269,9 +278,21 @@ async function handleLogin() {
     // Update progress
     classicLoader.updateProgress(85, 'Loading dashboard...')
 
-    // Use the auth composable to set authentication data (no role needed)
-    const { setAuth } = useAuth();
+    // Use the auth composable to set authentication data and verify it was saved
+    const { setAuth, getToken } = useAuth();
     setAuth({ token, user });
+    
+    // Verify token was saved correctly
+    const savedToken = getToken();
+    if (!savedToken) {
+      throw new Error('Failed to save authentication token');
+    }
+    
+    // Log successful auth (without exposing token)
+    console.log('✅ Authentication successful:', { 
+      savedTokenLength: savedToken.length,
+      user: { ...user, token: '[REDACTED]' }
+    });
 
     // Final progress
     classicLoader.updateProgress(100, 'Complete!')

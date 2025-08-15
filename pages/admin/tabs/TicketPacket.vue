@@ -393,13 +393,48 @@ onMounted(async () => {
     currentEventId.value = eventStore.currentEvent.id
     currentEventName.value = eventStore.currentEvent.name || "Unnamed Event"
     
+    // Check if event has completed basic info
+    const hasBasicInfo = eventStore.currentEvent && 
+      eventStore.currentEvent.name && 
+      eventStore.currentEvent.category_id && 
+      eventStore.currentEvent.start_date && 
+      eventStore.currentEvent.end_date && 
+      eventStore.currentEvent.location
+    
+    if (!hasBasicInfo) {
+      console.log("⚠️ Basic info not complete.")
+      toast.add({
+        severity: 'warn',
+        summary: 'Basic Info Required',
+        detail: 'Please complete and save Basic Info first.',
+        life: 3000
+      })
+      return
+    }
+    
     console.log("📋 Loading event for tickets:", {
       id: currentEventId.value,
       name: currentEventName.value
     })
 
-    // Load existing tickets if any (for edit mode)
-    await loadExistingTickets()
+    // Load tickets from store or API
+    if (eventStore.currentEvent.ticket_types?.length > 0) {
+      console.log('📦 Using tickets from store:', eventStore.currentEvent.ticket_types.length)
+      tickets.value = eventStore.currentEvent.ticket_types.map(ticket => ({
+        id: ticket.id || Date.now() + Math.random(),
+        ticket_type_id: ticket.id,
+        name: ticket.name || '',
+        description: ticket.description || ticket.tag || '',
+        price: parseFloat(ticket.price) || 0,
+        quantity: parseInt(ticket.total) || 0,
+        sort_order: ticket.sort_order || tickets.value.length + 1,
+        is_active: ticket.is_active === undefined ? true : Boolean(ticket.is_active)
+      }))
+      hasExistingTickets.value = true
+    } else {
+      // Load from API if not in store
+      await loadExistingTickets()
+    }
   } else {
     console.log("⚠️ No event found in store. Complete Basic Info first.")
     toast.add({
