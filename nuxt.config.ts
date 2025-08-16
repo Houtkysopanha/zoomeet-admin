@@ -18,6 +18,7 @@ export default defineNuxtConfig({
     transpile: ['primevue']
   },
   modules: [
+    'nuxt-primevue',
     '@nuxt/fonts',
     '@nuxt/icon',
     '@pinia/nuxt'

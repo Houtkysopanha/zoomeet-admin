@@ -930,7 +930,7 @@ export async function createAgendaItems(eventId, agendaData) {
 
   try {
     console.log('📅 Creating agenda items for event:', eventId)
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/agenda`, {
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/agendas`, {
       method: 'POST',
       body: agendaData,
       headers: createAuthHeaders()
@@ -955,7 +955,7 @@ export async function updateAgendaItem(eventId, agendaId, agendaData) {
 
   try {
     console.log('📅 Updating agenda item:', { eventId, agendaId })
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/agenda/${agendaId}`, {
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/agendas/${agendaId}`, {
       method: 'PUT',
       body: agendaData,
       headers: createAuthHeaders()
@@ -980,7 +980,7 @@ export async function getEventAgenda(eventId) {
 
   try {
     console.log('📅 Fetching agenda for event:', eventId)
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/agenda`, {
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/agendas`, {
       method: 'GET',
       headers: createAuthHeaders()
     })
@@ -989,6 +989,49 @@ export async function getEventAgenda(eventId) {
     return response
   } catch (error) {
     console.error('❌ Failed to fetch event agenda:', error)
+    throw error
+  }
+}
+
+// Delete agenda
+export async function deleteAgenda(eventId, agendaId) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  if (!agendaId) {
+    throw new Error('Agenda ID is required')
+  }
+
+  // Validate UUID format
+  if (!validateUUID(eventId)) {
+    throw new Error('Invalid event ID format. Expected UUID format.')
+  }
+
+  try {
+    console.log('🗑️ Deleting agenda:', agendaId)
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/agendas/${agendaId}`, {
+      method: 'DELETE',
+      headers: createAuthHeaders()
+    })
+
+    console.log('✅ Agenda deleted:', response)
+    return response
+  } catch (error) {
+    console.error('❌ Failed to delete agenda:', error)
+    
+    // Enhanced error handling
+    if (error.status === 404) {
+      throw new Error('Agenda not found or already deleted')
+    } else if (error.status === 403) {
+      throw new Error('You do not have permission to delete this agenda')
+    } else if (error.status === 409) {
+      throw new Error('Cannot delete agenda with existing in event')
+    }
+    
     throw error
   }
 }

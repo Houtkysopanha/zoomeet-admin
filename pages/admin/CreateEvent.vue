@@ -207,7 +207,7 @@
                 <BasicInfor />
               </div>
               <div v-else-if="activeIndex === 1 && tabComponents[1]" class="tab-content">
-                <Agenda />
+                <Agenda :eventId="eventId" />
               </div>
               <div v-else-if="activeIndex === 2 && tabComponents[2]" class="tab-content">
                 <TicketPacket />
@@ -613,7 +613,7 @@ const isTabAccessible = (index) => {
   switch (index) {
     case 1: // Agenda tab - LOCKED (No API implementation yet)
       console.log(`🔒 Tab ${index} (Agenda) locked - API not implemented`)
-      return false
+      return true
       
     case 2: // Ticket Package tab - UNLOCKED (Has full API support)
       console.log(`🔓 Tab ${index} (Tickets) unlocked - Basic Info completed & API available`)
