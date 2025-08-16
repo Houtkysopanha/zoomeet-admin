@@ -154,12 +154,8 @@ const loadTickets = async () => {
         is_active: ticket.is_active
       }))
       hasExistingTickets.value = true
-      toast.add({
-        severity: 'success',
-        summary: 'Tickets Loaded',
-        detail: `Loaded ${tickets.value.length} existing tickets`,
-        life: 3000
-      })
+      // Remove noisy load message - just log it
+      console.log(`✅ Loaded ${tickets.value.length} existing tickets`)
     }
   } catch (error) {
     console.error('Failed to load tickets:', error)
@@ -649,12 +645,8 @@ const loadExistingTickets = async () => {
           name: t.name
         })))
         
-        toast.add({
-          severity: 'success',
-          summary: 'Tickets Loaded',
-          detail: `Loaded ${existingTickets.length} existing ticket(s)`,
-          life: 3000
-        })
+        // Remove noisy load message - just log it
+        console.log(`✅ Loaded ${existingTickets.length} existing ticket(s)`)
       } else {
         console.log('📝 No existing tickets found, starting fresh')
         hasExistingTickets.value = false
@@ -705,12 +697,7 @@ onMounted(async () => {
     
     if (!hasBasicInfo) {
       console.log("⚠️ Basic info not complete.")
-      toast.add({
-        severity: 'warn',
-        summary: 'Basic Info Required',
-        detail: 'Please complete and save Basic Info first.',
-        life: 3000
-      })
+      // Remove excessive warning - user can see the status in UI
       return
     }
     

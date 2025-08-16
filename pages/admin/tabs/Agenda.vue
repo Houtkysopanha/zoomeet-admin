@@ -1,19 +1,10 @@
 <template>
-  <div class="min-h-screen font-sans">
-    <div class="mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+  <div class="min-h-screen bg-gray-50 p-6 md:p-10 font-sans">
+    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
       <!-- Left Panel: List of Created Agenda -->
-      <div class="bg-white p-4 rounded-3xl col-span-2">
-        <div class="flex items-center justify-between mb-4">
-          <div>
-            <h2 class="text-2xl font-bold text-gray-800 mb-2">List of Created Agenda</h2>
-            <p class="text-gray-500">View and manage your complete event schedule</p>
-          </div>
-          <div class="text-right">
-            <div class="text-sm text-gray-500">
-              Total: {{ agendaStats.total }} | Sessions: {{ agendaStats.sessions }} | Breaks: {{ agendaStats.breaks }}
-            </div>
-          </div>
-        </div>
+      <div class="bg-white rounded-xl shadow-lg p-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">List of Created Agenda</h2>
+        <p class="text-gray-500 mb-6">View and manage your complete event schedule</p>
 
         <!-- Loading State -->
         <div v-if="isLoading" class="flex items-center justify-center py-8">
@@ -28,95 +19,52 @@
           <p class="text-gray-500 mb-4">Start by creating your first agenda item</p>
         </div>
 
-        <!-- Agenda Items by Date -->
+        <!-- Agenda Items -->
         <div v-else>
-          <TabView class="mb-6" v-model:activeIndex="selectedTab">
+          <TabView class="mb-6">
             <TabPanel
               v-for="(dayAgendas, date, index) in agendasByDate"
               :key="date"
               :header="`Day ${index + 1}`"
             >
-              <div class="mb-4">
-                <h3 class="text-lg font-normal text-gray-700">
-                  {{ formatDateForDisplay(date) }}
-                </h3>
-                <p class="text-sm text-gray-500">{{ dayAgendas.length }} items scheduled</p>
-              </div>
-              
+              <h3 class="text-lg font-semibold text-gray-700 mb-4">{{ formatDateForDisplay(date) }}</h3>
               <div class="space-y-4">
-                <div
-                  v-for="item in dayAgendas"
-                  :key="item.id"
-                  class="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow"
-                  :class="{ 'bg-blue-50 border-blue-200': item.is_break }"
-                >
+                <div v-for="item in dayAgendas" :key="item.id" class="bg-gray-50 rounded-lg p-4 shadow-sm">
                   <div class="flex items-start space-x-4">
-                    <div class="flex flex-col items-center text-center text-gray-600 min-w-[60px]">
-                      <span class="text-sm font-semibold">
-                        {{ new Date(item.date).toLocaleDateString('en-US', { weekday: 'short' }) }}
-                      </span>
-                      <span class="text-2xl font-bold text-purple-600">
-                        {{ new Date(item.date).getDate().toString().padStart(2, '0') }}
-                      </span>
-                      <span v-if="item.is_break" class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full mt-1">
-                        Break
-                      </span>
+                    <div class="flex flex-col items-center text-center text-gray-600">
+                      <span class="text-sm font-semibold">{{ new Date(item.date).toLocaleDateString('en-US', { weekday: 'short' }) }}</span>
+                      <span class="text-2xl font-bold text-purple-600">{{ new Date(item.date).getDate().toString().padStart(2, '0') }}</span>
                     </div>
-                    
-                    <div class="flex-1 pl-4 border-l-2 border-gray-400">
+                    <div class="flex-1">
                       <div class="flex items-center justify-between mb-2">
                         <div class="flex items-center text-gray-500 text-sm">
                           <Icon name="heroicons:clock" class="w-4 h-4 mr-1" />
                           <span>{{ formatTimeForDisplay(item.time_start) }} - {{ formatTimeForDisplay(item.time_end) }}</span>
-                          <span class="ml-2 text-xs bg-gray-100 px-2 py-1 rounded">
-                            {{ calculateDuration(item.time_start, item.time_end) }}
-                          </span>
                         </div>
                         <div class="flex space-x-2">
-                          <button
-                            @click="editAgenda(item)"
-                            class="text-gray-400 hover:text-purple-600 transition-colors"
-                            title="Edit agenda"
-                          >
+                          <button @click="editAgenda(item)" class="text-gray-400 hover:text-purple-600 transition-colors">
                             <Icon name="heroicons:pencil-square" class="w-5 h-5" />
                           </button>
-                          <button
-                            @click="deleteAgenda(item)"
-                            class="text-gray-400 hover:text-red-500 transition-colors"
-                            title="Delete agenda"
-                          >
+                          <button @click="deleteAgenda(item)" class="text-gray-400 hover:text-red-500 transition-colors">
                             <Icon name="heroicons:trash" class="w-5 h-5" />
                           </button>
                         </div>
                       </div>
-                      
-                      <h3 class="text-lg font-normal text-gray-800 mb-2">{{ item.title }}</h3>
-                      
-                      <div v-if="item.description" class="text-sm text-gray-600 mb-2">
-                        {{ item.description }}
+                      <h3 class="text-lg font-semibold text-gray-800 mb-2">{{ item.title }}</h3>
+                      <div v-if="item.description" class="text-sm text-gray-600 mb-2">{{ item.description }}</div>
+                      <div v-if="item.venue || item.room_no" class="text-sm text-gray-500 mb-2">
+                        <Icon name="heroicons:map-pin" class="w-4 h-4 mr-1 inline" />
+                        {{ item.venue }}{{ item.room_no ? ` - Room ${item.room_no}` : '' }}
                       </div>
-                      
-                      <div v-if="item.venue || item.room_no" class="flex items-center text-sm text-gray-500 mb-2">
-                        <Icon name="heroicons:map-pin" class="w-4 h-4 mr-1" />
-                        <span>{{ item.venue }}{{ item.room_no ? ` - Room ${item.room_no}` : '' }}</span>
-                      </div>
-                      
-                      <div v-if="item.speaker_name" class="space-y-1">
-                        <div class="text-sm text-gray-700">
-                          <Icon name="heroicons:user" class="w-4 h-4 mr-1 inline" />
-                          <span class="font-medium">{{ item.speaker_name }}</span>
-                        </div>
-                        <div v-if="item.speaker_description" class="text-xs text-gray-600 ml-5">
-                          {{ item.speaker_description }}
-                        </div>
+                      <div v-if="item.speaker_name" class="text-sm text-gray-700">
+                        <span class="font-medium">{{ item.speaker_name }}</span>
+                        <div v-if="item.speaker_description" class="text-xs text-gray-600 mt-1">{{ item.speaker_description }}</div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
             </TabPanel>
-            
-            <!-- Show message if no agendas for any day -->
             <TabPanel v-if="Object.keys(agendasByDate).length === 0" header="Day 1">
               <p class="text-gray-500 text-center py-8">No agenda items created yet.</p>
             </TabPanel>
@@ -125,65 +73,31 @@
       </div>
 
       <!-- Right Panel: Event Agenda Form -->
-      <div class="bg-white p-4 rounded-3xl">
-        <div class="flex items-center justify-between mb-4">
-          <div>
-            <h2 class="text-2xl font-bold text-gray-800 mb-2">
-              {{ editingAgenda ? 'Edit Agenda' : 'Event Agenda' }}
-            </h2>
-            <p class="text-gray-500">
-              {{ editingAgenda ? 'Update the agenda item' : 'Create a new agenda item for your event' }}
-            </p>
-          </div>
-          <div v-if="editingAgenda" class="flex space-x-2">
-            <button
-              @click="cancelEdit"
-              type="button"
-              class="px-3 py-1 text-sm bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-
-        <!-- Form Validation Errors -->
-        <div v-if="hasErrors" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <h4 class="text-sm font-medium text-red-800 mb-2">Please fix the following errors:</h4>
-          <ul class="text-sm text-red-700 space-y-1">
-            <li v-for="(errors, field) in allErrors" :key="field">
-              <strong>{{ field.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) }}:</strong>
-              {{ Array.isArray(errors) ? errors.join(', ') : errors }}
-            </li>
-          </ul>
-        </div>
+      <div class="bg-white rounded-xl shadow-lg p-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">
+          {{ editingAgenda ? 'Edit Agenda' : 'Event Agenda' }}
+        </h2>
+        <p class="text-gray-500 mb-6">
+          {{ editingAgenda ? 'Update the agenda item' : 'Create a new agenda item for your event' }}
+        </p>
 
         <form @submit.prevent="addAgenda" class="space-y-6">
-          <!-- Date -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Date <span class="text-red-500">*</span>
-            </label>
+            <label for="date" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
             <Calendar
+              id="date"
               v-model="eventForm.date"
-              showIcon
-              iconDisplay="input"
-              placeholder="Select date"
               dateFormat="dd/mm/yy"
+              showIcon
               class="w-full"
-              :class="{ 'border-red-300': allErrors.date }"
-              :minDate="new Date()"
+              inputClass="p-inputtext p-component w-full rounded-lg border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-gray-800 placeholder-gray-400"
+              iconClass="p-button-icon pi pi-calendar text-gray-500"
             />
-            <div v-if="allErrors.date" class="mt-1 text-sm text-red-600">
-              {{ Array.isArray(allErrors.date) ? allErrors.date[0] : allErrors.date }}
-            </div>
           </div>
 
-          <!-- Time Range -->
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Start Time <span class="text-red-500">*</span>
-              </label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
               <Dropdown
                 v-model="eventForm.time_start"
                 :options="startTimeOptions"
@@ -191,17 +105,10 @@
                 optionValue="value"
                 placeholder="Select start time"
                 class="w-full"
-                :class="{ 'border-red-300': allErrors.time_start }"
               />
-              <div v-if="allErrors.time_start" class="mt-1 text-sm text-red-600">
-                {{ Array.isArray(allErrors.time_start) ? allErrors.time_start[0] : allErrors.time_start }}
-              </div>
             </div>
-            
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                End Time <span class="text-red-500">*</span>
-              </label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">End Time</label>
               <Dropdown
                 v-model="eventForm.time_end"
                 :options="endTimeOptions"
@@ -209,90 +116,55 @@
                 optionValue="value"
                 placeholder="Select end time"
                 class="w-full"
-                :class="{ 'border-red-300': allErrors.time_end }"
                 :disabled="!eventForm.time_start"
               />
-              <div v-if="allErrors.time_end" class="mt-1 text-sm text-red-600">
-                {{ Array.isArray(allErrors.time_end) ? allErrors.time_end[0] : allErrors.time_end }}
-              </div>
             </div>
           </div>
 
-          <!-- Duration Display -->
-          <div v-if="sessionDuration" class="text-sm text-gray-600 bg-gray-50 p-2 rounded-lg">
-            <Icon name="heroicons:clock" class="w-4 h-4 mr-1 inline" />
-            Duration: {{ sessionDuration }}
-            <span v-if="formattedTimeRange" class="ml-2">({{ formattedTimeRange }})</span>
-          </div>
-
-          <!-- Session Title -->
           <div>
-            <label for="session-title" class="block text-sm font-medium text-gray-700 mb-1">
-              Session Title <span class="text-red-500">*</span>
-            </label>
+            <label for="session-title" class="block text-sm font-medium text-gray-700 mb-1">Session Title</label>
             <InputText
               id="session-title"
               v-model="eventForm.title"
               placeholder="Enter session title"
-              class="w-full"
-              :class="{ 'border-red-300': allErrors.title }"
+              class="w-full rounded-lg border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-gray-800 placeholder-gray-400"
             />
-            <div v-if="allErrors.title" class="mt-1 text-sm text-red-600">
-              {{ Array.isArray(allErrors.title) ? allErrors.title[0] : allErrors.title }}
-            </div>
           </div>
 
-          <!-- Description -->
           <div>
-            <label for="event-description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <label for="venue" class="block text-sm font-medium text-gray-700 mb-1">Venue/Hall</label>
+            <InputText
+              id="venue"
+              v-model="eventForm.venue"
+              placeholder="venue/hall"
+              class="w-full rounded-lg border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-gray-800 placeholder-gray-400"
+            />
+          </div>
+
+          <div>
+            <label for="room-number" class="block text-sm font-medium text-gray-700 mb-1">Room Number</label>
+            <InputText
+              id="room-number"
+              v-model="eventForm.room_no"
+              placeholder="room number"
+              class="w-full rounded-lg border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-gray-800 placeholder-gray-400"
+            />
+          </div>
+
+          <div>
+            <label for="event-description" class="block text-sm font-medium text-gray-700 mb-1">Event Description</label>
             <Textarea
               id="event-description"
               v-model="eventForm.description"
               placeholder="Brief description of this session"
-              rows="3"
-              class="w-full"
-              :class="{ 'border-red-300': allErrors.description }"
+              rows="4"
+              class="w-full rounded-lg border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-gray-800 placeholder-gray-400"
             />
-            <div v-if="allErrors.description" class="mt-1 text-sm text-red-600">
-              {{ Array.isArray(allErrors.description) ? allErrors.description[0] : allErrors.description }}
-            </div>
           </div>
 
-          <!-- Venue and Room -->
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label for="venue" class="block text-sm font-medium text-gray-700 mb-1">Venue/Hall</label>
-              <InputText
-                id="venue"
-                v-model="eventForm.venue"
-                placeholder="Venue or Hall"
-                class="w-full"
-                :class="{ 'border-red-300': allErrors.venue }"
-              />
-              <div v-if="allErrors.venue" class="mt-1 text-sm text-red-600">
-                {{ Array.isArray(allErrors.venue) ? allErrors.venue[0] : allErrors.venue }}
-              </div>
-            </div>
-
-            <div>
-              <label for="room-number" class="block text-sm font-medium text-gray-700 mb-1">Room Number</label>
-              <InputText
-                id="room-number"
-                v-model="eventForm.room_no"
-                placeholder="Room number"
-                class="w-full"
-                :class="{ 'border-red-300': allErrors.room_no }"
-              />
-              <div v-if="allErrors.room_no" class="mt-1 text-sm text-red-600">
-                {{ Array.isArray(allErrors.room_no) ? allErrors.room_no[0] : allErrors.room_no }}
-              </div>
-            </div>
-          </div>
-
-          <!-- Speaker Information -->
+          <!-- Speakers/Presenters Section -->
           <div class="space-y-4">
-            <h3 class="text-lg font-semibold text-gray-800">Speaker/Presenter (Optional)</h3>
-
+            <h3 class="text-lg font-semibold text-gray-800">Speakers/Presenters</h3>
             <div class="bg-gray-50 p-4 rounded-2xl space-y-4">
               <div>
                 <label for="speaker-name" class="block text-sm font-medium text-gray-700 mb-1">Speaker Name</label>
@@ -300,43 +172,18 @@
                   id="speaker-name"
                   v-model="eventForm.speaker_name"
                   placeholder="Speaker name"
-                  class="w-full"
-                  :class="{ 'border-red-300': allErrors.speaker_name }"
+                  class="w-full rounded-lg border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-gray-800 placeholder-gray-400"
                 />
-                <div v-if="allErrors.speaker_name" class="mt-1 text-sm text-red-600">
-                  {{ Array.isArray(allErrors.speaker_name) ? allErrors.speaker_name[0] : allErrors.speaker_name }}
-                </div>
               </div>
-
               <div>
-                <label for="speaker-description" class="block text-sm font-medium text-gray-700 mb-1">About Speaker</label>
+                <label for="speaker-about" class="block text-sm font-medium text-gray-700 mb-1">About Speaker</label>
                 <Textarea
-                  id="speaker-description"
+                  id="speaker-about"
                   v-model="eventForm.speaker_description"
                   placeholder="Brief description about the speaker"
                   rows="3"
-                  class="w-full"
-                  :class="{ 'border-red-300': allErrors.speaker_description }"
+                  class="w-full rounded-lg border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-gray-800 placeholder-gray-400"
                 />
-                <div v-if="allErrors.speaker_description" class="mt-1 text-sm text-red-600">
-                  {{ Array.isArray(allErrors.speaker_description) ? allErrors.speaker_description[0] : allErrors.speaker_description }}
-                </div>
-              </div>
-
-              <div>
-                <label for="speaker-image" class="block text-sm font-medium text-gray-700 mb-1">Speaker Image</label>
-                <input
-                  id="speaker-image"
-                  type="file"
-                  accept="image/*"
-                  @change="(e) => eventForm.speaker_image = e.target.files[0]"
-                  class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
-                  :class="{ 'border-red-300': allErrors.speaker_image }"
-                />
-                <div v-if="allErrors.speaker_image" class="mt-1 text-sm text-red-600">
-                  {{ Array.isArray(allErrors.speaker_image) ? allErrors.speaker_image[0] : allErrors.speaker_image }}
-                </div>
-                <p class="mt-1 text-xs text-gray-500">Max file size: 5MB. Supported formats: JPEG, PNG, GIF, WebP</p>
               </div>
             </div>
           </div>
@@ -354,21 +201,18 @@
             </label>
           </div>
 
-          <!-- Submit Button -->
-          <div class="flex space-x-3">
-            <button
-              type="submit"
-              :disabled="isLoading"
-              class="flex-1 flex items-center justify-center py-3 px-6 rounded-full shadow-lg text-white font-semibold bg-gradient-to-r from-purple-600 to-blue-800 hover:from-purple-700 hover:to-purple-900 transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <div v-if="isLoading" class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              <Icon v-else :name="editingAgenda ? 'heroicons:pencil-square' : 'heroicons:document-plus'" class="w-5 h-5 mr-2" />
-              {{ isLoading ? 'Saving...' : (editingAgenda ? 'Update Agenda' : 'Add Agenda') }}
-            </button>
-          </div>
+          <button
+            type="submit"
+            :disabled="isLoading"
+            class="w-full flex items-center justify-center py-3 px-6 rounded-xl shadow-lg text-white font-semibold
+                   bg-gradient-to-r from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900 transition-all duration-300 ease-in-out disabled:opacity-50"
+          >
+            <div v-if="isLoading" class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+            <Icon v-else :name="editingAgenda ? 'heroicons:pencil-square' : 'heroicons:document-plus'" class="w-5 h-5 mr-2" />
+            {{ isLoading ? 'Saving...' : (editingAgenda ? 'Update Agenda' : 'Add Agenda') }}
+          </button>
         </form>
       </div>
-
     </div>
   </div>
 </template>
@@ -496,12 +340,7 @@ const loadAgendas = async () => {
     console.log('✅ Agendas loaded successfully:', agendaStore.agendas.length)
   } catch (error) {
     console.error('❌ Failed to load agendas:', error)
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to load agendas: ' + error.message,
-      life: 5000
-    })
+    // Remove messy error toast - just log the error
   } finally {
     isLoading.value = false
   }
@@ -513,10 +352,10 @@ const addAgenda = async () => {
     if (!eventId.value) {
       console.error('❌ Cannot save agenda: No event ID available')
       toast.add({
-        severity: 'error',
-        summary: 'Error',
-        detail: 'Event ID is required to save agenda. Please ensure the event is created first.',
-        life: 5000
+        severity: 'warn',
+        summary: 'Event Required',
+        detail: 'Please save Basic Info first to create agenda items.',
+        life: 3000
       })
       return
     }
@@ -531,9 +370,9 @@ const addAgenda = async () => {
     if (!validationResult.isValid) {
       toast.add({
         severity: 'warn',
-        summary: 'Validation Error',
-        detail: validationResult.conflictError || 'Please fix the form errors',
-        life: 5000
+        summary: 'Please Complete Required Fields',
+        detail: validationResult.conflictError || 'Please fill in all required fields',
+        life: 4000
       })
       return
     }
@@ -558,8 +397,8 @@ const addAgenda = async () => {
 
       toast.add({
         severity: 'success',
-        summary: 'Updated',
-        detail: 'Agenda item updated successfully',
+        summary: 'Agenda Updated! ✅',
+        detail: 'Your agenda item has been updated successfully.',
         life: 3000
       })
     } else {
@@ -568,8 +407,8 @@ const addAgenda = async () => {
 
       toast.add({
         severity: 'success',
-        summary: 'Created',
-        detail: 'Agenda item created successfully',
+        summary: 'Agenda Added! ✅',
+        detail: 'Your agenda item has been created successfully.',
         life: 3000
       })
     }
@@ -580,14 +419,15 @@ const addAgenda = async () => {
     
     // Mark tab as modified in event tabs store
     eventTabsStore.markTabModified(1) // Agenda tab index
+    eventTabsStore.markTabComplete(1) // Mark as complete since we have agenda items
     
   } catch (error) {
     console.error('❌ Failed to save agenda:', error)
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to save agenda: ' + error.message,
-      life: 5000
+      summary: 'Save Failed',
+      detail: 'Failed to save agenda. Please try again.',
+      life: 4000
     })
   } finally {
     isLoading.value = false
@@ -611,11 +451,12 @@ const editAgenda = (agenda) => {
     is_break: agenda.is_break || false
   })
 
+  // Simple edit notification
   toast.add({
     severity: 'info',
-    summary: 'Editing',
+    summary: 'Editing Agenda',
     detail: `Now editing: ${agenda.title}`,
-    life: 3000
+    life: 2000
   })
 }
 
@@ -630,8 +471,8 @@ const deleteAgenda = async (agenda) => {
     
     toast.add({
       severity: 'success',
-      summary: 'Deleted',
-      detail: 'Agenda item deleted successfully',
+      summary: 'Agenda Deleted',
+      detail: 'Agenda item has been deleted successfully.',
       life: 3000
     })
 
@@ -642,9 +483,9 @@ const deleteAgenda = async (agenda) => {
     console.error('❌ Failed to delete agenda:', error)
     toast.add({
       severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to delete agenda: ' + error.message,
-      life: 5000
+      summary: 'Delete Failed',
+      detail: 'Failed to delete agenda. Please try again.',
+      life: 3000
     })
   } finally {
     isLoading.value = false
@@ -657,55 +498,58 @@ const cancelEdit = () => {
   
   toast.add({
     severity: 'info',
-    summary: 'Cancelled',
-    detail: 'Edit cancelled',
+    summary: 'Edit Cancelled',
+    detail: 'Agenda editing has been cancelled.',
     life: 2000
   })
 }
 
-const addSpeakerField = () => {
-  // This is now handled by the form validation composable
-  // Keep for backward compatibility but speakers are now single fields
-}
-
-const removeSpeakerField = (index) => {
-  // This is now handled by the form validation composable
-  // Keep for backward compatibility but speakers are now single fields
-}
-
-// Auto-save functionality
-const isAutoSaving = ref(false)
-
-watch(isAgendaComplete, async (newValue) => {
-  if (newValue && !isAutoSaving.value && !editingAgenda.value) {
-    isAutoSaving.value = true
-
-    try {
-      // Auto-save to event tabs store
-      eventTabsStore.saveTabData(1, {
-        currentAgenda: { ...eventForm },
-        autoSavedAt: new Date().toISOString()
-      })
-
-      toast.add({
-        severity: 'info',
-        summary: 'Auto-Saved 📅',
-        detail: 'Your agenda draft has been automatically saved.',
-        life: 2000
-      })
-    } catch (error) {
-      console.error('Auto-save agenda failed:', error)
-    } finally {
-      setTimeout(() => {
-        isAutoSaving.value = false
-      }, 2000)
-    }
-  }
-}, { deep: true })
-
 // Event listeners for parent component actions
-const handleSaveAgenda = () => {
-  addAgenda()
+const handleSaveAgenda = async () => {
+  // This handles the "Save Draft" button from the parent component
+  try {
+    if (!eventId.value) {
+      toast.add({
+        severity: 'warn',
+        summary: 'Event Required',
+        detail: 'Please save Basic Info first.',
+        life: 3000
+      })
+      return
+    }
+
+    // Save current agenda data to tab store for persistence
+    eventTabsStore.saveTabData(1, {
+      currentAgenda: { ...eventForm },
+      sessions: agendaStore.agendas,
+      lastSaved: new Date().toISOString(),
+      isComplete: agendaStore.agendas.length > 0,
+      hasUnsavedChanges: false
+    })
+
+    // Mark tab as complete if we have agendas
+    if (agendaStore.agendas.length > 0) {
+      eventTabsStore.markTabComplete(1)
+      eventTabsStore.markTabSaved(1)
+    }
+
+    toast.add({
+      severity: 'success',
+      summary: 'Agenda Draft Saved! ✅',
+      detail: 'Your agenda progress has been saved successfully.',
+      life: 3000
+    })
+
+    console.log('✅ Agenda draft saved successfully')
+  } catch (error) {
+    console.error('❌ Failed to save agenda draft:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Save Failed',
+      detail: 'Failed to save agenda draft. Please try again.',
+      life: 3000
+    })
+  }
 }
 
 onMounted(async () => {
@@ -735,9 +579,32 @@ const updateTimeRange = () => {
 </script>
 
 <style scoped>
+/* Global styles for PrimeVue components and general layout */
+.p-inputtext {
+  @apply px-4 py-2.5; /* Adjust padding for inputs */
+}
+
+.p-calendar .p-inputtext {
+  @apply pr-10; /* Space for the calendar icon */
+}
+
+.p-calendar .p-datepicker-trigger {
+  @apply absolute right-3 top-1/2 -translate-y-1/2 text-gray-500;
+}
+
+.p-tabview .p-tabview-nav {
+  @apply border-b border-gray-200;
+}
+
+.p-tabview .p-tabview-nav li .p-tabview-nav-link {
+  @apply px-4 py-2 text-gray-600 font-medium rounded-t-lg;
+}
+
+.p-tabview .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+  @apply text-purple-600 border-b-2 border-purple-600;
+}
 
 :deep(.p-calendar .p-inputtext) {
   @apply bg-transparent border-0;
 }
-/* You can add scoped Tailwind overrides here if needed */
 </style>

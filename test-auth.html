@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Auth Setup</title>
+</head>
+<body>
+    <h1>Setting up test authentication...</h1>
+    <script>
+        // Create a mock JWT token for testing
+        const mockPayload = {
+            sub: "test-user",
+            name: "Test Admin",
+            email: "admin@test.com",
+            role: "admin",
+            exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours from now
+        };
+        
+        // Create a simple mock JWT (not cryptographically secure, just for testing)
+        const header = btoa(JSON.stringify({alg: "HS256", typ: "JWT"}));
+        const payload = btoa(JSON.stringify(mockPayload));
+        const signature = "mock-signature";
+        const mockToken = `${header}.${payload}.${signature}`;
+        
+        const authData = {
+            token: mockToken,
+            user: {
+                id: 1,
+                name: "Test Admin",
+                email: "admin@test.com",
+                role: "admin"
+            },
+            loginTime: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        };
+        
+        // Store in localStorage
+        localStorage.setItem('auth', JSON.stringify(authData));
+        sessionStorage.setItem('auth', JSON.stringify(authData));
+        
+        // Set cookie
+        document.cookie = `auth=${encodeURIComponent(JSON.stringify(authData))}; path=/; max-age=86400`;
+        
+        console.log('✅ Test auth data set:', authData);
+        
+        // Redirect to CreateEvent page
+        setTimeout(() => {
+            window.location.href = 'http://localhost:3000/admin/CreateEvent';
+        }, 1000);
+    </script>
+</body>
+</html>

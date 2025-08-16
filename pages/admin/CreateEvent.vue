@@ -13,9 +13,7 @@
           <p v-if="isEditMode && eventData" class="text-sm text-gray-500">
             Editing: {{ eventData.name }}
           </p>
-        </div>
-        <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 items-stretch sm:items-center">
-          <!-- Enhanced Progress Indicator -->
+           <!-- Enhanced Progress Indicator -->
           <div class="hidden lg:flex items-center space-x-2 text-sm">
             <!-- Basic Info Step -->
             <div class="flex items-center space-x-1">
@@ -68,7 +66,8 @@
               ]">Published</span>
             </div>
           </div>
-
+        </div>
+        <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 items-stretch sm:items-center">
           <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 items-stretch sm:items-center">
             <div class="bt-preview">
               <Button
@@ -719,44 +718,23 @@ const changeTab = async (index) => {
   const hasUnsavedChanges = tabsStore.hasUnsavedChanges(currentTabIndex)
   
   if (hasUnsavedChanges && currentTabIndex !== index) {
-    // For Basic Info tab (0), require explicit save before switching
+    // Only show save warnings for critical unsaved changes
     if (currentTabIndex === 0 && (!isBasicInfoCompleted.value || !eventId.value)) {
-      toast.add({
-        severity: 'warn',
-        summary: 'Save Required',
-        detail: 'Please save your Basic Info before switching to another tab. Click "Save Draft" to continue.',
-        life: 5000
-      })
-      return
-    }
-    
-    // For Agenda tab (1), require explicit save before switching if there are unsaved changes
-    if (currentTabIndex === 1) {
-      const agendaTabData = tabsStore.getTabData(1)
-      if (agendaTabData.sessions && agendaTabData.sessions.length > 0 && !agendaTabData.isComplete) {
+      // Only warn if there's actual form data that would be lost
+      const basicInfoData = tabsStore.getTabData(0)
+      if (basicInfoData.eventName || basicInfoData.description) {
         toast.add({
           severity: 'warn',
-          summary: 'Save Agenda Required',
-          detail: 'Please save your agenda items before switching tabs. Click "Save Draft" to continue.',
-          life: 5000
+          summary: 'Save Basic Info',
+          detail: 'Please save your Basic Info first.',
+          life: 3000
         })
         return
       }
     }
     
-    // For Tickets tab (2), require explicit save before switching
-    if (currentTabIndex === 2) {
-      const ticketTabData = tabsStore.getTabData(2)
-      if (ticketTabData.ticketTypes && ticketTabData.ticketTypes.length > 0 && !ticketTabData.isComplete) {
-        toast.add({
-          severity: 'warn',
-          summary: 'Save Tickets Required',
-          detail: 'Please save your ticket configurations before switching tabs. Click "Save Draft" to continue.',
-          life: 5000
-        })
-        return
-      }
-    }
+    // Remove excessive validation warnings for other tabs - let users switch freely
+    // Auto-save will handle data persistence
   }
 
   if (index >= 0 && index < tabComponents.length && activeIndex.value !== index) {
@@ -787,25 +765,17 @@ const changeTab = async (index) => {
       const hasData = Object.keys(tabData).length > 0
       const lastSaved = tabData.lastSaved
       
-      // Show appropriate notification
-      if (hasData && lastSaved) {
+      // Only show restoration message if there's actual data to restore
+      if (hasData && lastSaved && (tabData.sessions?.length > 0 || tabData.ticketTypes?.length > 0)) {
         const savedTime = new Date(lastSaved).toLocaleTimeString()
         toast.add({
           severity: 'success',
-          summary: 'Data Restored ✨',
-          detail: `Your previous work has been restored (last saved: ${savedTime})`,
-          life: 3000
-        })
-      } else if (index > 0 && isBasicInfoCompleted.value) {
-        // Show welcome message for unlocked tabs
-        const tabNames = ['Basic Info', 'Agenda', 'Tickets', 'Breakout Rooms', 'Settings']
-        toast.add({
-          severity: 'info',
-          summary: `${tabNames[index]} Tab Unlocked! 🔓`,
-          detail: 'You can now configure this section of your event.',
-          life: 2500
+          summary: 'Data Restored',
+          detail: `Previous work restored (${savedTime})`,
+          life: 2000
         })
       }
+      // Remove the "tab unlocked" messages as they're too noisy
       
       // Load any existing data for this tab from the event store
       if (isBasicInfoCompleted.value && eventId.value) {
@@ -891,27 +861,9 @@ const handleSaveDraft = async () => {
     
     // Handle Basic Info tab (Tab 0)
     if (currentTabIndex === 0) {
-      if (!isBasicInfoCompleted.value || !eventId.value) {
-        // Create new event
-        console.log('🆕 Creating new event from Basic Info')
-        window.dispatchEvent(new CustomEvent('saveDraft'))
-        toast.add({
-          severity: 'info',
-          summary: 'Saving Basic Info...',
-          detail: 'Creating event and unlocking other tabs.',
-          life: 3000
-        })
-      } else {
-        // Update existing event
-        console.log('📝 Updating existing Basic Info')
-        window.dispatchEvent(new CustomEvent('saveDraft'))
-        toast.add({
-          severity: 'info',
-          summary: 'Updating Basic Info...',
-          detail: 'Saving your changes to the event.',
-          life: 3000
-        })
-      }
+      console.log('💾 Saving Basic Info')
+      window.dispatchEvent(new CustomEvent('saveDraft'))
+      // Let the BasicInfo component handle the success toast
       return
     }
     
@@ -921,20 +873,15 @@ const handleSaveDraft = async () => {
         toast.add({
           severity: 'warn',
           summary: 'Basic Info Required',
-          detail: 'Please complete and save Basic Info first.',
-          life: 4000
+          detail: 'Please save Basic Info first.',
+          life: 3000
         })
         return
       }
       
       console.log('📅 Saving agenda')
       window.dispatchEvent(new CustomEvent('saveCurrentTab'))
-      toast.add({
-        severity: 'info',
-        summary: 'Saving Agenda...',
-        detail: 'Saving your agenda items.',
-        life: 3000
-      })
+      // Let the Agenda component handle the success toast
       return
     }
     
@@ -944,20 +891,15 @@ const handleSaveDraft = async () => {
         toast.add({
           severity: 'warn',
           summary: 'Basic Info Required',
-          detail: 'Please complete and save Basic Info first.',
-          life: 4000
+          detail: 'Please save Basic Info first.',
+          life: 3000
         })
         return
       }
       
       console.log('🎫 Saving tickets')
       window.dispatchEvent(new CustomEvent('saveTickets'))
-      toast.add({
-        severity: 'info',
-        summary: 'Saving Tickets...',
-        detail: 'Saving your ticket configurations.',
-        life: 3000
-      })
+      // Let the TicketPacket component handle the success toast
       return
     }
     
