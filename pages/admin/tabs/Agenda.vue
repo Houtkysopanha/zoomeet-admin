@@ -1,6 +1,35 @@
 <template>
   <div class="min-h-screen font-sans">
-    <div class="mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+    <!-- Status and Skip Option -->
+    <div class="mb-6 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl border border-purple-200">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-lg font-semibold text-purple-800 mb-1">Event Agenda</h3>
+          <p class="text-sm text-purple-600">{{ isSkipped ? 'Agenda has been skipped for this event' : 'Create and manage your event schedule' }}</p>
+        </div>
+        <div class="flex items-center space-x-4">
+          <div v-if="currentEventId" class="text-right">
+            <p class="text-sm text-green-600 font-medium">✅ Basic Info Saved</p>
+            <p class="text-xs text-gray-500">{{ currentEventName }}</p>
+          </div>
+          <Button
+            @click="toggleSkipAgenda"
+            :class="[
+              'px-4 py-2 rounded-full font-medium transition-all duration-300',
+              isSkipped
+                ? 'bg-green-600 text-white hover:bg-green-700'
+                : 'bg-yellow-500 text-white hover:bg-yellow-600'
+            ]"
+          >
+            <Icon :name="isSkipped ? 'heroicons:plus' : 'heroicons:x-mark'" class="w-4 h-4 mr-2" />
+            {{ isSkipped ? 'Add Agenda' : 'Skip Agenda' }}
+          </Button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agenda Content (hidden when skipped) -->
+    <div v-if="!isSkipped" class="mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
       <!-- Left Panel: List of Created Agenda -->
       <div class=" bg-white p-4 rounded-3xl col-span-2">
         <h2 class="text-2xl font-bold text-gray-800 mb-2">List of Created Agenda</h2>
@@ -202,12 +231,32 @@
 
     </div>
 
+    <!-- Skipped State Display -->
+    <div v-else class="text-center py-16">
+      <div class="w-24 h-24 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-6">
+        <Icon name="heroicons:calendar-x" class="w-12 h-12 text-yellow-600" />
+      </div>
+      <h3 class="text-2xl font-semibold text-gray-800 mb-4">Agenda Skipped</h3>
+      <p class="text-gray-600 mb-8 max-w-md mx-auto">
+        This event will be published without an agenda. You can add an agenda later if needed.
+      </p>
+      <div class="flex justify-center space-x-4">
+        <Button
+          @click="toggleSkipAgenda"
+          class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-full font-medium hover:from-purple-700 hover:to-indigo-700 transition-all duration-300"
+        >
+          <Icon name="heroicons:plus" class="w-5 h-5 mr-2" />
+          Add Agenda Now
+        </Button>
+      </div>
+    </div>
+
     <ConfirmPopup></ConfirmPopup>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, inject } from 'vue';
 import ConfirmPopup from 'primevue/confirmpopup';
 import InputText from 'primevue/inputtext';
 import Textarea from 'primevue/textarea';
@@ -215,16 +264,27 @@ import Calendar from 'primevue/calendar';
 import Dropdown from 'primevue/dropdown';
 import TabView from 'primevue/tabview';
 import TabPanel from 'primevue/tabpanel';
+import Button from 'primevue/button';
 import SpeakerInput from '~/components/common/SpeakerInput.vue';
 import { useToast } from "primevue/usetoast";
 import { useConfirm } from "primevue/useconfirm";
 import { getEventAgenda, createAgendaItems, updateAgendaItem, deleteAgenda } from '@/composables/api'
+import { useEventStore } from '~/composables/useEventStore'
+import { useEventTabsStore } from '~/composables/useEventTabs'
 // Icon is auto-imported by Nuxt
 
 const props = defineProps(['eventId'])
 
 const toast = useToast();
 const confirm = useConfirm();
+
+// Event creation state from parent
+const eventCreationState = inject('eventCreationState')
+
+// Event data
+const currentEventId = ref(null)
+const currentEventName = ref('')
+const isSkipped = ref(false)
 
 const agendaItems = ref([]);
 // Track edit mode and the ID of the agenda being edited
@@ -376,23 +436,247 @@ const isAgendaComplete = computed(() => {
   );
 });
 
-onMounted(async () => {
-  if (!props.eventId) {
-    console.error('No event ID provided');
-    return;
+// Toggle skip agenda functionality
+const toggleSkipAgenda = () => {
+  isSkipped.value = !isSkipped.value
+  
+  const tabsStore = useEventTabsStore()
+  
+  if (isSkipped.value) {
+    // Mark as skipped and complete
+    tabsStore.saveTabData(1, {
+      isSkipped: true,
+      sessions: [],
+      speakers: [],
+      schedule: [],
+      lastSaved: new Date().toISOString(),
+      isComplete: true,
+      eventId: currentEventId.value
+    })
+    tabsStore.markTabComplete(1)
+    
+    toast.add({
+      severity: 'info',
+      summary: 'Agenda Skipped',
+      detail: 'This event will be published without an agenda. You can add one later if needed.',
+      life: 4000
+    })
+  } else {
+    // Remove skip status
+    tabsStore.saveTabData(1, {
+      isSkipped: false,
+      sessions: agendaItems.value,
+      speakers: [],
+      schedule: [],
+      lastSaved: new Date().toISOString(),
+      isComplete: agendaItems.value.length > 0,
+      eventId: currentEventId.value
+    })
+    
+    if (agendaItems.value.length === 0) {
+      tabsStore.completedTabs.delete(1)
+    }
+    
+    toast.add({
+      severity: 'success',
+      summary: 'Agenda Enabled',
+      detail: 'You can now create agenda items for your event.',
+      life: 3000
+    })
+  }
+  
+  // Save current tab data
+  handleSaveCurrentTab()
+}
+
+// Enhanced save current tab data for tab switching
+const handleSaveCurrentTab = (event) => {
+  const tabsStore = useEventTabsStore()
+  
+  // Validate event context if provided
+  if (event?.detail?.eventId && event.detail.eventId !== currentEventId.value) {
+    console.warn('⚠️ Event ID mismatch in save request, ignoring:', {
+      requested: event.detail.eventId,
+      current: currentEventId.value
+    })
+    return
+  }
+  
+  // Only save if we have a valid event ID
+  if (!currentEventId.value) {
+    console.warn('⚠️ No current event ID, cannot save agenda data')
+    return
+  }
+  
+  console.log('💾 Saving current agenda data for event:', currentEventId.value)
+  
+  // Save current agenda data to tab persistence
+  const tabData = {
+    sessions: agendaItems.value,
+    speakers: [],
+    schedule: [],
+    isSkipped: isSkipped.value,
+    lastSaved: new Date().toISOString(),
+    hasAgenda: agendaItems.value.length > 0,
+    eventId: currentEventId.value,
+    isEditMode: isEditMode.value,
+    isComplete: isSkipped.value || agendaItems.value.length > 0
+  }
+  
+  tabsStore.saveTabData(1, tabData)
+  
+  if (tabData.isComplete) {
+    tabsStore.markTabComplete(1)
+  }
+  
+  console.log('💾 Agenda data saved to tab persistence for event:', currentEventId.value)
+}
+
+// Save agenda items
+const saveAgenda = async () => {
+  if (!currentEventId.value) {
+    toast.add({
+      severity: 'error',
+      summary: 'No Event',
+      detail: 'Please complete and save Basic Info first.',
+      life: 3000
+    })
+    return
+  }
+
+  if (isSkipped.value) {
+    toast.add({
+      severity: 'success',
+      summary: 'Agenda Skipped',
+      detail: 'Event will be published without agenda.',
+      life: 3000
+    })
+    return
+  }
+
+  if (agendaItems.value.length === 0) {
+    toast.add({
+      severity: 'warn',
+      summary: 'No Agenda Items',
+      detail: 'Please add at least one agenda item or skip the agenda.',
+      life: 3000
+    })
+    return
   }
 
   try {
-    const response = await getEventAgenda(props.eventId);
-    if (response.success) {
-      agendaItems.value = response.data;
-    } else {
-      console.error('Failed to fetch event agenda:', response.message);
+    // Save all agenda items
+    const tabsStore = useEventTabsStore()
+    
+    // Update tab store and mark as complete
+    const tabData = {
+      sessions: agendaItems.value,
+      speakers: [],
+      schedule: [],
+      isSkipped: false,
+      lastSaved: new Date().toISOString(),
+      hasAgenda: true,
+      eventId: currentEventId.value,
+      isComplete: true
     }
+    
+    tabsStore.markTabComplete(1)
+    tabsStore.markTabSaved(1)
+    tabsStore.saveTabData(1, tabData)
+    
+    toast.add({
+      severity: 'success',
+      summary: 'Agenda Saved Successfully! 📅',
+      detail: `Saved ${agendaItems.value.length} agenda item(s)`,
+      life: 4000
+    })
+    
+    console.log('🎉 Agenda save process completed successfully:', {
+      agendaCount: agendaItems.value.length,
+      eventId: currentEventId.value,
+      tabComplete: true
+    })
+    
   } catch (error) {
-    console.error('Failed to fetch event agenda:', error);
+    console.error('❌ Agenda save error:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Save Failed',
+      detail: 'Failed to save agenda. Please try again.',
+      life: 4000
+    })
   }
+}
+
+onMounted(async () => {
+  console.log('📅 Initializing Agenda component...')
+  
+  // Get event data from store or props
+  const eventStore = useEventStore()
+  const tabsStore = useEventTabsStore()
+  
+  if (eventStore.hasCurrentEvent) {
+    currentEventId.value = eventStore.currentEvent.id
+    currentEventName.value = eventStore.currentEvent.name || "Unnamed Event"
+    
+    console.log('📋 Current event found:', {
+      id: currentEventId.value,
+      name: currentEventName.value
+    })
+    
+    // Load existing agenda data
+    const agendaTabData = tabsStore.getTabData(1)
+    if (agendaTabData.isSkipped) {
+      isSkipped.value = true
+    } else if (agendaTabData.sessions && agendaTabData.sessions.length > 0) {
+      agendaItems.value = agendaTabData.sessions
+    } else if (eventStore.currentEvent.agendas && eventStore.currentEvent.agendas.length > 0) {
+      agendaItems.value = eventStore.currentEvent.agendas
+    } else {
+      // Load from API
+      try {
+        const response = await getEventAgenda(currentEventId.value);
+        if (response.success && response.data) {
+          agendaItems.value = response.data;
+        }
+      } catch (error) {
+        console.warn('Failed to fetch event agenda:', error);
+      }
+    }
+    
+  } else if (props.eventId) {
+    currentEventId.value = props.eventId
+    
+    try {
+      const response = await getEventAgenda(props.eventId);
+      if (response.success) {
+        agendaItems.value = response.data;
+      } else {
+        console.error('Failed to fetch event agenda:', response.message);
+      }
+    } catch (error) {
+      console.error('Failed to fetch event agenda:', error);
+    }
+  } else {
+    console.warn("⚠️ No event found. Complete Basic Info first.")
+    toast.add({
+      severity: 'warn',
+      summary: 'Event Required',
+      detail: 'Please complete and save Basic Info first.',
+      life: 3000
+    })
+  }
+
+  // Add event listeners for agenda saving and tab switching
+  window.addEventListener('saveAgenda', saveAgenda)
+  window.addEventListener('saveCurrentTab', handleSaveCurrentTab)
 });
+
+// Remove event listeners when component unmounts
+onUnmounted(() => {
+  window.removeEventListener('saveAgenda', saveAgenda)
+  window.removeEventListener('saveCurrentTab', handleSaveCurrentTab)
+})
 
 const addSpeakerField = () => {
   eventForm.value.speakers.push({ name: '', about: '' });

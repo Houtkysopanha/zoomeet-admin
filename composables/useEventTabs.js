@@ -32,6 +32,7 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       sessions: [],
       speakers: [],
       schedule: [],
+      isSkipped: false,
       lastSaved: null,
       isComplete: false
     },
@@ -148,6 +149,7 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       sessions: [],
       speakers: [],
       schedule: [],
+      isSkipped: false,
       lastSaved: null,
       isComplete: false
     }
@@ -290,7 +292,7 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
           tabData[tabKey].location
         )
       case 1: // Agenda
-        return tabData[tabKey].sessions?.length > 0
+        return tabData[tabKey].isSkipped === true || tabData[tabKey].sessions?.length > 0
       case 2: // Tickets
         return tabData[tabKey].ticketTypes?.length > 0
       case 3: // Breakout Rooms
@@ -366,17 +368,19 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
         })),
         speakers: eventData.speakers || [],
         schedule: eventData.schedule || [],
+        isSkipped: false,
         eventId: eventData.id,
         lastSaved: loadTimestamp,
         isComplete: true,
         hasUnsavedChanges: false
       }
     } else {
-      // Reset agenda data if no agendas
+      // Reset agenda data if no agendas - could be skipped or empty
       tabData.agenda = {
         sessions: [],
         speakers: [],
         schedule: [],
+        isSkipped: false, // Will be set by component if needed
         eventId: eventData.id,
         lastSaved: null,
         isComplete: false,
@@ -571,6 +575,7 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
             sessions: [],
             speakers: [],
             schedule: [],
+            isSkipped: false,
             eventId: eventId || null,
             lastSaved: null,
             isComplete: false

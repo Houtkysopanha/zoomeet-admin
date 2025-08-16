@@ -16,7 +16,7 @@
         </div>
         <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 items-stretch sm:items-center">
           <!-- Progress Indicator -->
-          <div class="hidden lg:flex items-center space-x-2 text-sm">
+          <!-- <div class="hidden lg:flex items-center space-x-2 text-sm">
             <div class="flex items-center space-x-1">
               <div :class="[
                 'w-3 h-3 rounded-full transition-all duration-300',
@@ -26,6 +26,17 @@
                 'text-xs font-medium',
                 isBasicInfoCompleted ? 'text-green-600' : 'text-gray-500'
               ]">Basic Info</span>
+            </div>
+            <Icon name="heroicons:chevron-right" class="w-3 h-3 text-gray-400" />
+            <div class="flex items-center space-x-1">
+              <div :class="[
+                'w-3 h-3 rounded-full transition-all duration-300',
+                hasAgenda ? 'bg-green-500' : hasAgendaSkipped ? 'bg-yellow-500' : 'bg-gray-300'
+              ]"></div>
+              <span :class="[
+                'text-xs font-medium',
+                hasAgenda ? 'text-green-600' : hasAgendaSkipped ? 'text-yellow-600' : 'text-gray-500'
+              ]">{{ hasAgendaSkipped ? 'Agenda (Skipped)' : 'Agenda' }}</span>
             </div>
             <Icon name="heroicons:chevron-right" class="w-3 h-3 text-gray-400" />
             <div class="flex items-center space-x-1">
@@ -49,7 +60,7 @@
                 eventData?.is_published ? 'text-blue-600' : 'text-gray-500'
               ]">Published</span>
             </div>
-          </div>
+          </div> -->
 
           <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 items-stretch sm:items-center">
             <div class="bt-preview">
@@ -143,6 +154,15 @@
       </div>
     </div>
 
+    <!-- Event Status Notes -->
+    <EventStatusNotes
+      :eventId="eventId"
+      :isEditMode="isEditMode"
+      @switchTab="changeTab"
+      @saveTab="handleSaveDraft"
+      @publishEvent="handlePublishEvent"
+    />
+
     <div class="min-h-0">
       <!-- Enhanced Tab Menu -->
       <div class="mb-4 lg:mb-6 w-full">
@@ -235,6 +255,7 @@ import { ref, nextTick, provide, onMounted, onBeforeUnmount, computed } from 'vu
 import Button from 'primevue/button'
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
 import Breadcrumb from '~/components/common/Breadcrumb.vue'
+import EventStatusNotes from '~/components/common/EventStatusNotes.vue'
 import BasicInfor from '~/pages/admin/tabs/BasicInfor.vue'
 import Agenda from '~/pages/admin/tabs/Agenda.vue'
 import TicketPacket from '~/pages/admin/tabs/TicketPacket.vue'
@@ -288,6 +309,31 @@ const hasTickets = computed(() => {
     return true
   }
   return false
+})
+
+// Computed properties for agenda status
+const hasAgenda = computed(() => {
+  const eventStore = useEventStore()
+  const tabsStore = useEventTabsStore()
+  
+  // Check multiple sources for agenda
+  if (eventStore.currentEvent?.agendas && eventStore.currentEvent.agendas.length > 0) {
+    return true
+  }
+  
+  // Check tab persistence for agenda
+  const agendaTabData = tabsStore.getTabData(1) // Agenda tab
+  if (agendaTabData.sessions && agendaTabData.sessions.length > 0) {
+    return true
+  }
+  
+  return false
+})
+
+const hasAgendaSkipped = computed(() => {
+  const tabsStore = useEventTabsStore()
+  const agendaTabData = tabsStore.getTabData(1)
+  return agendaTabData.isSkipped === true
 })
 
 // Enhanced computed properties for publish functionality
@@ -611,8 +657,8 @@ const isTabAccessible = (index) => {
   
   // Tab-specific accessibility rules with API availability check
   switch (index) {
-    case 1: // Agenda tab - LOCKED (No API implementation yet)
-      console.log(`🔒 Tab ${index} (Agenda) locked - API not implemented`)
+    case 1: // Agenda tab - UNLOCKED (Has API support)
+      console.log(`🔓 Tab ${index} (Agenda) unlocked - Basic Info completed & API available`)
       return true
       
     case 2: // Ticket Package tab - UNLOCKED (Has full API support)
@@ -827,6 +873,16 @@ const handleSaveDraft = async () => {
         detail: isEditMode.value ? 'Updating your event information.' : 'Saving your changes to the event.',
         life: 3000
       })
+    } else if (activeIndex.value === 1 && isBasicInfoCompleted.value && eventId.value) {
+      // Agenda tab - trigger agenda save
+      console.log(`📅 ${actionText} agenda`)
+      window.dispatchEvent(new CustomEvent('saveAgenda'))
+      toast.add({
+        severity: 'info',
+        summary: `${actionText} Agenda...`,
+        detail: isEditMode.value ? 'Updating your event agenda.' : 'Saving your event agenda.',
+        life: 3000
+      })
     } else if (activeIndex.value === 2 && isBasicInfoCompleted.value && eventId.value) {
       // Tickets tab - trigger ticket save
       console.log(`🎫 ${actionText} tickets`)
@@ -878,7 +934,7 @@ const handleSaveDraft = async () => {
 const saveCurrentTabData = async () => {
   const tabEvents = {
     0: 'saveCurrentTab',   // Basic Info - changed to saveCurrentTab for data persistence
-    1: 'saveCurrentTab',   // Agenda
+    1: 'saveCurrentTab',   // Agenda - now properly integrated
     2: 'saveCurrentTab',   // Tickets - changed to saveCurrentTab for consistency, actual save handled by component
     3: 'saveCurrentTab',   // Breakout Rooms
     4: 'saveCurrentTab'    // Settings
@@ -979,6 +1035,25 @@ const handlePublishEvent = async () => {
     return
   }
 
+  // Check agenda status (optional but inform user)
+  const agendaTabData = tabsStore.getTabData(1)
+  const hasAgendaItems = agendaTabData.sessions?.length > 0
+  const isAgendaSkipped = agendaTabData.isSkipped === true
+  
+  if (!hasAgendaItems && !isAgendaSkipped) {
+    // Show info about agenda being empty but don't block publishing
+    toast.add({
+      severity: 'info',
+      summary: 'No Agenda Added',
+      detail: 'This event will be published without an agenda. You can add one later if needed.',
+      life: 4000
+    })
+  } else if (isAgendaSkipped) {
+    console.log('📅 Agenda was skipped for this event')
+  } else {
+    console.log(`📅 Found ${hasAgendaItems} agenda items`)
+  }
+
   isSubmitting.value = true
 
   try {
@@ -1013,6 +1088,15 @@ const handlePublishEvent = async () => {
       // Mark all tabs as saved since event is now published
       for (let i = 0; i < 5; i++) {
         tabsStore.markTabSaved(i)
+      }
+      
+      // Save final agenda state to ensure it's included in published event
+      if (agendaTabData.sessions?.length > 0 || agendaTabData.isSkipped) {
+        tabsStore.saveTabData(1, {
+          ...agendaTabData,
+          lastSaved: new Date().toISOString(),
+          isComplete: true
+        })
       }
       
       toast.add({
