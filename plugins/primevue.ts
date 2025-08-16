@@ -16,11 +16,13 @@ import Calendar from 'primevue/calendar';
 import Sidebar from 'primevue/sidebar';
 import Divider from 'primevue/divider'
 import Tooltip from 'primevue/tooltip'
+import ConfirmationService from 'primevue/confirmationservice';
 
 
 export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.vueApp.use(PrimeVue, { ripple: true })
   nuxtApp.vueApp.use(ToastService)
+  nuxtApp.vueApp.use(ConfirmationService)
   nuxtApp.vueApp.component('Toast', Toast)
   nuxtApp.vueApp.directive('Badge', BadgeDirective)
   nuxtApp.vueApp.component('Badge', Badge)
