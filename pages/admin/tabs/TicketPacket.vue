@@ -174,7 +174,7 @@ const loadTickets = async () => {
   }
 }
 
-const createNewTicket = () => {
+const createNewTicketTemplate = () => {
   const ticketNumber = tickets.value.length + 1
   const newTicket = {
     id: Date.now() + Math.random(),
@@ -212,7 +212,7 @@ const addTicket = () => {
     })
     return
   }
-  tickets.value.push(createNewTicket())
+  tickets.value.push(createNewTicketTemplate())
 }
 
 // Enhanced save current tab data for tab switching
@@ -225,8 +225,17 @@ const handleSaveCurrentTab = () => {
     name: t.name,
     description: t.description,
     price: t.price,
-    quantity: t.quantity
+    quantity: t.quantity,
+    ticket_type_id: t.ticket_type_id
   })))
+  
+  // Check if there are any changes that need API save
+  const hasValidTickets = tickets.value.length > 0 && tickets.value.every(t =>
+    (t.name && t.name.trim()) &&
+    (t.description && t.description.trim()) &&
+    (t.price !== null && t.price !== undefined && t.price >= 0) &&
+    (t.quantity !== null && t.quantity !== undefined && t.quantity > 0)
+  )
   
   // Save current ticket data to tab persistence without API call
   const tabData = {
@@ -244,19 +253,26 @@ const handleSaveCurrentTab = () => {
     lastSaved: new Date().toISOString(),
     hasTickets: tickets.value.length > 0,
     eventId: currentEventId.value,
-    isComplete: tickets.value.length > 0 && tickets.value.every(t =>
-      (t.name && t.name.trim()) &&
-      (t.description && t.description.trim()) &&
-      (t.price !== null && t.price !== undefined && t.price >= 0) &&
-      (t.quantity !== null && t.quantity !== undefined && t.quantity > 0)
-    )
+    isComplete: hasValidTickets,
+    hasUnsavedChanges: hasValidTickets && !tabsStore.isTabSaved(2) // Has changes but not saved to API
   }
   
   tabsStore.saveTabData(2, tabData)
-  console.log('💾 Ticket data saved to tab persistence:', tickets.value.length, 'tickets')
+  
+  // Mark as needing save if there are valid tickets but not saved to API
+  if (hasValidTickets && !tabsStore.isTabSaved(2)) {
+    tabsStore.markTabNeedsSave(2)
+    tabsStore.markTabModified(2)
+  }
+  
+  console.log('💾 Ticket data saved to tab persistence:', {
+    ticketCount: tickets.value.length,
+    hasValidTickets,
+    needsAPISave: hasValidTickets && !tabsStore.isTabSaved(2)
+  })
 }
 
-// Save all tickets - ENHANCED FOR NEW FLOW
+// RESTRUCTURED Save all tickets - CLEAR FLOW CONTROL
 const saveTickets = async () => {
   const eventStore = useEventStore()
   const tabsStore = useEventTabsStore()
@@ -281,7 +297,79 @@ const saveTickets = async () => {
     return
   }
 
-  // Enhanced ticket validation with better error detection
+  // Validate all tickets first
+  const validationResult = validateAllTickets()
+  if (!validationResult.isValid) {
+    showValidationErrors(validationResult.errors)
+    return
+  }
+
+  loading.value = true
+
+  try {
+    console.log('🎫 Starting RESTRUCTURED ticket save process...')
+    
+    // Get fresh existing tickets from API
+    const existingTickets = await fetchExistingTickets()
+    
+    // Separate tickets into UPDATE and CREATE groups
+    const { ticketsToUpdate, ticketsToCreate } = categorizeTickets(existingTickets)
+    
+    console.log(`📊 Ticket categorization:`, {
+      toUpdate: ticketsToUpdate.length,
+      toCreate: ticketsToCreate.length,
+      total: tickets.value.length
+    })
+
+    const results = []
+
+    // Process UPDATES first (existing tickets)
+    for (const ticketInfo of ticketsToUpdate) {
+      try {
+        await updateExistingTicket(ticketInfo)
+        results.push(`Updated: ${ticketInfo.ticket.name}`)
+      } catch (error) {
+        console.error(`❌ Failed to update ${ticketInfo.ticket.name}:`, error)
+        results.push(`Failed to update: ${ticketInfo.ticket.name}`)
+        throw error
+      }
+    }
+
+    // Process CREATES second (new tickets)
+    for (const ticket of ticketsToCreate) {
+      try {
+        const newTicketId = await createNewTicket(ticket)
+        ticket.ticket_type_id = newTicketId
+        results.push(`Created: ${ticket.name}`)
+      } catch (error) {
+        console.error(`❌ Failed to create ${ticket.name}:`, error)
+        results.push(`Failed to create: ${ticket.name}`)
+        throw error
+      }
+    }
+
+    // Update stores and mark as complete
+    await updateStoresAfterSave(eventStore, tabsStore)
+
+    // Show success message
+    toast.add({
+      severity: 'success',
+      summary: 'Tickets Saved Successfully! 🎫',
+      detail: `${results.length} ticket(s) processed successfully. You can now publish the event.`,
+      life: 5000
+    })
+
+    console.log('🎉 Ticket save process completed successfully')
+
+  } catch (error) {
+    handleSaveError(error)
+  } finally {
+    loading.value = false
+  }
+}
+
+// Helper function: Validate all tickets
+const validateAllTickets = () => {
   const invalidTickets = []
   
   for (let index = 0; index < tickets.value.length; index++) {
@@ -289,54 +377,16 @@ const saveTickets = async () => {
     const ticketNumber = index + 1
     const errors = []
     
-    // Get current values with fallbacks
     const name = (ticket.name || '').toString().trim()
     const description = (ticket.description || ticket.tag || '').toString().trim()
     const price = ticket.price !== null && ticket.price !== undefined ? parseFloat(ticket.price) : NaN
     const quantity = ticket.quantity !== null && ticket.quantity !== undefined ? parseInt(ticket.quantity) : NaN
     
-    console.log('🔍 Enhanced ticket validation:', {
-      ticketNumber,
-      name: `"${name}"`,
-      nameLength: name.length,
-      description: `"${description}"`,
-      descriptionLength: description.length,
-      price,
-      quantity,
-      rawTicket: {
-        name: ticket.name,
-        description: ticket.description,
-        tag: ticket.tag,
-        price: ticket.price,
-        quantity: ticket.quantity
-      }
-    })
+    if (!name || name.length === 0) errors.push('name')
+    if (!description || description.length === 0) errors.push('description')
+    if (isNaN(price) || price < 0) errors.push('price')
+    if (isNaN(quantity) || quantity < 1) errors.push('quantity')
     
-    // Validate name - must be non-empty string
-    if (!name || name.length === 0) {
-      errors.push('name')
-      console.log(`❌ Ticket ${ticketNumber}: Name validation failed - "${name}"`)
-    }
-    
-    // Validate description - must be non-empty string
-    if (!description || description.length === 0) {
-      errors.push('description')
-      console.log(`❌ Ticket ${ticketNumber}: Description validation failed - "${description}"`)
-    }
-    
-    // Validate price - must be valid number >= 0
-    if (isNaN(price) || price < 0) {
-      errors.push('price')
-      console.log(`❌ Ticket ${ticketNumber}: Price validation failed - ${price}`)
-    }
-    
-    // Validate quantity - must be valid integer >= 1
-    if (isNaN(quantity) || quantity < 1) {
-      errors.push('quantity')
-      console.log(`❌ Ticket ${ticketNumber}: Quantity validation failed - ${quantity}`)
-    }
-    
-    // Mark ticket for validation display if errors exist
     if (errors.length > 0) {
       ticket.isValidating = true
       invalidTickets.push({
@@ -344,247 +394,209 @@ const saveTickets = async () => {
         ticketName: name || `Ticket ${ticketNumber}`,
         errors
       })
-      console.log(`❌ Ticket ${ticketNumber} validation failed:`, errors)
     } else {
       ticket.isValidating = false
-      console.log(`✅ Ticket ${ticketNumber} validation passed`)
     }
   }
 
-  if (invalidTickets.length > 0) {
-    const errorMessages = invalidTickets.map(ticket => {
-      const fieldNames = {
-        name: 'Ticket Name',
-        description: 'Description',
-        price: 'Price',
-        quantity: 'Quantity'
-      }
-      const readableErrors = ticket.errors.map(error => fieldNames[error] || error)
-      return `• ${ticket.ticketName || `Ticket ${ticket.ticketNumber}`}: ${readableErrors.join(', ')}`
-    })
-
-    console.log('❌ Validation failed for tickets:', invalidTickets)
-
-    toast.add({
-      severity: 'error',
-      summary: 'Please Complete All Required Fields',
-      detail: `The following tickets need attention:\n${errorMessages.join('\n')}\n\nPlease fill in all required fields before saving.`,
-      life: 10000,
-      sticky: true
-    })
-
-    // Force re-render of validation states
-    tickets.value = [...tickets.value.map((ticket, index) => ({
-      ...ticket,
-      isValidating: invalidTickets.some(invalid => invalid.ticketNumber === index + 1)
-    }))]
-
-    console.log('🔄 Updated validation states for tickets')
-    return
+  return {
+    isValid: invalidTickets.length === 0,
+    errors: invalidTickets
   }
+}
 
-  loading.value = true
+// Helper function: Show validation errors
+const showValidationErrors = (invalidTickets) => {
+  const errorMessages = invalidTickets.map(ticket => {
+    const fieldNames = {
+      name: 'Ticket Name',
+      description: 'Description',
+      price: 'Price',
+      quantity: 'Quantity'
+    }
+    const readableErrors = ticket.errors.map(error => fieldNames[error] || error)
+    return `• ${ticket.ticketName}: ${readableErrors.join(', ')}`
+  })
 
+  toast.add({
+    severity: 'error',
+    summary: 'Please Complete All Required Fields',
+    detail: `The following tickets need attention:\n${errorMessages.join('\n')}`,
+    life: 10000,
+    sticky: true
+  })
+}
+
+// Helper function: Fetch existing tickets
+const fetchExistingTickets = async () => {
   try {
-    console.log('🎫 Starting ticket save process...')
+    const response = await getEventTicketTypes(currentEventId.value)
     
-    // Get existing tickets from API to determine update vs create strategy
-    let existingTickets = []
-    try {
-      const existingTicketsResponse = await getEventTicketTypes(currentEventId.value)
-      
-      // Handle different response structures
-      if (existingTicketsResponse?.data && Array.isArray(existingTicketsResponse.data)) {
-        existingTickets = existingTicketsResponse.data
-      } else if (Array.isArray(existingTicketsResponse)) {
-        existingTickets = existingTicketsResponse
-      } else {
-        existingTickets = []
-      }
-      
-      console.log(`📋 Found ${existingTickets.length} existing tickets in API`, existingTickets)
-    } catch (error) {
-      console.warn('⚠️ Failed to fetch existing tickets:', error)
-      existingTickets = []
+    if (response?.data && Array.isArray(response.data)) {
+      return response.data
+    } else if (Array.isArray(response)) {
+      return response
     }
-
-    // Ensure existingTickets is always an array
-    if (!Array.isArray(existingTickets)) {
-      console.warn('⚠️ existingTickets is not an array, converting:', existingTickets)
-      existingTickets = []
-    }
-
-    const ticketUpdates = []
-    const updatePromises = []
-    
-    // Process each ticket individually
-    for (let index = 0; index < tickets.value.length; index++) {
-      const ticket = tickets.value[index]
-      const ticketNumber = index + 1
-      
-      const name = String(ticket.name || '').trim()
-      const description = String(ticket.description || ticket.tag || '').trim()
-      const price = parseFloat(ticket.price || 0)
-      const quantity = parseInt(ticket.quantity || 0)
-
-      console.log(`🎫 Processing ticket ${ticketNumber}:`, {
-        name,
-        description,
-        price,
-        quantity,
-        hasTicketTypeId: !!ticket.ticket_type_id
-      })
-
-      // Enhanced validation
-      const errors = []
-      if (!name) errors.push(`Ticket ${ticketNumber}: Name is required`)
-      if (!description) errors.push(`Ticket ${ticketNumber}: Description is required`)
-      if (isNaN(price) || price < 0) errors.push(`Ticket ${ticketNumber}: Price must be 0 or greater`)
-      if (isNaN(quantity) || quantity < 1) errors.push(`Ticket ${ticketNumber}: Quantity must be at least 1`)
-
-      if (errors.length > 0) {
-        throw new Error(errors.join('\n'))
-      }
-
-      // Check if this ticket exists in API (by name or ID)
-      const existingTicket = existingTickets.find(et =>
-        et.id === ticket.ticket_type_id ||
-        et.name.toLowerCase() === name.toLowerCase()
-      )
-
-      const ticketData = {
-        name: name,
-        price: parseFloat(price),
-        total: quantity,
-        tag: description,
-        sort_order: index + 1,
-        is_active: 1
-      }
-
-      if (existingTicket) {
-        // UPDATE existing ticket
-        console.log(`📝 Updating existing ticket: ${name} (ID: ${existingTicket.id})`)
-        const updatePromise = updateTicketType(currentEventId.value, existingTicket.id, ticketData)
-          .then(() => {
-            ticketUpdates.push(`Updated: ${name}`)
-            console.log(`✅ Updated ticket: ${name}`)
-            // Update local ticket with the API ID
-            ticket.ticket_type_id = existingTicket.id
-          })
-          .catch((error) => {
-            console.error(`❌ Failed to update ticket ${name}:`, error)
-            ticketUpdates.push(`Failed to update: ${name}`)
-            throw error
-          })
-        
-        updatePromises.push(updatePromise)
-      } else {
-        // CREATE new ticket (single ticket at a time to avoid name conflicts)
-        console.log(`🆕 Creating new ticket: ${name}`)
-        const createPromise = createTicketTypes(currentEventId.value, [ticketData])
-          .then((response) => {
-            ticketUpdates.push(`Created: ${name}`)
-            console.log(`✅ Created ticket: ${name}`)
-            // Update local ticket with the new API ID if available
-            if (response?.data?.[0]?.id) {
-              ticket.ticket_type_id = response.data[0].id
-            }
-          })
-          .catch((error) => {
-            console.error(`❌ Failed to create ticket ${name}:`, error)
-            ticketUpdates.push(`Failed to create: ${name}`)
-            throw error
-          })
-        
-        updatePromises.push(createPromise)
-      }
-    }
-
-    // Wait for all operations to complete
-    await Promise.all(updatePromises)
-    console.log(`✅ All ticket operations completed`)
-
-      // Update stores with new ticket data
-      console.log('💾 Updating stores with saved ticket data...')
-      
-      // Update event store
-      if (eventStore.currentEvent) {
-        const updatedTickets = tickets.value.map(ticket => ({
-          id: ticket.ticket_type_id || ticket.id,
-          name: ticket.name,
-          price: parseFloat(ticket.price) || 0,
-          total: parseInt(ticket.quantity) || 0,
-          tag: ticket.description || '',
-          sort_order: ticket.sort_order,
-          is_active: ticket.is_active ? 1 : 0
-        }))
-        eventStore.currentEvent.ticket_types = updatedTickets
-        console.log(`✅ Updated ${updatedTickets.length} tickets in event store`)
-      }
-
-      // Update tab store and mark as complete
-      const tabData = {
-        ticketTypes: tickets.value,
-        lastSaved: new Date().toISOString(),
-        hasTickets: true,
-        eventId: currentEventId.value,
-        isComplete: true,
-        validTickets: tickets.value.length > 0
-      }
-      tabsStore.markTabComplete(2)
-      tabsStore.markTabSaved(2)
-      tabsStore.saveTabData(2, tabData)
-      console.log('✅ Ticket tab marked as complete')
-
-      // Show success message
-      toast.add({
-        severity: 'success',
-        summary: 'Tickets Saved Successfully! 🎫',
-        detail: ticketUpdates.length > 0 ? ticketUpdates.join('\n') : 'All tickets processed successfully',
-        life: 5000
-      })
-
-      console.log('🎉 Ticket save process completed successfully:', {
-        ticketCount: tickets.value.length,
-        eventId: currentEventId.value,
-        tabComplete: true
-      })
-
-    // Reload tickets to get updated data with fresh IDs
-    setTimeout(async () => {
-      await loadTickets()
-    }, 1000) // Small delay to ensure server has processed the changes
-
-  // } catch (error) {
-  //   console.error('❌ Ticket save error:', error)
-    
-   
-  //   let errorMessage = 'Failed to save tickets. Please try again.'
-  //   let errorSummary = 'Save Failed'
-    
-  //   if (error.message) {
-  //     errorMessage = error.message
-      
-  //     if (error.message.includes('Authentication')) {
-  //       errorSummary = 'Authentication Error'
-  //       errorMessage = 'Please login again to continue.'
-  //     } else if (error.message.includes('Validation')) {
-  //       errorSummary = 'Validation Error'
-  //     } else if (error.message.includes('Event not found')) {
-  //       errorSummary = 'Event Not Found'
-  //       errorMessage = 'The event could not be found. Please refresh and try again.'
-  //     }
-  //   }
-    
-    toast.add({
-      severity: 'error',
-      summary: errorSummary,
-      detail: errorMessage,
-      life: 5000
-    })
-  } finally {
-    loading.value = false
+    return []
+  } catch (error) {
+    console.warn('⚠️ Failed to fetch existing tickets:', error)
+    return []
   }
+}
+
+// Helper function: Categorize tickets into update vs create
+const categorizeTickets = (existingTickets) => {
+  const ticketsToUpdate = []
+  const ticketsToCreate = []
+
+  for (const ticket of tickets.value) {
+    let existingTicket = null
+
+    // PRIORITY 1: Match by ticket_type_id (most reliable)
+    if (ticket.ticket_type_id) {
+      existingTicket = existingTickets.find(et => et.id === ticket.ticket_type_id)
+      console.log(`🔍 ID Match for "${ticket.name}":`, !!existingTicket)
+    }
+
+    // PRIORITY 2: Match by exact name (only if no ID match)
+    if (!existingTicket) {
+      const ticketName = String(ticket.name || '').trim().toLowerCase()
+      existingTicket = existingTickets.find(et =>
+        String(et.name || '').trim().toLowerCase() === ticketName
+      )
+      console.log(`🔍 Name Match for "${ticket.name}":`, !!existingTicket)
+    }
+
+    if (existingTicket) {
+      // UPDATE existing ticket
+      ticketsToUpdate.push({
+        ticket,
+        existingTicket,
+        ticketData: createTicketData(ticket)
+      })
+      // Ensure ticket has the correct ID
+      ticket.ticket_type_id = existingTicket.id
+    } else {
+      // CREATE new ticket
+      ticketsToCreate.push(ticket)
+    }
+  }
+
+  return { ticketsToUpdate, ticketsToCreate }
+}
+
+// Helper function: Create ticket data object
+const createTicketData = (ticket) => {
+  return {
+    name: String(ticket.name || '').trim(),
+    price: parseFloat(ticket.price || 0),
+    total: parseInt(ticket.quantity || 0),
+    tag: String(ticket.description || ticket.tag || '').trim(),
+    sort_order: ticket.sort_order || 1,
+    is_active: 1
+  }
+}
+
+// Helper function: Update existing ticket
+const updateExistingTicket = async (ticketInfo) => {
+  const { ticket, existingTicket, ticketData } = ticketInfo
+  
+  console.log(`📝 Updating ticket: ${ticket.name} (ID: ${existingTicket.id})`)
+  
+  await updateTicketType(currentEventId.value, existingTicket.id, ticketData)
+  
+  console.log(`✅ Successfully updated: ${ticket.name}`)
+}
+
+// Helper function: Create new ticket
+const createNewTicket = async (ticket) => {
+  const ticketData = createTicketData(ticket)
+  
+  console.log(`🆕 Creating new ticket: ${ticket.name}`)
+  
+  const response = await createTicketTypes(currentEventId.value, [ticketData])
+  
+  let newTicketId = null
+  if (response?.data && Array.isArray(response.data) && response.data[0]?.id) {
+    newTicketId = response.data[0].id
+  } else if (response?.id) {
+    newTicketId = response.id
+  }
+  
+  console.log(`✅ Successfully created: ${ticket.name} (ID: ${newTicketId})`)
+  
+  return newTicketId
+}
+
+// Helper function: Update stores after successful save
+const updateStoresAfterSave = async (eventStore, tabsStore) => {
+  // Update event store
+  if (eventStore.currentEvent) {
+    const updatedTickets = tickets.value.map(ticket => ({
+      id: ticket.ticket_type_id || ticket.id,
+      name: ticket.name,
+      price: parseFloat(ticket.price) || 0,
+      total: parseInt(ticket.quantity) || 0,
+      tag: ticket.description || '',
+      sort_order: ticket.sort_order,
+      is_active: ticket.is_active ? 1 : 0
+    }))
+    eventStore.currentEvent.ticket_types = updatedTickets
+  }
+
+  // Update tab store and mark as complete
+  const tabData = {
+    ticketTypes: tickets.value.map(ticket => ({
+      ...ticket,
+      // Ensure we have the API ID for future updates
+      ticket_type_id: ticket.ticket_type_id || ticket.id
+    })),
+    lastSaved: new Date().toISOString(),
+    hasTickets: true,
+    eventId: currentEventId.value,
+    isComplete: true,
+    validTickets: tickets.value.length > 0,
+    hasUnsavedChanges: false // Clear unsaved changes flag
+  }
+  
+  tabsStore.markTabComplete(2)
+  tabsStore.markTabSaved(2) // Mark as saved to API
+  tabsStore.saveTabData(2, tabData)
+  tabsStore.clearTabModifications(2) // Clear modification flag
+  
+  console.log('✅ Stores updated and ticket tab marked as complete and saved')
+}
+
+// Helper function: Handle save errors
+const handleSaveError = (error) => {
+  console.error('❌ Ticket save error:', error)
+  
+  let errorMessage = 'Failed to save tickets. Please try again.'
+  let errorSummary = 'Save Failed'
+  
+  if (error.message) {
+    errorMessage = error.message
+    
+    if (error.message.includes('Authentication')) {
+      errorSummary = 'Authentication Error'
+      errorMessage = 'Please login again to continue.'
+    } else if (error.message.includes('Validation')) {
+      errorSummary = 'Validation Error'
+    } else if (error.message.includes('already taken')) {
+      errorSummary = 'Duplicate Ticket Name'
+      errorMessage = 'A ticket with this name already exists. Please use a different name or edit the existing ticket.'
+    } else if (error.message.includes('Event not found')) {
+      errorSummary = 'Event Not Found'
+      errorMessage = 'The event could not be found. Please refresh and try again.'
+    }
+  }
+  
+  toast.add({
+    severity: 'error',
+    summary: errorSummary,
+    detail: errorMessage,
+    life: 5000
+  })
 }
 
 // Load existing tickets when in edit mode
@@ -664,7 +676,7 @@ const loadExistingTickets = async () => {
   }
 }
 
-// Enhanced initialization with better data restoration
+// Enhanced initialization with better data restoration and synchronization
 onMounted(async () => {
   console.log('🎫 Initializing TicketPacket component...')
   
@@ -709,12 +721,17 @@ onMounted(async () => {
       isTabComplete: tabsStore.isTabCompleted(0)
     })
 
-    // Enhanced ticket restoration with priority order
+    // Enhanced ticket restoration with priority order and better synchronization
     const ticketTabData = tabsStore.getTabData(2)
     let ticketsRestored = false
     
-    // Priority 1: Tab persistence (user's current work)
-    if (ticketTabData.ticketTypes && ticketTabData.ticketTypes.length > 0) {
+    // Priority 1: Load fresh from API to ensure data consistency
+    console.log('🔄 Loading fresh tickets from API for data consistency...')
+    await loadExistingTickets()
+    ticketsRestored = tickets.value.length > 0
+    
+    // Priority 2: If no API data, try tab persistence (user's current work)
+    if (!ticketsRestored && ticketTabData.ticketTypes && ticketTabData.ticketTypes.length > 0) {
       console.log('📦 Restoring tickets from tab persistence:', ticketTabData.ticketTypes.length)
       tickets.value = ticketTabData.ticketTypes.map((ticket, index) => {
         const restoredTicket = {
@@ -740,10 +757,12 @@ onMounted(async () => {
       })
       hasExistingTickets.value = true
       ticketsRestored = true
-      tabsStore.markTabComplete(2)
+      
+      // Mark as needing save since this is from tab persistence
+      tabsStore.markTabNeedsSave(2)
     }
-    // Priority 2: Event store (loaded from API)
-    else if (eventStore.currentEvent.ticket_types?.length > 0) {
+    // Priority 3: Event store (loaded from API) - fallback
+    else if (!ticketsRestored && eventStore.currentEvent.ticket_types?.length > 0) {
       console.log('📦 Restoring tickets from event store:', eventStore.currentEvent.ticket_types.length)
       tickets.value = eventStore.currentEvent.ticket_types.map((ticket, index) => {
         const restoredTicket = {
@@ -770,20 +789,16 @@ onMounted(async () => {
       hasExistingTickets.value = true
       ticketsRestored = true
       
-      // Save to tab persistence for future use
-      handleSaveCurrentTab()
-      tabsStore.markTabComplete(2)
-    }
-    
-    // Priority 3: Load fresh from API if nothing in stores
-    if (!ticketsRestored) {
-      console.log('🔄 Loading tickets from API...')
-      await loadExistingTickets()
+      // Mark as saved since this is from API
+      tabsStore.markTabSaved(2)
     }
     
     // Auto-save current state for tab switching
     if (tickets.value.length > 0) {
       handleSaveCurrentTab()
+      if (hasExistingTickets.value) {
+        tabsStore.markTabComplete(2)
+      }
     }
     
   } else {

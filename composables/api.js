@@ -1056,3 +1056,14 @@ export async function unpublishEvent(eventId) {
     throw error
   }
 }
+
+// Export agenda API functions
+export {
+  getEventAgendas,
+  getAgendaDetails,
+  createAgenda,
+  updateAgenda,
+  deleteAgenda,
+  createMultipleAgendas,
+  getAgendasByDateRange
+} from './api/agenda'

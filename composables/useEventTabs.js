@@ -72,6 +72,15 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
     4: false  // Settings
   })
 
+  // Track if each tab has been saved to API
+  const tabSaved = ref({
+    0: false, // Basic Info - saved when event is created/updated
+    1: false, // Agenda - saved when agenda items are saved
+    2: false, // Tickets - saved when tickets are saved
+    3: false, // Breakout Rooms - saved when rooms are saved
+    4: false  // Settings - saved when settings are saved
+  })
+
   // Track last interaction time for each tab
   const tabLastInteraction = ref({
     0: null,
@@ -186,10 +195,17 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       tabModified.value[key] = false
     })
     
+    // Reset save state tracking
+    Object.keys(tabSaved.value).forEach(key => {
+      tabSaved.value[key] = false
+    })
+    
     // Reset interaction tracking
     Object.keys(tabLastInteraction.value).forEach(key => {
       tabLastInteraction.value[key] = null
     })
+    
+    console.log('🧹 All tabs reset to initial state')
   }
 
   // Enhanced save data for a specific tab with validation
@@ -247,17 +263,38 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
 
   // Check if tab has unsaved changes with enhanced logic
   function hasUnsavedChanges(tabIndex) {
-    return tabModified.value[tabIndex] || false
+    // Tab has unsaved changes if it's been modified but not saved to API
+    return tabModified.value[tabIndex] && !tabSaved.value[tabIndex]
   }
 
-  // Mark tab as saved with timestamp
+  // Mark tab as saved to API with timestamp
   function markTabSaved(tabIndex) {
     tabModified.value[tabIndex] = false
+    tabSaved.value[tabIndex] = true
     const tabKeys = ['basicInfo', 'agenda', 'tickets', 'breakoutRooms', 'settings']
     const tabKey = tabKeys[tabIndex]
     if (tabKey && tabData[tabKey]) {
       tabData[tabKey].lastSaved = new Date().toISOString()
+      tabData[tabKey].hasUnsavedChanges = false
     }
+    console.log(`✅ Tab ${tabIndex} (${tabKey}) marked as saved to API at ${new Date().toISOString()}`)
+  }
+
+  // Check if tab is saved to API
+  function isTabSaved(tabIndex) {
+    return tabSaved.value[tabIndex] || false
+  }
+
+  // Mark tab as having API-level changes (for save draft requirement)
+  function markTabNeedsSave(tabIndex) {
+    tabModified.value[tabIndex] = true
+    tabSaved.value[tabIndex] = false
+    const tabKeys = ['basicInfo', 'agenda', 'tickets', 'breakoutRooms', 'settings']
+    const tabKey = tabKeys[tabIndex]
+    if (tabKey && tabData[tabKey]) {
+      tabData[tabKey].hasUnsavedChanges = true
+    }
+    console.log(`📝 Tab ${tabIndex} (${tabKey}) marked as needing save at ${new Date().toISOString()}`)
   }
 
   // Get tab statistics for debugging and UI
@@ -444,18 +481,22 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       }
     }
     
-    // Mark tabs as completed based on available data
+    // Mark tabs as completed and saved based on available data
     if (eventData.name && eventData.category_id && eventData.location) {
       markTabComplete(0)
+      markTabSaved(0) // Use the proper method to mark as saved
     }
     if (eventData.agendas?.length > 0) {
       markTabComplete(1)
+      markTabSaved(1) // Use the proper method to mark as saved
     }
     if (eventData.ticket_types?.length > 0) {
       markTabComplete(2)
+      markTabSaved(2) // Use the proper method to mark as saved
     }
     if (eventData.settings) {
       markTabComplete(4)
+      markTabSaved(4) // Use the proper method to mark as saved
     }
     
     // Clear modification flags since this is freshly loaded data
@@ -497,6 +538,9 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       is_published: basicInfo.isPublished,
       status: basicInfo.status,
       chairs: basicInfo.chairs,
+      cover_image: basicInfo.coverImageFile,
+      event_background: basicInfo.eventBackgroundFile,
+      card_background: basicInfo.cardBackgroundFile,
       members: basicInfo.members,
       ticket_types: tabData.tickets.ticketTypes,
       agendas: tabData.agenda.sessions,
@@ -515,6 +559,8 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
     if (tabKey && tabData[tabKey]) {
       tabData[tabKey].hasUnsavedChanges = true
     }
+    
+    console.log(`📝 Tab ${tabIndex} (${tabKey}) marked as modified at ${new Date().toISOString()}`)
   }
 
   // Function to clear unsaved changes flag
@@ -527,6 +573,8 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       tabData[tabKey].hasUnsavedChanges = false
       tabData[tabKey].lastSaved = new Date().toISOString()
     }
+    
+    console.log(`✅ Tab ${tabIndex} (${tabKey}) modifications cleared at ${new Date().toISOString()}`)
   }
 
   // Function to clear specific tab data
@@ -621,6 +669,7 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
     isTabChanging,
     tabData,
     tabModified,
+    tabSaved,
     tabLastInteraction,
     
     // Computed
@@ -636,6 +685,8 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
     getTabData,
     hasUnsavedChanges,
     markTabSaved,
+    isTabSaved,
+    markTabNeedsSave,
     loadEventData,
     getTabStats,
     validateTabData,

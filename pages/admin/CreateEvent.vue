@@ -15,8 +15,9 @@
           </p>
         </div>
         <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 items-stretch sm:items-center">
-          <!-- Progress Indicator -->
+          <!-- Enhanced Progress Indicator -->
           <div class="hidden lg:flex items-center space-x-2 text-sm">
+            <!-- Basic Info Step -->
             <div class="flex items-center space-x-1">
               <div :class="[
                 'w-3 h-3 rounded-full transition-all duration-300',
@@ -28,25 +29,42 @@
               ]">Basic Info</span>
             </div>
             <Icon name="heroicons:chevron-right" class="w-3 h-3 text-gray-400" />
+            
+            <!-- Agenda Step -->
             <div class="flex items-center space-x-1">
               <div :class="[
                 'w-3 h-3 rounded-full transition-all duration-300',
-                hasTickets ? 'bg-green-500' : 'bg-gray-300'
+                hasAgendas ? 'bg-green-500' : (isBasicInfoCompleted ? 'bg-yellow-400' : 'bg-gray-300')
               ]"></div>
               <span :class="[
                 'text-xs font-medium',
-                hasTickets ? 'text-green-600' : 'text-gray-500'
+                hasAgendas ? 'text-green-600' : (isBasicInfoCompleted ? 'text-yellow-600' : 'text-gray-500')
+              ]">Agenda</span>
+            </div>
+            <Icon name="heroicons:chevron-right" class="w-3 h-3 text-gray-400" />
+            
+            <!-- Tickets Step -->
+            <div class="flex items-center space-x-1">
+              <div :class="[
+                'w-3 h-3 rounded-full transition-all duration-300',
+                hasTickets ? 'bg-green-500' : (isBasicInfoCompleted ? 'bg-yellow-400' : 'bg-gray-300')
+              ]"></div>
+              <span :class="[
+                'text-xs font-medium',
+                hasTickets ? 'text-green-600' : (isBasicInfoCompleted ? 'text-yellow-600' : 'text-gray-500')
               ]">Tickets</span>
             </div>
             <Icon name="heroicons:chevron-right" class="w-3 h-3 text-gray-400" />
+            
+            <!-- Published Step -->
             <div class="flex items-center space-x-1">
               <div :class="[
                 'w-3 h-3 rounded-full transition-all duration-300',
-                eventData?.is_published ? 'bg-blue-500' : 'bg-gray-300'
+                eventData?.is_published ? 'bg-blue-500' : (canPublish ? 'bg-yellow-400' : 'bg-gray-300')
               ]"></div>
               <span :class="[
                 'text-xs font-medium',
-                eventData?.is_published ? 'text-blue-600' : 'text-gray-500'
+                eventData?.is_published ? 'text-blue-600' : (canPublish ? 'text-yellow-600' : 'text-gray-500')
               ]">Published</span>
             </div>
           </div>
@@ -271,7 +289,22 @@ const isSubmitting = ref(false)
 const eventData = ref(null)
 const isEditMode = ref(false)
 
-// Computed properties for publish button
+// Computed properties for publish button and flow control
+const hasAgendas = computed(() => {
+  const eventStore = useEventStore()
+  // Check multiple sources for agendas
+  if (eventStore.currentEvent?.agendas && eventStore.currentEvent.agendas.length > 0) {
+    return true
+  }
+  // Check tab persistence for agendas
+  const tabsStore = useEventTabsStore()
+  const agendaTabData = tabsStore.getTabData(1) // Agenda tab
+  if (agendaTabData.sessions && agendaTabData.sessions.length > 0) {
+    return true
+  }
+  return false
+})
+
 const hasTickets = computed(() => {
   const eventStore = useEventStore()
   // Check multiple sources for tickets
@@ -290,9 +323,34 @@ const hasTickets = computed(() => {
   return false
 })
 
-// Enhanced computed properties for publish functionality
+// Enhanced computed properties for publish functionality with agenda requirement
 const canPublish = computed(() => {
-  return isBasicInfoCompleted.value && eventId.value && hasTickets.value
+  const basicInfoSaved = isBasicInfoCompleted.value && eventId.value
+  const agendasExist = hasAgendas.value
+  const ticketsExist = hasTickets.value
+  
+  // For publish validation, we need:
+  // 1. Basic Info completed and event created (has eventId)
+  // 2. At least one agenda exists (optional but recommended)
+  // 3. At least one ticket exists (required)
+  // 4. All tabs should be in a "complete" state (either saved or ready to save)
+  
+  const basicInfoReady = basicInfoSaved
+  const ticketsReady = ticketsExist
+  // Agendas are optional for publishing, but recommended
+  
+  console.log('🔍 Publish validation check:', {
+    basicInfoReady,
+    agendasExist,
+    ticketsReady,
+    isBasicInfoCompleted: isBasicInfoCompleted.value,
+    hasEventId: !!eventId.value,
+    hasAgendasValue: hasAgendas.value,
+    hasTicketsValue: hasTickets.value,
+    canPublishResult: basicInfoReady && ticketsReady
+  })
+  
+  return basicInfoReady && ticketsReady
 })
 
 const getPublishButtonTitle = computed(() => {
@@ -301,6 +359,9 @@ const getPublishButtonTitle = computed(() => {
   }
   if (!hasTickets.value) {
     return 'Create at least one ticket before publishing'
+  }
+  if (!hasAgendas.value) {
+    return 'Recommended: Add agenda items before publishing (optional)'
   }
   return 'Publish your event'
 })
@@ -577,29 +638,31 @@ provide('eventCreationState', {
   }
 })
 
-// Enhanced tab accessibility with API-based locking
+// Enhanced tab accessibility with proper save state tracking and agenda support
 const isTabAccessible = (index) => {
   // Basic Info is always accessible
   if (index === 0) return true
   
   // All other tabs require Basic Info to be completed and saved first
   if (!isBasicInfoCompleted.value || !eventId.value) {
-    console.log(`🔒 Tab ${index} locked - Basic Info not completed:`, {
+    console.log(`🔒 Tab ${index} locked - Basic Info not saved:`, {
       isBasicInfoCompleted: isBasicInfoCompleted.value,
       hasEventId: !!eventId.value
     })
     return false
   }
   
-  // Tab-specific accessibility rules with API availability check
+  // Tab-specific accessibility rules with proper save state checking
   switch (index) {
-    case 1: // Agenda tab - LOCKED (No API implementation yet)
-      console.log(`🔒 Tab ${index} (Agenda) locked - API not implemented`)
-      return false
+    case 1: // Agenda tab - UNLOCKED after Basic Info is saved
+      const basicInfoSaved = isBasicInfoCompleted.value && eventId.value
+      console.log(`${basicInfoSaved ? '🔓' : '🔒'} Tab ${index} (Agenda) ${basicInfoSaved ? 'unlocked' : 'locked'} - Basic Info saved: ${basicInfoSaved}`)
+      return basicInfoSaved
       
-    case 2: // Ticket Package tab - UNLOCKED (Has full API support)
-      console.log(`🔓 Tab ${index} (Tickets) unlocked - Basic Info completed & API available`)
-      return true
+    case 2: // Ticket Package tab - UNLOCKED after Basic Info is saved
+      const basicInfoSavedForTickets = isBasicInfoCompleted.value && eventId.value
+      console.log(`${basicInfoSavedForTickets ? '🔓' : '🔒'} Tab ${index} (Tickets) ${basicInfoSavedForTickets ? 'unlocked' : 'locked'} - Basic Info saved: ${basicInfoSavedForTickets}`)
+      return basicInfoSavedForTickets
       
     case 3: // Breakout Rooms tab - LOCKED (No API implementation yet)
       console.log(`🔒 Tab ${index} (Breakout Rooms) locked - API not implemented`)
@@ -615,7 +678,7 @@ const isTabAccessible = (index) => {
   }
 }
 
-// Enhanced tab switching with comprehensive data persistence
+// Enhanced tab switching with save validation and proper flow control
 const changeTab = async (index) => {
   // Prevent rapid tab switching
   if (isChangingTab.value) return
@@ -626,15 +689,11 @@ const changeTab = async (index) => {
     
     // Provide specific messages for different locked tabs
     let message = 'Please complete and save the Basic Info section first to unlock other tabs.'
-    let summary = 'Complete Basic Info First'
+    let summary = 'Save Basic Info First'
     
     // Specific messages for API-locked tabs
     if (isBasicInfoCompleted.value && eventId.value) {
       switch (index) {
-        case 1: // Agenda
-          message = 'Agenda management is coming soon. This feature is currently under development.'
-          summary = 'Feature Coming Soon'
-          break
         case 3: // Breakout Rooms
           message = 'Breakout Room management is coming soon. This feature is currently under development.'
           summary = 'Feature Coming Soon'
@@ -655,22 +714,60 @@ const changeTab = async (index) => {
     return
   }
 
+  // Check if current tab has unsaved changes and require save before switching
+  const currentTabIndex = activeIndex.value
+  const hasUnsavedChanges = tabsStore.hasUnsavedChanges(currentTabIndex)
+  
+  if (hasUnsavedChanges && currentTabIndex !== index) {
+    // For Basic Info tab (0), require explicit save before switching
+    if (currentTabIndex === 0 && (!isBasicInfoCompleted.value || !eventId.value)) {
+      toast.add({
+        severity: 'warn',
+        summary: 'Save Required',
+        detail: 'Please save your Basic Info before switching to another tab. Click "Save Draft" to continue.',
+        life: 5000
+      })
+      return
+    }
+    
+    // For Agenda tab (1), require explicit save before switching if there are unsaved changes
+    if (currentTabIndex === 1) {
+      const agendaTabData = tabsStore.getTabData(1)
+      if (agendaTabData.sessions && agendaTabData.sessions.length > 0 && !agendaTabData.isComplete) {
+        toast.add({
+          severity: 'warn',
+          summary: 'Save Agenda Required',
+          detail: 'Please save your agenda items before switching tabs. Click "Save Draft" to continue.',
+          life: 5000
+        })
+        return
+      }
+    }
+    
+    // For Tickets tab (2), require explicit save before switching
+    if (currentTabIndex === 2) {
+      const ticketTabData = tabsStore.getTabData(2)
+      if (ticketTabData.ticketTypes && ticketTabData.ticketTypes.length > 0 && !ticketTabData.isComplete) {
+        toast.add({
+          severity: 'warn',
+          summary: 'Save Tickets Required',
+          detail: 'Please save your ticket configurations before switching tabs. Click "Save Draft" to continue.',
+          life: 5000
+        })
+        return
+      }
+    }
+  }
+
   if (index >= 0 && index < tabComponents.length && activeIndex.value !== index) {
     isChangingTab.value = true
     isLoading.value = true
 
     try {
-      // Save current tab data before switching
-      const currentTabIndex = activeIndex.value
-      console.log(`💾 Saving data for tab ${currentTabIndex} before switching`)
+      console.log(`📑 Switching from tab ${currentTabIndex} to tab ${index}`)
       
-      // Auto-save current tab data
+      // Auto-save current tab data for persistence (non-blocking)
       await saveCurrentTabData()
-      
-      // Mark current tab as having unsaved changes if needed
-      if (tabsStore.hasUnsavedChanges(currentTabIndex)) {
-        console.log(`📝 Tab ${currentTabIndex} has unsaved changes`)
-      }
 
       // Use nextTick to ensure DOM is ready
       await nextTick()
@@ -751,6 +848,10 @@ const loadTabSpecificData = async (tabIndex) => {
         
       case 1: // Agenda tab
         console.log('📅 Loading agenda data for tab switch')
+        // Trigger agenda data reload in the Agenda component
+        window.dispatchEvent(new CustomEvent('loadAgendaData', {
+          detail: { eventId: eventId.value }
+        }))
         // Load agenda data if available
         if (eventStore.currentEvent?.agendas) {
           tabsStore.saveTabData(1, {
@@ -775,38 +876,80 @@ const loadTabSpecificData = async (tabIndex) => {
   }
 }
 
-// Enhanced Save Draft button - IMPROVED GLOBAL FUNCTIONALITY
+// Enhanced Save Draft button - PROPER FLOW CONTROL
 const handleSaveDraft = async () => {
   if (isSubmitting.value) return
   
   isSubmitting.value = true
   
   try {
-    // Always save current tab data first
-    await saveCurrentTabData()
+    const currentTabIndex = activeIndex.value
+    const tabNames = ['Basic Info', 'Agenda', 'Tickets', 'Breakout Rooms', 'Settings']
+    const currentTabName = tabNames[currentTabIndex] || 'Current Tab'
     
-    // If we're on Basic Info tab and it's not completed yet, trigger basic info save
-    if (activeIndex.value === 0 && (!isBasicInfoCompleted.value || !eventId.value)) {
-      console.log('🔄 Triggering Basic Info save to create event')
-      window.dispatchEvent(new CustomEvent('saveDraft'))
+    console.log(`💾 Save Draft clicked for tab ${currentTabIndex} (${currentTabName})`)
+    
+    // Handle Basic Info tab (Tab 0)
+    if (currentTabIndex === 0) {
+      if (!isBasicInfoCompleted.value || !eventId.value) {
+        // Create new event
+        console.log('🆕 Creating new event from Basic Info')
+        window.dispatchEvent(new CustomEvent('saveDraft'))
+        toast.add({
+          severity: 'info',
+          summary: 'Saving Basic Info...',
+          detail: 'Creating event and unlocking other tabs.',
+          life: 3000
+        })
+      } else {
+        // Update existing event
+        console.log('📝 Updating existing Basic Info')
+        window.dispatchEvent(new CustomEvent('saveDraft'))
+        toast.add({
+          severity: 'info',
+          summary: 'Updating Basic Info...',
+          detail: 'Saving your changes to the event.',
+          life: 3000
+        })
+      }
+      return
+    }
+    
+    // Handle Agenda tab (Tab 1)
+    if (currentTabIndex === 1) {
+      if (!isBasicInfoCompleted.value || !eventId.value) {
+        toast.add({
+          severity: 'warn',
+          summary: 'Basic Info Required',
+          detail: 'Please complete and save Basic Info first.',
+          life: 4000
+        })
+        return
+      }
+      
+      console.log('📅 Saving agenda')
+      window.dispatchEvent(new CustomEvent('saveCurrentTab'))
       toast.add({
         severity: 'info',
-        summary: 'Saving Basic Info...',
-        detail: 'Completing basic information to unlock other tabs.',
+        summary: 'Saving Agenda...',
+        detail: 'Saving your agenda items.',
         life: 3000
       })
-    } else if (activeIndex.value === 0 && isBasicInfoCompleted.value && eventId.value) {
-      // Basic Info tab with existing event - update it
-      console.log('🔄 Updating existing Basic Info')
-      window.dispatchEvent(new CustomEvent('saveDraft'))
-      toast.add({
-        severity: 'info',
-        summary: 'Updating Basic Info...',
-        detail: 'Saving your changes to the event.',
-        life: 3000
-      })
-    } else if (activeIndex.value === 2 && isBasicInfoCompleted.value && eventId.value) {
-      // Tickets tab - trigger ticket save
+      return
+    }
+    
+    // Handle Tickets tab (Tab 2)
+    if (currentTabIndex === 2) {
+      if (!isBasicInfoCompleted.value || !eventId.value) {
+        toast.add({
+          severity: 'warn',
+          summary: 'Basic Info Required',
+          detail: 'Please complete and save Basic Info first.',
+          life: 4000
+        })
+        return
+      }
+      
       console.log('🎫 Saving tickets')
       window.dispatchEvent(new CustomEvent('saveTickets'))
       toast.add({
@@ -815,26 +958,28 @@ const handleSaveDraft = async () => {
         detail: 'Saving your ticket configurations.',
         life: 3000
       })
-    } else if (isBasicInfoCompleted.value && eventId.value) {
-      // Other tabs with existing event
-      const tabNames = ['Basic Info', 'Agenda', 'Tickets', 'Breakout Rooms', 'Settings']
-      const currentTabName = tabNames[activeIndex.value] || 'Current Tab'
-      
-      toast.add({
-        severity: 'success',
-        summary: `${currentTabName} Saved! 💾`,
-        detail: 'Your changes have been saved as draft. You can continue editing or publish when ready.',
-        life: 4000
-      })
-    } else {
-      // Basic info not completed
-      toast.add({
-        severity: 'warn',
-        summary: 'Complete Basic Info First',
-        detail: 'Please complete and save Basic Info to unlock other sections.',
-        life: 4000
-      })
+      return
     }
+    
+    // Handle other tabs (currently not implemented)
+    if (currentTabIndex === 3 || currentTabIndex === 4) {
+      toast.add({
+        severity: 'info',
+        summary: 'Feature Coming Soon',
+        detail: `${currentTabName} management is currently under development.`,
+        life: 3000
+      })
+      return
+    }
+    
+    // Fallback for unknown tabs
+    toast.add({
+      severity: 'warn',
+      summary: 'Unknown Tab',
+      detail: 'This tab is not recognized.',
+      life: 3000
+    })
+    
   } catch (error) {
     console.error('Save draft error:', error)
     toast.add({
@@ -854,7 +999,7 @@ const handleSaveDraft = async () => {
 const saveCurrentTabData = async () => {
   const tabEvents = {
     0: 'saveCurrentTab',   // Basic Info - changed to saveCurrentTab for data persistence
-    1: 'saveCurrentTab',   // Agenda
+    1: 'saveCurrentTab',   // Agenda - now properly supported
     2: 'saveTickets',      // Tickets - keep existing save functionality
     3: 'saveCurrentTab',   // Breakout Rooms
     4: 'saveCurrentTab'    // Settings
@@ -876,62 +1021,23 @@ const saveCurrentTabData = async () => {
   }
 }
 
-// Handle Publish Event button - ENHANCED GLOBAL FUNCTIONALITY
+// Handle Publish Event button - SIMPLIFIED WITH BETTER FLOW CONTROL
 const handlePublishEvent = async () => {
   if (isSubmitting.value) return
   
-  // Check if basic info is completed and saved
+  // Check if basic info is completed and event exists
   if (!isBasicInfoCompleted.value || !eventId.value) {
     toast.add({
       severity: 'warn',
-      summary: 'Complete Basic Info First',
+      summary: 'Save Basic Info First',
       detail: 'Please complete and save Basic Info before publishing.',
       life: 4000
     })
     return
   }
 
-  // Save current tab data before publishing
-  try {
-    await saveCurrentTabData()
-  } catch (error) {
-    console.warn('Failed to save current tab data before publishing:', error)
-  }
-
-  // Check if tickets are created (comprehensive check)
-  const eventStore = useEventStore()
-  let hasValidTickets = false
-  
-  try {
-    // First check current store state
-    if (eventStore.currentEvent?.ticket_types?.length > 0) {
-      hasValidTickets = true
-      console.log('✅ Found tickets in current event store')
-    } else if (eventStore.tickets && eventStore.tickets.length > 0) {
-      hasValidTickets = true
-      console.log('✅ Found tickets in event store tickets array')
-    } else {
-      // Check tab persistence
-      const tabsStore = useEventTabsStore()
-      const ticketTabData = tabsStore.getTabData(2) // Tickets tab
-      if (ticketTabData.ticketTypes && ticketTabData.ticketTypes.length > 0) {
-        hasValidTickets = true
-        console.log('✅ Found tickets in tab persistence')
-      } else {
-        // Final check: reload from API
-        console.log('🔄 Reloading event data to check for tickets...')
-        await eventStore.loadEventById(eventId.value)
-        hasValidTickets = eventStore.currentEvent?.ticket_types?.length > 0
-        console.log('📊 API ticket check result:', hasValidTickets)
-      }
-    }
-  } catch (error) {
-    console.warn('Failed to check ticket data:', error)
-    // Don't block publishing if we can't verify - let the API handle validation
-    hasValidTickets = true
-  }
-
-  if (!hasValidTickets) {
+  // Check if tickets exist
+  if (!hasTickets.value) {
     toast.add({
       severity: 'warn',
       summary: 'Create Tickets First',
@@ -943,6 +1049,31 @@ const handlePublishEvent = async () => {
       changeTab(2)
     }
     return
+  }
+
+  // Auto-save any unsaved changes before publishing
+  try {
+    console.log('💾 Auto-saving any unsaved changes before publishing...')
+    
+    // Check if current tab has unsaved changes and save them
+    const currentTabIndex = activeIndex.value
+    if (currentTabIndex === 0) {
+      // Save Basic Info if needed
+      window.dispatchEvent(new CustomEvent('saveDraft'))
+      await new Promise(resolve => setTimeout(resolve, 1000)) // Wait for save
+    } else if (currentTabIndex === 1) {
+      // Save Agenda if needed
+      window.dispatchEvent(new CustomEvent('saveCurrentTab'))
+      await new Promise(resolve => setTimeout(resolve, 1000)) // Wait for save
+    } else if (currentTabIndex === 2) {
+      // Save Tickets if needed
+      window.dispatchEvent(new CustomEvent('saveTickets'))
+      await new Promise(resolve => setTimeout(resolve, 1000)) // Wait for save
+    }
+    
+    await saveCurrentTabData()
+  } catch (error) {
+    console.warn('Failed to save current tab data before publishing:', error)
   }
 
   isSubmitting.value = true
@@ -971,6 +1102,7 @@ const handlePublishEvent = async () => {
       }
       
       // Update store
+      const eventStore = useEventStore()
       if (eventStore.currentEvent) {
         eventStore.currentEvent.is_published = true
         eventStore.currentEvent.status = 'active'
