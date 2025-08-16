@@ -105,7 +105,7 @@
                         : 'text-gray-400'
                     ]"
                   >
-                    {{ isSubmitting ? 'Saving...' : (isEditMode ? 'Update Draft' : 'Save Draft') }}
+                    {{ isSubmitting ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Save Draft') }}
                   </span>
                 </template>
               </Button>
@@ -339,7 +339,12 @@ onMounted(async () => {
   if (isSwitchingEvents || !isEdit) {
     console.log('🧹 Clearing all state (switching events or new creation)...')
     eventStore.clearCache()
-    tabsStore.resetTabs()
+    tabsStore.clearAllTabDataForEventSwitch(queryEventId)
+    
+    // Notify all components to clear their data
+    window.dispatchEvent(new CustomEvent('clearTicketData', {
+      detail: { eventId: queryEventId, reason: 'event_switch' }
+    }))
     
     if (process.client) {
       localStorage.removeItem('currentEvent')
@@ -443,6 +448,13 @@ onMounted(async () => {
     
     // Clear any existing state
     eventStore.clearCache()
+    tabsStore.clearAllTabDataForEventSwitch(null)
+    
+    // Notify all components to clear their data
+    window.dispatchEvent(new CustomEvent('clearTicketData', {
+      detail: { eventId: null, reason: 'new_creation' }
+    }))
+    
     if (process.client) {
       localStorage.removeItem('currentEvent')
       localStorage.removeItem('eventData')
@@ -487,6 +499,12 @@ onBeforeUnmount(() => {
 
   // Clear all state storage
   eventStore.clearCache()
+  tabsStore.clearAllTabDataForEventSwitch(null)
+  
+  // Notify all components to clear their data
+  window.dispatchEvent(new CustomEvent('clearTicketData', {
+    detail: { eventId: null, reason: 'page_unmount' }
+  }))
   
   // Reset all local state
   eventId.value = null
@@ -775,7 +793,7 @@ const loadTabSpecificData = async (tabIndex) => {
   }
 }
 
-// Enhanced Save Draft button - IMPROVED GLOBAL FUNCTIONALITY
+// Enhanced Save Draft/Changes button - IMPROVED GLOBAL FUNCTIONALITY
 const handleSaveDraft = async () => {
   if (isSubmitting.value) return
   
@@ -785,34 +803,38 @@ const handleSaveDraft = async () => {
     // Always save current tab data first
     await saveCurrentTabData()
     
+    // Determine button action based on mode and tab
+    const buttonText = isEditMode.value ? 'Save Changes' : 'Save Draft'
+    const actionText = isEditMode.value ? 'Updating' : 'Saving'
+    
     // If we're on Basic Info tab and it's not completed yet, trigger basic info save
     if (activeIndex.value === 0 && (!isBasicInfoCompleted.value || !eventId.value)) {
       console.log('🔄 Triggering Basic Info save to create event')
       window.dispatchEvent(new CustomEvent('saveDraft'))
       toast.add({
         severity: 'info',
-        summary: 'Saving Basic Info...',
+        summary: `${actionText} Basic Info...`,
         detail: 'Completing basic information to unlock other tabs.',
         life: 3000
       })
     } else if (activeIndex.value === 0 && isBasicInfoCompleted.value && eventId.value) {
       // Basic Info tab with existing event - update it
-      console.log('🔄 Updating existing Basic Info')
+      console.log(`🔄 ${actionText} existing Basic Info`)
       window.dispatchEvent(new CustomEvent('saveDraft'))
       toast.add({
         severity: 'info',
-        summary: 'Updating Basic Info...',
-        detail: 'Saving your changes to the event.',
+        summary: `${actionText} Basic Info...`,
+        detail: isEditMode.value ? 'Updating your event information.' : 'Saving your changes to the event.',
         life: 3000
       })
     } else if (activeIndex.value === 2 && isBasicInfoCompleted.value && eventId.value) {
       // Tickets tab - trigger ticket save
-      console.log('🎫 Saving tickets')
+      console.log(`🎫 ${actionText} tickets`)
       window.dispatchEvent(new CustomEvent('saveTickets'))
       toast.add({
         severity: 'info',
-        summary: 'Saving Tickets...',
-        detail: 'Saving your ticket configurations.',
+        summary: `${actionText} Tickets...`,
+        detail: isEditMode.value ? 'Updating your ticket configurations.' : 'Saving your ticket configurations.',
         life: 3000
       })
     } else if (isBasicInfoCompleted.value && eventId.value) {
@@ -822,8 +844,10 @@ const handleSaveDraft = async () => {
       
       toast.add({
         severity: 'success',
-        summary: `${currentTabName} Saved! 💾`,
-        detail: 'Your changes have been saved as draft. You can continue editing or publish when ready.',
+        summary: `${currentTabName} ${isEditMode.value ? 'Updated' : 'Saved'}! 💾`,
+        detail: isEditMode.value
+          ? 'Your changes have been updated. You can continue editing or publish when ready.'
+          : 'Your changes have been saved as draft. You can continue editing or publish when ready.',
         life: 4000
       })
     } else {
@@ -836,7 +860,7 @@ const handleSaveDraft = async () => {
       })
     }
   } catch (error) {
-    console.error('Save draft error:', error)
+    console.error('Save error:', error)
     toast.add({
       severity: 'error',
       summary: 'Save Failed',
@@ -850,29 +874,39 @@ const handleSaveDraft = async () => {
   }
 }
 
-// Enhanced save current tab data helper function
+// Enhanced save current tab data helper function with event isolation
 const saveCurrentTabData = async () => {
   const tabEvents = {
     0: 'saveCurrentTab',   // Basic Info - changed to saveCurrentTab for data persistence
     1: 'saveCurrentTab',   // Agenda
-    2: 'saveTickets',      // Tickets - keep existing save functionality
+    2: 'saveCurrentTab',   // Tickets - changed to saveCurrentTab for consistency, actual save handled by component
     3: 'saveCurrentTab',   // Breakout Rooms
     4: 'saveCurrentTab'    // Settings
   }
   
   const eventName = tabEvents[activeIndex.value]
   if (eventName) {
-    console.log(`💾 Saving current tab data for tab ${activeIndex.value}`)
-    window.dispatchEvent(new CustomEvent(eventName))
+    console.log(`💾 Saving current tab data for tab ${activeIndex.value}, event: ${eventId.value}`)
     
-    // Store tab metadata in persistence system
+    // Dispatch event with event ID for proper isolation
+    window.dispatchEvent(new CustomEvent(eventName, {
+      detail: {
+        eventId: eventId.value,
+        isEditMode: isEditMode.value,
+        tabIndex: activeIndex.value
+      }
+    }))
+    
+    // Store tab metadata in persistence system with event context
     tabsStore.saveTabData(activeIndex.value, {
       lastSaved: new Date().toISOString(),
       tabIndex: activeIndex.value,
+      eventId: eventId.value,
+      isEditMode: isEditMode.value,
       autoSaved: true
     })
     
-    console.log(`✅ Tab ${activeIndex.value} data saved successfully`)
+    console.log(`✅ Tab ${activeIndex.value} data saved successfully for event ${eventId.value}`)
   }
 }
 

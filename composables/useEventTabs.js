@@ -305,12 +305,16 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
     }
   }
 
-  // Enhanced load event data into tabs with comprehensive CRUD support
+  // Enhanced load event data into tabs with comprehensive CRUD support and event isolation
   function loadEventData(eventData) {
     if (!eventData) {
       console.warn('⚠️ No event data provided to loadEventData')
       return
     }
+    
+    // Clear all existing tab data first to prevent data mixing
+    console.log('🧹 Clearing existing tab data before loading new event data')
+    resetTabs()
     
     console.log('📥 Loading event data into tabs with CRUD support:', {
       id: eventData.id,
@@ -529,13 +533,13 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
     }
   }
 
-  // Function to clear specific tab data
-  function clearTabData(tabIndex) {
+  // Function to clear specific tab data with event context
+  function clearTabData(tabIndex, eventId = null) {
     const tabKeys = ['basicInfo', 'agenda', 'tickets', 'breakoutRooms', 'settings']
     const tabKey = tabKeys[tabIndex]
     
     if (tabKey && tabData[tabKey]) {
-      console.log(`🧹 Clearing tab ${tabIndex} (${tabKey}) data`)
+      console.log(`🧹 Clearing tab ${tabIndex} (${tabKey}) data${eventId ? ` for event ${eventId}` : ''}`)
       
       // Reset tab data based on tab type
       switch (tabIndex) {
@@ -557,6 +561,7 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
             cardBackgroundFile: null,
             chairs: [],
             members: [],
+            eventId: eventId || null,
             lastSaved: null,
             isComplete: false
           }
@@ -566,6 +571,7 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
             sessions: [],
             speakers: [],
             schedule: [],
+            eventId: eventId || null,
             lastSaved: null,
             isComplete: false
           }
@@ -575,6 +581,7 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
             ticketTypes: [],
             pricing: {},
             availability: {},
+            eventId: eventId || null,
             lastSaved: null,
             isComplete: false
           }
@@ -583,6 +590,7 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
           tabData[tabKey] = {
             rooms: [],
             settings: {},
+            eventId: eventId || null,
             lastSaved: null,
             isComplete: false
           }
@@ -598,6 +606,7 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
             requireAgeVerification: false,
             minimumAge: null,
             requiredIdentityDocuments: [],
+            eventId: eventId || null,
             lastSaved: null,
             isComplete: false
           }
@@ -611,8 +620,40 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       // Remove from completed tabs
       completedTabs.value.delete(tabIndex)
       
-      console.log(`✅ Tab ${tabIndex} (${tabKey}) data cleared`)
+      console.log(`✅ Tab ${tabIndex} (${tabKey}) data cleared${eventId ? ` for event ${eventId}` : ''}`)
     }
+  }
+
+  // Function to clear all tab data for event switching
+  function clearAllTabDataForEventSwitch(newEventId = null) {
+    console.log(`🧹 Clearing all tab data for event switch${newEventId ? ` to event ${newEventId}` : ''}`)
+    
+    // Clear all tabs
+    for (let i = 0; i < 5; i++) {
+      clearTabData(i, newEventId)
+    }
+    
+    // Reset active tab to basic info
+    activeTab.value = 0
+    
+    console.log(`✅ All tab data cleared for event switch`)
+  }
+
+  // Function to validate event context for data operations
+  function validateEventContext(tabIndex, eventId) {
+    const tabKeys = ['basicInfo', 'agenda', 'tickets', 'breakoutRooms', 'settings']
+    const tabKey = tabKeys[tabIndex]
+    
+    if (!tabKey || !tabData[tabKey]) return false
+    
+    // Check if tab data belongs to the current event
+    const tabEventId = tabData[tabKey].eventId
+    if (tabEventId && eventId && tabEventId !== eventId) {
+      console.warn(`⚠️ Event context mismatch for tab ${tabIndex}: expected ${eventId}, found ${tabEventId}`)
+      return false
+    }
+    
+    return true
   }
 
   return {
@@ -645,5 +686,9 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
     getEventDataForAPI,
     markTabModified,
     clearTabModifications,
+    
+    // Event isolation functions
+    clearAllTabDataForEventSwitch,
+    validateEventContext,
   }
 })
