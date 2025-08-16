@@ -19,7 +19,7 @@
                     <div class="flex items-center justify-between mb-2">
                       <div class="flex items-center text-gray-500 text-sm">
                         <Icon name="heroicons:clock" class="w-4 h-4 mr-1" />
-                        <span>{{ item.time_start }}</span>
+                        <span>{{ item.time_start }} - {{ item.time_end }}</span>
                       </div>
                       <div class="flex space-x-2">
                         <button @click="editAgenda(item)" class="text-gray-400 hover:text-purple-600 transition-colors">
@@ -68,14 +68,26 @@
 
           <!-- Time -->
           <div>
-            <label class="block text-xs font-medium text-gray-600 mb-2">Time  <span class="text-red-500">*</span></label>
-            <div class="relative">
-              <Icon name="heroicons-outline:clock" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
-              <InputText
-                v-model="eventForm.time_start"
-                type="time"
-                class="w-full pl-10 bg-gray-100 p-1 rounded-2xl text-gray-800"
-              />
+            <label class="block text-xs font-medium text-gray-600 mb-2">Time <span class="text-red-500">*</span></label>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="relative">
+                <Icon name="heroicons-outline:clock" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+                <InputText
+                  v-model="eventForm.time_start"
+                  type="time"
+                  placeholder="Start Time"
+                  class="w-full pl-10 bg-gray-100 p-1 rounded-2xl text-gray-800"
+                />
+              </div>
+              <div class="relative">
+                <Icon name="heroicons-outline:clock" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+                <InputText
+                  v-model="eventForm.time_end"
+                  type="time"
+                  placeholder="End Time"
+                  class="w-full pl-10 bg-gray-100 p-1 rounded-2xl text-gray-800"
+                />
+              </div>
             </div>
           </div>
 
@@ -358,6 +370,7 @@ const isAgendaComplete = computed(() => {
   return !!(
     eventForm.value.date &&
     eventForm.value.time_start &&
+    eventForm.value.time_end &&
     eventForm.value.title &&
     eventForm.value.venue
   );
