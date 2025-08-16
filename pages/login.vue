@@ -248,20 +248,35 @@ async function handleLogin() {
     // Update progress
     classicLoader.updateProgress(60, 'Verifying account...')
 
-    // Validate response structure
-    if (!data?.tokens?.access_token) {
+    // Validate response structure - handle both direct token and nested structure
+    let token = null;
+    let userData = {};
+    
+    // Check for token in different possible locations
+    if (data?.tokens?.access_token) {
+      // Nested structure
+      token = data.tokens.access_token;
+      userData = data.user || {};
+    } else if (data?.access_token) {
+      // Direct token
+      token = data.access_token;
+      userData = data.user || {};
+    } else if (data?.token) {
+      // Alternative token field
+      token = data.token;
+      userData = data.user || {};
+    } else {
       console.error('❌ Invalid login response structure:', data)
       throw new Error('Invalid server response. Missing access token.')
     }
 
     // Extract token and user info
-    const token = data.tokens.access_token
     const user = {
       username: identifier,
       message: data.message || 'Login successful',
       loginTime: new Date().toISOString(),
       // Add any additional user info from the response
-      ...(data.user || {})
+      ...userData
     }
 
     console.log('Extracted token info:', {

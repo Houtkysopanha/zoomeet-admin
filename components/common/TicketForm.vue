@@ -19,38 +19,58 @@
     
     <!-- Ticket Name -->
     <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-700 mb-2">Ticket Name</label>
+      <label class="block text-sm font-medium text-gray-700 mb-2">
+        Ticket Name <span class="text-red-500">*</span>
+      </label>
       <InputText
-        v-model="ticketData.name"
+        v-model="localTicketName"
         class="w-full p-3 bg-gray-100 rounded-2xl"
-        placeholder="ticket name"
+        :class="{ 'p-invalid': isValidating && !localTicketName?.trim() }"
+        placeholder="Enter ticket name (e.g., VIP Pass, Early Bird)"
+        @input="handleNameInput"
       />
+      <small v-if="isValidating && !ticketData.name?.trim()" class="text-red-500">
+        Ticket name is required
+      </small>
     </div>
 
     <!-- Price and Quantity Row -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Price</label>
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Price <span class="text-red-500">*</span>
+        </label>
         <InputNumber
           v-model="ticketData.price"
-          mode="currency"
-          currency="USD"
-          locale="en-US"
-          class="w-full  bg-gray-100 rounded-2xl"
+          mode="decimal"
+          :minFractionDigits="2"
+          :maxFractionDigits="2"
+          :min="0"
+          class="w-full bg-gray-100 rounded-2xl"
+          :class="{ 'p-invalid': isValidating && (ticketData.price === null || ticketData.price < 0) }"
           inputClass="w-full p-3 bg-gray-100 rounded-2xl"
-          placeholder="ticket price"
+          placeholder="Enter price (e.g., 99.99)"
+          @update:modelValue="updatePrice"
         />
+        <small v-if="isValidating && (ticketData.price === null || ticketData.price < 0)" class="text-red-500">
+          Price must be 0 or greater
+        </small>
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Total Available</label>
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Total Available <span class="text-red-500">*</span>
+        </label>
         <InputNumber
           v-model="ticketData.quantity"
           showButtons
           buttonLayout="horizontal"
           :min="1"
+          :useGrouping="false"
           class="w-full bg-gray-100 rounded-2xl"
+          :class="{ 'p-invalid': isValidating && (ticketData.quantity === null || ticketData.quantity < 1) }"
           inputClass="w-full p-3 bg-gray-100 rounded-2xl"
-          placeholder="total tickets available"
+          placeholder="Enter quantity (minimum 1)"
+          @update:modelValue="updateQuantity"
         >
           <template #incrementbutton>
             <Button icon="pi pi-plus" class="p-button-text p-button-secondary" />
@@ -64,19 +84,24 @@
 
     <!-- Ticket Tag/Description -->
     <div class="mb-6">
-      <label class="block text-sm font-medium text-gray-700 mb-2">Ticket Tag (Optional)</label>
+      <label class="block text-sm font-medium text-gray-700 mb-2">Description <span class="text-red-500">*</span></label>
       <Textarea
         v-model="ticketData.description"
         class="w-full p-3 bg-gray-100 rounded-2xl"
-        placeholder="e.g., premium, early-bird, vip (optional)"
+        :class="{ 'p-invalid': isValidating && !ticketData.description?.trim() }"
+        placeholder="Describe the ticket (e.g., VIP pass includes meet & greet)"
         rows="2"
+        @input="updateDescription"
       />
+      <small v-if="isValidating && !ticketData.description?.trim()" class="text-red-500">
+        Description is required
+      </small>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from "vue"
+import { ref, computed, watch } from "vue"
 // Icon is auto-imported by Nuxt
 import Button from "primevue/button"
 import InputText from "primevue/inputtext"
@@ -96,10 +121,170 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'remove-ticket'])
 
+// Enhanced validation state management
+const isValidating = ref(false)
+
+// Local reactive refs for better data binding
+const localTicketName = ref('')
+const localTicketDescription = ref('')
+
+// Watch for validation trigger from parent
+watch(() => props.modelValue?.isValidating, (newValidating) => {
+  if (newValidating) {
+    isValidating.value = true
+    console.log('🔍 Ticket Form Validation triggered for:', props.modelValue?.name || `Ticket ${props.ticketIndex + 1}`)
+  }
+}, { immediate: true })
+
+// Watch parent validation attempts and reset validation state
+watch(() => props.modelValue, (newVal) => {
+  if (newVal) {
+    const hasEmptyName = !newVal.name?.trim()
+    const hasEmptyDescription = !newVal.description?.trim()
+    const hasInvalidPrice = newVal.price === null || newVal.price === undefined || isNaN(parseFloat(newVal.price)) || parseFloat(newVal.price) < 0
+    const hasInvalidQuantity = newVal.quantity === null || newVal.quantity === undefined || isNaN(parseInt(newVal.quantity)) || parseInt(newVal.quantity) < 1
+    
+    // Auto-validate if parent triggers validation
+    if (newVal.isValidating) {
+      isValidating.value = true
+    }
+    
+    // Reset validation if all fields are valid
+    if (!hasEmptyName && !hasEmptyDescription && !hasInvalidPrice && !hasInvalidQuantity) {
+      isValidating.value = false
+    }
+    
+    // Enhanced logging for debugging
+    console.log('🔍 Enhanced Ticket Form Validation:', {
+      ticketIndex: props.ticketIndex,
+      ticketName: newVal.name || `Ticket ${props.ticketIndex + 1}`,
+      hasEmptyName,
+      hasEmptyDescription,
+      hasInvalidPrice,
+      hasInvalidQuantity,
+      isValidating: isValidating.value,
+      rawData: {
+        name: newVal.name,
+        description: newVal.description,
+        price: newVal.price,
+        quantity: newVal.quantity
+      }
+    })
+  }
+}, { deep: true })
+
 const ticketData = computed({
-  get: () => props.modelValue,
-  set: (value) => emit('update:modelValue', value)
+  get: () => {
+    const data = {
+      ...props.modelValue,
+      // Ensure proper data types and defaults
+      name: props.modelValue.name || '',
+      description: props.modelValue.description || props.modelValue.tag || '',
+      price: props.modelValue.price !== null && props.modelValue.price !== undefined ? parseFloat(props.modelValue.price) || 0 : 0,
+      quantity: props.modelValue.quantity !== null && props.modelValue.quantity !== undefined ? parseInt(props.modelValue.quantity) || 1 : 1
+    }
+    
+    console.log('📝 TicketForm computed get:', {
+      ticketIndex: props.ticketIndex,
+      original: props.modelValue,
+      computed: data
+    })
+    
+    return data
+  },
+  set: (value) => {
+    console.log('📝 TicketForm computed set:', {
+      ticketIndex: props.ticketIndex,
+      value
+    })
+    emit('update:modelValue', value)
+  }
 })
+
+// Handle price updates
+const updatePrice = (value) => {
+  const parsedPrice = value !== null && value !== undefined ? parseFloat(value) : 0
+  console.log('💰 Updating price:', {
+    ticketIndex: props.ticketIndex,
+    raw: value,
+    parsed: parsedPrice
+  })
+  
+  emit('update:modelValue', {
+    ...props.modelValue,
+    price: !isNaN(parsedPrice) ? Math.max(0, parsedPrice) : 0
+  })
+}
+
+// Handle quantity updates
+const updateQuantity = (value) => {
+  const parsedQuantity = value !== null && value !== undefined ? parseInt(value) : 1
+  console.log('🔢 Updating quantity:', {
+    ticketIndex: props.ticketIndex,
+    raw: value,
+    parsed: parsedQuantity
+  })
+  
+  const newValue = !isNaN(parsedQuantity) ? Math.max(1, parsedQuantity) : 1
+  
+  emit('update:modelValue', {
+    ...props.modelValue,
+    quantity: newValue
+  })
+}
+
+// Initialize local refs with prop values
+watch(() => props.modelValue, (newValue) => {
+  if (newValue) {
+    localTicketName.value = newValue.name || ''
+    localTicketDescription.value = newValue.description || newValue.tag || ''
+  }
+}, { immediate: true })
+
+// Handle name input with immediate reactivity
+const handleNameInput = (event) => {
+  const value = event.target.value
+  localTicketName.value = value
+  
+  console.log('📝 Updating name (enhanced):', {
+    ticketIndex: props.ticketIndex,
+    value,
+    localValue: localTicketName.value
+  })
+  
+  emit('update:modelValue', {
+    ...props.modelValue,
+    name: value
+  })
+}
+
+// Handle description input with immediate reactivity
+const handleDescriptionInput = (event) => {
+  const value = event.target.value
+  localTicketDescription.value = value
+  
+  console.log('📝 Updating description (enhanced):', {
+    ticketIndex: props.ticketIndex,
+    value,
+    localValue: localTicketDescription.value
+  })
+  
+  emit('update:modelValue', {
+    ...props.modelValue,
+    description: value,
+    tag: value // Also update tag for API compatibility
+  })
+}
+
+// Handle name updates (legacy support)
+const updateName = (event) => {
+  handleNameInput(event)
+}
+
+// Handle description updates (legacy support)
+const updateDescription = (event) => {
+  handleDescriptionInput(event)
+}
 </script>
 
 <style scoped>

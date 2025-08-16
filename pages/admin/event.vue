@@ -219,18 +219,20 @@ import CardCommon from '~/components/common/CardCommon.vue'
 import { useToast } from 'primevue/usetoast'
 import { useRouter } from 'vue-router'
 import { fetchEvents } from '@/composables/api'
+import { useEventStore } from '~/composables/useEventStore'
+import { useAuth } from '~/composables/useAuth'
 
 const router = useRouter()
 const toast = useToast()
 
 const goToCreateEvent = () => { router.push('/admin/CreateEvent') }
 
-const eventStats = [
-  { title: 'Total Events', count: '28', icon: 'clarity:event-solid', weekChange: '2' },
-  { title: 'Complete Event', count: '23', icon: 'clarity:event-solid-badged', weekChange: '2' },
-  { title: 'Ongoing', count: '5', icon: 'mdi:movie-check', weekChange: '2' },
-  { title: 'Draft', count: '24', icon: 'mdi:clipboard-text-date', weekChange: '2' },
-]
+const eventStats = ref([
+  { title: 'Total Events', count: '0', icon: 'clarity:event-solid', weekChange: '0' },
+  { title: 'Active Events', count: '0', icon: 'clarity:event-solid-badged', weekChange: '0' },
+  { title: 'Ongoing', count: '0', icon: 'mdi:movie-check', weekChange: '0' },
+  { title: 'Draft', count: '0', icon: 'mdi:clipboard-text-date', weekChange: '0' },
+])
 
 const dateRange = ref(null)
 const displayRange = ref('')
@@ -355,32 +357,58 @@ const loadEvents = async () => {
       totalItems.value = events.value.length
       console.log('Loaded events:', events.value.map(e => ({ id: e.id, name: e.name })))
       
+      // Update event statistics
+      updateEventStats(events.value);
+      
       if (events.value.length === 0) {
-        toast.add({ 
-          severity: 'info', 
-          summary: 'No Events', 
-          detail: 'No events found. Create your first event!', 
-          life: 3000 
+        toast.add({
+          severity: 'info',
+          summary: 'No Events',
+          detail: 'No events found. Create your first event!',
+          life: 3000
         })
       }
     } else {
       console.error('API Error Response:', data)
-      toast.add({ 
-        severity: 'error', 
-        summary: 'API Error', 
-        detail: data.message || 'Failed to fetch events', 
-        life: 3000 
+      toast.add({
+        severity: 'error',
+        summary: 'API Error',
+        detail: data.message || 'Failed to fetch events',
+        life: 3000
       })
     }
   } catch (error) {
     console.error('Fetch events error:', error)
-    toast.add({ 
-      severity: 'error', 
-      summary: 'Fetch Error', 
-      detail: error.message || 'Failed to load events', 
-      life: 3000 
+    toast.add({
+      severity: 'error',
+      summary: 'Fetch Error',
+      detail: error.message || 'Failed to load events',
+      life: 3000
     })
   }
+}
+
+// Update event statistics based on loaded events
+const updateEventStats = (eventsData) => {
+  if (!eventsData || !Array.isArray(eventsData)) return;
+  
+  const totalEvents = eventsData.length;
+  const activeEvents = eventsData.filter(event => event.status === 'Active').length;
+  const draftEvents = eventsData.filter(event => event.status === 'Draft').length;
+  // For ongoing events, we could check if current date is between start_date and end_date
+  const ongoingEvents = eventsData.filter(event => {
+    const now = new Date();
+    const startDate = new Date(event.start_date);
+    const endDate = new Date(event.end_date);
+    return now >= startDate && now <= endDate;
+  }).length;
+  
+  eventStats.value = [
+    { title: 'Total Events', count: totalEvents.toString(), icon: 'clarity:event-solid', weekChange: '0' },
+    { title: 'Active Events', count: activeEvents.toString(), icon: 'clarity:event-solid-badged', weekChange: '0' },
+    { title: 'Ongoing', count: ongoingEvents.toString(), icon: 'mdi:movie-check', weekChange: '0' },
+    { title: 'Draft', count: draftEvents.toString(), icon: 'mdi:clipboard-text-date', weekChange: '0' },
+  ];
 }
 
 onMounted(() => {
@@ -471,48 +499,9 @@ function validateUUID(uuid) {
   return uuidRegex.test(uuid?.toString());
 }
 
-const handleEditEvent = async (event) => {
-  // Force clean all storage first
-  if (process.client) {
-    // Clear all storage
-    localStorage.clear();
-    sessionStorage.clear();
-    
-    // Set only the essential data
-    localStorage.setItem('editingEvent', JSON.stringify({
-      id: event.id,
-      name: event.name,
-      timestamp: Date.now()
-    }));
-  }
-
-  try {
-    // Show loading state
-    toast.add({
-      severity: 'info',
-      summary: 'Loading Event',
-      detail: `Preparing "${event.name}" for editing...`,
-      life: 2000
-    });
-
-    // Generate a unique reload key
-    const reloadKey = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-    // Force a full page reload by navigating to a temporary route first
-    await router.replace('/admin/temp-redirect');
-    
-    // Then immediately navigate to the edit page with force reload flags
-    window.location.href = `/admin/CreateEvent?mode=edit&id=${event.id}&reload=${reloadKey}&force=1`;
-
-  } catch (error) {
-    console.error('Edit navigation error:', error);
-    toast.add({
-      severity: 'error',
-      summary: 'Navigation Failed',
-      detail: 'Failed to open event editor',
-      life: 3000
-    });
-  }
+const handleEditEvent = (event) => {
+  // Use the existing editEvent function which is better implemented
+  editEvent(event);
 };
 
 
@@ -583,6 +572,7 @@ const manageTickets = (event) => {
   }
 }
 
+// Enhanced edit event function with better UUID handling and data flow
 const editEvent = async (event) => {
   const eventStore = useEventStore();
   const { getToken } = useAuth();
@@ -591,65 +581,151 @@ const editEvent = async (event) => {
     // Verify authentication
     const token = getToken();
     if (!token) {
+      console.error('❌ No authentication token found');
+      toast.add({
+        severity: 'error',
+        summary: 'Authentication Required',
+        detail: 'Please login to continue',
+        life: 3000
+      });
       router.push('/login');
       return;
     }
 
-    // Validate event data
+    // Enhanced event data validation
     if (!event?.id || !validateUUID(event.id)) {
+      console.error('❌ Invalid event data for editing:', {
+        event: event,
+        hasId: !!event?.id,
+        idFormat: event?.id,
+        isValidUUID: event?.id ? validateUUID(event.id) : false
+      });
       toast.add({
         severity: 'error',
         summary: 'Invalid Event',
-        detail: 'Cannot edit: Invalid event data',
-        life: 3000
+        detail: 'Cannot edit: Invalid event data or UUID format',
+        life: 4000
       });
       return;
     }
 
-    // Clear previous state
+    const eventId = event.id.toString();
+    console.log('📝 Starting enhanced edit process for event:', {
+      id: eventId,
+      name: event.name,
+      status: event.status,
+      category: event.category_name,
+      originalData: event._original ? 'Available' : 'Not available',
+      hasAllFields: !!(event.name && event.location && event.start_date)
+    });
+
+    // Clear previous state to prevent data mixing
     eventStore.clearCache();
     
-    // Track this event selection
-    eventStore.trackEventClick(event.id);
+    // Store the event ID in session for persistence across navigation
+    if (process.client) {
+      sessionStorage.setItem('currentEventId', eventId);
+      sessionStorage.setItem('editMode', 'true');
+      sessionStorage.setItem('editSource', 'event-list');
+    }
     
-    // Show loading state
+    // Track this event selection for debugging and analytics
+    eventStore.trackEventClick(eventId);
+    
+    // Show enhanced loading state
     toast.add({
       severity: 'info',
-      summary: 'Loading Event',
+      summary: 'Loading Event for Edit',
       detail: `Preparing "${event.name}" for editing...`,
       life: 2000
     });
 
-    // Load fresh event data
-    await eventStore.loadEventById(event.id);
+    // Use the complete original data if available, otherwise use the event data
+    const eventDataToStore = event._original || event;
+    
+    // Ensure we have all required fields for editing
+    const completeEventData = {
+      ...eventDataToStore,
+      // Ensure critical fields are present
+      id: eventId,
+      name: eventDataToStore.name || event.name,
+      category_id: eventDataToStore.category_id || event.category_id,
+      category_name: eventDataToStore.category_name || event.category_name,
+      location: eventDataToStore.location || event.location,
+      start_date: eventDataToStore.start_date || event.start_date,
+      end_date: eventDataToStore.end_date || event.end_date,
+      description: eventDataToStore.description || event.description,
+      is_published: eventDataToStore.is_published !== undefined ? eventDataToStore.is_published : (event.status === 'Active'),
+      status: eventDataToStore.status || event.status
+    };
 
-    // Verify data loaded
-    if (!eventStore.currentEvent) {
-      throw new Error('Failed to load event data');
+    // Set the current event in the store
+    eventStore.setCurrentEvent(completeEventData);
+
+    // Verify the event was stored correctly
+    if (!eventStore.currentEvent || eventStore.currentEvent.id !== eventId) {
+      throw new Error('Failed to store event data correctly in the event store');
     }
 
-    // Navigate to edit view with timestamp to force fresh load
+    console.log('✅ Event prepared for editing with complete data:', {
+      id: eventStore.currentEvent.id,
+      name: eventStore.currentEvent.name,
+      category: `${eventStore.currentEvent.category_id} - ${eventStore.currentEvent.category_name}`,
+      status: eventStore.currentEvent.status,
+      isPublished: eventStore.currentEvent.is_published,
+      hasImages: {
+        cover: !!eventStore.currentEvent.cover_image_url,
+        background: !!eventStore.currentEvent.event_background_url,
+        card: !!eventStore.currentEvent.card_background_url
+      },
+      fieldCount: Object.keys(eventStore.currentEvent).length
+    });
+
+    // Navigate to edit view with enhanced parameters
     await router.push({
       path: '/admin/CreateEvent',
       query: {
         mode: 'edit',
-        id: event.id,
+        id: eventId,
         ts: Date.now(),
-        from: 'list'
+        from: 'event-list',
+        action: 'edit'
       }
     });
 
+    console.log('🚀 Navigation to edit page initiated successfully');
+
   } catch (error) {
-    console.error('Edit event error:', error);
+    console.error('❌ Enhanced edit event error:', error);
+    
+    // Provide more specific error messages
+    let errorMessage = 'Failed to prepare event for editing';
+    let errorSummary = 'Edit Failed';
+    
+    if (error.message.includes('store')) {
+      errorMessage = 'Failed to load event data into the editor. Please try again.';
+      errorSummary = 'Data Loading Error';
+    } else if (error.message.includes('navigation')) {
+      errorMessage = 'Failed to navigate to the editor. Please try again.';
+      errorSummary = 'Navigation Error';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+
     toast.add({
       severity: 'error',
-      summary: 'Edit Failed',
-      detail: error.message || 'Failed to prepare event for editing',
-      life: 3000
+      summary: errorSummary,
+      detail: errorMessage,
+      life: 4000
     });
 
-    // Clear state on error
+    // Clear state on error to prevent corruption
     eventStore.clearCache();
+    if (process.client) {
+      sessionStorage.removeItem('currentEventId');
+      sessionStorage.removeItem('editMode');
+      sessionStorage.removeItem('editSource');
+    }
   }
 }
 
@@ -662,13 +738,70 @@ const endEvent = (event) => {
   })
 }
 
-const removeEvent = (event) => {
-  toast.add({
-    severity: "info",
-    summary: "Remove Event",
-    detail: `Removing ${event.name}`,
-    life: 3000
-  })
+const removeEvent = async (event) => {
+  if (!event?.id) {
+    toast.add({
+      severity: 'error',
+      summary: 'Invalid Event',
+      detail: 'Cannot delete: Invalid event data',
+      life: 3000
+    })
+    return
+  }
+
+  // Show confirmation dialog
+  const confirmed = confirm(`Are you sure you want to delete "${event.name}"? This action cannot be undone.`)
+  if (!confirmed) return
+
+  try {
+    // Import delete function
+    const { deleteEvent } = await import('@/composables/api')
+    
+    toast.add({
+      severity: 'info',
+      summary: 'Deleting Event',
+      detail: `Deleting "${event.name}"...`,
+      life: 2000
+    })
+
+    await deleteEvent(event.id)
+
+    // Remove from local events array
+    const index = events.value.findIndex(e => e.id === event.id)
+    if (index > -1) {
+      events.value.splice(index, 1)
+      totalItems.value = events.value.length
+      updateEventStats(events.value)
+    }
+
+    toast.add({
+      severity: 'success',
+      summary: 'Event Deleted',
+      detail: `"${event.name}" has been successfully deleted`,
+      life: 4000
+    })
+
+  } catch (error) {
+    console.error('❌ Failed to delete event:', error)
+    
+    let errorMessage = 'Failed to delete event. Please try again.'
+    if (error.message.includes('not found')) {
+      errorMessage = 'Event not found or already deleted'
+    } else if (error.message.includes('permission')) {
+      errorMessage = 'You do not have permission to delete this event'
+    } else if (error.message.includes('bookings')) {
+      errorMessage = 'Cannot delete event with existing bookings'
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+
+    toast.add({
+      severity: 'error',
+      summary: 'Delete Failed',
+      detail: errorMessage,
+      life: 5000
+    })
+  }
 }
 
 definePageMeta({

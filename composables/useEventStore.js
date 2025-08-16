@@ -280,6 +280,30 @@ export const useEventStore = defineStore('event', () => {
     clearCurrentEvent()
   }
 
+  // Track event click for analytics/debugging
+  function trackEventClick(eventId) {
+    console.log('🎯 Event clicked for editing:', {
+      eventId,
+      timestamp: new Date().toISOString(),
+      currentEvent: currentEvent.value?.id
+    })
+    
+    // Store click tracking in session storage for debugging
+    if (process.client) {
+      const clickHistory = JSON.parse(sessionStorage.getItem('eventClickHistory') || '[]')
+      clickHistory.push({
+        eventId,
+        timestamp: new Date().toISOString(),
+        action: 'edit_click'
+      })
+      // Keep only last 10 clicks
+      if (clickHistory.length > 10) {
+        clickHistory.shift()
+      }
+      sessionStorage.setItem('eventClickHistory', JSON.stringify(clickHistory))
+    }
+  }
+
   return {
     // State
     currentEvent,
@@ -296,5 +320,6 @@ export const useEventStore = defineStore('event', () => {
     updateCurrentEvent,
     clearCurrentEvent,
     clearCache,
+    trackEventClick,
   }
 })
