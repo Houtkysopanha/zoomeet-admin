@@ -383,7 +383,9 @@ export async function createEvent(eventData, isDraft = true) {
       start_date: eventData.start_date,
       end_date: eventData.end_date,
       event_slug: eventData.event_slug,
-      has_cover_image: !!eventData.cover_image
+      has_cover_image: !!eventData.cover_image,
+      has_card_background: !!eventData.card_background,
+      has_event_background: !!eventData.event_background,
     })
     const formData = new FormData()
     

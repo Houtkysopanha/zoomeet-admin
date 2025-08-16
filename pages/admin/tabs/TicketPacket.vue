@@ -555,26 +555,26 @@ const saveTickets = async () => {
       await loadTickets()
     }, 1000) // Small delay to ensure server has processed the changes
 
-  } catch (error) {
-    console.error('❌ Ticket save error:', error)
+  // } catch (error) {
+  //   console.error('❌ Ticket save error:', error)
     
-    // Handle different error types
-    let errorMessage = 'Failed to save tickets. Please try again.'
-    let errorSummary = 'Save Failed'
+   
+  //   let errorMessage = 'Failed to save tickets. Please try again.'
+  //   let errorSummary = 'Save Failed'
     
-    if (error.message) {
-      errorMessage = error.message
+  //   if (error.message) {
+  //     errorMessage = error.message
       
-      if (error.message.includes('Authentication')) {
-        errorSummary = 'Authentication Error'
-        errorMessage = 'Please login again to continue.'
-      } else if (error.message.includes('Validation')) {
-        errorSummary = 'Validation Error'
-      } else if (error.message.includes('Event not found')) {
-        errorSummary = 'Event Not Found'
-        errorMessage = 'The event could not be found. Please refresh and try again.'
-      }
-    }
+  //     if (error.message.includes('Authentication')) {
+  //       errorSummary = 'Authentication Error'
+  //       errorMessage = 'Please login again to continue.'
+  //     } else if (error.message.includes('Validation')) {
+  //       errorSummary = 'Validation Error'
+  //     } else if (error.message.includes('Event not found')) {
+  //       errorSummary = 'Event Not Found'
+  //       errorMessage = 'The event could not be found. Please refresh and try again.'
+  //     }
+  //   }
     
     toast.add({
       severity: 'error',
