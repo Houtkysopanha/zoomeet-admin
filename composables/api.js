@@ -1251,3 +1251,8 @@ export async function unpublishEvent(eventId) {
     throw error
   }
 }
+
+// Alias for fetchEventById - used by PreviewEvent component
+export async function fetchEventById(eventId) {
+  return await getEventDetails(eventId)
+}

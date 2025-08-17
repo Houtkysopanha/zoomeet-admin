@@ -288,33 +288,3 @@ export const useFormValidation = () => {
     validateField
   }
 }
-
-// Specific validation composable for agenda
-export const useAgendaValidation = () => {
-  const { validateAgendaItem, validateTimeRange, validateRequired } = useFormValidation()
-  
-  const validateAgendaForm = (agendaData) => {
-    return validateAgendaItem(agendaData)
-  }
-  
-  const validateSpeakers = (speakers) => {
-    const errors = {}
-    
-    speakers.forEach((speaker, index) => {
-      if (speaker.name && speaker.name.trim() !== '') {
-        if (!speaker.about || speaker.about.trim() === '') {
-          errors[`speaker_${index}`] = 'About information is required when speaker name is provided'
-        }
-      }
-    })
-    
-    return errors
-  }
-  
-  return {
-    validateAgendaForm,
-    validateSpeakers,
-    validateTimeRange,
-    validateRequired
-  }
-}
