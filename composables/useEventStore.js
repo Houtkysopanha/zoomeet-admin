@@ -141,9 +141,16 @@ export const useEventStore = defineStore('event', () => {
 
     console.log(`🔍 Loading event ID: ${eventIdStr}`)
 
-    // Always clear previous state to prevent data mixing
+    // Check cache first for this specific event
+    if (eventsCache.value.has(eventIdStr)) {
+      console.log('📦 Found event in cache, using cached data')
+      const cachedEvent = eventsCache.value.get(eventIdStr)
+      currentEvent.value = cachedEvent
+      return cachedEvent
+    }
+
+    // Clear only current event, keep cache for other events
     clearCurrentEvent()
-    clearCache()
     isLoading.value = true
     error.value = null
 
@@ -208,14 +215,18 @@ export const useEventStore = defineStore('event', () => {
         fields: Object.keys(eventData)
       })
 
-      // Set current event with ALL fields intact
-      currentEvent.value = {
+      // Create complete event object with ALL fields intact
+      const completeEvent = {
         ...eventData,
         _original: response.data // Keep original API response
       }
 
+      // Set current event and cache it
+      currentEvent.value = completeEvent
+      eventsCache.value.set(eventIdStr, completeEvent)
+
       // Log success with field verification
-      console.log('✅ Event loaded successfully:', {
+      console.log('✅ Event loaded and cached successfully:', {
         id: eventData.id,
         name: eventData.name,
         category_name: eventData.category_name,
@@ -224,7 +235,8 @@ export const useEventStore = defineStore('event', () => {
           background: eventData.event_background_url,
           card: eventData.card_background_url
         },
-        field_count: Object.keys(eventData).length
+        field_count: Object.keys(eventData).length,
+        cached: eventsCache.value.has(eventIdStr)
       })
 
       return currentEvent.value
@@ -276,8 +288,49 @@ export const useEventStore = defineStore('event', () => {
   }
 
   function clearCache() {
+    console.log('🧹 Clearing events cache')
     eventsCache.value.clear()
     clearCurrentEvent()
+  }
+
+  // Get event from cache without setting as current
+  function getEventFromCache(eventId) {
+    const eventIdStr = eventId?.toString()
+    if (!eventIdStr) return null
+    
+    return eventsCache.value.get(eventIdStr) || null
+  }
+
+  // Check if event exists in cache
+  function hasEventInCache(eventId) {
+    const eventIdStr = eventId?.toString()
+    if (!eventIdStr) return false
+    
+    return eventsCache.value.has(eventIdStr)
+  }
+
+  // Track event click for analytics/debugging
+  function trackEventClick(eventId) {
+    console.log('🎯 Event clicked for editing:', {
+      eventId,
+      timestamp: new Date().toISOString(),
+      currentEvent: currentEvent.value?.id
+    })
+    
+    // Store click tracking in session storage for debugging
+    if (process.client) {
+      const clickHistory = JSON.parse(sessionStorage.getItem('eventClickHistory') || '[]')
+      clickHistory.push({
+        eventId,
+        timestamp: new Date().toISOString(),
+        action: 'edit_click'
+      })
+      // Keep only last 10 clicks
+      if (clickHistory.length > 10) {
+        clickHistory.shift()
+      }
+      sessionStorage.setItem('eventClickHistory', JSON.stringify(clickHistory))
+    }
   }
 
   return {
@@ -285,6 +338,7 @@ export const useEventStore = defineStore('event', () => {
     currentEvent,
     isLoading,
     error,
+    eventsCache,
     
     // Computed
     hasCurrentEvent,
@@ -296,5 +350,8 @@ export const useEventStore = defineStore('event', () => {
     updateCurrentEvent,
     clearCurrentEvent,
     clearCache,
+    trackEventClick,
+    getEventFromCache,
+    hasEventInCache,
   }
 })

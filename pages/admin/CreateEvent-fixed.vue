@@ -16,7 +16,7 @@
         </div>
         <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 items-stretch sm:items-center">
           <!-- Progress Indicator -->
-          <!-- <div class="hidden lg:flex items-center space-x-2 text-sm">
+          <div class="hidden lg:flex items-center space-x-2 text-sm">
             <div class="flex items-center space-x-1">
               <div :class="[
                 'w-3 h-3 rounded-full transition-all duration-300',
@@ -26,17 +26,6 @@
                 'text-xs font-medium',
                 isBasicInfoCompleted ? 'text-green-600' : 'text-gray-500'
               ]">Basic Info</span>
-            </div>
-            <Icon name="heroicons:chevron-right" class="w-3 h-3 text-gray-400" />
-            <div class="flex items-center space-x-1">
-              <div :class="[
-                'w-3 h-3 rounded-full transition-all duration-300',
-                hasAgenda ? 'bg-green-500' : hasAgendaSkipped ? 'bg-yellow-500' : 'bg-gray-300'
-              ]"></div>
-              <span :class="[
-                'text-xs font-medium',
-                hasAgenda ? 'text-green-600' : hasAgendaSkipped ? 'text-yellow-600' : 'text-gray-500'
-              ]">{{ hasAgendaSkipped ? 'Agenda (Skipped)' : 'Agenda' }}</span>
             </div>
             <Icon name="heroicons:chevron-right" class="w-3 h-3 text-gray-400" />
             <div class="flex items-center space-x-1">
@@ -60,7 +49,7 @@
                 eventData?.is_published ? 'text-blue-600' : 'text-gray-500'
               ]">Published</span>
             </div>
-          </div> -->
+          </div>
 
           <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 items-stretch sm:items-center">
             <div class="bt-preview">
@@ -116,7 +105,7 @@
                         : 'text-gray-400'
                     ]"
                   >
-                    {{ isSubmitting ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Save Draft') }}
+                    {{ isSubmitting ? 'Saving...' : (isEditMode ? 'Update Draft' : 'Save Draft') }}
                   </span>
                 </template>
               </Button>
@@ -153,15 +142,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Event Status Notes -->
-    <EventStatusNotes
-      :eventId="eventId"
-      :isEditMode="isEditMode"
-      @switchTab="changeTab"
-      @saveTab="handleSaveDraft"
-      @publishEvent="handlePublishEvent"
-    />
 
     <div class="min-h-0">
       <!-- Enhanced Tab Menu -->
@@ -227,7 +207,7 @@
                 <BasicInfor />
               </div>
               <div v-else-if="activeIndex === 1 && tabComponents[1]" class="tab-content">
-                <Agenda :eventId="eventId" />
+                <Agenda />
               </div>
               <div v-else-if="activeIndex === 2 && tabComponents[2]" class="tab-content">
                 <TicketPacket />
@@ -255,7 +235,6 @@ import { ref, nextTick, provide, onMounted, onBeforeUnmount, computed } from 'vu
 import Button from 'primevue/button'
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
 import Breadcrumb from '~/components/common/Breadcrumb.vue'
-import EventStatusNotes from '~/components/common/EventStatusNotes.vue'
 import BasicInfor from '~/pages/admin/tabs/BasicInfor.vue'
 import Agenda from '~/pages/admin/tabs/Agenda.vue'
 import TicketPacket from '~/pages/admin/tabs/TicketPacket.vue'
@@ -311,31 +290,6 @@ const hasTickets = computed(() => {
   return false
 })
 
-// Computed properties for agenda status
-const hasAgenda = computed(() => {
-  const eventStore = useEventStore()
-  const tabsStore = useEventTabsStore()
-  
-  // Check multiple sources for agenda
-  if (eventStore.currentEvent?.agendas && eventStore.currentEvent.agendas.length > 0) {
-    return true
-  }
-  
-  // Check tab persistence for agenda
-  const agendaTabData = tabsStore.getTabData(1) // Agenda tab
-  if (agendaTabData.sessions && agendaTabData.sessions.length > 0) {
-    return true
-  }
-  
-  return false
-})
-
-const hasAgendaSkipped = computed(() => {
-  const tabsStore = useEventTabsStore()
-  const agendaTabData = tabsStore.getTabData(1)
-  return agendaTabData.isSkipped === true
-})
-
 // Enhanced computed properties for publish functionality
 const canPublish = computed(() => {
   return isBasicInfoCompleted.value && eventId.value && hasTickets.value
@@ -365,7 +319,7 @@ onMounted(async () => {
     return
   }
 
-  // Get parameters from route first
+  // Get parameters from route
   const queryEventId = route.query.id?.toString()
   const isEdit = route.query.mode === 'edit' && queryEventId
   const forceReload = route.query.ts || route.query.timestamp
@@ -385,12 +339,7 @@ onMounted(async () => {
   if (isSwitchingEvents || !isEdit) {
     console.log('🧹 Clearing all state (switching events or new creation)...')
     eventStore.clearCache()
-    tabsStore.clearAllTabDataForEventSwitch(queryEventId)
-    
-    // Notify all components to clear their data
-    window.dispatchEvent(new CustomEvent('clearTicketData', {
-      detail: { eventId: queryEventId, reason: 'event_switch' }
-    }))
+    tabsStore.resetTabs()
     
     if (process.client) {
       localStorage.removeItem('currentEvent')
@@ -406,6 +355,9 @@ onMounted(async () => {
     isEditMode.value = false
     isBasicInfoCompleted.value = false
     eventData.value = null
+  } else {
+    // Just clear cache for same event reload
+    eventStore.clearCache()
   }
 
   // UUID validation
@@ -431,82 +383,45 @@ onMounted(async () => {
       sessionStorage.setItem('currentEventId', queryEventId)
     }
     
-    // EDIT MODE - Enhanced for any UUID from event list
     try {
-      console.log('📝 EDIT MODE: Loading event data for UUID:', queryEventId)
+      console.log('📝 EDIT MODE: Loading event data for ID:', queryEventId)
 
       eventId.value = queryEventId
       isEditMode.value = true
 
-      // Check if event is already in store (from event list click)
+      // Force load fresh data from API
+      console.log('🔄 Force loading fresh event data from API...')
+      await eventStore.loadEventById(queryEventId)
+
       if (eventStore.currentEvent && eventStore.currentEvent.id === queryEventId) {
-        console.log('✅ Using event data from store (from event list)')
         eventData.value = { ...eventStore.currentEvent }
         isBasicInfoCompleted.value = true
 
-        // Load event data into tab persistence system
+        // Load event data into tab persistence system with fresh data
         tabsStore.loadEventData(eventStore.currentEvent)
 
-        console.log('✅ Event data loaded from store:', {
+        console.log('✅ Event data loaded for editing:', {
           id: eventId.value,
           name: eventData.value.name,
-          category: eventData.value.category_name,
-          status: eventData.value.status
+          ticketCount: eventStore.currentEvent.ticket_types?.length || 0,
+          hasImages: {
+            cover: !!eventData.value.cover_image_url,
+            background: !!eventData.value.event_background_url,
+            card: !!eventData.value.card_background_url
+          }
         })
 
         toast.add({
           severity: 'success',
           summary: 'Event Loaded for Editing',
-          detail: `Editing "${eventData.value.name}"`,
+          detail: `Editing "${eventData.value.name}" - Data loaded instantly`,
           life: 3000
         })
       } else {
-        // Load fresh data from API for any UUID
-        console.log('🔄 Loading fresh event data from API for UUID:', queryEventId)
-        eventStore.clearCache() // Clear cache before loading
-        await eventStore.loadEventById(queryEventId)
-
-        if (eventStore.currentEvent && eventStore.currentEvent.id === queryEventId) {
-          eventData.value = { ...eventStore.currentEvent }
-          isBasicInfoCompleted.value = true
-
-          // Load event data into tab persistence system
-          tabsStore.loadEventData(eventStore.currentEvent)
-
-          console.log('✅ Event data loaded from API:', {
-            id: eventId.value,
-            name: eventData.value.name,
-            category: eventData.value.category_name,
-            status: eventData.value.status,
-            hasImages: {
-              cover: !!eventData.value.cover_image_url,
-              background: !!eventData.value.event_background_url,
-              card: !!eventData.value.card_background_url
-            }
-          })
-
-          toast.add({
-            severity: 'success',
-            summary: 'Event Loaded for Editing',
-            detail: `Editing "${eventData.value.name}"`,
-            life: 3000
-          })
-        } else {
-          throw new Error('Event data mismatch or not found after API load')
-        }
+        throw new Error('Event data mismatch or not found')
       }
     } catch (error) {
       console.error('❌ Failed to load event for editing:', error)
-
-      // Provide more specific error messages
-      let errorMessage = 'Failed to load event for editing.'
-      if (error.message.includes('not found')) {
-        errorMessage = 'Event not found. It may have been deleted or you may not have access to it.'
-      } else if (error.message.includes('Authentication')) {
-        errorMessage = 'Authentication failed. Please login again.'
-      } else if (error.message.includes('Permission')) {
-        errorMessage = 'You do not have permission to edit this event.'
-      }
 
       // Reset to new event creation mode
       eventId.value = null
@@ -516,46 +431,23 @@ onMounted(async () => {
       
       // Clear event from store
       eventStore.clearCurrentEvent()
+      tabsStore.resetTabs()
 
       toast.add({
         severity: 'error',
         summary: 'Edit Load Failed',
-        detail: errorMessage,
-        life: 5000
+        detail: 'Failed to load event for editing. Starting fresh event creation.',
+        life: 4000
       })
-
-      // Redirect back to event list after error
-      setTimeout(() => {
-        router.push('/admin/event')
-      }, 2000)
     }
   } else {
     // CREATE MODE
     console.log('🆕 CREATE MODE: Starting fresh event creation')
     
-    // Clear any existing state
-    eventStore.clearCache()
-    tabsStore.clearAllTabDataForEventSwitch(null)
-    
-    // Notify all components to clear their data
-    window.dispatchEvent(new CustomEvent('clearTicketData', {
-      detail: { eventId: null, reason: 'new_creation' }
-    }))
-    
-    if (process.client) {
-      localStorage.removeItem('currentEvent')
-      localStorage.removeItem('eventData')
-      localStorage.removeItem('editSession')
-      sessionStorage.removeItem('currentEventId')
-    }
-    
     isEditMode.value = false
     isBasicInfoCompleted.value = false
     eventId.value = null
     eventData.value = null
-    
-    // Reset tabs for new event
-    tabsStore.resetTabs()
   }
 
   // Check for tab query parameter (from manage tickets - only in edit mode)
@@ -570,7 +462,7 @@ onMounted(async () => {
   }
 })
 
-// Clear event data when leaving the page
+  // Clear event data when leaving the page
 onBeforeUnmount(() => {
   console.log('🚪 Leaving CreateEvent page - cleaning up state')
   const eventStore = useEventStore()
@@ -586,12 +478,6 @@ onBeforeUnmount(() => {
 
   // Clear all state storage
   eventStore.clearCache()
-  tabsStore.clearAllTabDataForEventSwitch(null)
-  
-  // Notify all components to clear their data
-  window.dispatchEvent(new CustomEvent('clearTicketData', {
-    detail: { eventId: null, reason: 'page_unmount' }
-  }))
   
   // Reset all local state
   eventId.value = null
@@ -615,9 +501,7 @@ onBeforeUnmount(() => {
   }
   
   console.log('✅ State cleanup complete')
-})
-
-// Match tab index with component
+})// Match tab index with component
 const tabComponents = [
   BasicInfor,
   Agenda,
@@ -698,9 +582,9 @@ const isTabAccessible = (index) => {
   
   // Tab-specific accessibility rules with API availability check
   switch (index) {
-    case 1: // Agenda tab - UNLOCKED (Has API support)
-      console.log(`🔓 Tab ${index} (Agenda) unlocked - Basic Info completed & API available`)
-      return true
+    case 1: // Agenda tab - LOCKED (No API implementation yet)
+      console.log(`🔒 Tab ${index} (Agenda) locked - API not implemented`)
+      return false
       
     case 2: // Ticket Package tab - UNLOCKED (Has full API support)
       console.log(`🔓 Tab ${index} (Tickets) unlocked - Basic Info completed & API available`)
@@ -760,7 +644,7 @@ const changeTab = async (index) => {
     return
   }
 
-  if (index >= 0 && index < tabComponents.length && activeIndex.value !== index) {
+  if (index >= 0 && index <script (tabComponents.length && activeIndex.value !== index)) {
     isChangingTab.value = true
     isLoading.value = true
 
@@ -880,439 +764,17 @@ const loadTabSpecificData = async (tabIndex) => {
   }
 }
 
-// Enhanced Save Draft/Changes button - IMPROVED GLOBAL FUNCTIONALITY
+// Enhanced Save Draft button - IMPROVED GLOBAL FUNCTIONALITY
 const handleSaveDraft = async () => {
   if (isSubmitting.value) return
   
   isSubmitting.value = true
   
-  try {
+//   try {
     // Always save current tab data first
-    await saveCurrentTabData()
-    
-    // Determine button action based on mode and tab
-    const buttonText = isEditMode.value ? 'Save Changes' : 'Save Draft'
-    const actionText = isEditMode.value ? 'Updating' : 'Saving'
+    // await saveCurrentTabData()
     
     // If we're on Basic Info tab and it's not completed yet, trigger basic info save
-    if (activeIndex.value === 0 && (!isBasicInfoCompleted.value || !eventId.value)) {
-      console.log('🔄 Triggering Basic Info save to create event')
-      window.dispatchEvent(new CustomEvent('saveDraft'))
-      toast.add({
-        severity: 'info',
-        summary: `${actionText} Basic Info...`,
-        detail: 'Completing basic information to unlock other tabs.',
-        life: 3000
-      })
-    } else if (activeIndex.value === 0 && isBasicInfoCompleted.value && eventId.value) {
-      // Basic Info tab with existing event - update it
-      console.log(`🔄 ${actionText} existing Basic Info`)
-      window.dispatchEvent(new CustomEvent('saveDraft'))
-      toast.add({
-        severity: 'info',
-        summary: `${actionText} Basic Info...`,
-        detail: isEditMode.value ? 'Updating your event information.' : 'Saving your changes to the event.',
-        life: 3000
-      })
-    } else if (activeIndex.value === 1 && isBasicInfoCompleted.value && eventId.value) {
-      // Agenda tab - trigger agenda save
-      console.log(`📅 ${actionText} agenda`)
-      window.dispatchEvent(new CustomEvent('saveAgenda'))
-      toast.add({
-        severity: 'info',
-        summary: `${actionText} Agenda...`,
-        detail: isEditMode.value ? 'Updating your event agenda.' : 'Saving your event agenda.',
-        life: 3000
-      })
-    } else if (activeIndex.value === 2 && isBasicInfoCompleted.value && eventId.value) {
-      // Tickets tab - trigger ticket save
-      console.log(`🎫 ${actionText} tickets`)
-      window.dispatchEvent(new CustomEvent('saveTickets'))
-      toast.add({
-        severity: 'info',
-        summary: `${actionText} Tickets...`,
-        detail: isEditMode.value ? 'Updating your ticket configurations.' : 'Saving your ticket configurations.',
-        life: 3000
-      })
-    } else if (isBasicInfoCompleted.value && eventId.value) {
-      // Other tabs with existing event
-      const tabNames = ['Basic Info', 'Agenda', 'Tickets', 'Breakout Rooms', 'Settings']
-      const currentTabName = tabNames[activeIndex.value] || 'Current Tab'
-      
-      toast.add({
-        severity: 'success',
-        summary: `${currentTabName} ${isEditMode.value ? 'Updated' : 'Saved'}! 💾`,
-        detail: isEditMode.value
-          ? 'Your changes have been updated. You can continue editing or publish when ready.'
-          : 'Your changes have been saved as draft. You can continue editing or publish when ready.',
-        life: 4000
-      })
-    } else {
-      // Basic info not completed
-      toast.add({
-        severity: 'warn',
-        summary: 'Complete Basic Info First',
-        detail: 'Please complete and save Basic Info to unlock other sections.',
-        life: 4000
-      })
-    }
-  } catch (error) {
-    console.error('Save error:', error)
-    toast.add({
-      severity: 'error',
-      summary: 'Save Failed',
-      detail: 'Failed to save changes. Please try again.',
-      life: 4000
-    })
-  } finally {
-    setTimeout(() => {
-      isSubmitting.value = false
-    }, 1000)
-  }
+    // if (activeIndex.value === 0 && (!isBasicInfoCompleted.value || !eventId.value)) {
 }
-
-// Enhanced save current tab data helper function with event isolation
-const saveCurrentTabData = async () => {
-  const tabEvents = {
-    0: 'saveCurrentTab',   // Basic Info - changed to saveCurrentTab for data persistence
-    1: 'saveCurrentTab',   // Agenda - now properly integrated
-    2: 'saveCurrentTab',   // Tickets - changed to saveCurrentTab for consistency, actual save handled by component
-    3: 'saveCurrentTab',   // Breakout Rooms
-    4: 'saveCurrentTab'    // Settings
-  }
-  
-  const eventName = tabEvents[activeIndex.value]
-  if (eventName) {
-    console.log(`💾 Saving current tab data for tab ${activeIndex.value}, event: ${eventId.value}`)
-    
-    // Dispatch event with event ID for proper isolation
-    window.dispatchEvent(new CustomEvent(eventName, {
-      detail: {
-        eventId: eventId.value,
-        isEditMode: isEditMode.value,
-        tabIndex: activeIndex.value
-      }
-    }))
-    
-    // Store tab metadata in persistence system with event context
-    tabsStore.saveTabData(activeIndex.value, {
-      lastSaved: new Date().toISOString(),
-      tabIndex: activeIndex.value,
-      eventId: eventId.value,
-      isEditMode: isEditMode.value,
-      autoSaved: true
-    })
-    
-    console.log(`✅ Tab ${activeIndex.value} data saved successfully for event ${eventId.value}`)
-  }
-}
-
-// Handle Publish Event button - ENHANCED GLOBAL FUNCTIONALITY
-const handlePublishEvent = async () => {
-  if (isSubmitting.value) return
-  
-  // Check if basic info is completed and saved
-  if (!isBasicInfoCompleted.value || !eventId.value) {
-    toast.add({
-      severity: 'warn',
-      summary: 'Complete Basic Info First',
-      detail: 'Please complete and save Basic Info before publishing.',
-      life: 4000
-    })
-    return
-  }
-
-  // Save current tab data before publishing
-  try {
-    await saveCurrentTabData()
-  } catch (error) {
-    console.warn('Failed to save current tab data before publishing:', error)
-  }
-
-  // Check if tickets are created (comprehensive check)
-  const eventStore = useEventStore()
-  let hasValidTickets = false
-  
-  try {
-    // First check current store state
-    if (eventStore.currentEvent?.ticket_types?.length > 0) {
-      hasValidTickets = true
-      console.log('✅ Found tickets in current event store')
-    } else if (eventStore.tickets && eventStore.tickets.length > 0) {
-      hasValidTickets = true
-      console.log('✅ Found tickets in event store tickets array')
-    } else {
-      // Check tab persistence
-      const tabsStore = useEventTabsStore()
-      const ticketTabData = tabsStore.getTabData(2) // Tickets tab
-      if (ticketTabData.ticketTypes && ticketTabData.ticketTypes.length > 0) {
-        hasValidTickets = true
-        console.log('✅ Found tickets in tab persistence')
-      } else {
-        // Final check: reload from API
-        console.log('🔄 Reloading event data to check for tickets...')
-        await eventStore.loadEventById(eventId.value)
-        hasValidTickets = eventStore.currentEvent?.ticket_types?.length > 0
-        console.log('📊 API ticket check result:', hasValidTickets)
-      }
-    }
-  } catch (error) {
-    console.warn('Failed to check ticket data:', error)
-    // Don't block publishing if we can't verify - let the API handle validation
-    hasValidTickets = true
-  }
-
-  if (!hasValidTickets) {
-    toast.add({
-      severity: 'warn',
-      summary: 'Create Tickets First',
-      detail: 'Please create at least one ticket before publishing the event.',
-      life: 4000
-    })
-    // Switch to tickets tab to help user
-    if (activeIndex.value !== 2) {
-      changeTab(2)
-    }
-    return
-  }
-
-  // Check agenda status (optional but inform user)
-  const agendaTabData = tabsStore.getTabData(1)
-  const hasAgendaItems = agendaTabData.sessions?.length > 0
-  const isAgendaSkipped = agendaTabData.isSkipped === true
-  
-  if (!hasAgendaItems && !isAgendaSkipped) {
-    // Show info about agenda being empty but don't block publishing
-    toast.add({
-      severity: 'info',
-      summary: 'No Agenda Added',
-      detail: 'This event will be published without an agenda. You can add one later if needed.',
-      life: 4000
-    })
-  } else if (isAgendaSkipped) {
-    console.log('📅 Agenda was skipped for this event')
-  } else {
-    console.log(`📅 Found ${hasAgendaItems} agenda items`)
-  }
-
-  isSubmitting.value = true
-
-  try {
-    // Import the publishEvent API function
-    const { publishEvent } = await import('@/composables/api')
-    
-    console.log('🚀 Publishing event:', eventId.value)
-    
-    // Show publishing progress
-    toast.add({
-      severity: 'info',
-      summary: 'Publishing Event...',
-      detail: 'Please wait while we publish your event.',
-      life: 3000
-    })
-    
-    const result = await publishEvent(eventId.value)
-    
-    if (result && result.success !== false) {
-      // Update local state
-      if (eventData.value) {
-        eventData.value.is_published = true
-        eventData.value.status = 'active'
-      }
-      
-      // Update store
-      if (eventStore.currentEvent) {
-        eventStore.currentEvent.is_published = true
-        eventStore.currentEvent.status = 'active'
-      }
-      
-      // Mark all tabs as saved since event is now published
-      for (let i = 0; i < 5; i++) {
-        tabsStore.markTabSaved(i)
-      }
-      
-      // Save final agenda state to ensure it's included in published event
-      if (agendaTabData.sessions?.length > 0 || agendaTabData.isSkipped) {
-        tabsStore.saveTabData(1, {
-          ...agendaTabData,
-          lastSaved: new Date().toISOString(),
-          isComplete: true
-        })
-      }
-      
-      toast.add({
-        severity: 'success',
-        summary: 'Event Published Successfully! 🎉',
-        detail: 'Your event is now live and visible to attendees. Redirecting to event list...',
-        life: 5000
-      })
-      
-      console.log('✅ Event published successfully')
-      
-      // Redirect to event list after a delay
-      setTimeout(() => {
-        router.push('/admin/event')
-      }, 2500)
-      
-    } else {
-      throw new Error(result?.message || 'Failed to publish event')
-    }
-  } catch (error) {
-    console.error('❌ Failed to publish event:', error)
-    
-    let errorMessage = 'Failed to publish event. Please try again.'
-    if (error.message.includes('Authentication')) {
-      errorMessage = 'Please login again to continue.'
-    } else if (error.message.includes('not found')) {
-      errorMessage = 'Event not found. Please refresh and try again.'
-    } else if (error.message) {
-      errorMessage = error.message
-    }
-    
-    toast.add({
-      severity: 'error',
-      summary: 'Publish Failed',
-      detail: errorMessage,
-      life: 5000
-    })
-  } finally {
-    setTimeout(() => {
-      isSubmitting.value = false
-    }, 1000)
-  }
-}
-
-// Handle Preview button - REQUIRES SAVED EVENT
-const handlePreview = () => {
-  if (!isBasicInfoCompleted.value) {
-    toast.add({
-      severity: 'warn',
-      summary: 'Save Basic Info First',
-      detail: 'Please complete and save the Basic Info section before previewing the event.',
-      life: 4000
-    })
-    return
-  }
-
-  if (!eventId.value) {
-    toast.add({
-      severity: 'error',
-      summary: 'No Event Found',
-      detail: 'Event ID not found. Please save the event first.',
-      life: 3000
-    })
-    return
-  }
-
-  // Navigate to preview page with event ID
-  router.push(`/admin/PreviewEvent/${eventId.value}`)
-}
-
-definePageMeta({
-  layout: "admin",
-})
 </script>
-
-<style scoped>
-/* Smooth Tab Fade Transitions */
-.tab-fade-enter-active,
-.tab-fade-leave-active {
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.tab-fade-enter-from {
-  opacity: 0;
-  transform: translateY(15px) scale(0.98);
-}
-
-.tab-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-15px) scale(0.98);
-}
-
-.tab-fade-enter-to,
-.tab-fade-leave-from {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-}
-
-/* Tab content animation */
-.tab-content {
-  animation: slideInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes slideInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Enhanced Button Styles */
-.bt-preview button:hover {
-  transform: translateY(-2px);
-  transition: all 0.2s ease-in-out;
-}
-
-.bt-saveDraft button:hover {
-  transform: translateY(-2px);
-  border-color: #6b21a8;
-  transition: all 0.2s ease-in-out;
-}
-
-/* Tab button smooth transitions */
-button {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-button:hover {
-  transform: translateY(-1px);
-}
-
-button:active {
-  transform: translateY(0);
-}
-
-/* Container smooth transitions */
-.rounded-3xl {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.bt-publishEvent button:hover {
-  transform: translateY(-2px);
-}
-
-/* Custom gradient for text */
-.bg-custom-gradient {
-  background: linear-gradient(135deg, #7c3aed, #3b82f6);
-}
-
-/* Smooth transitions for all interactive elements */
-* {
-  transition-property: transform, box-shadow, background-color, border-color, color, opacity;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Active tab indicator animation */
-@keyframes activeTab {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1.05);
-  }
-}
-
-/* Loading state for tab content */
-.tab-loading {
-  opacity: 0.7;
-  pointer-events: none;
-}
-</style>

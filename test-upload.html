@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Upload Test</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .upload-area {
+            border: 2px dashed #a855f7;
+            border-radius: 0.5rem;
+            background-color: #f9fafb;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 4rem 2rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-height: 200px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .upload-area:hover {
+            border-color: #9333ea;
+            background-color: #faf5ff;
+        }
+
+        .upload-area-error {
+            border-color: #fca5a5;
+            background-color: #fef2f2;
+        }
+
+        .upload-icon {
+            margin-bottom: 1rem;
+            cursor: pointer;
+            z-index: 2;
+        }
+
+        .upload-text {
+            margin-bottom: 1rem;
+            text-align: center;
+            cursor: pointer;
+            z-index: 2;
+        }
+
+        .browse-link {
+            color: #a855f7;
+            text-decoration: underline;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            display: inline-block;
+            z-index: 3;
+        }
+
+        .browse-link:hover {
+            color: #9333ea;
+        }
+
+        input[type="file"] {
+            position: absolute !important;
+            left: -9999px !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+
+        .upload-area * {
+            user-select: none;
+        }
+
+        .browse-link {
+            user-select: text;
+        }
+
+        .pointer-events-none {
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-8">
+    <div id="app">
+        <div class="max-w-2xl mx-auto">
+            <h1 class="text-3xl font-bold mb-8 text-center">Photo Upload Test</h1>
+            
+            <!-- Upload Component Test -->
+            <div class="file-upload-component p-6 border border-gray-200 rounded-2xl bg-white">
+                <h3 class="text-lg font-medium text-gray-800 mb-4">Cover Image (Required)</h3>
+                
+                <!-- Upload Area -->
+                <div
+                    class="upload-area"
+                    :class="{ 'upload-area-error': hasError }"
+                    @drop.prevent.stop="handleDrop"
+                    @dragover.prevent.stop="handleDragOver"
+                    @dragenter.prevent.stop="handleDragEnter"
+                    @click.prevent.stop="triggerFileInput"
+                >
+                    <!-- Upload Icon -->
+                    <div class="upload-icon" @click.prevent.stop="triggerFileInput">
+                        <svg class="w-16 h-16 text-purple-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                    
+                    <!-- Upload Text -->
+                    <div class="upload-text" @click.prevent.stop="triggerFileInput">
+                        <span class="text-gray-600 pointer-events-none">Drop your Image here, or </span>
+                        <button
+                            type="button"
+                            class="browse-link"
+                            @click.prevent.stop="handleBrowseClick"
+                        >
+                            browse
+                        </button>
+                    </div>
+                    
+                    <!-- File Constraints -->
+                    <div class="upload-constraints text-center space-y-1">
+                        <p class="text-xs text-gray-400">*Maximum file size: below 10MB</p>
+                        <p class="text-xs text-gray-400">*Banner resolution must be 1800 Width x 1440 Height</p>
+                    </div>
+
+                    <!-- Selected File Preview -->
+                    <div v-if="selectedFile" class="selected-file mt-4 p-3 bg-white rounded-lg border shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                <span class="text-sm font-medium">{{ selectedFile.name }}</span>
+                                <span class="text-xs text-gray-500">({{ formatFileSize(selectedFile.size) }})</span>
+                            </div>
+                            <button
+                                @click="removeFile"
+                                class="text-red-500 hover:text-red-600 p-1"
+                            >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Hidden File Input -->
+                <input
+                    ref="fileInput"
+                    type="file"
+                    accept="image/*"
+                    @change="handleFileSelect"
+                    class="hidden"
+                />
+
+                <!-- Debug Info -->
+                <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                    <h4 class="font-medium mb-2">Debug Information:</h4>
+                    <div class="text-sm space-y-1">
+                        <p><strong>File Input Ref:</strong> {{ fileInput ? 'Found' : 'Not Found' }}</p>
+                        <p><strong>Selected File:</strong> {{ selectedFile ? selectedFile.name : 'None' }}</p>
+                        <p><strong>Has Error:</strong> {{ hasError }}</p>
+                        <p><strong>Last Action:</strong> {{ lastAction }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref } = Vue;
+
+        createApp({
+            setup() {
+                const fileInput = ref(null);
+                const selectedFile = ref(null);
+                const hasError = ref(false);
+                const lastAction = ref('None');
+
+                const triggerFileInput = (event) => {
+                    console.log('🖱️ Triggering file input click', event?.target?.tagName);
+                    lastAction.value = 'triggerFileInput called';
+                    
+                    if (event) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    
+                    if (fileInput.value) {
+                        console.log('📁 File input found, triggering click');
+                        lastAction.value = 'File input click triggered';
+                        // Use setTimeout to ensure the click happens after event handling
+                        setTimeout(() => {
+                            fileInput.value.click();
+                        }, 0);
+                    } else {
+                        console.error('❌ File input ref not found');
+                        lastAction.value = 'ERROR: File input ref not found';
+                    }
+                };
+
+                const handleBrowseClick = (event) => {
+                    console.log('🖱️ Browse button clicked');
+                    lastAction.value = 'Browse button clicked';
+                    event.preventDefault();
+                    event.stopPropagation();
+                    triggerFileInput(event);
+                };
+
+                const handleDragOver = (event) => {
+                    event.preventDefault();
+                };
+
+                const handleDragEnter = (event) => {
+                    event.preventDefault();
+                };
+
+                const handleFileSelect = (event) => {
+                    console.log('📁 File input changed', event.target.files);
+                    lastAction.value = 'File input changed';
+                    const file = event.target.files[0];
+                    if (file) {
+                        console.log('📎 File selected:', file.name, file.size, file.type);
+                        lastAction.value = `File selected: ${file.name}`;
+                        validateAndProcessFile(file);
+                    } else {
+                        console.log('❌ No file selected');
+                        lastAction.value = 'No file selected';
+                    }
+                };
+
+                const handleDrop = (event) => {
+                    event.preventDefault();
+                    lastAction.value = 'File dropped';
+                    const file = event.dataTransfer.files[0];
+                    if (file) {
+                        validateAndProcessFile(file);
+                    }
+                };
+
+                const validateAndProcessFile = (file) => {
+                    console.log('🔍 Validating file:', file.name, file.size, file.type);
+                    lastAction.value = `Validating file: ${file.name}`;
+                    hasError.value = false;
+                    
+                    // Check file size (10MB limit)
+                    const maxSize = 10 * 1024 * 1024;
+                    if (file.size > maxSize) {
+                        console.error('❌ File too large:', file.size, 'max:', maxSize);
+                        hasError.value = true;
+                        lastAction.value = 'ERROR: File too large';
+                        return;
+                    }
+                    
+                    // Check file type
+                    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+                    if (!allowedTypes.includes(file.type)) {
+                        console.error('❌ Invalid file type:', file.type, 'allowed:', allowedTypes);
+                        hasError.value = true;
+                        lastAction.value = 'ERROR: Invalid file type';
+                        return;
+                    }
+                    
+                    console.log('✅ File validation passed');
+                    lastAction.value = `SUCCESS: File validated - ${file.name}`;
+                    selectedFile.value = file;
+                };
+
+                const removeFile = () => {
+                    selectedFile.value = null;
+                    if (fileInput.value) {
+                        fileInput.value.value = '';
+                    }
+                    lastAction.value = 'File removed';
+                };
+
+                const formatFileSize = (bytes) => {
+                    if (bytes === 0) return '0 Bytes';
+                    const k = 1024;
+                    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                    const i = Math.floor(Math.log(bytes) / Math.log(k));
+                    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                };
+
+                return {
+                    fileInput,
+                    selectedFile,
+                    hasError,
+                    lastAction,
+                    triggerFileInput,
+                    handleBrowseClick,
+                    handleDragOver,
+                    handleDragEnter,
+                    handleFileSelect,
+                    handleDrop,
+                    removeFile,
+                    formatFileSize
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

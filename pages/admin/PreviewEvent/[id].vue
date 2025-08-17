@@ -236,7 +236,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import Button from 'primevue/button'
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
-import { fetchEventById } from '@/composables/api'
+// import { fetchEventById } from '@/composables/api'
 
 const router = useRouter()
 const route = useRoute()
