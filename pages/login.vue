@@ -110,9 +110,9 @@
               <i class="pi pi-phone mr-2 lg:mr-3 text-purple-400 text-base lg:text-lg"></i> Phone Number
             </label>
             <input
-              id="phone-number"
-              v-model="phoneNumber"
-              type="tel"
+              id="username"
+              v-model="username"
+              type="text"
               required
               class="w-full px-3 lg:px-4 py-2 lg:py-3 text-sm lg:text-base bg-gray-700 text-white border border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 placeholder-gray-400"
               placeholder="Enter your phone number"
@@ -232,7 +232,7 @@ async function handleLogin() {
     })
 
     // Validate input
-    const identifier = currentTab.value === 'username-password' ? username.value : phoneNumber.value
+    const identifier = currentTab.value === 'username-password' ? username.value : username.value
     if (!identifier || !password.value) {
       throw new Error('Please fill in all required fields')
     }
