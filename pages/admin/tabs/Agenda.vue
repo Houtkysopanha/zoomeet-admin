@@ -28,41 +28,61 @@
       </div>
     </div>
 
+    <!-- Validation Errors Display -->
+    <div v-if="validationErrors.length > 0" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl">
+      <div class="flex items-start">
+        <Icon name="heroicons:exclamation-triangle" class="w-5 h-5 text-red-600 mr-2 mt-0.5" />
+        <div>
+          <h4 class="text-sm font-medium text-red-800 mb-2">Please fix the following errors:</h4>
+          <ul class="text-sm text-red-700 space-y-1">
+            <li v-for="error in validationErrors" :key="error">• {{ error }}</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
     <!-- Agenda Content (hidden when skipped) -->
     <div v-if="!isSkipped" class="mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
       <!-- Left Panel: List of Created Agenda -->
-      <div class=" bg-white p-4 rounded-3xl col-span-2">
+      <div class="bg-white p-4 rounded-3xl col-span-2">
         <h2 class="text-2xl font-bold text-gray-800 mb-2">List of Created Agenda</h2>
         <p class="text-gray-500 mb-6">View and manage your complete event schedule</p>
 
-        <TabView class="mb-6">
-          <TabPanel header="Day 1">
+        <TabView class="mb-6" v-model:activeIndex="activeTabIndex" v-if="daysWithItems.length > 0">
+          <TabPanel v-for="(day, dayIndex) in daysWithItems" :key="dayIndex" :header="`Day ${day.dayNumber}`">
             <div class="space-y-4">
-              <div v-for="item in agendaItems" :key="item.id" class="border border-gray-200 rounded-xl p-4 ">
+              <div v-for="item in day.items" :key="item.id" class="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
                 <div class="flex items-start space-x-4">
-                  <div class="flex flex-col items-center text-center text-gray-600">
-                    <span class="text-sm font-semibold">{{ item.day }}</span>
-                    <span class="text-2xl font-bold text-purple-600">{{ item.date }}</span>
+                  <div class="flex flex-col items-center text-center text-gray-600 min-w-[60px]">
+                    <span class="text-sm font-semibold">Day {{ getDayNumber(item.date) }}</span>
+                    <span class="text-lg font-bold text-purple-600">{{ formatDateShort(item.date) }}</span>
                   </div>
                   <div class="flex-1 pl-4 border-l-2 border-gray-400">
                     <div class="flex items-center justify-between mb-2">
                       <div class="flex items-center text-gray-500 text-sm">
                         <Icon name="heroicons:clock" class="w-4 h-4 mr-1" />
-                        <span>{{ item.time_start }} - {{ item.time_end }}</span>
+                        <span>{{ item.time_start || 'No time' }} - {{ item.time_end || 'No time' }}</span>
                       </div>
                       <div class="flex space-x-2">
-                        <button @click="editAgenda(item)" class="text-gray-400 hover:text-purple-600 transition-colors">
+                        <button @click="editAgenda(item)" class="text-gray-400 hover:text-purple-600 transition-colors" title="Edit agenda item">
                           <Icon name="heroicons:pencil-square" class="w-5 h-5" />
                         </button>
-                        <button @click="deleteAgendaAction($event, item.id)" class="text-gray-400 hover:text-red-500 transition-colors">
+                        <button @click="deleteAgendaAction($event, item.id)" class="text-gray-400 hover:text-red-500 transition-colors" title="Delete agenda item">
                           <Icon name="heroicons:trash" class="w-5 h-5" />
                         </button>
                       </div>
                     </div>
-                    <h3 class="text-lg font-normal text-gray-800 mb-2">{{ item.title }}</h3>
+                    <h3 class="text-lg font-normal text-gray-800 mb-2">{{ item.title || 'Untitled Session' }}</h3>
+                    <div v-if="item.description" class="text-sm text-gray-600 mb-2">{{ item.description }}</div>
+                    <div v-if="item.venu || item.room_no" class="text-sm text-gray-500 mb-2">
+                      <Icon name="heroicons:map-pin" class="w-4 h-4 inline mr-1" />
+                      {{ item.venu }}{{ item.venu && item.room_no ? ', ' : '' }}{{ item.room_no ? `Room ${item.room_no}` : '' }}
+                    </div>
                     <div v-if="item.speakers?.length > 0" class="space-y-1">
                       <div v-for="(speaker, sIdx) in item.speakers" :key="sIdx" class="text-sm text-gray-700">
-                        <span class="font-medium">{{ speaker.name }}</span> | {{ speaker.about }}
+                        <Icon name="heroicons:user" class="w-4 h-4 inline mr-1" />
+                        <span class="font-medium">{{ speaker.name || 'Unknown Speaker' }}</span>
+                        <span v-if="speaker.about"> | {{ speaker.about }}</span>
                       </div>
                     </div>
                   </div>
@@ -70,10 +90,16 @@
               </div>
             </div>
           </TabPanel>
-          <!-- <TabPanel header="Day 2">
-            <p class="text-gray-500 text-center py-8">No agenda items for Day 2 yet.</p>
-          </TabPanel> -->
         </TabView>
+
+        <!-- No Agenda Items Display -->
+        <div v-else class="text-center py-12">
+          <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Icon name="heroicons:calendar" class="w-10 h-10 text-gray-400" />
+          </div>
+          <h3 class="text-xl font-semibold text-gray-800 mb-2">No Agenda Items Yet</h3>
+          <p class="text-gray-600 mb-6">Start creating your event schedule by adding agenda items.</p>
+        </div>
       </div>
 
       <!-- Right Panel: Event Agenda Form -->
@@ -88,11 +114,16 @@
             <Calendar
               showIcon
               iconDisplay="input"
-              placeholder="31/07/2025"
+              placeholder="Select date"
               v-model="eventForm.date"
-              class="w-full mt-1 bg-gray-100 p-3 rounded-2xl"
+              :class="[
+                'w-full mt-1 bg-gray-100 p-3 rounded-2xl',
+                getFieldError('date') ? 'border-red-500 border-2' : ''
+              ]"
               dateFormat="dd/mm/yy"
+              @date-select="handleDateChange"
             />
+            <small v-if="getFieldError('date')" class="text-red-500">{{ getFieldError('date') }}</small>
           </div>
 
           <!-- Time -->
@@ -105,8 +136,12 @@
                   v-model="eventForm.time_start"
                   type="time"
                   placeholder="Start Time"
-                  class="w-full pl-10 bg-gray-100 p-1 rounded-2xl text-gray-800"
+                  :class="[
+                    'w-full pl-10 bg-gray-100 p-3 rounded-2xl text-gray-800',
+                    getFieldError('time_start') ? 'border-red-500 border-2' : ''
+                  ]"
                 />
+                <small v-if="getFieldError('time_start')" class="text-red-500 text-xs">{{ getFieldError('time_start') }}</small>
               </div>
               <div class="relative">
                 <Icon name="heroicons-outline:clock" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
@@ -114,8 +149,12 @@
                   v-model="eventForm.time_end"
                   type="time"
                   placeholder="End Time"
-                  class="w-full pl-10 bg-gray-100 p-1 rounded-2xl text-gray-800"
+                  :class="[
+                    'w-full pl-10 bg-gray-100 p-3 rounded-2xl text-gray-800',
+                    getFieldError('time_end') ? 'border-red-500 border-2' : ''
+                  ]"
                 />
+                <small v-if="getFieldError('time_end')" class="text-red-500 text-xs">{{ getFieldError('time_end') }}</small>
               </div>
             </div>
           </div>
@@ -127,8 +166,12 @@
               id="session-title"
               v-model="eventForm.title"
               placeholder="Enter session title"
-              class="w-full bg-gray-100 p-3 rounded-2xl border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-gray-800 placeholder-gray-400"
+              :class="[
+                'w-full bg-gray-100 p-3 rounded-2xl border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-gray-800 placeholder-gray-400',
+                getFieldError('title') ? 'border-red-500 border-2' : ''
+              ]"
             />
+            <small v-if="getFieldError('title')" class="text-red-500">{{ getFieldError('title') }}</small>
           </div>
 
           <!-- Venue -->
@@ -136,7 +179,7 @@
             <label for="venue" class="block text-sm font-medium text-gray-700 mb-1">Venue/Hall</label>
             <InputText
               id="venue"
-              v-model="eventForm.venue"
+              v-model="eventForm.venu"
               placeholder="Venue or Hall"
               class="w-full bg-gray-100 p-3 rounded-2xl border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-gray-800 placeholder-gray-400"
             />
@@ -169,29 +212,33 @@
           <div class="space-y-4">
             <h3 class="text-lg font-semibold text-gray-800">Speakers/Presenters</h3>
             <div class="form-speaker bg-[#F1EBF9] p-3 rounded-2xl border-2 border-purple-700">
-              <div v-for="(speaker, index) in eventForm.speakers" :key="index" class="flex items-start gap-3">
+              <div v-for="(speaker, index) in eventForm.speakers" :key="index" class="mb-4 last:mb-0">
                 <div class="w-full space-y-2">
                   <div class="speaker namer">
-                    <label for="speaker" class="block text-sm font-normal text-purple-700 mb-2">Speaker/Presenter Name</label>
+                    <label class="block text-sm font-normal text-purple-700 mb-2">Speaker/Presenter Name</label>
                     <InputText
                       v-model="speaker.name"
                       placeholder="Speaker name"
                       class="w-full bg-white p-3 rounded-2xl border-gray-300 focus:border-purple-500"
                     />
                   </div>
-                  <label for="about-speaker" class="block text-sm font-normal text-purple-700 mb-2">About Speaker</label>
-                  <Textarea
-                    v-model="speaker.about"
-                    placeholder="About speaker"
-                    class="w-full bg-white p-3 rounded-2xl border-gray-300 focus:border-purple-500"
-                  />
+                  <div>
+                    <label class="block text-sm font-normal text-purple-700 mb-2">About Speaker</label>
+                    <Textarea
+                      v-model="speaker.about"
+                      placeholder="About speaker"
+                      rows="2"
+                      class="w-full bg-white p-3 rounded-2xl border-gray-300 focus:border-purple-500"
+                    />
+                  </div>
                   <button
                     v-if="eventForm.speakers.length > 1"
                     type="button"
                     @click="removeSpeakerField(index)"
-                    class="mt-2 text-red-500 hover:text-red-700"
+                    class="mt-2 text-red-500 hover:text-red-700 flex items-center"
                   >
-                    <Icon name="heroicons:trash" class="w-5 h-5" />
+                    <Icon name="heroicons:trash" class="w-4 h-4 mr-1" />
+                    Remove Speaker
                   </button>
                 </div>
               </div>
@@ -201,7 +248,7 @@
                 class="w-full flex items-center justify-center mt-5 py-3 px-4 border border-purple-400 border-dashed text-purple-600 rounded-xl hover:bg-purple-50 transition-colors font-semibold"
               >
                 <Icon name="heroicons:plus" class="w-5 h-5 mr-2" />
-                Add More
+                Add Speaker
               </button>
             </div>
           </div>
@@ -210,11 +257,17 @@
           <div class="flex space-x-4">
             <button
               type="submit"
-              class="w-full flex items-center justify-center py-3 px-6 rounded-full shadow-lg text-white font-semibold
-                    bg-gradient-to-r from-purple-600 to-blue-800 hover:from-purple-700 hover:to-purple-900 transition-all duration-300 ease-in-out"
+              :disabled="isSubmitting"
+              :class="[
+                'w-full flex items-center justify-center py-3 px-6 rounded-full shadow-lg text-white font-semibold transition-all duration-300 ease-in-out',
+                isSubmitting
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-purple-600 to-blue-800 hover:from-purple-700 hover:to-purple-900'
+              ]"
             >
-              <Icon name="heroicons:document-plus" class="w-5 h-5 mr-2" />
-              {{ isEditMode ? 'Update Agenda' : 'Add Agenda' }}
+              <Icon v-if="isSubmitting" name="heroicons:arrow-path" class="w-5 h-5 mr-2 animate-spin" />
+              <Icon v-else name="heroicons:document-plus" class="w-5 h-5 mr-2" />
+              {{ isSubmitting ? 'Saving...' : (isEditMode ? 'Update Agenda' : 'Add Agenda') }}
             </button>
             <button
               v-if="isEditMode"
@@ -228,7 +281,6 @@
           </div>
         </form>
       </div>
-
     </div>
 
     <!-- Skipped State Display -->
@@ -271,12 +323,26 @@ import { useConfirm } from "primevue/useconfirm";
 import { getEventAgenda, createAgendaItems, updateAgendaItem, deleteAgenda } from '@/composables/api'
 import { useEventStore } from '~/composables/useEventStore'
 import { useEventTabsStore } from '~/composables/useEventTabs'
+import { useFormValidation } from '~/composables/useFormValidation'
 // Icon is auto-imported by Nuxt
 
 const props = defineProps(['eventId'])
 
 const toast = useToast();
 const confirm = useConfirm();
+
+// Form validation
+const {
+  errors,
+  hasErrors,
+  clearErrors,
+  clearFieldError,
+  setFieldError,
+  getFieldError,
+  validateField,
+  validateRequired,
+  validateTimeRange
+} = useFormValidation()
 
 // Event creation state from parent
 const eventCreationState = inject('eventCreationState')
@@ -285,8 +351,12 @@ const eventCreationState = inject('eventCreationState')
 const currentEventId = ref(null)
 const currentEventName = ref('')
 const isSkipped = ref(false)
+const isSubmitting = ref(false)
 
 const agendaItems = ref([]);
+const activeTabIndex = ref(0)
+const validationErrors = ref([])
+
 // Track edit mode and the ID of the agenda being edited
 const isEditMode = ref(false);
 const editingAgendaId = ref(null);
@@ -296,11 +366,168 @@ const eventForm = ref({
   time_start: null,
   time_end: null,
   title: null,
-  venue: null,
+  venu: null,
   room_no: null,
   description: null,
   speakers: [{ name: null, about: null }],
 });
+
+// Get event start and end dates for day calculation
+const eventStartDate = ref(null)
+const eventEndDate = ref(null)
+
+// Computed property for organizing agenda items by days
+const agendaDays = computed(() => {
+  if (!eventStartDate.value || !eventEndDate.value) {
+    return [{ date: new Date(), items: agendaItems.value, dayNumber: 1 }]
+  }
+
+  const startDate = new Date(eventStartDate.value)
+  const endDate = new Date(eventEndDate.value)
+  const days = []
+  
+  // Calculate number of days between start and end
+  const timeDiff = endDate.getTime() - startDate.getTime()
+  const dayCount = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1
+  
+  // Create day structure
+  for (let i = 0; i < dayCount; i++) {
+    const dayDate = new Date(startDate)
+    dayDate.setDate(startDate.getDate() + i)
+    
+    const dayItems = agendaItems.value.filter(item => {
+      if (!item.date) return false
+      const itemDate = new Date(item.date)
+      return itemDate.toDateString() === dayDate.toDateString()
+    })
+    
+    days.push({
+      date: dayDate,
+      dayNumber: i + 1,
+      items: dayItems.sort((a, b) => {
+        // Sort by time_start
+        if (!a.time_start || !b.time_start) return 0
+        return a.time_start.localeCompare(b.time_start)
+      })
+    })
+  }
+  
+  return days.length > 0 ? days : [{ date: new Date(), items: [], dayNumber: 1 }]
+})
+
+// Computed property for days that have agenda items
+const daysWithItems = computed(() => {
+  return agendaDays.value.filter(day => day.items.length > 0)
+})
+
+// Helper functions for date formatting
+const formatDate = (date) => {
+  if (!date) return 'No date'
+  return new Date(date).toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+}
+
+const formatDateShort = (date) => {
+  if (!date) return 'N/A'
+  return new Date(date).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric'
+  })
+}
+
+const getDayNumber = (date) => {
+  if (!date || !eventStartDate.value) return 1
+  
+  const startDate = new Date(eventStartDate.value)
+  startDate.setHours(0, 0, 0, 0) // Reset to start of day
+  const itemDate = new Date(date)
+  itemDate.setHours(0, 0, 0, 0) // Reset to start of day
+  
+  const timeDiff = itemDate.getTime() - startDate.getTime()
+  const dayDiff = Math.floor(timeDiff / (1000 * 3600 * 24))
+  
+  // Ensure Day 1 is always returned for the start date or earlier
+  if (dayDiff <= 0) {
+    return 1
+  }
+  
+  return dayDiff + 1
+}
+
+// Handle date change to auto-determine day
+const handleDateChange = (selectedDate) => {
+  if (!selectedDate || !eventStartDate.value) return
+  
+  const dayNumber = getDayNumber(selectedDate)
+  console.log(`📅 Selected date corresponds to Day ${dayNumber}`)
+  
+  // Switch to the appropriate tab - ensure Day 1 is always index 0
+  const targetTabIndex = Math.max(0, dayNumber - 1)
+  
+  // Always ensure Day 1 (first day) maps to tab index 0
+  if (dayNumber === 1) {
+    activeTabIndex.value = 0
+    console.log(`📅 Switching to Day 1 (tab index 0)`)
+  } else if (targetTabIndex < daysWithItems.value.length) {
+    activeTabIndex.value = targetTabIndex
+    console.log(`📅 Switching to Day ${dayNumber} (tab index ${targetTabIndex})`)
+  } else if (daysWithItems.value.length > 0) {
+    // Default to first available day if calculated day doesn't exist
+    activeTabIndex.value = 0
+    console.log(`📅 Defaulting to first available day (tab index 0)`)
+  }
+}
+
+// Validate agenda form
+const validateAgendaForm = () => {
+  clearErrors()
+  validationErrors.value = []
+  const errors = []
+
+  // Validate required fields
+  if (!eventForm.value.date) {
+    setFieldError('date', 'Date is required')
+    errors.push('Date is required')
+  }
+
+  if (!eventForm.value.time_start) {
+    setFieldError('time_start', 'Start time is required')
+    errors.push('Start time is required')
+  }
+
+  if (!eventForm.value.time_end) {
+    setFieldError('time_end', 'End time is required')
+    errors.push('End time is required')
+  }
+
+  if (!eventForm.value.title || !eventForm.value.title.trim()) {
+    setFieldError('title', 'Session title is required')
+    errors.push('Session title is required')
+  }
+
+  // Validate time range
+  if (eventForm.value.time_start && eventForm.value.time_end) {
+    const timeError = validateTimeRange(eventForm.value.time_start, eventForm.value.time_end)
+    if (timeError) {
+      setFieldError('time_end', timeError)
+      errors.push(timeError)
+    }
+  }
+
+  // Validate speakers (if any speaker has name, they must have about)
+  eventForm.value.speakers.forEach((speaker, index) => {
+    if (speaker.name && speaker.name.trim() && (!speaker.about || !speaker.about.trim())) {
+      errors.push(`Speaker ${index + 1}: About information is required when speaker name is provided`)
+    }
+  })
+
+  validationErrors.value = errors
+  return errors.length === 0
+}
 
 // Reset form to initial state
 const resetForm = () => {
@@ -309,13 +536,15 @@ const resetForm = () => {
     time_start: null,
     time_end: null,
     title: null,
-    venue: null,
+    venu: null,
     room_no: null,
     description: null,
     speakers: [{ name: null, about: null }],
   };
   isEditMode.value = false;
   editingAgendaId.value = null;
+  clearErrors()
+  validationErrors.value = []
 };
 
 // Populate form for editing
@@ -325,53 +554,105 @@ const editAgenda = (agenda) => {
     time_start: agenda.time_start,
     time_end: agenda.time_end,
     title: agenda.title,
-    venue: agenda.venue,
+    venu: agenda.venu,
     room_no: agenda.room_no,
     description: agenda.description,
     speakers: agenda.speakers?.length ? [...agenda.speakers] : [{ name: null, about: null }],
   };
   isEditMode.value = true;
   editingAgendaId.value = agenda.id;
+  clearErrors()
+  validationErrors.value = []
 };
 
 // Handle form submission (create or update)
 const createOrUpdateAgenda = async () => {
+  if (!validateAgendaForm()) {
+    toast.add({
+      severity: 'error',
+      summary: 'Validation Error',
+      detail: 'Please fix the errors before submitting.',
+      life: 4000,
+    });
+    return
+  }
+
+  isSubmitting.value = true
+
   try {
+    // Prepare agenda data with proper format
+    const agendaData = {
+      date: eventForm.value.date ? new Date(eventForm.value.date).toISOString().split('T')[0] : null,
+      time_start: eventForm.value.time_start,
+      time_end: eventForm.value.time_end,
+      title: eventForm.value.title?.trim(),
+      venu: eventForm.value.venu?.trim() || null,
+      room_no: eventForm.value.room_no?.trim() || null,
+      description: eventForm.value.description?.trim() || null,
+      speakers: eventForm.value.speakers.filter(speaker => 
+        speaker.name && speaker.name.trim()
+      ).map(speaker => ({
+        name: speaker.name.trim(),
+        about: speaker.about?.trim() || null
+      })),
+      is_break: false
+    }
+
+    console.log('📅 Submitting agenda data:', agendaData)
+
     let response;
     if (isEditMode.value) {
       // Update existing agenda
-      response = await updateAgendaItem(props.eventId, editingAgendaId.value, eventForm.value);
+      response = await updateAgendaItem(currentEventId.value, editingAgendaId.value, agendaData);
     } else {
       // Create new agenda
-      response = await createAgendaItems(props.eventId, eventForm.value);
+      response = await createAgendaItems(currentEventId.value, agendaData);
     }
 
     if (response.success) {
       toast.add({
         severity: 'success',
-        summary: isEditMode.value ? 'Agenda Updated' : 'Agenda Saved',
-        detail: isEditMode.value ? 'Agenda item updated successfully.' : 'Agenda item saved successfully.',
+        summary: isEditMode.value ? 'Agenda Updated' : 'Agenda Created',
+        detail: isEditMode.value ? 'Agenda item updated successfully.' : 'Agenda item created successfully.',
         life: 3000,
       });
+      
       // Reset form and fetch updated agenda list
       resetForm();
-      const agendaResponse = await getEventAgenda(props.eventId);
-      if (agendaResponse.success) {
-        agendaItems.value = agendaResponse.data;
-      }
+      await loadAgendaItems()
+      
+      // Update tab store
+      handleSaveCurrentTab()
     } else {
-      throw new Error(response.message);
+      throw new Error(response.message || 'Failed to save agenda');
     }
   } catch (error) {
+    console.error('❌ Agenda save error:', error)
     toast.add({
       severity: 'error',
-      summary: isEditMode.value ? 'Agenda Update Failed' : 'Agenda Save Failed',
-      detail: isEditMode.value ? 'Failed to update agenda item.' : 'Failed to save agenda item.',
-      life: 3000,
+      summary: isEditMode.value ? 'Update Failed' : 'Create Failed',
+      detail: error.message || 'Failed to save agenda item.',
+      life: 4000,
     });
-    console.error('Error:', error);
+  } finally {
+    isSubmitting.value = false
   }
 };
+
+// Load agenda items
+const loadAgendaItems = async () => {
+  if (!currentEventId.value) return
+
+  try {
+    const response = await getEventAgenda(currentEventId.value);
+    if (response.success && response.data) {
+      agendaItems.value = response.data;
+      console.log('📅 Loaded agenda items:', agendaItems.value.length)
+    }
+  } catch (error) {
+    console.warn('Failed to load agenda items:', error);
+  }
+}
 
 // Handle delete agenda
 const deleteAgendaAction = (event, agendaId) => {
@@ -391,7 +672,7 @@ const deleteAgendaAction = (event, agendaId) => {
     },
     accept: async () => {
       try {
-        const response = await deleteAgenda(props.eventId, agendaId);
+        const response = await deleteAgenda(currentEventId.value, agendaId);
         if (response.success) {
           toast.add({
             severity: 'success',
@@ -399,22 +680,24 @@ const deleteAgendaAction = (event, agendaId) => {
             detail: 'Agenda deleted successfully',
             life: 3000,
           });
+          
           // Refresh agenda list
-          const agendaResponse = await getEventAgenda(props.eventId);
-          if (agendaResponse.success) {
-            agendaItems.value = agendaResponse.data;
-          }
+          await loadAgendaItems()
+          
           // Reset form if deleting the currently edited agenda
           if (editingAgendaId.value === agendaId) {
             resetForm();
           }
+          
+          // Update tab store
+          handleSaveCurrentTab()
         } else {
           throw new Error(response.message);
         }
       } catch (error) {
         toast.add({
           severity: 'error',
-          summary: 'Agenda Delete Failed',
+          summary: 'Delete Failed',
           detail: 'Failed to delete agenda item.',
           life: 3000,
         });
@@ -424,17 +707,6 @@ const deleteAgendaAction = (event, agendaId) => {
     reject: () => {},
   });
 };
-
-// Check if agenda form is complete
-const isAgendaComplete = computed(() => {
-  return !!(
-    eventForm.value.date &&
-    eventForm.value.time_start &&
-    eventForm.value.time_end &&
-    eventForm.value.title &&
-    eventForm.value.venue
-  );
-});
 
 // Toggle skip agenda functionality
 const toggleSkipAgenda = () => {
@@ -619,9 +891,15 @@ onMounted(async () => {
     currentEventId.value = eventStore.currentEvent.id
     currentEventName.value = eventStore.currentEvent.name || "Unnamed Event"
     
+    // Get event dates for day calculation
+    eventStartDate.value = eventStore.currentEvent.start_date
+    eventEndDate.value = eventStore.currentEvent.end_date
+    
     console.log('📋 Current event found:', {
       id: currentEventId.value,
-      name: currentEventName.value
+      name: currentEventName.value,
+      startDate: eventStartDate.value,
+      endDate: eventEndDate.value
     })
     
     // Load existing agenda data
@@ -634,29 +912,12 @@ onMounted(async () => {
       agendaItems.value = eventStore.currentEvent.agendas
     } else {
       // Load from API
-      try {
-        const response = await getEventAgenda(currentEventId.value);
-        if (response.success && response.data) {
-          agendaItems.value = response.data;
-        }
-      } catch (error) {
-        console.warn('Failed to fetch event agenda:', error);
-      }
+      await loadAgendaItems()
     }
     
   } else if (props.eventId) {
     currentEventId.value = props.eventId
-    
-    try {
-      const response = await getEventAgenda(props.eventId);
-      if (response.success) {
-        agendaItems.value = response.data;
-      } else {
-        console.error('Failed to fetch event agenda:', response.message);
-      }
-    } catch (error) {
-      console.error('Failed to fetch event agenda:', error);
-    }
+    await loadAgendaItems()
   } else {
     console.warn("⚠️ No event found. Complete Basic Info first.")
     toast.add({
@@ -687,14 +948,33 @@ const removeSpeakerField = (index) => {
     eventForm.value.speakers.splice(index, 1);
   }
 };
-
-const updateTimeRange = () => {};
 </script>
 
 <style scoped>
-
 :deep(.p-calendar .p-inputtext) {
   @apply bg-transparent border-0;
 }
-/* You can add scoped Tailwind overrides here if needed */
+
+:deep(.p-tabview .p-tabview-nav) {
+  @apply bg-gray-50 rounded-lg;
+}
+
+:deep(.p-tabview .p-tabview-nav li .p-tabview-nav-link) {
+  @apply rounded-lg mx-1;
+}
+
+:deep(.p-tabview .p-tabview-nav li.p-highlight .p-tabview-nav-link) {
+  @apply bg-purple-600 text-white;
+}
+
+.agenda-item-enter-active,
+.agenda-item-leave-active {
+  transition: all 0.3s ease;
+}
+
+.agenda-item-enter-from,
+.agenda-item-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
 </style>

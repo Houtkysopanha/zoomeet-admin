@@ -163,12 +163,20 @@
         field="bookings"
         header="Number of Booking"
         class="text-[12px] text-start border-b border-gray-300"
-      />
+      >
+      <template #body="slotProps">
+        <span>{{ slotProps.data.bookings }}</span>
+      </template>
+      </Column>
       <Column
-        field="tickets"
-        header="Tickets"
+         field="bookings"
+        header="Number of Booking"
         class="text-[12px] text-start border-b border-gray-300"
-      />
+      >
+      <template #body="slotProps">
+        <span>{{ slotProps.data.tickets }}</span>
+      </template>
+      </Column>
       <Column
         field="status"
         header="Status"
@@ -314,9 +322,9 @@ const loadEvents = async () => {
           date: ev.start_date ? new Date(ev.start_date) : new Date(),
           venue: ev.location || 'TBD',
           type: ev.category_name || 'Uncategorized',
-          revenue: ev.revenue || 0,
-          bookings: ev.bookings_count || 0,
-          tickets: ev.tickets_count || 0,
+          revenue: ev.total_revenue || 0,
+          bookings: ev.total_bookings || 0,
+          tickets: ev.total_tickets || 0,
           status: ev.is_published ? 'Active' : 'Draft',
           
           // Category info

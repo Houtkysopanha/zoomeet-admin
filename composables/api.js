@@ -92,7 +92,21 @@ export async function login(identifier, password) {
     return response
   } catch (error) {
     console.error('Login error:', error)
-    throw new Error(error.data?.message || error.message || 'Login failed')
+    // Don't expose API endpoints or technical details in user-facing errors
+    let userMessage = 'Login failed. Please check your credentials and try again.'
+    
+    if (error.status === 401) {
+      userMessage = 'Invalid email or password. Please try again.'
+    } else if (error.status === 429) {
+      userMessage = 'Too many login attempts. Please wait a moment and try again.'
+    } else if (error.status === 500) {
+      userMessage = 'Server error. Please try again later.'
+    } else if (error.data?.message && !error.data.message.includes('http') && !error.data.message.includes('api')) {
+      // Only use server message if it doesn't contain technical details
+      userMessage = error.data.message
+    }
+    
+    throw new Error(userMessage)
   }
 }
 
@@ -182,12 +196,23 @@ export async function fetchEvents() {
     }
   } catch (error) {
     console.error('Fetch events error:', error)
+    
+    // Don't expose technical details to users
+    let userMessage = 'Failed to load events. Please try again.'
+    if (error.status === 401) {
+      userMessage = 'Session expired. Please login again.'
+    } else if (error.status === 403) {
+      userMessage = 'Access denied. Please check your permissions.'
+    } else if (error.status === 500) {
+      userMessage = 'Server error. Please try again later.'
+    }
+    
     return {
       status: error?.status || 500,
       data: {
         success: false,
         data: [],
-        message: error?.data?.message || error?.message || 'Failed to fetch events'
+        message: userMessage
       }
     }
   }
@@ -212,7 +237,16 @@ export async function fetchUserInfo() {
     return response
   } catch (error) {
     console.error('Fetch user info error:', error)
-    throw new Error(error.data?.message || error.message || 'Failed to fetch user info')
+    
+    // Don't expose technical details
+    let userMessage = 'Failed to load user information.'
+    if (error.status === 401) {
+      userMessage = 'Session expired. Please login again.'
+    } else if (error.status === 403) {
+      userMessage = 'Access denied.'
+    }
+    
+    throw new Error(userMessage)
   }
 }
 
@@ -222,7 +256,7 @@ function validateUUID(uuid) {
   return uuidRegex.test(uuid?.toString())
 }
 
-// Get event details
+// Get event details - Enhanced for any UUID
 export async function getEventDetails(eventId) {
   const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
@@ -238,14 +272,15 @@ export async function getEventDetails(eventId) {
     throw new Error('Invalid event ID format. Expected UUID format.')
   }
 
-  // Store current event ID in session
+  // Store current event ID in session for debugging
   if (process.client) {
     sessionStorage.setItem('currentEventId', cleanUUID)
+    console.log('📝 Stored event ID in session:', cleanUUID)
   }
 
   try {
-    console.log('🔍 Fetching event details for:', eventId)
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}`, {
+    console.log('🔍 Fetching event details for UUID:', cleanUUID)
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${cleanUUID}`, {
       method: 'GET',
       headers: createAuthHeaders()
     })
@@ -254,34 +289,50 @@ export async function getEventDetails(eventId) {
       throw new Error('Empty response from server')
     }
 
-    // Normalize response structure
+    // Enhanced response validation
+    let eventData = null
     if (response.data) {
-      console.log('✅ Event details fetched:', {
-        id: response.data.id,
-        name: response.data.name
+      eventData = response.data
+      console.log('✅ Event details fetched (wrapped response):', {
+        id: eventData.id,
+        name: eventData.name,
+        category: eventData.category_name
       })
-      return response
     } else if (response.id) {
-      // If response is direct event data
-      console.log('✅ Event details fetched (direct):', {
-        id: response.id,
-        name: response.name
+      eventData = response
+      console.log('✅ Event details fetched (direct response):', {
+        id: eventData.id,
+        name: eventData.name,
+        category: eventData.category_name
       })
-      return {
-        success: true,
-        message: 'Event retrieved successfully',
-        data: response
-      }
+    } else {
+      throw new Error('Invalid response structure from server')
     }
 
-    throw new Error('Invalid response structure from server')
+    // Validate that returned event ID matches requested ID
+    if (eventData.id.toString() !== cleanUUID) {
+      console.error('❌ Event ID mismatch:', {
+        requested: cleanUUID,
+        received: eventData.id.toString()
+      })
+      throw new Error('Event ID mismatch in response')
+    }
+
+    return {
+      success: true,
+      message: 'Event retrieved successfully',
+      data: eventData
+    }
   } catch (error) {
-    console.error('❌ Failed to fetch event details:', error)
+    console.error('❌ Failed to fetch event details for UUID:', cleanUUID, error)
     
+    // Enhanced error handling
     if (error.status === 404) {
-      throw new Error('Event not found')
+      throw new Error(`Event with ID ${cleanUUID} not found`)
     } else if (error.status === 401) {
       throw new Error('Authentication required. Please login again.')
+    } else if (error.status === 403) {
+      throw new Error('You do not have permission to access this event')
     }
     
     throw error
@@ -417,6 +468,33 @@ export async function createEvent(eventData, isDraft = true) {
       }
     })
     
+    // Handle chairs array with proper structure for server
+    if (eventData.chairs && Array.isArray(eventData.chairs)) {
+      // Add each chair as individual form fields
+      eventData.chairs.forEach((chair, index) => {
+        formData.append(`chairs[${index}][name]`, chair.name || '')
+        formData.append(`chairs[${index}][position]`, chair.position || '')
+        formData.append(`chairs[${index}][company]`, chair.company || '')
+        formData.append(`chairs[${index}][sort_order]`, chair.sort_order || 1)
+        
+        // Handle profile image file separately
+        if (chair.profile_image instanceof File) {
+          formData.append(`chairs[${index}][profile_image]`, chair.profile_image)
+          console.log(`📎 Adding chair ${index} profile image: ${chair.profile_image.name}`)
+        }
+        
+        console.log(`🪑 Adding chair ${index}:`, {
+          name: chair.name,
+          position: chair.position,
+          company: chair.company,
+          sort_order: chair.sort_order,
+          hasImage: chair.profile_image instanceof File
+        })
+      })
+      
+      console.log(`🪑 Added ${eventData.chairs.length} chairs as form fields`)
+    }
+    
     // Add file fields separately with strict validation
     const fileFields = ['cover_image', 'event_background', 'card_background']
     fileFields.forEach(key => {
@@ -443,13 +521,31 @@ export async function createEvent(eventData, isDraft = true) {
     
     // Log FormData contents for debugging
     console.log('📋 FormData contents:')
+    const formDataEntries = {}
     for (let [key, value] of formData.entries()) {
       if (value instanceof File) {
-        console.log(`${key}: [File] ${value.name} (${value.size} bytes)`)
+        console.log(`${key}: [File] ${value.name} (${value.size} bytes, type: ${value.type})`)
+        formDataEntries[key] = `[File] ${value.name} (${value.size} bytes)`
       } else {
         console.log(`${key}: ${value}`)
+        formDataEntries[key] = value
       }
     }
+    
+    // Log complete FormData structure
+    console.log('📋 Complete FormData structure:', formDataEntries)
+    
+    // Special validation for required fields
+    const requiredFieldsCheck = [
+      'name', 'category_id', 'description', 'start_date', 'end_date',
+      'location', 'event_slug', 'online_link_meeting'
+    ]
+    
+    console.log('🔍 Required fields validation:')
+    requiredFieldsCheck.forEach(field => {
+      const hasField = formDataEntries.hasOwnProperty(field) && formDataEntries[field] !== null && formDataEntries[field] !== undefined && formDataEntries[field] !== ''
+      console.log(`${hasField ? '✅' : '❌'} ${field}: ${hasField ? formDataEntries[field] : 'MISSING OR EMPTY'}`)
+    })
 
     // Use the correct API endpoint without duplicate admin prefix
     // Make the actual API call
@@ -483,6 +579,33 @@ export async function createEvent(eventData, isDraft = true) {
     } catch (error) {
       // Log the network error but return a structured response
       console.error('🚨 Create event network error:', error)
+      
+      // Enhanced error handling for 422 validation errors
+      if (error.status === 422) {
+        console.error('🚨 Validation errors from server:', error.data)
+        
+        let detailedMessage = 'Validation failed:'
+        if (error.data?.errors) {
+          const validationErrors = []
+          Object.entries(error.data.errors).forEach(([field, messages]) => {
+            if (Array.isArray(messages)) {
+              validationErrors.push(`${field}: ${messages.join(', ')}`)
+            } else {
+              validationErrors.push(`${field}: ${messages}`)
+            }
+          })
+          detailedMessage = `Validation failed:\n${validationErrors.join('\n')}`
+        } else if (error.data?.message) {
+          detailedMessage = error.data.message
+        }
+        
+        return {
+          success: false,
+          message: detailedMessage,
+          error: error,
+          validationErrors: error.data?.errors || {}
+        }
+      }
       
       return {
         success: false,
@@ -564,6 +687,35 @@ export async function updateEvent(eventId, eventData) {
                 }
               }
               formData.append(key, value);
+              break;
+              
+            case 'chairs':
+              // Handle chairs array with proper structure for server
+              if (Array.isArray(value)) {
+                // Add each chair as individual form fields
+                value.forEach((chair, index) => {
+                  formData.append(`chairs[${index}][name]`, chair.name || '')
+                  formData.append(`chairs[${index}][position]`, chair.position || '')
+                  formData.append(`chairs[${index}][company]`, chair.company || '')
+                  formData.append(`chairs[${index}][sort_order]`, chair.sort_order || 1)
+                  
+                  // Handle profile image file separately
+                  if (chair.profile_image instanceof File) {
+                    formData.append(`chairs[${index}][profile_image]`, chair.profile_image)
+                    console.log(`📎 Adding chair ${index} profile image: ${chair.profile_image.name}`)
+                  }
+                  
+                  console.log(`🪑 Adding chair ${index}:`, {
+                    name: chair.name,
+                    position: chair.position,
+                    company: chair.company,
+                    sort_order: chair.sort_order,
+                    hasImage: chair.profile_image instanceof File
+                  })
+                })
+                
+                console.log(`🪑 Added ${value.length} chairs as form fields`)
+              }
               break;
               
             default:

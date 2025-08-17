@@ -58,20 +58,13 @@
       </Button>
 
       <div class="flex space-x-4">
+        <!-- Save Draft Button (for new tickets or adding more) -->
         <Button
-          @click="clearAndRefreshTickets"
-          :disabled="loading || !currentEventId"
-          class="refresh-tickets-btn"
-        >
-          <Icon name="heroicons:arrow-path" class="mr-2" />
-          Refresh Data
-        </Button>
-
-        <Button
-          @click="saveTickets"
+          v-if="!isEditMode"
+          @click="saveDraft"
           :disabled="!currentEventId || tickets.length === 0 || loading"
           :class="[
-            'save-tickets-btn flex items-center justify-center',
+            'save-draft-btn flex items-center justify-center',
             loading ? 'opacity-75 cursor-not-allowed' : ''
           ]"
         >
@@ -82,8 +75,29 @@
             :showText="false"
             class="mr-2"
           />
-          <Icon v-else name="heroicons:check" class="mr-2" />
-          {{ loading ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Save Draft') }}
+          <Icon v-else name="heroicons:document-arrow-down" class="mr-2" />
+          {{ loading ? 'Saving...' : 'Save Draft' }}
+        </Button>
+
+        <!-- Update Button (for editing existing tickets) -->
+        <Button
+          v-if="isEditMode"
+          @click="updateTickets"
+          :disabled="!currentEventId || tickets.length === 0 || loading"
+          :class="[
+            'update-tickets-btn flex items-center justify-center',
+            loading ? 'opacity-75 cursor-not-allowed' : ''
+          ]"
+        >
+          <LoadingSpinner
+            v-if="loading"
+            size="sm"
+            color="white"
+            :showText="false"
+            class="mr-2"
+          />
+          <Icon v-else name="heroicons:pencil-square" class="mr-2" />
+          {{ loading ? 'Updating...' : 'Update Tickets' }}
         </Button>
       </div>
     </div>
@@ -110,6 +124,11 @@ const currentEventName = ref('')
 const tickets = ref([])
 const isEditMode = ref(false)
 const eventData = ref(null)
+
+// Track if there are new tickets added
+const hasNewTickets = computed(() => {
+  return tickets.value.some(ticket => !ticket.ticket_type_id)
+})
 
 // Clear all ticket data and refresh from API with proper event isolation
 const clearAndRefreshTickets = async () => {
@@ -291,8 +310,20 @@ const handleSaveCurrentTab = (event) => {
   console.log('💾 Ticket data saved to tab persistence for event:', currentEventId.value, tickets.value.length, 'tickets')
 }
 
-// Save all tickets - ENHANCED FOR NEW FLOW with edit/create mode validation
-const saveTickets = async () => {
+// Save Draft - for new tickets or adding more tickets
+const saveDraft = async () => {
+  console.log('💾 Saving tickets as draft...')
+  await saveTicketsInternal('draft')
+}
+
+// Update Tickets - for editing existing tickets
+const updateTickets = async () => {
+  console.log('📝 Updating existing tickets...')
+  await saveTicketsInternal('update')
+}
+
+// Internal save method - ENHANCED FOR NEW FLOW with edit/create mode validation
+const saveTicketsInternal = async (mode = 'draft') => {
   const eventStore = useEventStore()
   const tabsStore = useEventTabsStore()
 
@@ -598,29 +629,28 @@ const saveTickets = async () => {
 
     // Reload tickets to get updated data with fresh IDs
     setTimeout(async () => {
-      await loadTickets()
+      await loadExistingTickets()
     }, 1000) // Small delay to ensure server has processed the changes
 
-  // } catch (error) {
-  //   console.error('❌ Ticket save error:', error)
+  } catch (error) {
+    console.error('❌ Ticket save error:', error)
     
-   
-  //   let errorMessage = 'Failed to save tickets. Please try again.'
-  //   let errorSummary = 'Save Failed'
+    let errorMessage = 'Failed to save tickets. Please try again.'
+    let errorSummary = 'Save Failed'
     
-  //   if (error.message) {
-  //     errorMessage = error.message
+    if (error.message) {
+      errorMessage = error.message
       
-  //     if (error.message.includes('Authentication')) {
-  //       errorSummary = 'Authentication Error'
-  //       errorMessage = 'Please login again to continue.'
-  //     } else if (error.message.includes('Validation')) {
-  //       errorSummary = 'Validation Error'
-  //     } else if (error.message.includes('Event not found')) {
-  //       errorSummary = 'Event Not Found'
-  //       errorMessage = 'The event could not be found. Please refresh and try again.'
-  //     }
-  //   }
+      if (error.message.includes('Authentication')) {
+        errorSummary = 'Authentication Error'
+        errorMessage = 'Please login again to continue.'
+      } else if (error.message.includes('Validation')) {
+        errorSummary = 'Validation Error'
+      } else if (error.message.includes('Event not found')) {
+        errorSummary = 'Event Not Found'
+        errorMessage = 'The event could not be found. Please refresh and try again.'
+      }
+    }
     
     toast.add({
       severity: 'error',
@@ -863,7 +893,7 @@ onMounted(async () => {
   }
 
   // Add event listeners for ticket saving and tab switching with event validation
-  window.addEventListener('saveTickets', saveTickets)
+  window.addEventListener('saveTickets', saveDraft)
   window.addEventListener('saveCurrentTab', handleSaveCurrentTab)
   window.addEventListener('loadTicketData', (event) => {
     // Only load if the event ID matches current event
@@ -895,7 +925,7 @@ onMounted(async () => {
 
 // Remove event listeners when component unmounts
 onUnmounted(() => {
-  window.removeEventListener('saveTickets', saveTickets)
+  window.removeEventListener('saveTickets', saveDraft)
   window.removeEventListener('saveCurrentTab', handleSaveCurrentTab)
   window.removeEventListener('loadTicketData', loadExistingTickets)
 })
@@ -913,34 +943,34 @@ onUnmounted(() => {
   transform: translateY(-2px);
 }
 
-.save-tickets-btn {
+.save-draft-btn {
+  @apply bg-gradient-to-r from-purple-600 to-indigo-600 text-white;
+  @apply hover:from-purple-700 hover:to-indigo-700;
+  @apply px-6 py-3 rounded-full font-medium shadow-lg hover:shadow-xl;
+  @apply transition-all duration-300 ease-in-out border-0;
+}
+
+.save-draft-btn:hover {
+  transform: translateY(-2px);
+}
+
+.save-draft-btn:disabled {
+  @apply bg-gray-400 cursor-not-allowed;
+  transform: none;
+}
+
+.update-tickets-btn {
   @apply bg-gradient-to-r from-green-600 to-emerald-600 text-white;
   @apply hover:from-green-700 hover:to-emerald-700;
   @apply px-6 py-3 rounded-full font-medium shadow-lg hover:shadow-xl;
   @apply transition-all duration-300 ease-in-out border-0;
 }
 
-.save-tickets-btn:hover {
+.update-tickets-btn:hover {
   transform: translateY(-2px);
 }
 
-.save-tickets-btn:disabled {
-  @apply bg-gray-400 cursor-not-allowed;
-  transform: none;
-}
-
-.refresh-tickets-btn {
-  @apply bg-gradient-to-r from-blue-600 to-cyan-600 text-white;
-  @apply hover:from-blue-700 hover:to-cyan-700;
-  @apply px-6 py-3 rounded-full font-medium shadow-lg hover:shadow-xl;
-  @apply transition-all duration-300 ease-in-out border-0;
-}
-
-.refresh-tickets-btn:hover {
-  transform: translateY(-2px);
-}
-
-.refresh-tickets-btn:disabled {
+.update-tickets-btn:disabled {
   @apply bg-gray-400 cursor-not-allowed;
   transform: none;
 }

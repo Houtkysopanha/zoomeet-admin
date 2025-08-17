@@ -29,7 +29,7 @@
         placeholder="Enter ticket name (e.g., VIP Pass, Early Bird)"
         @input="handleNameInput"
       />
-      <small v-if="isValidating && !ticketData.name?.trim()" class="text-red-500">
+      <small v-if="isValidating && !localTicketName?.trim()" class="text-red-500">
         Ticket name is required
       </small>
     </div>
@@ -86,16 +86,35 @@
     <div class="mb-6">
       <label class="block text-sm font-medium text-gray-700 mb-2">Description <span class="text-red-500">*</span></label>
       <Textarea
-        v-model="ticketData.description"
+        v-model="localTicketDescription"
         class="w-full p-3 bg-gray-100 rounded-2xl"
         :class="{ 'p-invalid': isValidating && !ticketData.description?.trim() }"
         placeholder="Describe the ticket (e.g., VIP pass includes meet & greet)"
         rows="2"
-        @input="updateDescription"
+        @input="handleDescriptionInput"
       />
-      <small v-if="isValidating && !ticketData.description?.trim()" class="text-red-500">
+      <small v-if="isValidating && !localTicketDescription?.trim()" class="text-red-500">
         Description is required
       </small>
+    </div>
+
+    <!-- Debug Info (only in development) -->
+    <div v-if="$config.public.environment === 'development'" class="mb-4 p-3 bg-gray-50 rounded-lg text-xs">
+      <details>
+        <summary class="cursor-pointer text-gray-600">Debug Info (Ticket {{ ticketIndex + 1 }})</summary>
+        <div class="mt-2 space-y-1 text-gray-500">
+          <div><strong>ID:</strong> {{ ticketData.id }}</div>
+          <div><strong>Ticket Type ID:</strong> {{ ticketData.ticket_type_id }}</div>
+          <div><strong>Name:</strong> "{{ ticketData.name }}"</div>
+          <div><strong>Description:</strong> "{{ ticketData.description }}"</div>
+          <div><strong>Tag:</strong> "{{ ticketData.tag }}"</div>
+          <div><strong>Price:</strong> {{ ticketData.price }}</div>
+          <div><strong>Quantity:</strong> {{ ticketData.quantity }}</div>
+          <div><strong>Is Validating:</strong> {{ isValidating }}</div>
+          <div><strong>Local Name:</strong> "{{ localTicketName }}"</div>
+          <div><strong>Local Description:</strong> "{{ localTicketDescription }}"</div>
+        </div>
+      </details>
     </div>
   </div>
 </template>
@@ -175,18 +194,20 @@ watch(() => props.modelValue, (newVal) => {
 
 const ticketData = computed({
   get: () => {
+    // Safely access nested properties to prevent "ticket.data.o.name" errors
+    const modelValue = props.modelValue || {}
     const data = {
-      ...props.modelValue,
-      // Ensure proper data types and defaults
-      name: props.modelValue.name || '',
-      description: props.modelValue.description || props.modelValue.tag || '',
-      price: props.modelValue.price !== null && props.modelValue.price !== undefined ? parseFloat(props.modelValue.price) || 0 : 0,
-      quantity: props.modelValue.quantity !== null && props.modelValue.quantity !== undefined ? parseInt(props.modelValue.quantity) || 1 : 1
+      ...modelValue,
+      // Ensure proper data types and defaults with safe property access
+      name: modelValue.name || '',
+      description: modelValue.description || modelValue.tag || '',
+      price: modelValue.price !== null && modelValue.price !== undefined ? parseFloat(modelValue.price) || 0 : 0,
+      quantity: modelValue.quantity !== null && modelValue.quantity !== undefined ? parseInt(modelValue.quantity) || 1 : 1
     }
     
     console.log('📝 TicketForm computed get:', {
       ticketIndex: props.ticketIndex,
-      original: props.modelValue,
+      original: modelValue,
       computed: data
     })
     
@@ -233,11 +254,15 @@ const updateQuantity = (value) => {
   })
 }
 
-// Initialize local refs with prop values
+// Initialize local refs with prop values - with safe property access
 watch(() => props.modelValue, (newValue) => {
-  if (newValue) {
+  if (newValue && typeof newValue === 'object') {
     localTicketName.value = newValue.name || ''
     localTicketDescription.value = newValue.description || newValue.tag || ''
+  } else {
+    // Reset to empty if no valid value
+    localTicketName.value = ''
+    localTicketDescription.value = ''
   }
 }, { immediate: true })
 

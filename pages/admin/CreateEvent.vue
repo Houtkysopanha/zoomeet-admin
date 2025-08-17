@@ -431,33 +431,27 @@ onMounted(async () => {
       sessionStorage.setItem('currentEventId', queryEventId)
     }
     
-    // EDIT MODE
+    // EDIT MODE - Enhanced for any UUID from event list
     try {
-      console.log('📝 EDIT MODE: Loading event data for ID:', queryEventId)
+      console.log('📝 EDIT MODE: Loading event data for UUID:', queryEventId)
 
       eventId.value = queryEventId
       isEditMode.value = true
 
-      // ALWAYS load fresh data to prevent UUID caching issues
-      console.log('🔄 Force loading fresh event data (no cache)...')
-      eventStore.clearCache() // Extra clear before loading
-      await eventStore.loadEventById(queryEventId)
-
+      // Check if event is already in store (from event list click)
       if (eventStore.currentEvent && eventStore.currentEvent.id === queryEventId) {
+        console.log('✅ Using event data from store (from event list)')
         eventData.value = { ...eventStore.currentEvent }
         isBasicInfoCompleted.value = true
 
         // Load event data into tab persistence system
         tabsStore.loadEventData(eventStore.currentEvent)
 
-        console.log('✅ Event data loaded for editing:', {
+        console.log('✅ Event data loaded from store:', {
           id: eventId.value,
           name: eventData.value.name,
-          hasImages: {
-            cover: !!eventData.value.cover_image_url,
-            background: !!eventData.value.event_background_url,
-            card: !!eventData.value.card_background_url
-          }
+          category: eventData.value.category_name,
+          status: eventData.value.status
         })
 
         toast.add({
@@ -467,10 +461,52 @@ onMounted(async () => {
           life: 3000
         })
       } else {
-        throw new Error('Event data mismatch or not found')
+        // Load fresh data from API for any UUID
+        console.log('🔄 Loading fresh event data from API for UUID:', queryEventId)
+        eventStore.clearCache() // Clear cache before loading
+        await eventStore.loadEventById(queryEventId)
+
+        if (eventStore.currentEvent && eventStore.currentEvent.id === queryEventId) {
+          eventData.value = { ...eventStore.currentEvent }
+          isBasicInfoCompleted.value = true
+
+          // Load event data into tab persistence system
+          tabsStore.loadEventData(eventStore.currentEvent)
+
+          console.log('✅ Event data loaded from API:', {
+            id: eventId.value,
+            name: eventData.value.name,
+            category: eventData.value.category_name,
+            status: eventData.value.status,
+            hasImages: {
+              cover: !!eventData.value.cover_image_url,
+              background: !!eventData.value.event_background_url,
+              card: !!eventData.value.card_background_url
+            }
+          })
+
+          toast.add({
+            severity: 'success',
+            summary: 'Event Loaded for Editing',
+            detail: `Editing "${eventData.value.name}"`,
+            life: 3000
+          })
+        } else {
+          throw new Error('Event data mismatch or not found after API load')
+        }
       }
     } catch (error) {
       console.error('❌ Failed to load event for editing:', error)
+
+      // Provide more specific error messages
+      let errorMessage = 'Failed to load event for editing.'
+      if (error.message.includes('not found')) {
+        errorMessage = 'Event not found. It may have been deleted or you may not have access to it.'
+      } else if (error.message.includes('Authentication')) {
+        errorMessage = 'Authentication failed. Please login again.'
+      } else if (error.message.includes('Permission')) {
+        errorMessage = 'You do not have permission to edit this event.'
+      }
 
       // Reset to new event creation mode
       eventId.value = null
@@ -484,9 +520,14 @@ onMounted(async () => {
       toast.add({
         severity: 'error',
         summary: 'Edit Load Failed',
-        detail: 'Failed to load event for editing. Starting fresh event creation.',
-        life: 4000
+        detail: errorMessage,
+        life: 5000
       })
+
+      // Redirect back to event list after error
+      setTimeout(() => {
+        router.push('/admin/event')
+      }, 2000)
     }
   } else {
     // CREATE MODE
