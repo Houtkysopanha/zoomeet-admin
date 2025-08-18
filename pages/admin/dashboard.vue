@@ -193,22 +193,50 @@ const updateDisplay = () => {
 }
 async function fetchUserInfo() {
   try {
-    const auth = JSON.parse(localStorage.getItem('auth'))
-    const token = auth?.token
-    if (!token) throw new Error('No token found in localStorage')
+    const { getToken, isTokenExpired, clearAuth } = useAuth()
+    const token = getToken()
+    
+    if (!token) {
+      console.warn('⚠️ No token found, redirecting to login')
+      router.push('/login')
+      return
+    }
 
-    console.log('Using token:', token)
+    if (isTokenExpired()) {
+      console.warn('⚠️ Token expired, clearing auth and redirecting')
+      clearAuth()
+      router.push('/login')
+      return
+    }
+
+    console.log('Using token:', token.substring(0, 20) + '...')
     const res = await fetch(`${config.public.apiBaseUrl}/info`, {
       headers: {
         Authorization: `Bearer ${token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
       },
     })
 
     console.log('Fetch response status:', res.status)
+    
+    if (res.status === 401) {
+      console.warn('🔐 Authentication failed (401), clearing auth state')
+      clearAuth()
+      toast.add({
+        severity: 'warn',
+        summary: 'Session Expired',
+        detail: 'Please login again',
+        life: 3000,
+      })
+      router.push('/login')
+      return
+    }
+    
     if (!res.ok) {
       const errorText = await res.text()
       console.error('Fetch error:', errorText)
-      throw new Error('Failed to fetch user info')
+      throw new Error(`HTTP ${res.status}: Failed to fetch user info`)
     }
 
     const data = await res.json()
@@ -216,13 +244,18 @@ async function fetchUserInfo() {
     userName.value = data.name || data.preferred_username || 'No Name'
     userRole.value = data.role || 'No Role'
   } catch (error) {
-    console.error(error)
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Unable to fetch user info',
-      life: 3000,
-    })
+    console.error('fetchUserInfo error:', error)
+    
+    // Don't show error toast for auth issues (already handled above)
+    if (!error.message.includes('401')) {
+      toast.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Unable to fetch user info',
+        life: 3000,
+      })
+    }
+    
     userName.value = 'Unknown User'
   }
 }

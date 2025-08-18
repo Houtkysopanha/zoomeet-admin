@@ -70,7 +70,7 @@
                         : 'text-gray-400'
                     ]"
                   >
-                    {{ isSubmitting ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Save Draft') }}
+                    {{ isSubmitting ? 'Saving...' : (shouldShowSaveDraft ? 'Save Draft' : 'Save Changes') }}
                   </span>
                 </template>
               </Button>
@@ -570,12 +570,34 @@ const tabComponents = [
   SettingPolicy
 ]
 
+// Track tab completion states for progressive save draft
+const tabCompletionStates = ref({
+  0: false, // Basic Info
+  1: false, // Agenda
+  2: false, // Tickets
+  3: false, // Breakout Rooms
+  4: false  // Settings
+})
+
+// Computed property to determine if current tab should show "Save Draft" or "Save Changes"
+const shouldShowSaveDraft = computed(() => {
+  // If no event exists yet, always show "Save Draft"
+  if (!eventId.value) return true
+  
+  // If event exists but current tab hasn't been saved yet, show "Save Draft"
+  if (!tabCompletionStates.value[activeIndex.value]) return true
+  
+  // Otherwise show "Save Changes"
+  return false
+})
+
 // Provide state to child components
 provide('eventCreationState', {
   isBasicInfoCompleted,
   eventId,
   eventData,
   isEditMode,
+  tabCompletionStates,
   setBasicInfoCompleted: (completed, id = null, data = null) => {
     console.log('🔄 Setting basic info completed:', { completed, id })
     const eventStore = useEventStore()
@@ -583,10 +605,22 @@ provide('eventCreationState', {
     isBasicInfoCompleted.value = completed
     if (id) {
       eventId.value = id
+      // Mark basic info tab as completed
+      tabCompletionStates.value[0] = true
+      
       // CRITICAL: Switch to edit mode after event creation
       if (!isEditMode.value) {
         console.log('🔄 Switching to edit mode after event creation')
         isEditMode.value = true
+        
+        // Notify all tabs about the mode change
+        window.dispatchEvent(new CustomEvent('editModeChanged', {
+          detail: {
+            isEditMode: true,
+            eventId: id,
+            eventData: data
+          }
+        }))
       }
     }
     if (data) {
@@ -628,6 +662,10 @@ provide('eventCreationState', {
     const eventStore = useEventStore()
     eventData.value = { ...eventData.value, ...data }
     eventStore.setCurrentEvent({ ...eventData.value, ...data })
+  },
+  markTabCompleted: (tabIndex) => {
+    tabCompletionStates.value[tabIndex] = true
+    console.log(`✅ Tab ${tabIndex} marked as completed`)
   }
 })
 

@@ -50,7 +50,7 @@
 
         <!-- Show tabs based on event date range -->
         <TabView class="mb-6" v-model:activeIndex="activeTabIndex" v-if="agendaDays.length > 0">
-          <TabPanel v-for="(day, dayIndex) in agendaDays" :key="dayIndex" :header="`Day ${day.dayNumber}`">
+          <TabPanel v-for="(day, dayIndex) in agendaDays" :key="dayIndex" :header="day.label">
             <div class="space-y-4">
               <div v-if="day.items.length === 0" class="text-center py-8">
                 <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -384,34 +384,55 @@ const eventForm = ref({
 const eventStartDate = ref(null)
 const eventEndDate = ref(null)
 
-// Computed property for organizing agenda items by days
+// Computed property for organizing agenda items by days with dynamic labels
 const agendaDays = computed(() => {
   if (!eventStartDate.value || !eventEndDate.value) {
-    return [{ date: new Date(), items: agendaItems.value, dayNumber: 1 }]
+    return [{ date: new Date(), items: agendaItems.value, dayNumber: 1, label: 'Day 1' }]
   }
 
   const startDate = new Date(eventStartDate.value)
   const endDate = new Date(eventEndDate.value)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0) // Reset time for comparison
   const days = []
   
   // Calculate number of days between start and end
   const timeDiff = endDate.getTime() - startDate.getTime()
   const dayCount = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1
   
-  // Create day structure
+  // Create day structure with dynamic labels
   for (let i = 0; i < dayCount; i++) {
     const dayDate = new Date(startDate)
     dayDate.setDate(startDate.getDate() + i)
+    dayDate.setHours(0, 0, 0, 0) // Reset time for comparison
+    
+    // Generate dynamic label based on relation to today
+    let label = `Day ${i + 1}`
+    const dayDiff = Math.floor((dayDate.getTime() - today.getTime()) / (1000 * 3600 * 24))
+    
+    if (dayDiff === 0) {
+      label = `Day ${i + 1} (Today)`
+    } else if (dayDiff === 1) {
+      label = `Day ${i + 1} (Tomorrow)`
+    } else if (dayDiff === -1) {
+      label = `Day ${i + 1} (Yesterday)`
+    } else if (dayDiff > 1) {
+      label = `Day ${i + 1} (${dayDiff} days from now)`
+    } else if (dayDiff < -1) {
+      label = `Day ${i + 1} (${Math.abs(dayDiff)} days ago)`
+    }
     
     const dayItems = agendaItems.value.filter(item => {
       if (!item.date) return false
       const itemDate = new Date(item.date)
-      return itemDate.toDateString() === dayDate.toDateString()
+      itemDate.setHours(0, 0, 0, 0)
+      return itemDate.getTime() === dayDate.getTime()
     })
     
     days.push({
       date: dayDate,
       dayNumber: i + 1,
+      label: label,
       items: dayItems.sort((a, b) => {
         // Sort by time_start
         if (!a.time_start || !b.time_start) return 0
@@ -420,7 +441,7 @@ const agendaDays = computed(() => {
     })
   }
   
-  return days.length > 0 ? days : [{ date: new Date(), items: [], dayNumber: 1 }]
+  return days.length > 0 ? days : [{ date: new Date(), items: [], dayNumber: 1, label: 'Day 1' }]
 })
 
 // Computed property for days that have agenda items - show all days from event range
@@ -588,29 +609,39 @@ const createOrUpdateAgenda = async () => {
   isSubmitting.value = true
 
   try {
-    // Prepare agenda data with proper format
+    // Prepare agenda data with proper format and validation
     const agendaData = {
       date: eventForm.value.date ? new Date(eventForm.value.date).toISOString().split('T')[0] : null,
       time_start: eventForm.value.time_start,
       time_end: eventForm.value.time_end,
       title: eventForm.value.title?.trim(),
-      venu: eventForm.value.venu?.trim() || null,
-      room_no: eventForm.value.room_no?.trim() || null,
-      description: eventForm.value.description?.trim() || null,
-      speakers: eventForm.value.speakers.filter(speaker => 
-        speaker.name && speaker.name.trim()
-      ).map(speaker => ({
-        name: speaker.name.trim(),
-        about: speaker.about?.trim() || null
-      })),
+      venu: eventForm.value.venu?.trim() || '',
+      room_no: eventForm.value.room_no?.trim() || '',
+      description: eventForm.value.description?.trim() || '',
       is_break: false
+    }
+
+    // Handle speakers separately - only include valid speakers
+    const validSpeakers = eventForm.value.speakers.filter(speaker =>
+      speaker.name && speaker.name.trim()
+    ).map(speaker => ({
+      name: speaker.name.trim(),
+      about: speaker.about?.trim() || ''
+    }))
+
+    // Only add speakers if there are valid ones
+    if (validSpeakers.length > 0) {
+      agendaData.speakers = validSpeakers
     }
 
     console.log('📅 Submitting agenda data:', agendaData)
 
     let response;
     if (isEditMode.value) {
-      // Update existing agenda
+      // Update existing agenda - ensure we have the agenda ID
+      if (!editingAgendaId.value) {
+        throw new Error('No agenda ID found for update operation')
+      }
       response = await updateAgendaItem(currentEventId.value, editingAgendaId.value, agendaData);
     } else {
       // Create new agenda
@@ -629,8 +660,13 @@ const createOrUpdateAgenda = async () => {
       resetForm();
       await loadAgendaItems()
       
-      // Update tab store
+      // Update tab store and mark tab as completed
       handleSaveCurrentTab()
+      
+      // Mark agenda tab as completed in parent
+      if (eventCreationState?.markTabCompleted) {
+        eventCreationState.markTabCompleted(1)
+      }
     } else {
       throw new Error(response.message || 'Failed to save agenda');
     }
@@ -939,6 +975,14 @@ onMounted(async () => {
   // Add event listeners for agenda saving and tab switching
   window.addEventListener('saveAgenda', saveAgenda)
   window.addEventListener('saveCurrentTab', handleSaveCurrentTab)
+  
+  // Listen for edit mode changes from main page
+  window.addEventListener('editModeChanged', (event) => {
+    if (event.detail?.eventId === currentEventId.value) {
+      console.log('📅 Agenda: Edit mode changed, updating state')
+      // Update any local edit mode state if needed
+    }
+  })
 });
 
 // Remove event listeners when component unmounts

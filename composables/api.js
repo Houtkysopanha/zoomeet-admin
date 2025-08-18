@@ -43,11 +43,7 @@ const getAuthToken = () => {
       return null
     }
 
-    // Check if token is expired
-    if (isTokenExpired && isTokenExpired()) {
-      console.warn('⚠️ Token is expired')
-      return null
-    }
+
 
     // Log token info without sensitive data
     console.log('🔑 Token found:', {
@@ -249,11 +245,26 @@ export async function fetchEvents() {
   } catch (error) {
     console.error('Fetch events error:', error)
     
+    // Handle authentication errors specifically
+    if (error.status === 401) {
+      console.warn('🔐 Authentication failed, clearing auth state')
+      const { clearAuth } = useAuth()
+      clearAuth()
+      handleAuthRedirect()
+      
+      return {
+        status: 401,
+        data: {
+          success: false,
+          data: [],
+          message: 'Session expired. Please login again.'
+        }
+      }
+    }
+    
     // Don't expose technical details to users
     let userMessage = 'Failed to load events. Please try again.'
-    if (error.status === 401) {
-      userMessage = 'Session expired. Please login again.'
-    } else if (error.status === 403) {
+    if (error.status === 403) {
       userMessage = 'Access denied. Please check your permissions.'
     } else if (error.status === 500) {
       userMessage = 'Server error. Please try again later.'
@@ -1363,10 +1374,21 @@ export async function updateAgendaItem(eventId, agendaId, agendaData) {
     const formData = new FormData()
     formData.append('_method', 'PUT')
     
-    // Add agenda data to FormData
+    // Add agenda data to FormData with proper handling
     for (const [key, value] of Object.entries(agendaData)) {
       if (value !== null && value !== undefined) {
-        formData.append(key, value)
+        if (key === 'speakers' && Array.isArray(value)) {
+          // Handle speakers array properly for FormData
+          value.forEach((speaker, index) => {
+            if (speaker.name && speaker.name.trim()) {
+              formData.append(`speakers[${index}][name]`, speaker.name.trim())
+              formData.append(`speakers[${index}][about]`, speaker.about || '')
+            }
+          })
+        } else {
+          // Handle regular fields
+          formData.append(key, value)
+        }
       }
     }
     
@@ -1468,11 +1490,40 @@ export async function publishEvent(eventId) {
   try {
     console.log('🚀 Publishing event:', eventId)
     
+    // Get current event data to preserve all fields including chairs
+    const { getEventDetails } = await import('@/composables/api')
+    let currentEventData = null
+    
+    try {
+      const eventResponse = await getEventDetails(eventId)
+      currentEventData = eventResponse.data
+      console.log('📋 Current event data for publishing:', {
+        id: currentEventData.id,
+        name: currentEventData.name,
+        chairsCount: currentEventData.chairs?.length || 0
+      })
+    } catch (error) {
+      console.warn('⚠️ Could not fetch current event data for publishing:', error)
+    }
+    
     // Create FormData for Laravel PUT method override
     const formData = new FormData()
     formData.append('_method', 'PUT')
     formData.append('is_published', '1')
     formData.append('status', 'active')
+    
+    // Preserve chairs data if available
+    if (currentEventData?.chairs && Array.isArray(currentEventData.chairs)) {
+      console.log('🪑 Preserving chairs data during publish:', currentEventData.chairs.length)
+      currentEventData.chairs.forEach((chair, index) => {
+        if (chair.name && chair.position && chair.company) {
+          formData.append(`chairs[${index}][name]`, chair.name)
+          formData.append(`chairs[${index}][position]`, chair.position)
+          formData.append(`chairs[${index}][company]`, chair.company)
+          formData.append(`chairs[${index}][sort_order]`, chair.sort_order || (index + 1))
+        }
+      })
+    }
     
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}`, {
       method: 'POST',

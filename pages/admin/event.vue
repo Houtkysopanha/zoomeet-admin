@@ -288,6 +288,10 @@ const events = ref([])
 // Fetch events from API
 const loadEvents = async () => {
   try {
+    // Add debug information
+    const { debugAuth } = useAuthDebug()
+    debugAuth()
+    
     const { status, data } = await fetchEvents()
     console.log('loadEvents response:', { status, data })
 

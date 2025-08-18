@@ -929,14 +929,22 @@ const handleSaveDraft = async () => {
         }
       }
       
-      toast.add({
-        severity: 'success',
-        summary: isEditMode.value ? 'Event Updated! 💾' : 'Event Created! 🎉',
-        detail: isEditMode.value
-          ? 'Your changes have been saved successfully. You can continue editing other sections.'
-          : 'Your event has been created successfully. You can now add agenda and tickets.',
-        life: 4000
-      })
+      // Prevent duplicate toasts for Khmer text by checking if toast is already showing
+      const existingToasts = document.querySelectorAll('.p-toast-message')
+      const hasRecentToast = Array.from(existingToasts).some(toast =>
+        toast.textContent.includes(isEditMode.value ? 'Event Updated' : 'Event Created')
+      )
+      
+      if (!hasRecentToast) {
+        toast.add({
+          severity: 'success',
+          summary: isEditMode.value ? 'Event Updated! 💾' : 'Event Created! 🎉',
+          detail: isEditMode.value
+            ? 'Your changes have been saved successfully. You can continue editing other sections.'
+            : 'Your event has been created successfully. You can now add agenda and tickets.',
+          life: 4000
+        })
+      }
       
       console.log('✅ Event saved successfully:', eventData.id)
     } else {

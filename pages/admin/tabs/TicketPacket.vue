@@ -8,7 +8,7 @@
       <div v-if="currentEventId" class="text-right">
         <p class="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-500">Basic Info Saved</p>
         <p class="text-xs text-gray-500">{{ currentEventName }}</p>
-        <p v-if="isEditMode" class="px-3 py-1 rounded-full text-xs font-medium bg-bluw-100 text-blue-500">Edit Mode</p>
+        <p v-if="shouldShowEditMode" class="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-500">Edit Mode</p>
         <p v-else class="text-xs text-purple-600 font-medium">🆕 Create Mode</p>
       </div>
     </div>
@@ -63,7 +63,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue"
+import { ref, onMounted, onUnmounted, inject } from "vue"
 import Button from "primevue/button"
 import TicketForm from '~/components/common/TicketForm.vue'
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
@@ -86,6 +86,11 @@ const eventData = ref(null)
 // Track if there are new tickets added
 const hasNewTickets = computed(() => {
   return tickets.value.some(ticket => !ticket.ticket_type_id)
+})
+
+// Enhanced computed property to determine if we should show edit mode UI
+const shouldShowEditMode = computed(() => {
+  return isEditMode.value && hasExistingTickets.value
 })
 
 // Validate ticket data
@@ -590,11 +595,30 @@ const saveTicketsInternal = async (mode = 'draft') => {
       tabsStore.saveTabData(2, tabData)
       console.log('✅ Ticket tab marked as complete')
 
-      // Show success message
+      // Show detailed success message with counts
+      const updateCount = ticketUpdates.filter(update => update.includes('Updated:')).length
+      const createCount = ticketUpdates.filter(update => update.includes('Created:')).length
+      
+      let summaryMessage = 'Tickets Saved Successfully! 🎫'
+      let detailMessage = ''
+      
+      if (updateCount > 0 && createCount > 0) {
+        summaryMessage = `Updated ${updateCount}, Created ${createCount} tickets! 🎫`
+        detailMessage = `Successfully updated ${updateCount} existing ticket(s) and created ${createCount} new ticket(s)`
+      } else if (updateCount > 0) {
+        summaryMessage = `Updated ${updateCount} ticket${updateCount > 1 ? 's' : ''}! 🎫`
+        detailMessage = `Successfully updated ${updateCount} existing ticket(s)`
+      } else if (createCount > 0) {
+        summaryMessage = `Created ${createCount} ticket${createCount > 1 ? 's' : ''}! 🎫`
+        detailMessage = `Successfully created ${createCount} new ticket(s)`
+      } else {
+        detailMessage = 'All tickets processed successfully'
+      }
+      
       toast.add({
         severity: 'success',
-        summary: 'Tickets Saved Successfully! 🎫',
-        detail: ticketUpdates.length > 0 ? ticketUpdates.join('\n') : 'All tickets processed successfully',
+        summary: summaryMessage,
+        detail: detailMessage,
         life: 5000
       })
 
@@ -603,6 +627,12 @@ const saveTicketsInternal = async (mode = 'draft') => {
         eventId: currentEventId.value,
         tabComplete: true
       })
+      
+      // Mark ticket tab as completed in parent
+      const eventCreationState = inject('eventCreationState')
+      if (eventCreationState?.markTabCompleted) {
+        eventCreationState.markTabCompleted(2)
+      }
 
     // Reload tickets to get updated data with fresh IDs
     setTimeout(async () => {
@@ -769,7 +799,8 @@ onMounted(async () => {
     currentEventId.value = eventStore.currentEvent.id
     currentEventName.value = eventStore.currentEvent.name || "Unnamed Event"
     eventData.value = eventStore.currentEvent
-    isEditMode.value = !!eventStore.currentEvent.id && (eventStore.currentEvent.status !== 'new')
+    // Enhanced edit mode detection - if event has an ID, it's in edit mode
+    isEditMode.value = !!eventStore.currentEvent.id
     
     console.log('📋 Current event found:', {
       id: currentEventId.value,
@@ -885,6 +916,15 @@ onMounted(async () => {
       handleSaveCurrentTab()
     }
     
+    // Log final initialization state
+    console.log('🎫 TicketPacket initialization complete:', {
+      eventId: currentEventId.value,
+      isEditMode: isEditMode.value,
+      ticketCount: tickets.value.length,
+      hasExistingTickets: hasExistingTickets.value,
+      shouldShowEditMode: shouldShowEditMode.value
+    })
+    
   } else {
     console.log("⚠️ No event found in store. Complete Basic Info first.")
     toast.add({
@@ -908,6 +948,17 @@ onMounted(async () => {
         requested: event.detail.eventId,
         current: currentEventId.value
       })
+    }
+  })
+  
+  // Listen for edit mode changes from main page
+  window.addEventListener('editModeChanged', (event) => {
+    if (event.detail?.eventId === currentEventId.value) {
+      console.log('🎫 Tickets: Edit mode changed, updating state')
+      isEditMode.value = event.detail.isEditMode
+      if (event.detail.eventData) {
+        eventData.value = event.detail.eventData
+      }
     }
   })
   
