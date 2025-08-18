@@ -339,30 +339,7 @@
         />
       </section>
 
-      <!-- Update Button for Edit Mode -->
-      <div v-if="isEditMode" class="mt-8 pt-6 border-t border-gray-200">
-        <div class="flex justify-center">
-          <Button
-            @click="handleUpdateDraft"
-            :disabled="isSubmitting"
-            :class="[
-              'px-8 py-3 rounded-full font-semibold transition-all duration-300 flex items-center gap-3',
-              isSubmitting
-                ? 'bg-gray-400 cursor-not-allowed text-white'
-                : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl'
-            ]"
-          >
-            <Icon v-if="isSubmitting" name="heroicons:arrow-path" class="w-5 h-5 animate-spin" />
-            <Icon v-else name="heroicons:pencil-square" class="w-5 h-5" />
-            {{ isSubmitting ? 'Updating...' : 'Update Event' }}
-          </Button>
-        </div>
-        <p class="text-center text-sm text-gray-500 mt-2">
-          Update your event information
-        </p>
-      </div>
-
-      <!-- Note: Save and Publish buttons are now in the main Create Event page header -->
+      <!-- Note: All save and update actions are handled by the main page buttons -->
     </div>
   </div>
 </template>
@@ -854,13 +831,17 @@ const handleSaveDraft = async () => {
       company: formData.company || null,
       organizer: formData.organizer || null,
       online_link_meeting: formData.onlineLinkMeeting || null,
-      event_slug: formData.eventSlug || null,
       chairs: formData.chairs || [],
       members: formData.members || [],
       // Include file fields for proper upload
       cover_image: formData.coverImageFile || null,
       event_background: formData.eventBackgroundFile || null,
       card_background: formData.cardBackgroundFile || null
+    }
+
+    // Only include event_slug if it's new or has changed (to avoid "already taken" error)
+    if (!isEditMode.value || (isEditMode.value && formData.eventSlug && formData.eventSlug !== eventStore.currentEvent?.event_slug)) {
+      eventData.event_slug = formData.eventSlug || null
     }
     
     console.log('📤 Sending event data (detailed):', {
@@ -929,7 +910,7 @@ const handleSaveDraft = async () => {
       tabsStore.markTabComplete(0)
       tabsStore.clearTabModifications(0)
       
-      // Update parent state
+      // Update parent state - CRITICAL: Set edit mode after creating event
       if (eventCreationState?.setBasicInfoCompleted) {
         eventCreationState.setBasicInfoCompleted(true, eventData.id, updatedEvent)
       }
@@ -937,6 +918,15 @@ const handleSaveDraft = async () => {
       // Update parent event data
       if (eventCreationState?.updateEventData) {
         eventCreationState.updateEventData(updatedEvent)
+      }
+
+      // IMPORTANT: Force edit mode after successful creation/update
+      if (!isEditMode.value && eventData.id) {
+        console.log('🔄 Switching to edit mode after event creation')
+        // Update the parent component's edit mode state
+        if (eventCreationState?.isEditMode) {
+          eventCreationState.isEditMode.value = true
+        }
       }
       
       toast.add({

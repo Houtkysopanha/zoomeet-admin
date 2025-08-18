@@ -583,6 +583,11 @@ provide('eventCreationState', {
     isBasicInfoCompleted.value = completed
     if (id) {
       eventId.value = id
+      // CRITICAL: Switch to edit mode after event creation
+      if (!isEditMode.value) {
+        console.log('🔄 Switching to edit mode after event creation')
+        isEditMode.value = true
+      }
     }
     if (data) {
       try {

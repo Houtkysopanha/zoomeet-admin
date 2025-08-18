@@ -842,14 +842,11 @@ export async function updateEvent(eventId, eventData) {
   }
 
   try {
-    console.log('📝 Updating event:', {
-      id: eventId,
-      name: eventData.name,
-      fields: Object.keys(eventData)
-    })
-
-    // Prepare request data
+    // Prepare FormData for Laravel update with _method approach
     const formData = new FormData()
+    
+    // Add Laravel method override for PUT request
+    formData.append('_method', 'PUT')
     
     // Add all event data to FormData
     for (const [key, value] of Object.entries(eventData)) {
@@ -888,26 +885,14 @@ export async function updateEvent(eventId, eventData) {
             case 'chairs':
               // Handle chairs array - API expects individual FormData fields format
               if (Array.isArray(value)) {
-                console.log('🪑 Processing chairs for update:', value.length)
-                
                 // Filter out chairs with empty required fields
                 const validChairs = value.filter(chair => {
                   const hasValidName = chair.name && chair.name.trim().length > 0
                   const hasValidPosition = chair.position && chair.position.trim().length > 0
                   const hasValidCompany = chair.company && chair.company.trim().length > 0
                   
-                  if (!hasValidName || !hasValidPosition || !hasValidCompany) {
-                    console.warn('🪑 Skipping invalid chair in update:', {
-                      name: chair.name,
-                      position: chair.position,
-                      company: chair.company
-                    })
-                    return false
-                  }
-                  return true
+                  return hasValidName && hasValidPosition && hasValidCompany
                 })
-                
-                console.log(`🪑 Filtered chairs for update: ${value.length} -> ${validChairs.length} valid chairs`)
                 
                 if (validChairs.length > 0) {
                   // Send individual FormData fields (the format the API actually expects)
@@ -922,21 +907,11 @@ export async function updateEvent(eventId, eventData) {
                     formData.append(`chairs[${index}][company]`, chairCompany)
                     formData.append(`chairs[${index}][sort_order]`, chairSortOrder)
                     
-                    console.log(`🪑 Added chair ${index} for update:`, {
-                      name: chairName,
-                      position: chairPosition,
-                      company: chairCompany,
-                      sort_order: chairSortOrder
-                    })
-                    
                     // Handle profile image file separately
                     if (chair.profile_image instanceof File) {
                       formData.append(`chairs[${index}][profile_image]`, chair.profile_image)
-                      console.log(`📎 Adding chair ${index} profile image for update: ${chair.profile_image.name}`)
                     }
                   })
-                  
-                  console.log(`🪑 Successfully processed ${validChairs.length} valid chairs for update`)
                 }
               }
               break;
@@ -955,16 +930,11 @@ export async function updateEvent(eventId, eventData) {
       }
     }
 
-    // Log the FormData for debugging
-    console.log('📝 FormData contents:');
-    for (const [key, value] of formData.entries()) {
-      console.log(`${key}: ${value}`);
-    }
-
     const updateEventUrl = normalizeApiUrl(API_ADMIN_BASE_URL, `events/${eventId}`)
-    console.log('🔗 Update event URL:', updateEventUrl)
+    
+    // Use POST method with _method override for Laravel compatibility
     const response = await $fetch(updateEventUrl, {
-      method: 'PUT',
+      method: 'POST',
       body: formData,
       headers: {
         ...createAuthHeaders(false), // Don't include Content-Type for FormData
@@ -980,8 +950,6 @@ export async function updateEvent(eventId, eventData) {
         error: new Error('Invalid response format')
       }
     }
-
-    console.log('✅ Event updated:', response)
 
     // Return normalized success response
     return {
@@ -1087,10 +1055,22 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
 
   try {
     console.log('🎫 Updating ticket type:', { eventId, ticketTypeId })
+    
+    // Create FormData for Laravel PUT method override
+    const formData = new FormData()
+    formData.append('_method', 'PUT')
+    
+    // Add ticket data to FormData
+    for (const [key, value] of Object.entries(ticketData)) {
+      if (value !== null && value !== undefined) {
+        formData.append(key, value)
+      }
+    }
+    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types/${ticketTypeId}`, {
-      method: 'PUT',
-      body: ticketData,
-      headers: createAuthHeaders()
+      method: 'POST',
+      body: formData,
+      headers: createAuthHeaders(false) // Don't include Content-Type for FormData
     })
 
     console.log('✅ Ticket type updated:', response)
@@ -1378,10 +1358,22 @@ export async function updateAgendaItem(eventId, agendaId, agendaData) {
 
   try {
     console.log('📅 Updating agenda item:', { eventId, agendaId })
+    
+    // Create FormData for Laravel PUT method override
+    const formData = new FormData()
+    formData.append('_method', 'PUT')
+    
+    // Add agenda data to FormData
+    for (const [key, value] of Object.entries(agendaData)) {
+      if (value !== null && value !== undefined) {
+        formData.append(key, value)
+      }
+    }
+    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/agendas/${agendaId}`, {
-      method: 'PUT',
-      body: agendaData,
-      headers: createAuthHeaders()
+      method: 'POST',
+      body: formData,
+      headers: createAuthHeaders(false) // Don't include Content-Type for FormData
     })
 
     console.log('✅ Agenda item updated:', response)
@@ -1476,14 +1468,16 @@ export async function publishEvent(eventId) {
   try {
     console.log('🚀 Publishing event:', eventId)
     
-    // Use PUT method to update event with is_published = true
+    // Create FormData for Laravel PUT method override
+    const formData = new FormData()
+    formData.append('_method', 'PUT')
+    formData.append('is_published', '1')
+    formData.append('status', 'active')
+    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}`, {
-      method: 'PUT',
-      body: {
-        is_published: 1,
-        status: 'active'
-      },
-      headers: createAuthHeaders()
+      method: 'POST',
+      body: formData,
+      headers: createAuthHeaders(false) // Don't include Content-Type for FormData
     })
 
     console.log('✅ Event published:', response)

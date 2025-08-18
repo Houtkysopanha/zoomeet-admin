@@ -47,7 +47,7 @@
     </TransitionGroup>
 
     <!-- Action Buttons -->
-    <div class="flex justify-between items-center mt-6">
+    <div class="flex justify-center items-center mt-6">
       <Button
         @click="addTicket"
         class="add-ticket-btn"
@@ -56,29 +56,8 @@
         <Icon name="heroicons:plus" class="mr-2" />
         Add Ticket Package
       </Button>
-
-      <div class="flex space-x-4">
-        <!-- Save/Update Button - unified approach -->
-        <Button
-          @click="isEditMode ? updateTickets() : saveDraft()"
-          :disabled="!currentEventId || tickets.length === 0 || loading || !isValidTicketData"
-          :class="[
-            'save-update-btn flex items-center justify-center',
-            loading ? 'opacity-75 cursor-not-allowed' : '',
-            isEditMode ? 'update-tickets-btn' : 'save-draft-btn'
-          ]"
-        >
-          <LoadingSpinner
-            v-if="loading"
-            size="sm"
-            color="white"
-            :showText="false"
-            class="mr-2"
-          />
-          <Icon v-else :name="isEditMode ? 'heroicons:pencil-square' : 'heroicons:document-arrow-down'" class="mr-2" />
-          {{ loading ? (isEditMode ? 'Updating...' : 'Saving...') : (isEditMode ? 'Update Tickets' : 'Save Draft') }}
-        </Button>
-      </div>
+      
+      <!-- Note: All save and update actions are handled by the main page buttons -->
     </div>
   </div>
 </template>
