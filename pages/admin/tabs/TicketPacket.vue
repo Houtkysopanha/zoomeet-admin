@@ -6,9 +6,9 @@
         <p class="text-gray-400">Create and manage different ticket types</p>
       </div>
       <div v-if="currentEventId" class="text-right">
-        <p class="text-sm text-green-600 font-medium">✅ Basic Info Saved</p>
+        <p class="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-500">Basic Info Saved</p>
         <p class="text-xs text-gray-500">{{ currentEventName }}</p>
-        <p v-if="isEditMode" class="text-xs text-blue-600 font-medium">📝 Edit Mode</p>
+        <p v-if="isEditMode" class="px-3 py-1 rounded-full text-xs font-medium bg-bluw-100 text-blue-500">Edit Mode</p>
         <p v-else class="text-xs text-purple-600 font-medium">🆕 Create Mode</p>
       </div>
     </div>
@@ -58,14 +58,14 @@
       </Button>
 
       <div class="flex space-x-4">
-        <!-- Save Draft Button (for new tickets or adding more) -->
+        <!-- Save/Update Button - unified approach -->
         <Button
-          v-if="!isEditMode"
-          @click="saveDraft"
-          :disabled="!currentEventId || tickets.length === 0 || loading"
+          @click="isEditMode ? updateTickets() : saveDraft()"
+          :disabled="!currentEventId || tickets.length === 0 || loading || !isValidTicketData"
           :class="[
-            'save-draft-btn flex items-center justify-center',
-            loading ? 'opacity-75 cursor-not-allowed' : ''
+            'save-update-btn flex items-center justify-center',
+            loading ? 'opacity-75 cursor-not-allowed' : '',
+            isEditMode ? 'update-tickets-btn' : 'save-draft-btn'
           ]"
         >
           <LoadingSpinner
@@ -75,29 +75,8 @@
             :showText="false"
             class="mr-2"
           />
-          <Icon v-else name="heroicons:document-arrow-down" class="mr-2" />
-          {{ loading ? 'Saving...' : 'Save Draft' }}
-        </Button>
-
-        <!-- Update Button (for editing existing tickets) -->
-        <Button
-          v-if="isEditMode"
-          @click="updateTickets"
-          :disabled="!currentEventId || tickets.length === 0 || loading"
-          :class="[
-            'update-tickets-btn flex items-center justify-center',
-            loading ? 'opacity-75 cursor-not-allowed' : ''
-          ]"
-        >
-          <LoadingSpinner
-            v-if="loading"
-            size="sm"
-            color="white"
-            :showText="false"
-            class="mr-2"
-          />
-          <Icon v-else name="heroicons:pencil-square" class="mr-2" />
-          {{ loading ? 'Updating...' : 'Update Tickets' }}
+          <Icon v-else :name="isEditMode ? 'heroicons:pencil-square' : 'heroicons:document-arrow-down'" class="mr-2" />
+          {{ loading ? (isEditMode ? 'Updating...' : 'Saving...') : (isEditMode ? 'Update Tickets' : 'Save Draft') }}
         </Button>
       </div>
     </div>
@@ -128,6 +107,23 @@ const eventData = ref(null)
 // Track if there are new tickets added
 const hasNewTickets = computed(() => {
   return tickets.value.some(ticket => !ticket.ticket_type_id)
+})
+
+// Validate ticket data
+const isValidTicketData = computed(() => {
+  if (tickets.value.length === 0) return false
+  
+  return tickets.value.every(ticket => {
+    const name = (ticket.name || '').toString().trim()
+    const description = (ticket.description || ticket.tag || '').toString().trim()
+    const price = ticket.price !== null && ticket.price !== undefined ? parseFloat(ticket.price) : NaN
+    const quantity = ticket.quantity !== null && ticket.quantity !== undefined ? parseInt(ticket.quantity) : NaN
+    
+    return name.length > 0 &&
+           description.length > 0 &&
+           !isNaN(price) && price >= 0 &&
+           !isNaN(quantity) && quantity > 0
+  })
 })
 
 // Clear all ticket data and refresh from API with proper event isolation
@@ -322,6 +318,7 @@ const updateTickets = async () => {
   await saveTicketsInternal('update')
 }
 
+
 // Internal save method - ENHANCED FOR NEW FLOW with edit/create mode validation
 const saveTicketsInternal = async (mode = 'draft') => {
   const eventStore = useEventStore()
@@ -442,12 +439,12 @@ const saveTicketsInternal = async (mode = 'draft') => {
 
     console.log('❌ Validation failed for tickets:', invalidTickets)
 
+    // Show only one toast notification
     toast.add({
       severity: 'error',
-      summary: 'Please Complete All Required Fields',
-      detail: `The following tickets need attention:\n${errorMessages.join('\n')}\n\nPlease fill in all required fields before saving.`,
-      life: 10000,
-      sticky: true
+      summary: 'Validation Error',
+      detail: 'Please complete all required fields for all tickets before saving.',
+      life: 5000
     })
 
     // Force re-render of validation states
@@ -523,12 +520,9 @@ const saveTicketsInternal = async (mode = 'draft') => {
         throw new Error(errors.join('\n'))
       }
 
-      // Check if this ticket exists in API (by name or ID)
-      const existingTicket = existingTickets.find(et =>
-        et.id === ticket.ticket_type_id ||
-        et.name.toLowerCase() === name.toLowerCase()
-      )
-
+      // Check if this ticket exists in API (by ID first, then by name)
+      const existingTicket = existingTickets.find(et => et.id === ticket.ticket_type_id)
+      
       const ticketData = {
         name: name,
         price: parseFloat(price),
@@ -539,7 +533,7 @@ const saveTicketsInternal = async (mode = 'draft') => {
       }
 
       if (existingTicket) {
-        // UPDATE existing ticket
+        // UPDATE existing ticket using PUT method - only match by ID to avoid name conflicts
         console.log(`📝 Updating existing ticket: ${name} (ID: ${existingTicket.id})`)
         const updatePromise = updateTicketType(currentEventId.value, existingTicket.id, ticketData)
           .then(() => {
@@ -556,24 +550,28 @@ const saveTicketsInternal = async (mode = 'draft') => {
         
         updatePromises.push(updatePromise)
       } else {
-        // CREATE new ticket (single ticket at a time to avoid name conflicts)
-        console.log(`🆕 Creating new ticket: ${name}`)
-        const createPromise = createTicketTypes(currentEventId.value, [ticketData])
-          .then((response) => {
-            ticketUpdates.push(`Created: ${name}`)
-            console.log(`✅ Created ticket: ${name}`)
-            // Update local ticket with the new API ID if available
-            if (response?.data?.[0]?.id) {
-              ticket.ticket_type_id = response.data[0].id
-            }
-          })
-          .catch((error) => {
-            console.error(`❌ Failed to create ticket ${name}:`, error)
-            ticketUpdates.push(`Failed to create: ${name}`)
-            throw error
-          })
-        
-        updatePromises.push(createPromise)
+        // CREATE new ticket using POST method only if it doesn't have a ticket_type_id
+        if (!ticket.ticket_type_id) {
+          console.log(`🆕 Creating new ticket: ${name}`)
+          const createPromise = createTicketTypes(currentEventId.value, [ticketData])
+            .then((response) => {
+              ticketUpdates.push(`Created: ${name}`)
+              console.log(`✅ Created ticket: ${name}`)
+              // Update local ticket with the new API ID if available
+              if (response?.data?.[0]?.id) {
+                ticket.ticket_type_id = response.data[0].id
+              }
+            })
+            .catch((error) => {
+              console.error(`❌ Failed to create ticket ${name}:`, error)
+              ticketUpdates.push(`Failed to create: ${name}`)
+              throw error
+            })
+          
+          updatePromises.push(createPromise)
+        } else {
+          console.log(`⚠️ Skipping ticket ${name} - has ticket_type_id but not found in existing tickets`)
+        }
       }
     }
 
@@ -754,6 +752,32 @@ const loadExistingTickets = async () => {
   }
 }
 
+// Watch tickets array for changes
+watch(tickets, (newTickets) => {
+  if (currentEventId.value) {
+    console.log('🎫 Tickets changed, saving to tab store:', newTickets.length)
+    const tabsStore = useEventTabsStore()
+    
+    // Save current ticket data immediately
+    const tabData = {
+      ticketTypes: newTickets,
+      lastSaved: new Date().toISOString(),
+      hasTickets: newTickets.length > 0,
+      eventId: currentEventId.value,
+      isComplete: newTickets.length > 0 && newTickets.every(t =>
+        (t.name && t.name.trim()) &&
+        (t.description && t.description.trim()) &&
+        (t.price !== null && t.price !== undefined && t.price >= 0) &&
+        (t.quantity !== null && t.quantity !== undefined && t.quantity > 0)
+      ),
+      hasUnsavedChanges: true
+    }
+    
+    tabsStore.saveTabData(2, tabData)
+    tabsStore.markTabModified(2)
+  }
+}, { deep: true })
+
 // Enhanced initialization with better data restoration
 onMounted(async () => {
   console.log('🎫 Initializing TicketPacket component...')
@@ -927,7 +951,8 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('saveTickets', saveDraft)
   window.removeEventListener('saveCurrentTab', handleSaveCurrentTab)
-  window.removeEventListener('loadTicketData', loadExistingTickets)
+  // Note: loadTicketData and clearTicketData use anonymous functions, so they can't be removed individually
+  // This is acceptable as the component is being destroyed anyway
 })
 </script>
 

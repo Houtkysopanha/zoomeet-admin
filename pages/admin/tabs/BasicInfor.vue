@@ -16,9 +16,7 @@
             <div>
               <label class="block text-sm font-medium text-gray-700">Event Name <span class="text-red-500">*</span></label>
               <InputText
-                v-model="eventName"
-                @blur="() => { try { validateField('name', eventName, 'required') } catch(e) { console.error('Validation error:', e) } }"
-                @input="() => { try { clearFieldError('name') } catch(e) { console.error('Clear error:', e) } }"
+                v-model="formData.eventName"
                 :class="[
                   'w-full p-3 mt-1 bg-gray-100 rounded-2xl',
                   getFieldError('name') ? 'border-red-500 border-2' : ''
@@ -30,11 +28,11 @@
             <div>
               <label class="block text-sm font-medium text-gray-700">Category <span class="text-red-500">*</span></label>
               <Dropdown
-                v-model="category"
+                v-model="formData.category"
                 :options="categories"
                 optionLabel="label"
                 optionValue="value"
-                @change="() => { try { clearFieldError('category_id') } catch(e) { console.error('Clear error:', e) } }"
+                :loading="isLoadingCategories"
                 :class="[
                   'w-full p-1 mt-1 bg-gray-100 rounded-2xl',
                   getFieldError('category_id') ? 'border-red-500 border-2' : ''
@@ -47,9 +45,7 @@
           <div class="mt-4">
             <label class="block text-sm font-medium text-gray-700">Event Description <span class="text-red-500">*</span></label>
             <Textarea
-              v-model="description"
-              @blur="() => { try { validateField('description', description, 'required') } catch(e) { console.error('Validation error:', e) } }"
-              @input="() => { try { clearFieldError('description') } catch(e) { console.error('Clear error:', e) } }"
+              v-model="formData.description"
               :class="[
                 'w-full p-2 mt-1 bg-gray-100 rounded-2xl',
                 getFieldError('description') ? 'border-red-500 border-2' : ''
@@ -68,8 +64,7 @@
                 showIcon
                 iconDisplay="input"
                 placeholder="31/07/2025 09:00"
-                v-model="startDate"
-                @date-select="() => { try { clearFieldError('start_date') } catch(e) { console.error('Clear error:', e) } }"
+                v-model="formData.startDate"
                 :class="[
                   'w-full p-3 mt-1 bg-gray-100 rounded-2xl',
                   getFieldError('start_date') ? 'border-red-500 border-2' : ''
@@ -83,29 +78,27 @@
             <div>
               <label class="block text-sm font-medium text-gray-700">End Date & Time <span class="text-red-500">*</span></label>
               <Calendar
-                v-model="endDate"
+                v-model="formData.endDate"
                 showIcon
                 placeholder="31/07/2025 17:00"
                 iconDisplay="input"
-                @date-select="() => { try { clearFieldError('end_date') } catch(e) { console.error('Clear error:', e) } }"
                 :class="[
                   'w-full p-3 mt-1 bg-gray-100 rounded-2xl',
-                  getFieldError('end_date') ? 'border-red-500 border-2' : ''
+                  getFieldError('end_date') || getFieldError('date_range') ? 'border-red-500 border-2' : ''
                 ]"
                 dateFormat="dd/mm/yy"
                 showTime
                 hourFormat="24"
               />
               <small v-if="getFieldError('end_date')" class="text-red-500">{{ getFieldError('end_date') }}</small>
+              <small v-if="getFieldError('date_range')" class="text-red-500">{{ getFieldError('date_range') }}</small>
             </div>
           </div>
           <div class="grid grid-cols-2 gap-4 mt-4">
             <div>
               <label class="block text-sm font-medium text-gray-700">Location <span class="text-red-500">*</span></label>
               <InputText
-                v-model="location"
-                @blur="() => { try { validateField('location', location, 'required') } catch(e) { console.error('Validation error:', e) } }"
-                @input="() => { try { clearFieldError('location') } catch(e) { console.error('Clear error:', e) } }"
+                v-model="formData.location"
                 :class="[
                   'w-full p-3 mt-1 bg-gray-100 rounded-2xl',
                   getFieldError('location') ? 'border-red-500 border-2' : ''
@@ -115,16 +108,14 @@
               <small v-if="getFieldError('location')" class="text-red-500">{{ getFieldError('location') }}</small>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700">Map URL</label>
+              <label class="block text-sm font-medium text-gray-700">Map URL <span class="text-gray-400">(Optional)</span></label>
               <InputText
-                v-model="mapUrl"
-                @blur="() => { try { validateField('map_url', mapUrl, 'url') } catch(e) { console.error('Validation error:', e) } }"
-                @input="() => { try { clearFieldError('map_url') } catch(e) { console.error('Clear error:', e) } }"
+                v-model="formData.mapUrl"
                 :class="[
                   'w-full p-3 mt-1 bg-gray-100 rounded-2xl',
                   getFieldError('map_url') ? 'border-red-500 border-2' : ''
                 ]"
-                placeholder="Enter map URL"
+                placeholder="https://maps.google.com/... (optional)"
               />
               <small v-if="getFieldError('map_url')" class="text-red-500">{{ getFieldError('map_url') }}</small>
             </div>
@@ -132,12 +123,28 @@
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700">Company</label>
-            <InputText v-model="company" class="w-full p-3 mt-1 bg-gray-100 rounded-2xl" placeholder="Company name" />
+            <label class="block text-sm font-medium text-gray-700">Company <span class="text-red-500">*</span></label>
+            <InputText
+              v-model="formData.company"
+              :class="[
+                'w-full p-3 mt-1 bg-gray-100 rounded-2xl',
+                getFieldError('company') ? 'border-red-500 border-2' : ''
+              ]"
+              placeholder="Enter company name"
+            />
+            <small v-if="getFieldError('company')" class="text-red-500">{{ getFieldError('company') }}</small>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700">Organizer</label>
-            <InputText v-model="organizer" class="w-full p-3 mt-1 bg-gray-100 rounded-2xl" placeholder="Organization name" />
+            <label class="block text-sm font-medium text-gray-700">Organizer <span class="text-red-500">*</span></label>
+            <InputText
+              v-model="formData.organizer"
+              :class="[
+                'w-full p-3 mt-1 bg-gray-100 rounded-2xl',
+                getFieldError('organizer') ? 'border-red-500 border-2' : ''
+              ]"
+              placeholder="Enter organizer name"
+            />
+            <small v-if="getFieldError('organizer')" class="text-red-500">{{ getFieldError('organizer') }}</small>
           </div>
         </div>
       </section>
@@ -156,9 +163,7 @@
                 Event Slug <span class="text-red-500">*</span></label>
               <div class="flex gap-4 ">
                 <InputText
-                  v-model="eventSlug"
-                  @blur="() => { try { validateField('event_slug', eventSlug, 'required') } catch(e) { console.error('Validation error:', e) } }"
-                  @input="() => { try { validateSlug() } catch(e) { console.error('Slug validation error:', e) } }"
+                  v-model="formData.eventSlug"
                   :class="[
                     'w-full p-3 h-12 rounded-2xl bg-gray-100 border-gray-200 focus:border-purple-400 focus:ring-purple-400',
                     getFieldError('event_slug') ? 'border-red-500 border-2' : ''
@@ -201,16 +206,14 @@
         </div>
         <div class="mb-6">
           <label class="block text-sm font-medium text-gray-700 mb-2">
-            Link (Zoom, Google Meet, etc.) <span class="text-red-500">*</span></label>
+            Link (Zoom, Google Meet, etc.) <span class="text-gray-400">(Optional)</span></label>
           <InputText
-            v-model="onlineLinkMeeting"
-            @blur="() => { try { validateField('online_link_meeting', onlineLinkMeeting, 'required'); if (onlineLinkMeeting) validateField('online_link_meeting', onlineLinkMeeting, 'url') } catch(e) { console.error('Validation error:', e) } }"
-            @input="() => { try { clearFieldError('online_link_meeting') } catch(e) { console.error('Clear error:', e) } }"
+            v-model="formData.onlineLinkMeeting"
             :class="[
               'w-full p-3 h-12 rounded-2xl bg-gray-100 border-gray-200 focus:border-purple-400 focus:ring-purple-400',
               getFieldError('online_link_meeting') ? 'border-red-500 border-2' : ''
             ]"
-            placeholder="paste link here"
+            placeholder="https://zoom.us/... (optional)"
           />
           <small v-if="getFieldError('online_link_meeting')" class="text-red-500">{{ getFieldError('online_link_meeting') }}</small>
         </div>
@@ -224,7 +227,7 @@
             </div>
             <h2 class="text-lg font-semibold text-purple-700">Chair</h2>
           </div>
-          <Button @click="addChair" class="add-chair-btn">
+          <Button @click="openChairDialog()" class="add-chair-btn">
             <template #default>
               <i class="pi pi-plus mr-2"></i>
               <span class="font-medium">Add Chair</span>
@@ -233,11 +236,26 @@
         </div>
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div class="">
-            <DataTable :value="chairs" :loading="loading" stripedRows responsiveLayout="scroll" class="custom-datatable" :emptyMessage="'No chairs added yet'">
+            <DataTable :value="formData.chairs" :loading="isLoadingData" stripedRows responsiveLayout="scroll" class="custom-datatable" :emptyMessage="'No chairs added yet'">
               <Column field="name" header="Name" class="name-column">
                 <template #body="slotProps">
                   <div class="flex items-center gap-4 py-2">
-                    <Avatar :image="slotProps.data.avatar" :label="slotProps.data.name.charAt(0)" shape="circle" size="large" class="shadow-md hover:shadow-lg transition-shadow duration-200" />
+                    <div class="relative">
+                      <img
+                        v-if="getChairImageSrc(slotProps.data)"
+                        :src="getChairImageSrc(slotProps.data)"
+                        :alt="slotProps.data.name"
+                        class="w-12 h-12 rounded-full object-cover shadow-md hover:shadow-lg transition-shadow duration-200 border-2 border-gray-200"
+                        @error="handleChairImageError"
+                      />
+                      <Avatar
+                        v-else
+                        :label="slotProps.data.name.charAt(0)"
+                        shape="circle"
+                        size="large"
+                        class="shadow-md hover:shadow-lg transition-shadow duration-200 bg-purple-600 text-white"
+                      />
+                    </div>
                     <div>
                       <h3 class="font-semibold text-gray-900 hover:text-purple-600 transition-colors duration-200">
                         {{ slotProps.data.name }}</h3>
@@ -254,9 +272,9 @@
               <Column header="Action" class="action-column">
                 <template #body="slotProps">
                   <div class="flex items-center justify-center gap-2">
-                    <Button icon="pi pi-pencil" text rounded size="small" class="action-btn edit-btn" @click="editChair(slotProps.data)" title="Edit Chair" />
+                    <Button icon="pi pi-pencil" text rounded size="small" class="action-btn edit-btn" @click="openChairDialog(slotProps.data, slotProps.index)" title="Edit Chair" />
                     <span class="text-gray-300">|</span>
-                    <Button icon="pi pi-trash" text rounded size="small" class="action-btn delete-btn" @click="deleteChair(slotProps.data)" title="Delete Chair" />
+                    <Button icon="pi pi-trash" text rounded size="small" class="action-btn delete-btn" @click="deleteChair(slotProps.index)" title="Delete Chair" />
                   </div>
                 </template>
               </Column>
@@ -267,7 +285,7 @@
                   </div>
                   <h3 class="text-lg font-medium text-gray-900 mb-2">No chairs added yet</h3>
                   <p class="text-gray-500 mb-6">Add your first chair to get started with event management.</p>
-                  <Button @click="addChair" class="add-chair-btn">
+                  <Button @click="openChairDialog()" class="add-chair-btn">
                     <i class="pi pi-plus mr-2"></i>
                     Add First Chair</Button>
                 </div>
@@ -286,69 +304,10 @@
       <ChairForm
         :visible="showChairDialog"
         @update:visible="showChairDialog = $event"
-        :chair="selectedChair"
-        :is-edit="isEditingChair"
-        @save="handleChairSave"
+        :chair="editingChair"
+        :is-edit="editingChairIndex >= 0"
+        @save="handleChairSaved"
       />
-
-      <!-- <section class="Member mt-10">
-        <div class="flex items-center justify-between mb-5">
-          <div class="flex items-center gap-3">
-            <div class="w-6 h-6 bg-purple-600 rounded flex items-center justify-center">
-            <Icon name="heroicons:user-group" class="text-sm text-white" />
-          </div>
-            <h2 class="text-lg font-semibold text-purple-700">Member</h2>
-          </div>
-          <div>
-            <Dropdown v-model="member" :options="members" placeholder="Select Member" class="w-80 p-1 rounded-2xl focus:outline-none focus:bg-transparent bg-gray-100 transition-all duration-300" />
-          </div>
-        </div>
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div class="">
-            <DataTable :value="chairs" :loading="loading" stripedRows responsiveLayout="scroll" class="custom-datatable" :emptyMessage="'No chairs added yet'">
-              <Column field="name" header="Name" style="width: 35%;" class="name-column">
-                <template #body="slotProps">
-                  <div class="flex items-center gap-4 py-2">
-                    <div>
-                      <h3 class="font-semibold text-gray-900 hover:text-purple-600 transition-colors duration-200">
-                        {{ slotProps.data.name }}</h3>
-                    </div>
-                  </div>
-                </template>
-              </Column>
-              <Column field="company" header="POSITION" class="company-column">
-                <template #body="slotProps">
-                  <span class="text-gray-700 font-medium">{{ slotProps.data.company }}</span>
-                </template>
-              </Column>
-              <Column header="Action" class="action-column">
-                <template #body="slotProps">
-                  <div class="flex items-center justify-center gap-2">
-                    <Button icon="pi pi-trash" text rounded size="small" class="action-btn delete-btn" @click="deleteChair(slotProps.data)" title="Delete Chair" />
-                  </div>
-                </template>
-              </Column>
-              <template #empty>
-                <div class="text-center py-12">
-                  <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="pi pi-users text-2xl text-gray-400"></i>
-                  </div>
-                  <h3 class="text-lg font-medium text-gray-900 mb-2">No chairs added yet</h3>
-                  <p class="text-gray-500 mb-6">Add your first chair to get started with event management.</p>
-                  <Button @click="addChair" class="add-chair-btn">
-                    <i class="pi pi-plus mr-2"></i>
-                    Add First Chair</Button>
-                </div>
-              </template>
-              <template #loading>
-                <div class="flex items-center justify-center py-8">
-                  <ProgressSpinner size="50" strokeWidth="4" fill="transparent" animationDuration="1s" />
-                </div>
-              </template>
-            </DataTable>
-          </div>
-        </div>
-      </section> -->
 
       <div class="border border-gray-200 my-5"></div>
 
@@ -356,47 +315,50 @@
         <UploadPhoto
           label="Cover Image (Required)"
           :multiple="false"
-          @file-selected="coverImageFile = $event"
-          @file-removed="coverImageFile = null"
+          :existing-image-url="getCoverImageUrl()"
+          @file-selected="handleCoverImageUpload"
+          @file-removed="handleCoverImageRemoved"
+          @existing-image-removed="handleCoverImageRemoved"
         />
+        <small v-if="getFieldError('cover_image')" class="text-red-500 mt-2 block">{{ getFieldError('cover_image') }}</small>
       </section>
       <section class="event-bg mt-10">
         <UploadPhoto
           label="Event Background (Optional)"
           :multiple="false"
-          @file-selected="eventBackgroundFile = $event"
-          @file-removed="eventBackgroundFile = null"
+          @file-selected="handleEventBackgroundUpload"
+          @file-removed="formData.eventBackgroundFile = null"
         />
       </section>
       <section class="card-bg mt-10">
         <UploadPhoto
           label="Card Background (Optional)"
           :multiple="false"
-          @file-selected="cardBackgroundFile = $event"
-          @file-removed="cardBackgroundFile = null"
+          @file-selected="handleCardBackgroundUpload"
+          @file-removed="formData.cardBackgroundFile = null"
         />
       </section>
 
-      <!-- Update Button for Draft Mode -->
-      <div v-if="isUpdateMode" class="mt-8 pt-6 border-t border-gray-200">
+      <!-- Update Button for Edit Mode -->
+      <div v-if="isEditMode" class="mt-8 pt-6 border-t border-gray-200">
         <div class="flex justify-center">
           <Button
             @click="handleUpdateDraft"
-            :disabled="loading"
+            :disabled="isSubmitting"
             :class="[
               'px-8 py-3 rounded-full font-semibold transition-all duration-300 flex items-center gap-3',
-              loading
+              isSubmitting
                 ? 'bg-gray-400 cursor-not-allowed text-white'
                 : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl'
             ]"
           >
-            <Icon v-if="loading" name="heroicons:arrow-path" class="w-5 h-5 animate-spin" />
+            <Icon v-if="isSubmitting" name="heroicons:arrow-path" class="w-5 h-5 animate-spin" />
             <Icon v-else name="heroicons:pencil-square" class="w-5 h-5" />
-            {{ loading ? 'Updating...' : 'Update Draft' }}
+            {{ isSubmitting ? 'Updating...' : 'Update Event' }}
           </Button>
         </div>
         <p class="text-center text-sm text-gray-500 mt-2">
-          Update your event information and save as draft
+          Update your event information
         </p>
       </div>
 
@@ -407,26 +369,33 @@
 
 <script setup>
 import './css/style.css'
-import { ref, computed, onMounted, onUnmounted, watch, inject } from "vue";
-// Icon is auto-imported by Nuxt
-import Button from "primevue/button";
-import { useToast } from "primevue/usetoast";
-import { useRouter } from "vue-router";
-import InputText from "primevue/inputtext";
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
-import ProgressSpinner from 'primevue/progressspinner'
-import Dropdown from "primevue/dropdown";
-import Textarea from "primevue/textarea";
-import Calendar from "primevue/calendar";
-import Avatar from 'primevue/avatar'
-import UploadPhoto from '~/components/common/UploadPhoto.vue'
-import ChairForm from '~/components/common/ChairForm.vue'
-import { createEvent, updateEvent, getEventDetails } from '@/composables/api'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, inject, watch, nextTick } from 'vue'
+import { useToast } from "primevue/usetoast"
+import { useEventStore } from '~/composables/useEventStore'
+import { useEventTabsStore } from '~/composables/useEventTabs'
+import { fetchCategories } from '~/composables/api'
+import { useAuth } from '~/composables/useAuth'
 import { useFormValidation } from '~/composables/useFormValidation'
 
+// Import PrimeVue components
+import InputText from 'primevue/inputtext'
+import Textarea from 'primevue/textarea'
+import Dropdown from 'primevue/dropdown'
+import Calendar from 'primevue/calendar'
+import Button from 'primevue/button'
+import DataTable from 'primevue/datatable'
+import Column from 'primevue/column'
+import Avatar from 'primevue/avatar'
+import ProgressSpinner from 'primevue/progressspinner'
+
+// Import custom components
+import ChairForm from '~/components/common/ChairForm.vue'
+import UploadPhoto from '~/components/common/UploadPhoto.vue'
+
 const toast = useToast()
-const router = useRouter()
+const eventStore = useEventStore()
+const tabsStore = useEventTabsStore()
+const { getToken } = useAuth()
 
 // Form validation
 const {
@@ -441,147 +410,875 @@ const {
   validateDateRange
 } = useFormValidation()
 
-// Inject event creation state from parent
+// Inject parent state
 const eventCreationState = inject('eventCreationState')
 
-const loading = ref(false)
-
-// Form Data - Initialize with empty values
-const eventName = ref("")
-const category = ref(null)
-const description = ref("")
-const startDate = ref(null)
-const endDate = ref(null)
-const location = ref("")
-const mapUrl = ref("")
-const company = ref("")
-const organizer = ref("")
-const onlineLinkMeeting = ref('')
-const eventSlug = ref('')
-
-// File uploads and publish status
-const isPublished = ref(false)
-const coverImageFile = ref(null)
-const eventBackgroundFile = ref(null)
-const cardBackgroundFile = ref(null)
-
-// Track if we're in update mode
-const isUpdateMode = ref(false)
-const currentEventId = ref(null)
-
-// Load existing event data if available
-onMounted(async () => {
-  if (eventCreationState?.eventId?.value) {
-    currentEventId.value = eventCreationState.eventId.value
-    isUpdateMode.value = true
-    
-    try {
-      console.log('📋 Loading existing event data for editing:', currentEventId.value)
-      const response = await getEventDetails(currentEventId.value)
-      
-      if (response && response.data) {
-        const eventData = response.data
-        
-        // Populate form fields with existing data
-        eventName.value = eventData.name || ''
-        category.value = eventData.category_id || null
-        description.value = eventData.description || ''
-        location.value = eventData.location || ''
-        mapUrl.value = eventData.map_url || ''
-        company.value = eventData.company || ''
-        organizer.value = eventData.organizer || ''
-        eventSlug.value = eventData.event_slug || ''
-        onlineLinkMeeting.value = eventData.online_link_meeting || ''
-        
-        // Load chairs data if available
-        if (eventData.chairs && Array.isArray(eventData.chairs)) {
-          chairs.value = eventData.chairs.map(chair => ({
-            id: chair.id || Date.now() + Math.random(),
-            name: chair.name || '',
-            position: chair.position || '',
-            company: chair.company || '',
-            sort_order: chair.sort_order || 1,
-            avatar: chair.profile_image || '',
-            profile_image: chair.profile_image || null
-          }));
-        }
-        isPublished.value = eventData.is_published === 1 || eventData.is_published === '1'
-        
-        // Parse dates
-        if (eventData.start_date) {
-          startDate.value = new Date(eventData.start_date)
-        }
-        if (eventData.end_date) {
-          endDate.value = new Date(eventData.end_date)
-        }
-        
-        console.log('✅ Event data loaded for editing')
-      }
-    } catch (error) {
-      console.error('❌ Failed to load event data:', error)
-      toast.add({
-        severity: 'error',
-        summary: 'Load Failed',
-        detail: 'Failed to load event data for editing',
-        life: 3000
-      })
-    }
-  }
+// Form data - reactive object for better reactivity
+const formData = reactive({
+  eventName: '',
+  category: null,
+  description: '',
+  startDate: null,
+  endDate: null,
+  location: '',
+  mapUrl: '',
+  company: '',
+  organizer: '',
+  onlineLinkMeeting: null,
+  eventSlug: '',
+  coverImageFile: null,
+  eventBackgroundFile: null,
+  cardBackgroundFile: null,
+  chairs: [],
+  members: []
 })
 
-// Event listeners for parent component actions
-const handleSaveDraft = () => {
-  isPublished.value = false
-  submitEvent()
-}
+// UI state
+const isSubmitting = ref(false)
+const categories = ref([])
+const isLoadingCategories = ref(false)
+const showChairDialog = ref(false)
+const editingChair = ref(null)
+const editingChairIndex = ref(-1)
+const isLoadingData = ref(false)
 
-const handlePublishEvent = () => {
-  isPublished.value = true
-  submitEvent()
-}
-
-// Handle update draft button click
-const handleUpdateDraft = () => {
-  isPublished.value = false
-  submitEvent()
-}
-
-// Add event listeners when component mounts
-onMounted(() => {
-  window.addEventListener('saveDraft', handleSaveDraft)
-  window.addEventListener('publishEvent', handlePublishEvent)
-})
-
-// Remove event listeners when component unmounts
-onUnmounted(() => {
-  window.removeEventListener('saveDraft', handleSaveDraft)
-  window.removeEventListener('publishEvent', handlePublishEvent)
-})
-
-// Category Options (updated with value for category_id)
-const categories = ref([
-  { label: "Conference", value: 1 },
-  { label: "Workshop", value: 2 },
-  { label: "Seminar", value: 3 },
-  { label: "Networking", value: 4 },
-])
-
-const member = ref(null);
-const members = ref(['Kim', 'ly', 'meng']) // Kept from original, not part of event creation form
+// Computed properties
+const isEditMode = computed(() => eventCreationState?.isEditMode?.value || false)
+const eventId = computed(() => eventCreationState?.eventId?.value || null)
 
 // Computed URL based on slug
 const generatedUrl = computed(() => {
-  return `https://eticket.asia/e/${eventSlug.value}`
+  return `https://eticket.asia/e/${formData.eventSlug}`
 })
 
-// Methods
+// Load categories and data on mount
+onMounted(async () => {
+  console.log('🚀 BasicInfor component mounted')
+  await loadCategories()
+  await loadExistingData()
+  
+  // Listen for save events
+  window.addEventListener('saveDraft', handleSaveDraft)
+  window.addEventListener('saveCurrentTab', handleSaveCurrentTab)
+  
+  console.log('✅ BasicInfor component initialized')
+})
+
+// Enhanced data loading with comprehensive source checking
+const loadExistingData = async () => {
+  if (isLoadingData.value) return
+  
+  isLoadingData.value = true
+  
+  try {
+    console.log('📥 Loading existing data for BasicInfor...')
+    
+    // Priority 1: Check tabs store for saved data
+    const tabData = tabsStore.getTabData(0) // Basic Info tab
+    
+    if (tabData && Object.keys(tabData).length > 0 && tabData.eventName) {
+      console.log('📥 Loading data from tabs store:', {
+        eventName: tabData.eventName,
+        hasChairs: tabData.chairs?.length || 0,
+        lastSaved: tabData.lastSaved
+      })
+      
+      // Load data from tabs store
+      Object.assign(formData, {
+        eventName: tabData.eventName || '',
+        category: tabData.category || null,
+        description: tabData.description || '',
+        startDate: tabData.startDate ? new Date(tabData.startDate) : null,
+        endDate: tabData.endDate ? new Date(tabData.endDate) : null,
+        location: tabData.location || '',
+        mapUrl: tabData.mapUrl || '',
+        company: tabData.company || '',
+        organizer: tabData.organizer || '',
+        onlineLinkMeeting: tabData.onlineLinkMeeting || null,
+        eventSlug: tabData.eventSlug || '',
+        chairs: tabData.chairs || [],
+        members: tabData.members || []
+      })
+      
+      console.log('✅ Data loaded from tabs store')
+      return
+    }
+    
+    // Priority 2: Check event store for current event
+    if (eventStore.currentEvent && eventStore.currentEvent.id) {
+      console.log('📥 Loading data from event store:', {
+        id: eventStore.currentEvent.id,
+        name: eventStore.currentEvent.name,
+        hasChairs: eventStore.currentEvent.chairs?.length || 0
+      })
+      
+      const event = eventStore.currentEvent
+      Object.assign(formData, {
+        eventName: event.name || '',
+        category: event.category_id || null,
+        description: event.description || '',
+        startDate: event.start_date ? new Date(event.start_date) : null,
+        endDate: event.end_date ? new Date(event.end_date) : null,
+        location: event.location || '',
+        mapUrl: event.map_url || '',
+        company: event.company || '',
+        organizer: event.organizer || '',
+        onlineLinkMeeting: event.online_link_meeting || null,
+        eventSlug: event.event_slug || '',
+        chairs: event.chairs || [],
+        members: event.members || []
+      })
+      
+      // Save this data to tabs store for future use
+      tabsStore.saveTabData(0, {
+        ...formData,
+        eventId: event.id,
+        isComplete: true,
+        lastSaved: new Date().toISOString()
+      })
+      
+      console.log('✅ Data loaded from event store and saved to tabs store')
+      return
+    }
+    
+    // Priority 3: If we have an eventId but no data, try to reload from API
+    if (eventId.value && isEditMode.value) {
+      console.log('🔄 Reloading event data from API for eventId:', eventId.value)
+      
+      try {
+        await eventStore.loadEventById(eventId.value)
+        
+        if (eventStore.currentEvent) {
+          const event = eventStore.currentEvent
+          Object.assign(formData, {
+            eventName: event.name || '',
+            category: event.category_id || null,
+            description: event.description || '',
+            startDate: event.start_date ? new Date(event.start_date) : null,
+            endDate: event.end_date ? new Date(event.end_date) : null,
+            location: event.location || '',
+            mapUrl: event.map_url || '',
+            company: event.company || '',
+            organizer: event.organizer || '',
+            onlineLinkMeeting: event.online_link_meeting || null,
+            eventSlug: event.event_slug || '',
+            chairs: event.chairs || [],
+            members: event.members || []
+          })
+          
+          // Save to tabs store
+          tabsStore.saveTabData(0, {
+            ...formData,
+            eventId: event.id,
+            isComplete: true,
+            lastSaved: new Date().toISOString()
+          })
+          
+          console.log('✅ Data reloaded from API and saved to tabs store')
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to reload event data from API:', error)
+      }
+    }
+    
+    console.log('📊 Final form data state:', {
+      eventName: formData.eventName,
+      category: formData.category,
+      location: formData.location,
+      chairsCount: formData.chairs?.length || 0,
+      isEditMode: isEditMode.value,
+      eventId: eventId.value
+    })
+    
+  } catch (error) {
+    console.error('❌ Error loading existing data:', error)
+    toast.add({
+      severity: 'warn',
+      summary: 'Data Loading Issue',
+      detail: 'Some data may not have loaded properly. Please check your inputs.',
+      life: 3000
+    })
+  } finally {
+    isLoadingData.value = false
+  }
+}
+
+// Watch for tab switching to reload data
+watch(() => tabsStore.activeTab, async (newTab, oldTab) => {
+  if (newTab === 0 && oldTab !== 0) {
+    console.log('🔄 Switched to Basic Info tab, reloading data...')
+    await nextTick() // Wait for DOM updates
+    await loadExistingData()
+  }
+})
+
+// Watch for event changes to reload data
+watch(() => eventId.value, async (newEventId, oldEventId) => {
+  if (newEventId && newEventId !== oldEventId) {
+    console.log('🔄 Event ID changed, reloading data...', { newEventId, oldEventId })
+    await nextTick()
+    await loadExistingData()
+  }
+})
+
+// Load categories from API
+const loadCategories = async () => {
+  if (isLoadingCategories.value) return
+  
+  isLoadingCategories.value = true
+  try {
+    console.log('🔄 Loading categories from API...')
+    const response = await fetchCategories()
+    
+    console.log('📋 Categories API response:', response)
+    
+    // Handle the nested response structure: response.data.data
+    let categoriesData = null
+    if (response && response.data && response.data.data && Array.isArray(response.data.data)) {
+      categoriesData = response.data.data
+    } else if (response && response.data && Array.isArray(response.data)) {
+      categoriesData = response.data
+    } else if (response && Array.isArray(response)) {
+      categoriesData = response
+    }
+    
+    if (categoriesData && Array.isArray(categoriesData)) {
+      categories.value = categoriesData.map(cat => ({
+        label: cat.name,
+        value: cat.id
+      }))
+      console.log('✅ Categories loaded:', {
+        count: categories.value.length,
+        categories: categories.value
+      })
+    } else {
+      console.warn('⚠️ Invalid categories response structure:', response)
+      // Fallback categories
+      categories.value = [
+        { label: "Conference", value: 1 },
+        { label: "Workshop", value: 2 },
+        { label: "Music & Concerts", value: 3 },
+        { label: "Sports & Fitness", value: 4 },
+        { label: "Arts & Culture", value: 5 },
+        { label: "Business & Technology", value: 6 },
+        { label: "Education & Workshops", value: 7 },
+        { label: "Family & Kids", value: 8 },
+        { label: "Nightlife & Social", value: 9 },
+        { label: "Film & Media", value: 10 },
+        { label: "Spiritual & Wellness", value: 11 },
+      ]
+      toast.add({
+        severity: 'warn',
+        summary: 'Categories Load Issue',
+        detail: 'Using default categories. API response structure may have changed.',
+        life: 3000
+      })
+    }
+  } catch (error) {
+    console.error('❌ Failed to load categories:', error)
+    // Fallback categories
+    categories.value = [
+      { label: "Conference", value: 1 },
+      { label: "Workshop", value: 2 },
+      { label: "Music & Concerts", value: 3 },
+      { label: "Sports & Fitness", value: 4 },
+      { label: "Arts & Culture", value: 5 },
+      { label: "Business & Technology", value: 6 },
+      { label: "Education & Workshops", value: 7 },
+      { label: "Family & Kids", value: 8 },
+      { label: "Nightlife & Social", value: 9 },
+      { label: "Film & Media", value: 10 },
+      { label: "Spiritual & Wellness", value: 11 },
+    ]
+    toast.add({
+      severity: 'error',
+      summary: 'Failed to Load Categories',
+      detail: 'Could not load event categories. Using default categories.',
+      life: 5000
+    })
+  } finally {
+    isLoadingCategories.value = false
+  }
+}
+
+// Handle save current tab data (for tab switching)
+const handleSaveCurrentTab = async (event) => {
+  const detail = event?.detail
+  if (detail && detail.eventId && detail.eventId !== eventId.value) {
+    console.log('🚫 Ignoring save request for different event')
+    return
+  }
+  
+  console.log('💾 Saving current Basic Info tab data...')
+  
+  // Save current form data to tabs store
+  tabsStore.saveTabData(0, {
+    ...formData,
+    lastSaved: new Date().toISOString(),
+    hasUnsavedChanges: false
+  })
+  
+  console.log('✅ Basic Info tab data saved to persistence')
+}
+
+// Enhanced save draft function with better error handling and update support
+const handleSaveDraft = async () => {
+  if (isSubmitting.value) return
+  
+  isSubmitting.value = true
+  
+  try {
+    console.log('💾 Starting save operation...', {
+      isEditMode: isEditMode.value,
+      eventId: eventId.value,
+      eventName: formData.eventName
+    })
+    
+    // DETAILED FORM DATA LOGGING
+    console.log('📋 COMPLETE FORM DATA INSPECTION:', {
+      formData: { ...formData },
+      formDataKeys: Object.keys(formData),
+      categoryValue: formData.category,
+      categoryType: typeof formData.category,
+      categoryIsNull: formData.category === null,
+      categoryIsUndefined: formData.category === undefined,
+      categoryIsEmptyString: formData.category === '',
+      categoryTruthyCheck: !!formData.category,
+      allFormValues: {
+        eventName: formData.eventName,
+        category: formData.category,
+        description: formData.description,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        location: formData.location
+      }
+    })
+    
+    // Validate required fields (added Company and Organizer as required)
+    const requiredFields = [
+      { field: 'eventName', label: 'Event Name' },
+      { field: 'category', label: 'Category' },
+      { field: 'description', label: 'Description' },
+      { field: 'startDate', label: 'Start Date' },
+      { field: 'endDate', label: 'End Date' },
+      { field: 'location', label: 'Location' },
+      { field: 'company', label: 'Company' },
+      { field: 'organizer', label: 'Organizer' }
+    ]
+    
+    const missingFields = requiredFields.filter(({ field }) => {
+      const value = formData[field]
+      // Handle different types of empty values
+      if (value === null || value === undefined || value === '') {
+        return true
+      }
+      // For arrays, check if empty
+      if (Array.isArray(value) && value.length === 0) {
+        return true
+      }
+      return false
+    })
+    
+    // Debug logging to see what's happening with category
+    console.log('🔍 Validation check:', {
+      category: formData.category,
+      categoryType: typeof formData.category,
+      missingFields: missingFields.map(f => f.field)
+    })
+    
+    if (missingFields.length > 0) {
+      const fieldNames = missingFields.map(({ label }) => label).join(', ')
+      toast.add({
+        severity: 'warn',
+        summary: 'Missing Required Fields',
+        detail: `Please fill in: ${fieldNames}`,
+        life: 4000
+      })
+      return
+    }
+    
+    // Validate dates
+    if (formData.startDate && formData.endDate && formData.startDate > formData.endDate) {
+      toast.add({
+        severity: 'warn',
+        summary: 'Invalid Date Range',
+        detail: 'End date must be after start date',
+        life: 4000
+      })
+      return
+    }
+    
+    // Validate URLs if provided
+    const urlRegex = /^https?:\/\/.+/
+    if (formData.mapUrl && !urlRegex.test(formData.mapUrl)) {
+      toast.add({
+        severity: 'warn',
+        summary: 'Invalid Map URL',
+        detail: 'Map URL must be a valid URL starting with http:// or https://',
+        life: 4000
+      })
+      return
+    }
+    
+    if (formData.onlineLinkMeeting && !urlRegex.test(formData.onlineLinkMeeting)) {
+      toast.add({
+        severity: 'warn',
+        summary: 'Invalid Online Meeting URL',
+        detail: 'Online meeting URL must be a valid URL starting with http:// or https://',
+        life: 4000
+      })
+      return
+    }
+    
+    // Check for cover image requirement
+    if (!formData.coverImageFile && !getCoverImageUrl()) {
+      setFieldError('cover_image', 'Cover image is required')
+      toast.add({
+        severity: 'warn',
+        summary: 'Cover Image Required',
+        detail: 'Please upload a cover image for your event',
+        life: 4000
+      })
+      return
+    }
+    
+    // Prepare data for API - include file fields
+    const eventData = {
+      name: formData.eventName,
+      category_id: formData.category,
+      description: formData.description,
+      start_date: formData.startDate?.toISOString(),
+      end_date: formData.endDate?.toISOString(),
+      location: formData.location,
+      map_url: formData.mapUrl || null,
+      company: formData.company || null,
+      organizer: formData.organizer || null,
+      online_link_meeting: formData.onlineLinkMeeting || null,
+      event_slug: formData.eventSlug || null,
+      chairs: formData.chairs || [],
+      members: formData.members || [],
+      // Include file fields for proper upload
+      cover_image: formData.coverImageFile || null,
+      event_background: formData.eventBackgroundFile || null,
+      card_background: formData.cardBackgroundFile || null
+    }
+    
+    console.log('📤 Sending event data (detailed):', {
+      name: eventData.name,
+      category_id: eventData.category_id,
+      description: eventData.description?.substring(0, 50) + '...',
+      start_date: eventData.start_date,
+      end_date: eventData.end_date,
+      location: eventData.location,
+      map_url: eventData.map_url,
+      company: eventData.company,
+      organizer: eventData.organizer,
+      online_link_meeting: eventData.online_link_meeting,
+      event_slug: eventData.event_slug,
+      chairs: `${eventData.chairs.length} chairs`,
+      members: `${eventData.members.length} members`,
+      has_cover_image: !!eventData.cover_image,
+      has_event_background: !!eventData.event_background,
+      has_card_background: !!eventData.card_background
+    })
+    
+    let result
+    
+    if (isEditMode.value && eventId.value) {
+      // Update existing event
+      console.log('🔄 Updating existing event:', eventId.value)
+      const { updateEvent } = await import('@/composables/api')
+      result = await updateEvent(eventId.value, eventData)
+    } else {
+      // Create new event
+      console.log('🆕 Creating new event')
+      const { createEvent } = await import('@/composables/api')
+      result = await createEvent(eventData)
+    }
+    
+    console.log('📤 API Response received:', result)
+    
+    if (result && result.success !== false && (result.id || result.data?.id)) {
+      // Handle both direct response and wrapped response
+      const eventData = result.data || result
+      console.log('✅ API operation successful:', {
+        id: eventData.id,
+        name: eventData.name,
+        isUpdate: isEditMode.value
+      })
+      
+      // Update local state
+      const updatedEvent = {
+        ...eventData,
+        category_name: categories.value.find(cat => cat.value === eventData.category_id)?.label || 'Unknown'
+      }
+      
+      // Update event store
+      eventStore.setCurrentEvent(updatedEvent)
+      
+      // Update tabs store with the saved data
+      tabsStore.saveTabData(0, {
+        ...formData,
+        eventId: eventData.id,
+        isComplete: true,
+        lastSaved: new Date().toISOString(),
+        hasUnsavedChanges: false
+      })
+      
+      // Mark tab as completed
+      tabsStore.markTabComplete(0)
+      tabsStore.clearTabModifications(0)
+      
+      // Update parent state
+      if (eventCreationState?.setBasicInfoCompleted) {
+        eventCreationState.setBasicInfoCompleted(true, eventData.id, updatedEvent)
+      }
+      
+      // Update parent event data
+      if (eventCreationState?.updateEventData) {
+        eventCreationState.updateEventData(updatedEvent)
+      }
+      
+      toast.add({
+        severity: 'success',
+        summary: isEditMode.value ? 'Event Updated! 💾' : 'Event Created! 🎉',
+        detail: isEditMode.value
+          ? 'Your changes have been saved successfully. You can continue editing other sections.'
+          : 'Your event has been created successfully. You can now add agenda and tickets.',
+        life: 4000
+      })
+      
+      console.log('✅ Event saved successfully:', eventData.id)
+    } else {
+      throw new Error('Invalid response from server')
+    }
+    
+  } catch (error) {
+    console.error('❌ Save failed:', error)
+    
+    // Handle API response errors (from our enhanced error handling)
+    if (error.success === false) {
+      console.error('🚨 API Error Response:', error)
+      
+      // Handle specific error types from our API wrapper
+      switch (error.errorType) {
+        case 'FILE_TOO_LARGE':
+          toast.add({
+            severity: 'error',
+            summary: 'Files Too Large 📁',
+            detail: error.message,
+            life: 8000
+          })
+          return
+          
+        case 'NETWORK_ERROR':
+          toast.add({
+            severity: 'error',
+            summary: 'Connection Error 🌐',
+            detail: 'Please check your internet connection and try again.',
+            life: 6000
+          })
+          return
+          
+        case 'AUTH_ERROR':
+          toast.add({
+            severity: 'error',
+            summary: 'Authentication Required 🔐',
+            detail: 'Please login again to continue.',
+            life: 5000
+          })
+          // Redirect to login after delay
+          setTimeout(() => {
+            const router = useRouter()
+            router.push('/login')
+          }, 2000)
+          return
+          
+        case 'SERVER_ERROR':
+          toast.add({
+            severity: 'error',
+            summary: 'Server Error 🔧',
+            detail: 'The server is experiencing issues. Please try again later.',
+            life: 6000
+          })
+          return
+          
+        case 'VALIDATION_ERROR':
+          console.error('🚨 Validation Error Details:', {
+            message: error.message,
+            validationErrors: error.validationErrors
+          })
+          
+          // Set field errors from server response
+          if (error.validationErrors && Object.keys(error.validationErrors).length > 0) {
+            Object.entries(error.validationErrors).forEach(([field, messages]) => {
+              const errorMsg = Array.isArray(messages) ? messages.join(', ') : messages
+              console.log(`Setting field error: ${field} = ${errorMsg}`)
+              setFieldError(field, errorMsg)
+            })
+          }
+          
+          toast.add({
+            severity: 'error',
+            summary: 'Validation Errors ❌',
+            detail: error.message || 'Please check the highlighted fields and fix the errors.',
+            life: 8000
+          })
+          return
+      }
+      
+      // Handle validation errors (fallback)
+      if (error.validationErrors && Object.keys(error.validationErrors).length > 0) {
+        console.error('🚨 Server validation errors (fallback):', error.validationErrors)
+        
+        // Set field errors from server response
+        Object.entries(error.validationErrors).forEach(([field, messages]) => {
+          const errorMsg = Array.isArray(messages) ? messages.join(', ') : messages
+          setFieldError(field, errorMsg)
+        })
+        
+        toast.add({
+          severity: 'error',
+          summary: 'Validation Errors',
+          detail: 'Please check the highlighted fields and fix the errors.',
+          life: 6000
+        })
+        return
+      }
+      
+      // Generic API error
+      toast.add({
+        severity: 'error',
+        summary: 'Save Failed',
+        detail: error.message || 'Failed to save event. Please try again.',
+        life: 5000
+      })
+      return
+    }
+    
+    // Handle legacy error format (direct HTTP errors)
+    if (error.status === 422 && error.data?.errors) {
+      console.error('🚨 Server validation errors:', error.data.errors)
+      
+      // Set field errors from server response
+      Object.entries(error.data.errors).forEach(([field, messages]) => {
+        const errorMsg = Array.isArray(messages) ? messages.join(', ') : messages
+        setFieldError(field, errorMsg)
+      })
+      
+      toast.add({
+        severity: 'error',
+        summary: 'Validation Errors',
+        detail: 'Please check the highlighted fields and fix the errors.',
+        life: 6000
+      })
+      return
+    }
+    
+    // Handle other legacy errors
+    let errorMessage = 'Failed to save event. Please try again.'
+    if (error.message?.includes('Authentication')) {
+      errorMessage = 'Please login again to continue.'
+    } else if (error.message?.includes('validation')) {
+      errorMessage = 'Please check your input and try again.'
+    } else if (error.message?.includes('CORS')) {
+      errorMessage = 'Network connection error. Please check your internet connection.'
+    } else if (error.message?.includes('413') || error.message?.includes('too large')) {
+      errorMessage = 'Files are too large. Please compress your images and try again.'
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+    
+    toast.add({
+      severity: 'error',
+      summary: 'Save Failed',
+      detail: errorMessage,
+      life: 5000
+    })
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+// Handle update draft (for edit mode)
+const handleUpdateDraft = async () => {
+  await handleSaveDraft()
+}
+
+// Chair management functions
+const openChairDialog = (chair = null, index = -1) => {
+  editingChair.value = chair ? { ...chair } : null
+  editingChairIndex.value = index
+  showChairDialog.value = true
+}
+
+const handleChairSaved = (chairData) => {
+  if (editingChairIndex.value >= 0) {
+    // Update existing chair
+    formData.chairs[editingChairIndex.value] = chairData
+  } else {
+    // Add new chair
+    formData.chairs.push(chairData)
+  }
+  
+  // Save to tabs store
+  tabsStore.saveTabData(0, { chairs: formData.chairs })
+  tabsStore.markTabModified(0)
+  
+  showChairDialog.value = false
+  editingChair.value = null
+  editingChairIndex.value = -1
+}
+
+const deleteChair = (index) => {
+  formData.chairs.splice(index, 1)
+  
+  // Save to tabs store
+  tabsStore.saveTabData(0, { chairs: formData.chairs })
+  tabsStore.markTabModified(0)
+  
+  toast.add({
+    severity: 'success',
+    summary: 'Chair Removed',
+    detail: 'Chair has been removed successfully',
+    life: 2000
+  })
+}
+
+// Get chair image source with proper handling
+const getChairImageSrc = (chair) => {
+  if (!chair) return null
+  
+  try {
+    // Priority 1: File object (newly uploaded)
+    if (chair.photo instanceof File) {
+      return URL.createObjectURL(chair.photo)
+    }
+    
+    // Priority 2: profile_image File object
+    if (chair.profile_image instanceof File) {
+      return URL.createObjectURL(chair.profile_image)
+    }
+    
+    // Priority 3: Avatar URL (existing or generated)
+    if (chair.avatar && typeof chair.avatar === 'string' && chair.avatar.trim()) {
+      return chair.avatar
+    }
+    
+    // Priority 4: Photo URL string
+    if (chair.photo && typeof chair.photo === 'string' && chair.photo.trim()) {
+      if (chair.photo.startsWith('http')) {
+        return chair.photo
+      }
+      return `${window.location.origin}${chair.photo}`
+    }
+    
+    // Priority 5: Profile image URL (from API)
+    if (chair.profile_image && typeof chair.profile_image === 'string' && chair.profile_image.trim()) {
+      if (chair.profile_image.startsWith('http')) {
+        return chair.profile_image
+      }
+      return `${window.location.origin}${chair.profile_image}`
+    }
+    
+    // Priority 6: photo_url field (from API)
+    if (chair.photo_url && typeof chair.photo_url === 'string' && chair.photo_url.trim()) {
+      if (chair.photo_url.startsWith('http')) {
+        return chair.photo_url
+      }
+      return `${window.location.origin}${chair.photo_url}`
+    }
+    
+    return null
+  } catch (error) {
+    console.error('Error getting chair image source:', error)
+    return null
+  }
+}
+
+// Handle chair image load errors
+const handleChairImageError = (event) => {
+  console.warn('Chair image failed to load:', event.target.src)
+  event.target.style.display = 'none'
+}
+
+// File upload handlers
+const handleCoverImageUpload = (file) => {
+  console.log('📎 Cover image uploaded:', file?.name, file?.size)
+  formData.coverImageFile = file
+  clearFieldError('cover_image') // Clear any existing error
+  tabsStore.markTabModified(0)
+  
+  // Save to tabs store immediately
+  tabsStore.saveTabData(0, {
+    ...formData,
+    lastSaved: new Date().toISOString(),
+    hasUnsavedChanges: true
+  })
+}
+
+const handleCoverImageRemoved = () => {
+  console.log('🗑️ Cover image removed')
+  formData.coverImageFile = null
+  tabsStore.markTabModified(0)
+  
+  // Save to tabs store immediately
+  tabsStore.saveTabData(0, {
+    ...formData,
+    lastSaved: new Date().toISOString(),
+    hasUnsavedChanges: true
+  })
+}
+
+const handleEventBackgroundUpload = (file) => {
+  console.log('📎 Event background uploaded:', file?.name, file?.size)
+  formData.eventBackgroundFile = file
+  tabsStore.markTabModified(0)
+  
+  // Save to tabs store immediately
+  tabsStore.saveTabData(0, {
+    ...formData,
+    lastSaved: new Date().toISOString(),
+    hasUnsavedChanges: true
+  })
+}
+
+const handleCardBackgroundUpload = (file) => {
+  console.log('📎 Card background uploaded:', file?.name, file?.size)
+  formData.cardBackgroundFile = file
+  tabsStore.markTabModified(0)
+  
+  // Save to tabs store immediately
+  tabsStore.saveTabData(0, {
+    ...formData,
+    lastSaved: new Date().toISOString(),
+    hasUnsavedChanges: true
+  })
+}
+
+// Get cover image URL for display
+const getCoverImageUrl = () => {
+  // Priority 1: New uploaded file
+  if (formData.coverImageFile instanceof File) {
+    return URL.createObjectURL(formData.coverImageFile)
+  }
+  
+  // Priority 2: Existing image from event data
+  if (eventStore.currentEvent?.cover_image_url) {
+    return eventStore.currentEvent.cover_image_url
+  }
+  
+  return null
+}
+
+// Slug generation methods
 const validateSlug = () => {
   try {
     // Clear any existing error first
     clearFieldError('event_slug')
     
     // Remove invalid characters and convert to lowercase
-    eventSlug.value = eventSlug.value
+    formData.eventSlug = formData.eventSlug
       .toLowerCase()
       .replace(/[^a-z0-9-]/g, '')
       .replace(/--+/g, '-')
@@ -592,8 +1289,8 @@ const validateSlug = () => {
 }
 
 const generateSlug = () => {
-  if (eventName.value) {
-    eventSlug.value = eventName.value
+  if (formData.eventName) {
+    formData.eventSlug = formData.eventName
       .toLowerCase()
       .replace(/[^a-z0-9-]/g, '')
       .replace(/--+/g, '-')
@@ -605,7 +1302,7 @@ const generateSlug = () => {
     const numbers = Math.floor(Math.random() * 999) + 1
     const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)]
     const randomNoun = nouns[Math.floor(Math.random() * nouns.length)]
-    eventSlug.value = `${randomAdjective}-${randomNoun}-${numbers}`
+    formData.eventSlug = `${randomAdjective}-${randomNoun}-${numbers}`
     toast.add({ severity: 'success', summary: 'Slug Generated', detail: 'Random slug generated!', life: 3000 });
   }
 }
@@ -624,444 +1321,32 @@ const openUrl = () => {
   toast.add({ severity: 'info', summary: 'Opening URL', detail: 'Opening URL in new tab', life: 3000 })
 }
 
-// Helper to format date for API (match Postman format exactly)
-const formatDateForApi = (date, isEndDate = false) => {
-  if (!date) return null;
-  const d = new Date(date);
-
-  // If it's an end date and no time is set, set it to end of day
-  if (isEndDate && d.getHours() === 0 && d.getMinutes() === 0) {
-    d.setHours(17, 0, 0, 0); // Default to 5 PM like Postman
-  }
-  // If it's a start date and no time is set, set it to start of day
-  else if (!isEndDate && d.getHours() === 0 && d.getMinutes() === 0) {
-    d.setHours(9, 0, 0, 0); // Default to 9 AM like Postman
-  }
-
-  // Return format exactly like Postman: "2025-10-01 09:00:00"
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  const seconds = String(d.getSeconds()).padStart(2, '0');
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-};
-
-// Submit Event Function - SUPPORTS BOTH CREATE AND UPDATE
-const submitEvent = async () => {
-  loading.value = true;
-  try {
-    // Clear previous errors
-    clearErrors()
-    
-    // Comprehensive validation using the validation composable
-    const eventDataToValidate = {
-      name: eventName.value,
-      category_id: category.value,
-      description: description.value,
-      start_date: startDate.value,
-      end_date: endDate.value,
-      location: location.value,
-      event_slug: eventSlug.value,
-      map_url: mapUrl.value,
-      online_link_meeting: onlineLinkMeeting.value
-    }
-    
-    const validationErrors = validateBasicInfo(eventDataToValidate)
-    
-    // Check for validation errors
-    if (Object.keys(validationErrors).length > 0) {
-      // Set field errors
-      Object.entries(validationErrors).forEach(([field, error]) => {
-        setFieldError(field, error)
-      })
-      
-      toast.add({
-        severity: 'error',
-        summary: 'Validation Error',
-        detail: 'Please fix the highlighted errors before saving.',
-        life: 4000
-      });
-      loading.value = false;
-      return;
-    }
-    
-    // Additional date range validation
-    if (startDate.value && endDate.value) {
-      const dateError = validateDateRange(startDate.value, endDate.value)
-      if (dateError) {
-        setFieldError('date_range', dateError)
-        toast.add({
-          severity: 'error',
-          summary: 'Date Error',
-          detail: dateError,
-          life: 3000
-        });
-        loading.value = false;
-        return;
-      }
-    }
-
-    // Cover Image is REQUIRED for new events, optional for updates
-    if (!isUpdateMode.value && !coverImageFile.value) {
-      toast.add({
-        severity: 'error',
-        summary: 'Cover Image Required',
-        detail: 'Please upload a cover image. This field is required for event creation.',
-        life: 5000
-      });
-      return;
-    }
-
-    // Prepare event data object
-    const eventData = {
-      name: eventName.value,
-      category_id: category.value,
-      description: description.value,
-      start_date: formatDateForApi(startDate.value, false),
-      end_date: formatDateForApi(endDate.value, true),
-      location: location.value,
-      event_slug: eventSlug.value,
-      is_published: isPublished.value ? '1' : '0'
-    };
-
-    // Add optional fields
-    eventData.map_url = mapUrl.value ? mapUrl.value.trim() : '';
-    eventData.company = company.value ? company.value.trim() : '';
-    eventData.organizer = organizer.value ? organizer.value.trim() : '';
-
-    // Add online_link_meeting - required field
-    eventData.online_link_meeting = onlineLinkMeeting.value ? onlineLinkMeeting.value.trim() : '';
-    
-    // Add chairs array if any chairs exist - ALWAYS include chairs array
-    eventData.chairs = chairs.value && chairs.value.length > 0
-      ? chairs.value.map(chair => {
-          // Validate chair data
-          if (!chair.name || !chair.position || !chair.company) {
-            throw new Error(`Chair validation failed: All chairs must have name, position, and company filled.`)
-          }
-          
-          return {
-            name: chair.name.trim(),
-            position: chair.position.trim(),
-            company: chair.company.trim(),
-            sort_order: chair.sort_order || 1,
-            profile_image: chair.profile_image || null
-          }
-        })
-      : [];
-    
-    // Debug logging for chairs
-    console.log('🪑 Chairs data being sent:', {
-      chairsCount: chairs.value?.length || 0,
-      chairsData: eventData.chairs
-    });
-
-    // Add file uploads ONLY if they exist
-    if (coverImageFile.value && coverImageFile.value instanceof File) {
-      eventData.cover_image = coverImageFile.value;
-    }
-    if (eventBackgroundFile.value && eventBackgroundFile.value instanceof File) {
-      eventData.event_background = eventBackgroundFile.value;
-    }
-    if (cardBackgroundFile.value && cardBackgroundFile.value instanceof File) {
-      eventData.card_background = cardBackgroundFile.value;
-    }
-
-    // Debug logging
-    console.log('📋 Event data being sent:', eventData);
-    console.log('🔄 Update mode:', isUpdateMode.value);
-    console.log('🆔 Current event ID:', currentEventId.value);
-
-    let result;
-    
-    if (isUpdateMode.value && currentEventId.value) {
-      // UPDATE existing event
-      console.log('📝 Updating existing event...');
-      result = await updateEvent(currentEventId.value, eventData);
-    } else {
-      // CREATE new event
-      console.log('🆕 Creating new event...');
-      result = await createEvent(eventData);
-    }
-
-    console.log('✅ Event operation result:', result);
-
-    // Handle the normalized API response
-    if (result && result.success) {
-      const responseEventData = result.data;
-      const eventId = responseEventData?.id;
-
-      // Update parent state
-      if (eventCreationState && eventCreationState.setBasicInfoCompleted) {
-        eventCreationState.setBasicInfoCompleted(true, eventId, responseEventData);
-      }
-
-      // Update local state for future updates
-      if (!isUpdateMode.value && eventId) {
-        isUpdateMode.value = true;
-        currentEventId.value = eventId;
-      }
-
-      const actionText = isPublished.value ? 'Published' : 'Saved as Draft';
-      const operationText = isUpdateMode.value ? 'Updated' : 'Created';
-      
-      toast.add({
-        severity: 'success',
-        summary: `Event ${operationText} Successfully! 🎉`,
-        detail: `${result.message} - ${actionText}`,
-        life: 5000
-      });
-
-      console.log(`🎉 Event ${operationText.toLowerCase()} successfully:`, responseEventData);
-
-      // Store the event ID for ticket creation and persistence
-      if (eventId) {
-        localStorage.setItem('currentEventId', eventId.toString());
-        localStorage.setItem('currentEventName', responseEventData?.name || eventName.value || 'Unnamed Event');
-        console.log('✅ Event ID ready for ticket creation:', eventId);
-      }
-
-    } else {
-      // Handle failed operation
-      const errorMessage = result?.message || `Failed to ${isUpdateMode.value ? 'update' : 'create'} event`;
-      
-      // Show detailed validation errors if available
-      if (result?.validationErrors && Object.keys(result.validationErrors).length > 0) {
-        console.error('🚨 Server validation errors:', result.validationErrors);
-        
-        // Set field errors from server response
-        Object.entries(result.validationErrors).forEach(([field, messages]) => {
-          const errorMsg = Array.isArray(messages) ? messages.join(', ') : messages;
-          setFieldError(field, errorMsg);
-        });
-        
-        toast.add({
-          severity: 'error',
-          summary: 'Validation Errors from Server',
-          detail: 'Please check the highlighted fields and fix the errors.',
-          life: 6000
-        });
-      } else {
-        toast.add({
-          severity: 'error',
-          summary: `Event ${isUpdateMode.value ? 'Update' : 'Creation'} Failed`,
-          detail: errorMessage,
-          life: 5000
-        });
-      }
-      
-      console.error(`❌ Event ${isUpdateMode.value ? 'update' : 'creation'} failed:`, result);
-    }
-  } catch (error) {
-    console.error(`Event ${isUpdateMode.value ? 'update' : 'creation'} error:`, error);
-    
-    // Handle different types of errors
-    let errorMessage = `Failed to ${isUpdateMode.value ? 'update' : 'create'} event`;
-    let errorSummary = 'Network Error';
-    
-    if (error.message) {
-      errorMessage = error.message;
-      
-      // Customize error summary based on error type
-      if (error.message.includes('Authentication')) {
-        errorSummary = 'Authentication Error';
-      } else if (error.message.includes('Validation')) {
-        errorSummary = 'Validation Error';
-      } else if (error.message.includes('Permission')) {
-        errorSummary = 'Permission Error';
-      }
-    }
-    
-    toast.add({ 
-      severity: 'error', 
-      summary: errorSummary, 
-      detail: errorMessage, 
-      life: 5000 
-    });
-  } finally {
-    loading.value = false;
-  }
-};
-
-// Chair management
-const chairs = ref([])
-const showChairDialog = ref(false)
-const selectedChair = ref(null)
-const isEditingChair = ref(false)
-
-// Methods for chair management
-const addChair = () => {
-  try {
-    console.log('🪑 Adding new chair')
-    selectedChair.value = null
-    isEditingChair.value = false
-    showChairDialog.value = true
-    console.log('✅ Add chair dialog opened')
-  } catch (error) {
-    console.error('❌ Error opening add chair dialog:', error)
-    toast.add({
-      severity: 'error',
-      summary: 'Add Failed',
-      detail: 'Unable to open add dialog. Please try again.',
-      life: 3000
-    })
-  }
-}
-
-const editChair = (chair) => {
-  try {
-    console.log('🪑 Editing chair:', chair)
-    
-    // Ensure we have valid chair data
-    if (!chair || typeof chair !== 'object') {
-      console.error('❌ Invalid chair data for editing:', chair)
-      toast.add({
-        severity: 'error',
-        summary: 'Edit Failed',
-        detail: 'Invalid chair data. Please try again.',
-        life: 3000
-      })
-      return
-    }
-    
-    // Create a clean copy of chair data
-    selectedChair.value = {
-      id: chair.id || null,
-      name: chair.name || '',
-      position: chair.position || '',
-      company: chair.company || '',
-      sort_order: chair.sort_order || 1,
-      profile_image: chair.profile_image || null,
-      avatar: chair.avatar || ''
-    }
-    
-    isEditingChair.value = true
-    showChairDialog.value = true
-    
-    console.log('✅ Chair edit dialog opened for:', chair.name)
-  } catch (error) {
-    console.error('❌ Error opening chair edit dialog:', error)
-    toast.add({
-      severity: 'error',
-      summary: 'Edit Failed',
-      detail: 'Unable to open edit dialog. Please try again.',
-      life: 3000
-    })
-  }
-}
-
-const deleteChair = (chair) => {
-  try {
-    console.log('🗑️ Deleting chair:', chair.name)
-    
-    const index = chairs.value.findIndex(c => c.id === chair.id)
-    if (index > -1) {
-      chairs.value.splice(index, 1)
-      console.log('✅ Chair deleted successfully:', chair.name)
-      toast.add({
-        severity: 'success',
-        summary: 'Chair Deleted',
-        detail: `${chair.name} has been removed successfully.`,
-        life: 3000
-      })
-    } else {
-      console.error('❌ Chair not found for deletion:', chair.id)
-      toast.add({
-        severity: 'error',
-        summary: 'Delete Failed',
-        detail: 'Chair not found. Please refresh and try again.',
-        life: 3000
-      })
-    }
-  } catch (error) {
-    console.error('❌ Error deleting chair:', error)
-    toast.add({
-      severity: 'error',
-      summary: 'Delete Failed',
-      detail: 'Unable to delete chair. Please try again.',
-      life: 4000
-    })
-  }
-}
-
-const handleChairSave = (chairData) => {
-  try {
-    console.log('🪑 Saving chair data:', chairData)
-    
-    // Ensure avatar is properly set for display in the profile column
-    const processedChairData = { ...chairData }
-    
-    // If there's a profile_image file but no avatar URL, create one
-    if (processedChairData.profile_image &&
-        typeof processedChairData.profile_image === 'object' &&
-        processedChairData.profile_image.constructor &&
-        processedChairData.profile_image.constructor.name === 'File' &&
-        !processedChairData.avatar) {
-      try {
-        processedChairData.avatar = URL.createObjectURL(processedChairData.profile_image)
-        console.log('🖼️ Created avatar URL for profile display:', processedChairData.avatar)
-      } catch (error) {
-        console.error('❌ Error creating avatar URL:', error)
-      }
-    }
-    
-    if (isEditingChair.value) {
-      // Update existing chair
-      const index = chairs.value.findIndex(c => c.id === chairData.id)
-      if (index > -1) {
-        chairs.value[index] = processedChairData
-        console.log('✅ Chair updated successfully:', chairData.name)
-        toast.add({
-          severity: 'success',
-          summary: 'Chair Updated',
-          detail: `${chairData.name} has been updated successfully.`,
-          life: 3000
-        })
-      } else {
-        console.error('❌ Chair not found for update:', chairData.id)
-        toast.add({
-          severity: 'error',
-          summary: 'Update Failed',
-          detail: 'Chair not found. Please try again.',
-          life: 3000
-        })
-      }
-    } else {
-      // Add new chair with proper avatar display
-      chairs.value.push(processedChairData)
-      console.log('✅ Chair added successfully with avatar:', {
-        name: chairData.name,
-        hasAvatar: !!processedChairData.avatar,
-        hasProfileImage: !!processedChairData.profile_image
-      })
-      toast.add({
-        severity: 'success',
-        summary: 'Chair Added',
-        detail: `${chairData.name} has been added successfully.`,
-        life: 3000
-      })
-    }
-    
-    showChairDialog.value = false
-  } catch (error) {
-    console.error('❌ Error handling chair save:', error)
-    toast.add({
-      severity: 'error',
-      summary: 'Save Failed',
-      detail: 'Unable to save chair information. Please try again.',
-      life: 4000
-    })
-  }
-}
+// Watch for form changes to mark tab as modified and save changes
+watch(formData, () => {
+  console.log('🔄 Form data changed, saving to tab store')
+  tabsStore.markTabModified(0)
+  
+  // Save current form data to tabs store immediately
+  tabsStore.saveTabData(0, {
+    ...formData,
+    eventId: eventId.value,
+    lastSaved: new Date().toISOString(),
+    hasUnsavedChanges: true
+  })
+}, { deep: true })
 
 // Watch for event name changes to suggest slug
-watch(eventName, (newName) => {
-  if (newName && !eventSlug.value) {
+watch(() => formData.eventName, (newName) => {
+  if (newName && !formData.eventSlug) {
     generateSlug(); // Auto-generate slug if event name is entered and slug is empty
   }
 });
+
+// Cleanup on unmount
+onBeforeUnmount(() => {
+  window.removeEventListener('saveDraft', handleSaveDraft)
+  window.removeEventListener('saveCurrentTab', handleSaveCurrentTab)
+})
 </script>
 
 <style scoped>

@@ -2,28 +2,65 @@
 
 // Get auth token using proper Nuxt 3 pattern
 const getAuthToken = () => {
-  // Use the useAuth composable consistently for token management
-  const { getToken, isTokenExpired } = useAuth()
-  const token = getToken()
+  try {
+    // Use the useAuth composable consistently for token management
+    const { getToken, isTokenExpired } = useAuth()
+    let token = getToken()
 
-  if (!token) {
-    console.log('❌ No token found in auth state')
+    // If no token from composable, try direct storage access as fallback
+    if (!token && process.client) {
+      console.log('🔍 No token from composable, trying direct storage access...')
+      
+      // Try localStorage first
+      const stored = localStorage.getItem('auth')
+      if (stored) {
+        try {
+          const authData = JSON.parse(stored)
+          token = authData?.token
+          console.log('📍 Found token in localStorage')
+        } catch (e) {
+          console.error('❌ Failed to parse localStorage auth data:', e)
+        }
+      }
+      
+      // Try sessionStorage as backup
+      if (!token) {
+        const sessionStored = sessionStorage.getItem('auth')
+        if (sessionStored) {
+          try {
+            const authData = JSON.parse(sessionStored)
+            token = authData?.token
+            console.log('📍 Found token in sessionStorage')
+          } catch (e) {
+            console.error('❌ Failed to parse sessionStorage auth data:', e)
+          }
+        }
+      }
+    }
+
+    if (!token) {
+      console.log('❌ No token found in auth state or storage')
+      return null
+    }
+
+    // Check if token is expired
+    if (isTokenExpired && isTokenExpired()) {
+      console.warn('⚠️ Token is expired')
+      return null
+    }
+
+    // Log token info without sensitive data
+    console.log('🔑 Token found:', {
+      length: token.length,
+      preview: token.substring(0, 20) + '...',
+      source: getToken() ? 'composable' : 'direct_storage'
+    })
+
+    return token
+  } catch (error) {
+    console.error('❌ Error getting auth token:', error)
     return null
   }
-
-  // Check if token is expired
-  if (isTokenExpired()) {
-    console.warn('⚠️ Token is expired')
-    return null
-  }
-
-  // Log token info without sensitive data
-  console.log('🔑 Token found:', {
-    length: token.length,
-    preview: token.substring(0, 20) + '...'
-  })
-
-  return token
 }
 
 // Create authenticated fetch headers
@@ -58,6 +95,17 @@ const handleAuthRedirect = () => {
   }
 }
 
+// Helper function to normalize API URLs
+const normalizeApiUrl = (baseUrl, endpoint) => {
+  if (!baseUrl) return endpoint
+  
+  // Remove trailing slash from baseUrl and leading slash from endpoint
+  const cleanBaseUrl = baseUrl.replace(/\/$/, '')
+  const cleanEndpoint = endpoint.replace(/^\//, '')
+  
+  return `${cleanBaseUrl}/${cleanEndpoint}`
+}
+
 // Login API
 export async function login(identifier, password) {
   const config = useRuntimeConfig()
@@ -73,14 +121,17 @@ export async function login(identifier, password) {
   }
 
   try {
-    console.log('🔐 Login attempt:', { 
+    console.log('🔐 Login attempt:', {
       identifier,
       apiUrl: API_BASE_URL,
       env: process.env.NODE_ENV,
       environment: config.public.environment
     })
 
-    const response = await $fetch(`${API_BASE_URL}/login`, {
+    const loginUrl = normalizeApiUrl(API_BASE_URL, 'login')
+    console.log('🔗 Login URL:', loginUrl)
+
+    const response = await $fetch(loginUrl, {
       method: 'POST',
       body: { identifier, password },
       headers: {
@@ -121,7 +172,8 @@ export async function fetchEvents() {
   }
 
   try {
-    console.log('🔍 Fetching events from:', `${API_ADMIN_BASE_URL}/events`)
+    const eventsUrl = normalizeApiUrl(API_ADMIN_BASE_URL, 'events')
+    console.log('🔍 Fetching events from:', eventsUrl)
     console.log('🌍 Environment:', {
       nodeEnv: process.env.NODE_ENV,
       apiUrl: API_ADMIN_BASE_URL
@@ -142,12 +194,12 @@ export async function fetchEvents() {
     }
     
     console.log('📨 Request prepared:', {
-      url: `${API_ADMIN_BASE_URL}/events`,
+      url: eventsUrl,
       hasToken: !!token,
       tokenPreview: token ? `${token.substring(0, 10)}...` : 'none'
     })
 
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/events`, {
+    const response = await $fetch(eventsUrl, {
       method: 'GET',
       headers: headers,
     })
@@ -227,8 +279,9 @@ export async function fetchUserInfo() {
   }
 
   try {
-    console.log('Fetching user info from:', `${API_BASE_URL}/info`)
-    const response = await $fetch(`${API_BASE_URL}/info`, {
+    const userInfoUrl = normalizeApiUrl(API_BASE_URL, 'info')
+    console.log('Fetching user info from:', userInfoUrl)
+    const response = await $fetch(userInfoUrl, {
       method: 'GET',
       headers: createAuthHeaders(),
     })
@@ -279,8 +332,10 @@ export async function getEventDetails(eventId) {
   }
 
   try {
+    const eventDetailsUrl = normalizeApiUrl(API_ADMIN_BASE_URL, `events/${cleanUUID}`)
     console.log('🔍 Fetching event details for UUID:', cleanUUID)
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${cleanUUID}`, {
+    console.log('🔗 Event details URL:', eventDetailsUrl)
+    const response = await $fetch(eventDetailsUrl, {
       method: 'GET',
       headers: createAuthHeaders()
     })
@@ -468,50 +523,122 @@ export async function createEvent(eventData, isDraft = true) {
       }
     })
     
-    // Handle chairs array with proper structure for server
+    // Handle chairs array - API expects individual FormData fields format
     if (eventData.chairs && Array.isArray(eventData.chairs)) {
-      // Add each chair as individual form fields
-      eventData.chairs.forEach((chair, index) => {
-        formData.append(`chairs[${index}][name]`, chair.name || '')
-        formData.append(`chairs[${index}][position]`, chair.position || '')
-        formData.append(`chairs[${index}][company]`, chair.company || '')
-        formData.append(`chairs[${index}][sort_order]`, chair.sort_order || 1)
-        
-        // Handle profile image file separately
-        if (chair.profile_image instanceof File) {
-          formData.append(`chairs[${index}][profile_image]`, chair.profile_image)
-          console.log(`📎 Adding chair ${index} profile image: ${chair.profile_image.name}`)
-        }
-        
-        console.log(`🪑 Adding chair ${index}:`, {
+      console.log('🪑 Processing chairs for API submission:', {
+        chairCount: eventData.chairs.length,
+        chairs: eventData.chairs.map((chair, index) => ({
+          index,
+          id: chair.id,
           name: chair.name,
           position: chair.position,
           company: chair.company,
           sort_order: chair.sort_order,
-          hasImage: chair.profile_image instanceof File
-        })
+          hasProfileImage: chair.profile_image instanceof File,
+          hasAvatar: !!chair.avatar
+        }))
       })
       
-      console.log(`🪑 Added ${eventData.chairs.length} chairs as form fields`)
+      // Filter out chairs with empty required fields
+      const validChairs = eventData.chairs.filter(chair => {
+        const hasValidName = chair.name && chair.name.trim().length > 0
+        const hasValidPosition = chair.position && chair.position.trim().length > 0
+        const hasValidCompany = chair.company && chair.company.trim().length > 0
+        
+        if (!hasValidName || !hasValidPosition || !hasValidCompany) {
+          console.warn('🪑 Skipping invalid chair:', {
+            id: chair.id,
+            name: chair.name,
+            position: chair.position,
+            company: chair.company,
+            hasValidName,
+            hasValidPosition,
+            hasValidCompany
+          })
+          return false
+        }
+        return true
+      })
+      
+      console.log(`🪑 Filtered chairs: ${eventData.chairs.length} -> ${validChairs.length} valid chairs`)
+      
+      if (validChairs.length > 0) {
+        // Send individual FormData fields (the format the API actually expects)
+        validChairs.forEach((chair, index) => {
+          const chairName = chair.name.trim()
+          const chairPosition = chair.position.trim()
+          const chairCompany = chair.company.trim()
+          const chairSortOrder = chair.sort_order || (index + 1)
+          
+          formData.append(`chairs[${index}][name]`, chairName)
+          formData.append(`chairs[${index}][position]`, chairPosition)
+          formData.append(`chairs[${index}][company]`, chairCompany)
+          formData.append(`chairs[${index}][sort_order]`, chairSortOrder)
+          
+          console.log(`🪑 Added chair ${index}:`, {
+            name: chairName,
+            position: chairPosition,
+            company: chairCompany,
+            sort_order: chairSortOrder
+          })
+          
+          // Handle profile image file separately
+          if (chair.profile_image instanceof File) {
+            formData.append(`chairs[${index}][profile_image]`, chair.profile_image)
+            console.log(`📎 Adding chair ${index} profile image: ${chair.profile_image.name} (${chair.profile_image.size} bytes)`)
+          }
+        })
+        
+        console.log(`🪑 Successfully added ${validChairs.length} valid chairs to FormData`)
+      } else {
+        console.log('🪑 No valid chairs to send - all chairs have missing required fields')
+      }
+    } else {
+      console.log('🪑 No chairs to process:', {
+        hasChairs: !!eventData.chairs,
+        isArray: Array.isArray(eventData.chairs),
+        chairsValue: eventData.chairs
+      })
     }
     
-    // Add file fields separately with strict validation
+    // Add file fields separately with enhanced validation
     const fileFields = ['cover_image', 'event_background', 'card_background']
+    let totalFileSize = 0
+    
     fileFields.forEach(key => {
       if (eventData[key] instanceof File) {
         const file = eventData[key]
-        // Validate file size (e.g., max 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-          throw new Error(`${key} file size exceeds 5MB limit`)
+        
+        // Validate individual file size (max 2MB per file to prevent 413)
+        if (file.size > 2 * 1024 * 1024) {
+          throw new Error(`${key} file size exceeds 2MB limit. Please compress the image.`)
         }
+        
+        // Track total payload size
+        totalFileSize += file.size
+        
         // Validate file type
         if (!file.type.startsWith('image/')) {
           throw new Error(`${key} must be an image file`)
         }
+        
+        // Validate file format (only allow common web formats)
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+        if (!allowedTypes.includes(file.type.toLowerCase())) {
+          throw new Error(`${key} must be in JPEG, PNG, or WebP format`)
+        }
+        
         formData.append(key, file)
-        console.log(`📎 Adding file: ${key} = ${file.name} (${file.size} bytes)`)
+        console.log(`📎 Adding file: ${key} = ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`)
       }
     })
+    
+    // Validate total payload size (max 5MB total to prevent 413)
+    if (totalFileSize > 5 * 1024 * 1024) {
+      throw new Error(`Total file size exceeds 5MB limit. Current size: ${(totalFileSize / 1024 / 1024).toFixed(2)}MB. Please compress your images.`)
+    }
+    
+    console.log(`📊 Total file payload: ${(totalFileSize / 1024 / 1024).toFixed(2)}MB`)
 
     // Set published state and status correctly
     const isPublishingNow = !isDraft
@@ -535,10 +662,10 @@ export async function createEvent(eventData, isDraft = true) {
     // Log complete FormData structure
     console.log('📋 Complete FormData structure:', formDataEntries)
     
-    // Special validation for required fields
+    // Special validation for required fields (removed optional fields)
     const requiredFieldsCheck = [
       'name', 'category_id', 'description', 'start_date', 'end_date',
-      'location', 'event_slug', 'online_link_meeting'
+      'location', 'event_slug'
     ]
     
     console.log('🔍 Required fields validation:')
@@ -550,7 +677,9 @@ export async function createEvent(eventData, isDraft = true) {
     // Use the correct API endpoint without duplicate admin prefix
     // Make the actual API call
     try {
-      const response = await $fetch(`${API_ADMIN_BASE_URL}/events`, {
+      const createEventUrl = normalizeApiUrl(API_ADMIN_BASE_URL, 'events')
+      console.log('🔗 Create event URL:', createEventUrl)
+      const response = await $fetch(createEventUrl, {
         method: 'POST',
         body: formData,
         headers: {
@@ -580,37 +709,104 @@ export async function createEvent(eventData, isDraft = true) {
       // Log the network error but return a structured response
       console.error('🚨 Create event network error:', error)
       
-      // Enhanced error handling for 422 validation errors
+      // Hide technical details in production
+      const isProduction = process.env.NODE_ENV === 'production'
+      const sanitizeError = (err) => {
+        if (!isProduction) return err
+        // Remove sensitive information in production
+        const sanitized = { ...err }
+        delete sanitized.config
+        delete sanitized.request
+        delete sanitized.response
+        if (sanitized.message) {
+          // Remove API URLs from error messages
+          sanitized.message = sanitized.message.replace(/https?:\/\/[^\s]+/g, '[API_ENDPOINT]')
+        }
+        return sanitized
+      }
+      
+      // Enhanced error handling for specific HTTP status codes
+      if (error.status === 413) {
+        console.error('🚨 Request too large (413):', isProduction ? '[HIDDEN]' : error)
+        return {
+          success: false,
+          message: 'Request too large. Please reduce image file sizes and try again. Maximum total size: 5MB.',
+          error: sanitizeError(error),
+          errorType: 'FILE_TOO_LARGE'
+        }
+      }
+      
       if (error.status === 422) {
         console.error('🚨 Validation errors from server:', error.data)
+        console.error('🚨 Full error object:', error)
         
         let detailedMessage = 'Validation failed:'
+        let validationErrors = {}
+        
         if (error.data?.errors) {
-          const validationErrors = []
+          validationErrors = error.data.errors
+          const errorMessages = []
           Object.entries(error.data.errors).forEach(([field, messages]) => {
             if (Array.isArray(messages)) {
-              validationErrors.push(`${field}: ${messages.join(', ')}`)
+              errorMessages.push(`${field}: ${messages.join(', ')}`)
             } else {
-              validationErrors.push(`${field}: ${messages}`)
+              errorMessages.push(`${field}: ${messages}`)
             }
           })
-          detailedMessage = `Validation failed:\n${validationErrors.join('\n')}`
+          detailedMessage = `Validation failed:\n${errorMessages.join('\n')}`
         } else if (error.data?.message) {
           detailedMessage = error.data.message
         }
         
+        console.error('🚨 Processed validation errors:', {
+          detailedMessage,
+          validationErrors
+        })
+        
         return {
           success: false,
           message: detailedMessage,
-          error: error,
-          validationErrors: error.data?.errors || {}
+          error: sanitizeError(error),
+          validationErrors: validationErrors,
+          errorType: 'VALIDATION_ERROR'
+        }
+      }
+      
+      // Handle CORS and network errors
+      if (error.message?.includes('CORS') || error.message?.includes('Failed to fetch') || error.message?.includes('fetch')) {
+        console.error('🚨 CORS or network error:', isProduction ? '[HIDDEN]' : error)
+        return {
+          success: false,
+          message: 'Network connection error. This might be a CORS issue. Please check your internet connection and try again.',
+          error: sanitizeError(error),
+          errorType: 'NETWORK_ERROR'
+        }
+      }
+      
+      // Handle authentication errors
+      if (error.status === 401) {
+        return {
+          success: false,
+          message: 'Authentication failed. Please login again.',
+          error: sanitizeError(error),
+          errorType: 'AUTH_ERROR'
+        }
+      }
+      
+      // Handle server errors
+      if (error.status >= 500) {
+        return {
+          success: false,
+          message: 'Server error. Please try again later.',
+          error: sanitizeError(error),
+          errorType: 'SERVER_ERROR'
         }
       }
       
       return {
         success: false,
-        message: error.message || 'Failed to create event',
-        error: error
+        message: isProduction ? 'Failed to create event' : (error.message || 'Failed to create event'),
+        error: sanitizeError(error)
       }
     }
   } catch (error) {
@@ -690,31 +886,58 @@ export async function updateEvent(eventId, eventData) {
               break;
               
             case 'chairs':
-              // Handle chairs array with proper structure for server
+              // Handle chairs array - API expects individual FormData fields format
               if (Array.isArray(value)) {
-                // Add each chair as individual form fields
-                value.forEach((chair, index) => {
-                  formData.append(`chairs[${index}][name]`, chair.name || '')
-                  formData.append(`chairs[${index}][position]`, chair.position || '')
-                  formData.append(`chairs[${index}][company]`, chair.company || '')
-                  formData.append(`chairs[${index}][sort_order]`, chair.sort_order || 1)
+                console.log('🪑 Processing chairs for update:', value.length)
+                
+                // Filter out chairs with empty required fields
+                const validChairs = value.filter(chair => {
+                  const hasValidName = chair.name && chair.name.trim().length > 0
+                  const hasValidPosition = chair.position && chair.position.trim().length > 0
+                  const hasValidCompany = chair.company && chair.company.trim().length > 0
                   
-                  // Handle profile image file separately
-                  if (chair.profile_image instanceof File) {
-                    formData.append(`chairs[${index}][profile_image]`, chair.profile_image)
-                    console.log(`📎 Adding chair ${index} profile image: ${chair.profile_image.name}`)
+                  if (!hasValidName || !hasValidPosition || !hasValidCompany) {
+                    console.warn('🪑 Skipping invalid chair in update:', {
+                      name: chair.name,
+                      position: chair.position,
+                      company: chair.company
+                    })
+                    return false
                   }
-                  
-                  console.log(`🪑 Adding chair ${index}:`, {
-                    name: chair.name,
-                    position: chair.position,
-                    company: chair.company,
-                    sort_order: chair.sort_order,
-                    hasImage: chair.profile_image instanceof File
-                  })
+                  return true
                 })
                 
-                console.log(`🪑 Added ${value.length} chairs as form fields`)
+                console.log(`🪑 Filtered chairs for update: ${value.length} -> ${validChairs.length} valid chairs`)
+                
+                if (validChairs.length > 0) {
+                  // Send individual FormData fields (the format the API actually expects)
+                  validChairs.forEach((chair, index) => {
+                    const chairName = chair.name.trim()
+                    const chairPosition = chair.position.trim()
+                    const chairCompany = chair.company.trim()
+                    const chairSortOrder = chair.sort_order || (index + 1)
+                    
+                    formData.append(`chairs[${index}][name]`, chairName)
+                    formData.append(`chairs[${index}][position]`, chairPosition)
+                    formData.append(`chairs[${index}][company]`, chairCompany)
+                    formData.append(`chairs[${index}][sort_order]`, chairSortOrder)
+                    
+                    console.log(`🪑 Added chair ${index} for update:`, {
+                      name: chairName,
+                      position: chairPosition,
+                      company: chairCompany,
+                      sort_order: chairSortOrder
+                    })
+                    
+                    // Handle profile image file separately
+                    if (chair.profile_image instanceof File) {
+                      formData.append(`chairs[${index}][profile_image]`, chair.profile_image)
+                      console.log(`📎 Adding chair ${index} profile image for update: ${chair.profile_image.name}`)
+                    }
+                  })
+                  
+                  console.log(`🪑 Successfully processed ${validChairs.length} valid chairs for update`)
+                }
               }
               break;
               
@@ -738,7 +961,9 @@ export async function updateEvent(eventId, eventData) {
       console.log(`${key}: ${value}`);
     }
 
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}`, {
+    const updateEventUrl = normalizeApiUrl(API_ADMIN_BASE_URL, `events/${eventId}`)
+    console.log('🔗 Update event URL:', updateEventUrl)
+    const response = await $fetch(updateEventUrl, {
       method: 'PUT',
       body: formData,
       headers: {
@@ -768,13 +993,48 @@ export async function updateEvent(eventId, eventData) {
   } catch (error) {
     console.error('❌ Failed to update event:', error)
     
-    // Handle specific error cases
+    // Hide technical details in production
+    const isProduction = process.env.NODE_ENV === 'production'
+    const sanitizeError = (err) => {
+      if (!isProduction) return err
+      const sanitized = { ...err }
+      delete sanitized.config
+      delete sanitized.request
+      delete sanitized.response
+      if (sanitized.message) {
+        sanitized.message = sanitized.message.replace(/https?:\/\/[^\s]+/g, '[API_ENDPOINT]')
+      }
+      return sanitized
+    }
+    
+    // Handle specific error cases with enhanced error handling
     if (error.status === 422) {
-      console.error('Validation errors:', error.data)
+      console.error('🚨 Validation errors:', isProduction ? '[HIDDEN]' : error.data)
+      
+      let detailedMessage = 'Validation failed:'
+      let validationErrors = {}
+      
+      if (error.data?.errors) {
+        validationErrors = error.data.errors
+        const errorMessages = []
+        Object.entries(error.data.errors).forEach(([field, messages]) => {
+          if (Array.isArray(messages)) {
+            errorMessages.push(`${field}: ${messages.join(', ')}`)
+          } else {
+            errorMessages.push(`${field}: ${messages}`)
+          }
+        })
+        detailedMessage = `Validation failed:\n${errorMessages.join('\n')}`
+      } else if (error.data?.message) {
+        detailedMessage = error.data.message
+      }
+      
       return {
         success: false,
-        message: error.data?.message || 'Validation failed. Please check all required fields.',
-        error: error
+        message: detailedMessage,
+        error: sanitizeError(error),
+        validationErrors: validationErrors,
+        errorType: 'VALIDATION_ERROR'
       }
     }
     
@@ -782,7 +1042,8 @@ export async function updateEvent(eventId, eventData) {
       return {
         success: false,
         message: 'Event not found',
-        error: error
+        error: sanitizeError(error),
+        errorType: 'NOT_FOUND'
       }
     }
     
@@ -790,15 +1051,25 @@ export async function updateEvent(eventId, eventData) {
       return {
         success: false,
         message: 'You do not have permission to update this event',
-        error: error
+        error: sanitizeError(error),
+        errorType: 'PERMISSION_DENIED'
       }
     }
     
-        // Generic error case
+    if (error.status === 413) {
+      return {
+        success: false,
+        message: 'Request too large. Please reduce image file sizes and try again.',
+        error: sanitizeError(error),
+        errorType: 'FILE_TOO_LARGE'
+      }
+    }
+    
+    // Generic error case
     return {
       success: false,
-      message: error.message || 'Failed to update event',
-      error: error
+      message: isProduction ? 'Failed to update event' : (error.message || 'Failed to update event'),
+      error: sanitizeError(error)
     }
   }
 }
@@ -1249,6 +1520,54 @@ export async function unpublishEvent(eventId) {
   } catch (error) {
     console.error('❌ Failed to unpublish event:', error)
     throw error
+  }
+}
+
+// Fetch categories
+export async function fetchCategories() {
+  const config = useRuntimeConfig()
+  const API_BASE_URL = config.public.apiBaseUrl
+
+  if (!API_BASE_URL) {
+    throw new Error('API admin base URL is not configured.')
+  }
+
+  try {
+    const categoriesUrl = normalizeApiUrl(API_BASE_URL, 'events/categories')
+    console.log('🏷️ Fetching categories from:', categoriesUrl)
+    
+    // Use the same authentication pattern as other admin API calls
+    const token = getAuthToken()
+    if (!token) {
+      console.error('❌ No auth token available for categories fetch')
+      throw new Error('Authentication required')
+    }
+
+    const response = await $fetch(categoriesUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+    })
+
+    console.log('✅ Categories fetched:', response)
+    return response
+  } catch (error) {
+    console.error('❌ Failed to fetch categories:', error)
+    
+    // Don't expose technical details
+    let userMessage = 'Failed to load categories. Please try again.'
+    if (error.status === 401) {
+      userMessage = 'Session expired. Please login again.'
+    } else if (error.status === 403) {
+      userMessage = 'Access denied. Please check your permissions.'
+    } else if (error.status === 500) {
+      userMessage = 'Server error. Please try again later.'
+    }
+    
+    throw new Error(userMessage)
   }
 }
 

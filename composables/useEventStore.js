@@ -259,15 +259,37 @@ export const useEventStore = defineStore('event', () => {
     error.value = null
 
     try {
-      console.log('🔄 Updating event:', currentEvent.value.id)
+      console.log('🔄 Updating event:', currentEvent.value.id, {
+        updatedFields: Object.keys(updatedData),
+        currentData: currentEvent.value
+      })
+
+      // Pre-update current event immediately for optimistic UI update
+      const optimisticUpdate = {
+        ...currentEvent.value,
+        ...updatedData,
+        _pendingUpdate: true
+      }
+      setCurrentEvent(optimisticUpdate)
+
       const response = await updateEvent(currentEvent.value.id, updatedData)
 
       if (!response || !response.data) {
         throw new Error('No response from update operation')
       }
 
-      const updatedEvent = normalizeEventData(response.data)
-      console.log('✅ Event updated:', updatedEvent.name)
+      // Merge API response with any local changes to ensure we don't lose data
+      const updatedEvent = normalizeEventData({
+        ...response.data,
+        _original: response.data,
+        _lastUpdate: new Date().toISOString()
+      })
+
+      console.log('✅ Event updated:', {
+        name: updatedEvent.name,
+        updatedFields: Object.keys(updatedData),
+        hasChanges: JSON.stringify(currentEvent.value) !== JSON.stringify(updatedEvent)
+      })
 
       // Update both current event and cache
       setCurrentEvent(updatedEvent)
@@ -276,6 +298,12 @@ export const useEventStore = defineStore('event', () => {
     } catch (e) {
       console.error('❌ Failed to update event:', e)
       error.value = e.message || 'Failed to update event'
+      
+      // Revert optimistic update on failure
+      if (currentEvent.value?._pendingUpdate) {
+        await loadEventById(currentEvent.value.id)
+      }
+      
       throw e
     } finally {
       isLoading.value = false

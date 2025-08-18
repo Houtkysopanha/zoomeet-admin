@@ -5,7 +5,7 @@
         <img
           :src="logo1"
           alt="Logo"
-          class="w-64 sm:w-80 lg:w-96 h-auto mx-auto mb-4 filter drop-shadow-lg"
+          class="w-36 sm:w-64 lg:w-72 h-auto mx-auto mb-4 filter drop-shadow-lg"
         />
       </div>
 
@@ -183,7 +183,7 @@ import LoadingSpinner from '~/components/ui/LoadingSpinner.vue';
 import { classicLoader } from '~/composables/useClassicLoader.js';
 
 // Images
-import logo1 from '@/assets/image/eticketsasia.png';
+import logo1 from '@/assets/image/finalize-logo.jpg';
 
 definePageMeta({
   layout: "default",

@@ -7,7 +7,7 @@ export function useAuth() {
     serialize: JSON.stringify,
     deserialize: JSON.parse,
     httpOnly: false,
-    secure: true,
+    secure: process.env.NODE_ENV === 'production' && !process.dev,
     sameSite: 'strict'
   })
 
@@ -61,11 +61,13 @@ export function useAuth() {
             storage: 'all',
             loginTime: enhancedAuthData.loginTime
           })
-        }      console.log('✅ Auth data set successfully', {
-        token: authData.token ? 'present' : 'missing',
-        loginTime: enhancedAuthData.loginTime,
-        expiresAt: enhancedAuthData.expiresAt
-      })
+        }
+        
+        console.log('✅ Auth data set successfully', {
+          token: authData.token ? 'present' : 'missing',
+          loginTime: enhancedAuthData.loginTime,
+          expiresAt: enhancedAuthData.expiresAt
+        })
     } catch (e) {
       console.error('❌ Failed to set auth data:', e)
       clearAuth()

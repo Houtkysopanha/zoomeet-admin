@@ -15,52 +15,6 @@
           </p>
         </div>
         <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 items-stretch sm:items-center">
-          <!-- Progress Indicator -->
-          <!-- <div class="hidden lg:flex items-center space-x-2 text-sm">
-            <div class="flex items-center space-x-1">
-              <div :class="[
-                'w-3 h-3 rounded-full transition-all duration-300',
-                isBasicInfoCompleted ? 'bg-green-500' : 'bg-gray-300'
-              ]"></div>
-              <span :class="[
-                'text-xs font-medium',
-                isBasicInfoCompleted ? 'text-green-600' : 'text-gray-500'
-              ]">Basic Info</span>
-            </div>
-            <Icon name="heroicons:chevron-right" class="w-3 h-3 text-gray-400" />
-            <div class="flex items-center space-x-1">
-              <div :class="[
-                'w-3 h-3 rounded-full transition-all duration-300',
-                hasAgenda ? 'bg-green-500' : hasAgendaSkipped ? 'bg-yellow-500' : 'bg-gray-300'
-              ]"></div>
-              <span :class="[
-                'text-xs font-medium',
-                hasAgenda ? 'text-green-600' : hasAgendaSkipped ? 'text-yellow-600' : 'text-gray-500'
-              ]">{{ hasAgendaSkipped ? 'Agenda (Skipped)' : 'Agenda' }}</span>
-            </div>
-            <Icon name="heroicons:chevron-right" class="w-3 h-3 text-gray-400" />
-            <div class="flex items-center space-x-1">
-              <div :class="[
-                'w-3 h-3 rounded-full transition-all duration-300',
-                hasTickets ? 'bg-green-500' : 'bg-gray-300'
-              ]"></div>
-              <span :class="[
-                'text-xs font-medium',
-                hasTickets ? 'text-green-600' : 'text-gray-500'
-              ]">Tickets</span>
-            </div>
-            <Icon name="heroicons:chevron-right" class="w-3 h-3 text-gray-400" />
-            <div class="flex items-center space-x-1">
-              <div :class="[
-                'w-3 h-3 rounded-full transition-all duration-300',
-                eventData?.is_published ? 'bg-blue-500' : 'bg-gray-300'
-              ]"></div>
-              <span :class="[
-                'text-xs font-medium',
-                eventData?.is_published ? 'text-blue-600' : 'text-gray-500'
-              ]">Published</span>
-            </div>
-          </div> -->
 
           <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 items-stretch sm:items-center">
             <div class="bt-preview">
@@ -183,9 +137,9 @@
             ]"
             :title="!isTabAccessible(index) ? 'Complete and save Basic Info first to access this tab' : ''"
           >
-            <i :class="item.icon" class="text-base lg:text-lg"></i>
-            <span class="hidden sm:inline">{{ item.label }}</span>
-            <span class="sm:hidden">{{ item.shortLabel || item.label }}</span>
+            <i :class="item.icon" class="text-base lg:text-sm"></i>
+            <span class="hidden sm:inline text-base lg:text-sm">{{ item.label }}</span>
+            <span class="sm:hidden text-base lg:text-sm">{{ item.shortLabel || item.label }}</span>
 
             <!-- Lock icon for disabled tabs -->
             <Icon
@@ -454,12 +408,7 @@ onMounted(async () => {
           status: eventData.value.status
         })
 
-        toast.add({
-          severity: 'success',
-          summary: 'Event Loaded for Editing',
-          detail: `Editing "${eventData.value.name}"`,
-          life: 3000
-        })
+        // Removed duplicate toast - already shown below
       } else {
         // Load fresh data from API for any UUID
         console.log('🔄 Loading fresh event data from API for UUID:', queryEventId)
@@ -487,9 +436,9 @@ onMounted(async () => {
 
           toast.add({
             severity: 'success',
-            summary: 'Event Loaded for Editing',
+            summary: 'Event Loaded',
             detail: `Editing "${eventData.value.name}"`,
-            life: 3000
+            life: 2000
           })
         } else {
           throw new Error('Event data mismatch or not found after API load')
@@ -561,12 +510,7 @@ onMounted(async () => {
   // Check for tab query parameter (from manage tickets - only in edit mode)
   if (route.query.tab === 'tickets' && isBasicInfoCompleted.value && isEditMode.value) {
     activeIndex.value = 2 // Ticket Package tab
-    toast.add({
-      severity: 'info',
-      summary: 'Ticket Management',
-      detail: 'You can now manage tickets for this event.',
-      life: 3000
-    })
+    // Removed unnecessary toast for tab switching
   }
 })
 
@@ -795,23 +739,14 @@ const changeTab = async (index) => {
       const hasData = Object.keys(tabData).length > 0
       const lastSaved = tabData.lastSaved
       
-      // Show appropriate notification
-      if (hasData && lastSaved) {
-        const savedTime = new Date(lastSaved).toLocaleTimeString()
-        toast.add({
-          severity: 'success',
-          summary: 'Data Restored ✨',
-          detail: `Your previous work has been restored (last saved: ${savedTime})`,
-          life: 3000
-        })
-      } else if (index > 0 && isBasicInfoCompleted.value) {
-        // Show welcome message for unlocked tabs
-        const tabNames = ['Basic Info', 'Agenda', 'Tickets', 'Breakout Rooms', 'Settings']
+      // Show appropriate notification - reduced frequency
+      if (hasData && lastSaved && index > 0) {
+        // Only show restore message for non-basic tabs
         toast.add({
           severity: 'info',
-          summary: `${tabNames[index]} Tab Unlocked! 🔓`,
-          detail: 'You can now configure this section of your event.',
-          life: 2500
+          summary: 'Data Restored',
+          detail: 'Your previous work has been restored',
+          life: 2000
         })
       }
       
@@ -898,42 +833,22 @@ const handleSaveDraft = async () => {
     if (activeIndex.value === 0 && (!isBasicInfoCompleted.value || !eventId.value)) {
       console.log('🔄 Triggering Basic Info save to create event')
       window.dispatchEvent(new CustomEvent('saveDraft'))
-      toast.add({
-        severity: 'info',
-        summary: `${actionText} Basic Info...`,
-        detail: 'Completing basic information to unlock other tabs.',
-        life: 3000
-      })
+      // Removed unnecessary toast for basic info save
     } else if (activeIndex.value === 0 && isBasicInfoCompleted.value && eventId.value) {
       // Basic Info tab with existing event - update it
       console.log(`🔄 ${actionText} existing Basic Info`)
       window.dispatchEvent(new CustomEvent('saveDraft'))
-      toast.add({
-        severity: 'info',
-        summary: `${actionText} Basic Info...`,
-        detail: isEditMode.value ? 'Updating your event information.' : 'Saving your changes to the event.',
-        life: 3000
-      })
+      // Removed unnecessary toast for basic info update
     } else if (activeIndex.value === 1 && isBasicInfoCompleted.value && eventId.value) {
       // Agenda tab - trigger agenda save
       console.log(`📅 ${actionText} agenda`)
       window.dispatchEvent(new CustomEvent('saveAgenda'))
-      toast.add({
-        severity: 'info',
-        summary: `${actionText} Agenda...`,
-        detail: isEditMode.value ? 'Updating your event agenda.' : 'Saving your event agenda.',
-        life: 3000
-      })
+      // Removed unnecessary toast for agenda save
     } else if (activeIndex.value === 2 && isBasicInfoCompleted.value && eventId.value) {
       // Tickets tab - trigger ticket save
       console.log(`🎫 ${actionText} tickets`)
       window.dispatchEvent(new CustomEvent('saveTickets'))
-      toast.add({
-        severity: 'info',
-        summary: `${actionText} Tickets...`,
-        detail: isEditMode.value ? 'Updating your ticket configurations.' : 'Saving your ticket configurations.',
-        life: 3000
-      })
+      // Removed unnecessary toast for ticket save
     } else if (isBasicInfoCompleted.value && eventId.value) {
       // Other tabs with existing event
       const tabNames = ['Basic Info', 'Agenda', 'Tickets', 'Breakout Rooms', 'Settings']
@@ -1103,13 +1018,7 @@ const handlePublishEvent = async () => {
     
     console.log('🚀 Publishing event:', eventId.value)
     
-    // Show publishing progress
-    toast.add({
-      severity: 'info',
-      summary: 'Publishing Event...',
-      detail: 'Please wait while we publish your event.',
-      life: 3000
-    })
+    // Removed unnecessary publishing progress toast
     
     const result = await publishEvent(eventId.value)
     

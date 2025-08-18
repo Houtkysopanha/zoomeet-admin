@@ -35,7 +35,8 @@
     </div>
 
     <!-- Event Stats -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+    <div class="opacity-30 cursor-not-allowed">
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
       <CardCommon
         v-for="(stat, index) in eventStats"
         :key="index"
@@ -43,7 +44,9 @@
         :count="stat.count"
         :icon="stat.icon"
         :weekChange="stat.weekChange"
+        :disabled="true"
       />
+    </div>
     </div>
 
     <!-- Filters and Search -->
@@ -515,33 +518,49 @@ const handleEditEvent = (event) => {
 
 const actionItems = (event) => [
   {
-    label: 'Manage Booking',
-    icon: 'pi pi-cog',
-    command: () => {
-      router.push('/admin/manage-booking');
-    },
-    visible: event?.status === 'Active',
-  },
-  {
-    label: 'Manage Tickets',
-    icon: 'pi pi-ticket',
-    command: () => manageTickets(event),
-  },
-  {
     label: 'Edit Event',
     icon: 'pi pi-pencil',
     command: () => handleEditEvent(event),
   },
+  // Disabled actions - no API support yet
+  {
+    label: 'Manage Booking',
+    icon: 'pi pi-cog',
+    command: () => {
+      toast.add({
+        severity: 'info',
+        summary: 'Feature Coming Soon',
+        detail: 'Booking management is currently under development.',
+        life: 3000
+      });
+    },
+    visible: false, // Disabled
+  },
   {
     label: 'End Event',
     icon: 'pi pi-times',
-    command: () => endEvent(event),
-    visible: event?.status === 'Active',
+    command: () => {
+      toast.add({
+        severity: 'info',
+        summary: 'Feature Coming Soon',
+        detail: 'End event functionality is currently under development.',
+        life: 3000
+      });
+    },
+    visible: false, // Disabled
   },
   {
     label: 'Remove',
     icon: 'pi pi-trash text-red-500',
-    command: () => removeEvent(event),
+    command: () => {
+      toast.add({
+        severity: 'info',
+        summary: 'Feature Coming Soon',
+        detail: 'Event removal is currently under development.',
+        life: 3000
+      });
+    },
+    visible: false, // Disabled
   },
 ]
 

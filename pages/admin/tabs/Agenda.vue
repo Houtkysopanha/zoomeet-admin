@@ -9,7 +9,7 @@
         </div>
         <div class="flex items-center space-x-4">
           <div v-if="currentEventId" class="text-right">
-            <p class="text-sm text-green-600 font-medium">✅ Basic Info Saved</p>
+            <p class="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-500">Basic Info Saved</p>
             <p class="text-xs text-gray-500">{{ currentEventName }}</p>
           </div>
           <Button
@@ -48,9 +48,17 @@
         <h2 class="text-2xl font-bold text-gray-800 mb-2">List of Created Agenda</h2>
         <p class="text-gray-500 mb-6">View and manage your complete event schedule</p>
 
-        <TabView class="mb-6" v-model:activeIndex="activeTabIndex" v-if="daysWithItems.length > 0">
-          <TabPanel v-for="(day, dayIndex) in daysWithItems" :key="dayIndex" :header="`Day ${day.dayNumber}`">
+        <!-- Show tabs based on event date range -->
+        <TabView class="mb-6" v-model:activeIndex="activeTabIndex" v-if="agendaDays.length > 0">
+          <TabPanel v-for="(day, dayIndex) in agendaDays" :key="dayIndex" :header="`Day ${day.dayNumber}`">
             <div class="space-y-4">
+              <div v-if="day.items.length === 0" class="text-center py-8">
+                <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Icon name="heroicons:calendar" class="w-8 h-8 text-gray-400" />
+                </div>
+                <h3 class="text-lg font-medium text-gray-800 mb-2">No agenda for {{ formatDate(day.date) }}</h3>
+                <p class="text-gray-600">Add agenda items for this day using the form on the right.</p>
+              </div>
               <div v-for="item in day.items" :key="item.id" class="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
                 <div class="flex items-start space-x-4">
                   <div class="flex flex-col items-center text-center text-gray-600 min-w-[60px]">
@@ -92,13 +100,13 @@
           </TabPanel>
         </TabView>
 
-        <!-- No Agenda Items Display -->
+        <!-- No Event Dates Display -->
         <div v-else class="text-center py-12">
           <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <Icon name="heroicons:calendar" class="w-10 h-10 text-gray-400" />
           </div>
-          <h3 class="text-xl font-semibold text-gray-800 mb-2">No Agenda Items Yet</h3>
-          <p class="text-gray-600 mb-6">Start creating your event schedule by adding agenda items.</p>
+          <h3 class="text-xl font-semibold text-gray-800 mb-2">Event Dates Required</h3>
+          <p class="text-gray-600 mb-6">Please set event start and end dates in Basic Info to see agenda days.</p>
         </div>
       </div>
 
@@ -131,7 +139,7 @@
             <label class="block text-xs font-medium text-gray-600 mb-2">Time <span class="text-red-500">*</span></label>
             <div class="grid grid-cols-2 gap-4">
               <div class="relative">
-                <Icon name="heroicons-outline:clock" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+                <!-- <Icon name="heroicons:clock" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" /> -->
                 <InputText
                   v-model="eventForm.time_start"
                   type="time"
@@ -144,7 +152,7 @@
                 <small v-if="getFieldError('time_start')" class="text-red-500 text-xs">{{ getFieldError('time_start') }}</small>
               </div>
               <div class="relative">
-                <Icon name="heroicons-outline:clock" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+                <!-- <Icon name="heroicons:clock" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" /> -->
                 <InputText
                   v-model="eventForm.time_end"
                   type="time"
@@ -415,9 +423,9 @@ const agendaDays = computed(() => {
   return days.length > 0 ? days : [{ date: new Date(), items: [], dayNumber: 1 }]
 })
 
-// Computed property for days that have agenda items
+// Computed property for days that have agenda items - show all days from event range
 const daysWithItems = computed(() => {
-  return agendaDays.value.filter(day => day.items.length > 0)
+  return agendaDays.value // Show all days, not just those with items
 })
 
 // Helper functions for date formatting
@@ -509,7 +517,7 @@ const validateAgendaForm = () => {
     errors.push('Session title is required')
   }
 
-  // Validate time range
+  // Validate time range - allow same time
   if (eventForm.value.time_start && eventForm.value.time_end) {
     const timeError = validateTimeRange(eventForm.value.time_start, eventForm.value.time_end)
     if (timeError) {
