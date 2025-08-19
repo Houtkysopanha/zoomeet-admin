@@ -664,27 +664,22 @@ const isTabAccessible = (index) => {
   }
   
   // Tab-specific accessibility rules with API availability check
-  // switch (index) {
-  //   case 1: // Agenda tab - UNLOCKED (Has API support)
-  //     console.log(`🔓 Tab ${index} (Agenda) unlocked - Basic Info completed & API available`)
-  //     return true
+  switch (index) {
+    case 1: // Agenda tab - UNLOCKED (Has API support)
+      return true
       
-  //   case 2: // Ticket Package tab - UNLOCKED (Has full API support)
-  //     console.log(`🔓 Tab ${index} (Tickets) unlocked - Basic Info completed & API available`)
-  //     return true
+    case 2: // Ticket Package tab - UNLOCKED (Has full API support)
+      return true
       
-  //   case 3: // Breakout Rooms tab - LOCKED (No API implementation yet)
-  //     console.log(`🔒 Tab ${index} (Breakout Rooms) locked - API not implemented`)
-  //     return false
+    case 3: // Breakout Rooms tab - LOCKED (No API implementation yet)
+      return false
       
-  //   case 4: // Settings & Policies tab - LOCKED (No API implementation yet)
-  //     console.log(`🔒 Tab ${index} (Settings) locked - API not implemented`)
-  //     return false
+    case 4: // Settings & Policies tab - LOCKED (No API implementation yet)
+      return false
       
-  //   default:
-  //     console.log(`🔒 Tab ${index} not recognized`)
-  //     return false
-  // }
+    default:
+      return false
+  }
 }
 
 // Enhanced tab switching with comprehensive data persistence

@@ -134,6 +134,7 @@ export async function fetchEvents() {
   const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
 
+
   if (!API_ADMIN_BASE_URL) {
     return { status: 500, data: { success: false, data: [], message: 'API admin base URL is not configured.' } }
   }
@@ -159,6 +160,8 @@ export async function fetchEvents() {
       method: 'GET',
       headers: headers,
     })
+
+    console.log(response)
 
     // Validate and log each event ID
     if (response && Array.isArray(response.data)) {
