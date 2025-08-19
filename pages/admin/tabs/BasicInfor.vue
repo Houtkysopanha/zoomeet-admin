@@ -430,15 +430,12 @@ const generatedUrl = computed(() => {
 
 // Load categories and data on mount
 onMounted(async () => {
-  console.log('🚀 BasicInfor component mounted')
   await loadCategories()
   await loadExistingData()
   
   // Listen for save events
   window.addEventListener('saveDraft', handleSaveDraft)
   window.addEventListener('saveCurrentTab', handleSaveCurrentTab)
-  
-  console.log('✅ BasicInfor component initialized')
 })
 
 // Enhanced data loading with comprehensive source checking
@@ -448,17 +445,10 @@ const loadExistingData = async () => {
   isLoadingData.value = true
   
   try {
-    console.log('📥 Loading existing data for BasicInfor...')
-    
     // Priority 1: Check tabs store for saved data
     const tabData = tabsStore.getTabData(0) // Basic Info tab
     
     if (tabData && Object.keys(tabData).length > 0 && tabData.eventName) {
-      console.log('📥 Loading data from tabs store:', {
-        eventName: tabData.eventName,
-        hasChairs: tabData.chairs?.length || 0,
-        lastSaved: tabData.lastSaved
-      })
       
       // Load data from tabs store
       Object.assign(formData, {
@@ -477,17 +467,11 @@ const loadExistingData = async () => {
         members: tabData.members || []
       })
       
-      console.log('✅ Data loaded from tabs store')
       return
     }
     
     // Priority 2: Check event store for current event
     if (eventStore.currentEvent && eventStore.currentEvent.id) {
-      console.log('📥 Loading data from event store:', {
-        id: eventStore.currentEvent.id,
-        name: eventStore.currentEvent.name,
-        hasChairs: eventStore.currentEvent.chairs?.length || 0
-      })
       
       const event = eventStore.currentEvent
       Object.assign(formData, {
@@ -514,13 +498,11 @@ const loadExistingData = async () => {
         lastSaved: new Date().toISOString()
       })
       
-      console.log('✅ Data loaded from event store and saved to tabs store')
       return
     }
     
     // Priority 3: If we have an eventId but no data, try to reload from API
     if (eventId.value && isEditMode.value) {
-      console.log('🔄 Reloading event data from API for eventId:', eventId.value)
       
       try {
         await eventStore.loadEventById(eventId.value)
@@ -551,24 +533,13 @@ const loadExistingData = async () => {
             lastSaved: new Date().toISOString()
           })
           
-          console.log('✅ Data reloaded from API and saved to tabs store')
         }
       } catch (error) {
-        console.warn('⚠️ Failed to reload event data from API:', error)
+        // Failed to reload event data from API
       }
     }
     
-    console.log('📊 Final form data state:', {
-      eventName: formData.eventName,
-      category: formData.category,
-      location: formData.location,
-      chairsCount: formData.chairs?.length || 0,
-      isEditMode: isEditMode.value,
-      eventId: eventId.value
-    })
-    
   } catch (error) {
-    console.error('❌ Error loading existing data:', error)
     toast.add({
       severity: 'warn',
       summary: 'Data Loading Issue',
@@ -583,7 +554,6 @@ const loadExistingData = async () => {
 // Watch for tab switching to reload data
 watch(() => tabsStore.activeTab, async (newTab, oldTab) => {
   if (newTab === 0 && oldTab !== 0) {
-    console.log('🔄 Switched to Basic Info tab, reloading data...')
     await nextTick() // Wait for DOM updates
     await loadExistingData()
   }
@@ -592,7 +562,6 @@ watch(() => tabsStore.activeTab, async (newTab, oldTab) => {
 // Watch for event changes to reload data
 watch(() => eventId.value, async (newEventId, oldEventId) => {
   if (newEventId && newEventId !== oldEventId) {
-    console.log('🔄 Event ID changed, reloading data...', { newEventId, oldEventId })
     await nextTick()
     await loadExistingData()
   }
@@ -604,10 +573,7 @@ const loadCategories = async () => {
   
   isLoadingCategories.value = true
   try {
-    console.log('🔄 Loading categories from API...')
     const response = await fetchCategories()
-    
-    console.log('📋 Categories API response:', response)
     
     // Handle the nested response structure: response.data.data
     let categoriesData = null
@@ -624,12 +590,7 @@ const loadCategories = async () => {
         label: cat.name,
         value: cat.id
       }))
-      console.log('✅ Categories loaded:', {
-        count: categories.value.length,
-        categories: categories.value
-      })
     } else {
-      console.warn('⚠️ Invalid categories response structure:', response)
       // Fallback categories
       categories.value = [
         { label: "Conference", value: 1 },
@@ -652,7 +613,6 @@ const loadCategories = async () => {
       })
     }
   } catch (error) {
-    console.error('❌ Failed to load categories:', error)
     // Fallback categories
     categories.value = [
       { label: "Conference", value: 1 },
@@ -682,11 +642,8 @@ const loadCategories = async () => {
 const handleSaveCurrentTab = async (event) => {
   const detail = event?.detail
   if (detail && detail.eventId && detail.eventId !== eventId.value) {
-    console.log('🚫 Ignoring save request for different event')
     return
   }
-  
-  console.log('💾 Saving current Basic Info tab data...')
   
   // Save current form data to tabs store
   tabsStore.saveTabData(0, {
@@ -695,7 +652,6 @@ const handleSaveCurrentTab = async (event) => {
     hasUnsavedChanges: false
   })
   
-  console.log('✅ Basic Info tab data saved to persistence')
 }
 
 // Enhanced save draft function with better error handling and update support
@@ -705,31 +661,6 @@ const handleSaveDraft = async () => {
   isSubmitting.value = true
   
   try {
-    console.log('💾 Starting save operation...', {
-      isEditMode: isEditMode.value,
-      eventId: eventId.value,
-      eventName: formData.eventName
-    })
-    
-    // DETAILED FORM DATA LOGGING
-    console.log('📋 COMPLETE FORM DATA INSPECTION:', {
-      formData: { ...formData },
-      formDataKeys: Object.keys(formData),
-      categoryValue: formData.category,
-      categoryType: typeof formData.category,
-      categoryIsNull: formData.category === null,
-      categoryIsUndefined: formData.category === undefined,
-      categoryIsEmptyString: formData.category === '',
-      categoryTruthyCheck: !!formData.category,
-      allFormValues: {
-        eventName: formData.eventName,
-        category: formData.category,
-        description: formData.description,
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        location: formData.location
-      }
-    })
     
     // Validate required fields (added Company and Organizer as required)
     const requiredFields = [
@@ -756,12 +687,6 @@ const handleSaveDraft = async () => {
       return false
     })
     
-    // Debug logging to see what's happening with category
-    console.log('🔍 Validation check:', {
-      category: formData.category,
-      categoryType: typeof formData.category,
-      missingFields: missingFields.map(f => f.field)
-    })
     
     if (missingFields.length > 0) {
       const fieldNames = missingFields.map(({ label }) => label).join(', ')
@@ -844,49 +769,21 @@ const handleSaveDraft = async () => {
       eventData.event_slug = formData.eventSlug || null
     }
     
-    console.log('📤 Sending event data (detailed):', {
-      name: eventData.name,
-      category_id: eventData.category_id,
-      description: eventData.description?.substring(0, 50) + '...',
-      start_date: eventData.start_date,
-      end_date: eventData.end_date,
-      location: eventData.location,
-      map_url: eventData.map_url,
-      company: eventData.company,
-      organizer: eventData.organizer,
-      online_link_meeting: eventData.online_link_meeting,
-      event_slug: eventData.event_slug,
-      chairs: `${eventData.chairs.length} chairs`,
-      members: `${eventData.members.length} members`,
-      has_cover_image: !!eventData.cover_image,
-      has_event_background: !!eventData.event_background,
-      has_card_background: !!eventData.card_background
-    })
-    
     let result
     
     if (isEditMode.value && eventId.value) {
       // Update existing event
-      console.log('🔄 Updating existing event:', eventId.value)
       const { updateEvent } = await import('@/composables/api')
       result = await updateEvent(eventId.value, eventData)
     } else {
       // Create new event
-      console.log('🆕 Creating new event')
       const { createEvent } = await import('@/composables/api')
       result = await createEvent(eventData)
     }
     
-    console.log('📤 API Response received:', result)
-    
     if (result && result.success !== false && (result.id || result.data?.id)) {
       // Handle both direct response and wrapped response
       const eventData = result.data || result
-      console.log('✅ API operation successful:', {
-        id: eventData.id,
-        name: eventData.name,
-        isUpdate: isEditMode.value
-      })
       
       // Update local state
       const updatedEvent = {
@@ -922,7 +819,6 @@ const handleSaveDraft = async () => {
 
       // IMPORTANT: Force edit mode after successful creation/update
       if (!isEditMode.value && eventData.id) {
-        console.log('🔄 Switching to edit mode after event creation')
         // Update the parent component's edit mode state
         if (eventCreationState?.isEditMode) {
           eventCreationState.isEditMode.value = true
@@ -946,17 +842,14 @@ const handleSaveDraft = async () => {
         })
       }
       
-      console.log('✅ Event saved successfully:', eventData.id)
     } else {
       throw new Error('Invalid response from server')
     }
     
   } catch (error) {
-    console.error('❌ Save failed:', error)
     
     // Handle API response errors (from our enhanced error handling)
     if (error.success === false) {
-      console.error('🚨 API Error Response:', error)
       
       // Handle specific error types from our API wrapper
       switch (error.errorType) {
@@ -1002,16 +895,10 @@ const handleSaveDraft = async () => {
           return
           
         case 'VALIDATION_ERROR':
-          console.error('🚨 Validation Error Details:', {
-            message: error.message,
-            validationErrors: error.validationErrors
-          })
-          
           // Set field errors from server response
           if (error.validationErrors && Object.keys(error.validationErrors).length > 0) {
             Object.entries(error.validationErrors).forEach(([field, messages]) => {
               const errorMsg = Array.isArray(messages) ? messages.join(', ') : messages
-              console.log(`Setting field error: ${field} = ${errorMsg}`)
               setFieldError(field, errorMsg)
             })
           }
@@ -1027,8 +914,6 @@ const handleSaveDraft = async () => {
       
       // Handle validation errors (fallback)
       if (error.validationErrors && Object.keys(error.validationErrors).length > 0) {
-        console.error('🚨 Server validation errors (fallback):', error.validationErrors)
-        
         // Set field errors from server response
         Object.entries(error.validationErrors).forEach(([field, messages]) => {
           const errorMsg = Array.isArray(messages) ? messages.join(', ') : messages
@@ -1056,8 +941,6 @@ const handleSaveDraft = async () => {
     
     // Handle legacy error format (direct HTTP errors)
     if (error.status === 422 && error.data?.errors) {
-      console.error('🚨 Server validation errors:', error.data.errors)
-      
       // Set field errors from server response
       Object.entries(error.data.errors).forEach(([field, messages]) => {
         const errorMsg = Array.isArray(messages) ? messages.join(', ') : messages
@@ -1189,20 +1072,17 @@ const getChairImageSrc = (chair) => {
     
     return null
   } catch (error) {
-    console.error('Error getting chair image source:', error)
     return null
   }
 }
 
 // Handle chair image load errors
 const handleChairImageError = (event) => {
-  console.warn('Chair image failed to load:', event.target.src)
   event.target.style.display = 'none'
 }
 
 // File upload handlers
 const handleCoverImageUpload = (file) => {
-  console.log('📎 Cover image uploaded:', file?.name, file?.size)
   formData.coverImageFile = file
   clearFieldError('cover_image') // Clear any existing error
   tabsStore.markTabModified(0)
@@ -1216,7 +1096,6 @@ const handleCoverImageUpload = (file) => {
 }
 
 const handleCoverImageRemoved = () => {
-  console.log('🗑️ Cover image removed')
   formData.coverImageFile = null
   tabsStore.markTabModified(0)
   
@@ -1229,7 +1108,6 @@ const handleCoverImageRemoved = () => {
 }
 
 const handleEventBackgroundUpload = (file) => {
-  console.log('📎 Event background uploaded:', file?.name, file?.size)
   formData.eventBackgroundFile = file
   tabsStore.markTabModified(0)
   
@@ -1242,7 +1120,6 @@ const handleEventBackgroundUpload = (file) => {
 }
 
 const handleCardBackgroundUpload = (file) => {
-  console.log('📎 Card background uploaded:', file?.name, file?.size)
   formData.cardBackgroundFile = file
   tabsStore.markTabModified(0)
   
@@ -1282,7 +1159,7 @@ const validateSlug = () => {
       .replace(/--+/g, '-')
       .replace(/^-|-$/g, '')
   } catch (error) {
-    console.error('Error in validateSlug:', error)
+    // Error in validateSlug
   }
 }
 
@@ -1321,7 +1198,6 @@ const openUrl = () => {
 
 // Watch for form changes to mark tab as modified and save changes
 watch(formData, () => {
-  console.log('🔄 Form data changed, saving to tab store')
   tabsStore.markTabModified(0)
   
   // Save current form data to tabs store immediately

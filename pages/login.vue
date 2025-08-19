@@ -205,17 +205,12 @@ async function handleLogin() {
       'Loading dashboard'
     ])
     const identifier = currentTab.value === 'email' ? email.value : phoneNumber.value;
-    console.log('🔑 Login attempt:', { 
-      identifier: identifier,
-      method: currentTab.value 
-    })
     if (!identifier || !password.value) {
       throw new Error('Please fill in all required fields')
     }
     await new Promise(resolve => setTimeout(resolve, 500))
     classicLoader.updateProgress(25, 'Authenticating credentials...')
     const data = await login(identifier, password.value)
-    console.log('📥 Login response received:', data)
     classicLoader.updateProgress(60, 'Verifying account...')
     let token = null;
     let userData = {};
@@ -229,7 +224,6 @@ async function handleLogin() {
       token = data.token;
       userData = data.user || {};
     } else {
-      console.error('❌ Invalid login response structure:', data)
       throw new Error('Invalid server response. Missing access token.')
     }
     const user = {
@@ -239,7 +233,6 @@ async function handleLogin() {
       ...userData
     }
     if (!token) {
-      console.error('No token found in response structure:', data)
       throw new Error("Missing access token in login response. Please check your credentials.");
     }
     classicLoader.updateProgress(85, 'Loading dashboard...')
@@ -249,10 +242,6 @@ async function handleLogin() {
     if (!savedToken) {
       throw new Error('Failed to save authentication token');
     }
-    console.log('✅ Authentication successful:', { 
-      savedTokenLength: savedToken.length,
-      user: { ...user, token: '[REDACTED]' }
-    });
     classicLoader.updateProgress(100, 'Complete!')
     toast.add({
       severity: "success",
@@ -269,7 +258,6 @@ async function handleLogin() {
       await navigateTo("/admin/dashboard")
     }
   } catch (error) {
-    console.error('Login error:', error)
     toast.add({
       severity: "error",
       summary: "Login Failed",

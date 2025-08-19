@@ -307,14 +307,12 @@ const getPublishButtonTitle = computed(() => {
 
 // Initialize state on mount
 onMounted(async () => {
-  console.log('🚀 Initializing CreateEvent page...')
   const eventStore = useEventStore()
   const { getToken } = useAuth()
 
   // Verify authentication
   const token = getToken()
   if (!token) {
-    console.error('❌ No auth token found')
     router.push('/login')
     return
   }
@@ -369,7 +367,6 @@ onMounted(async () => {
   if (isEdit && queryEventId) {
     // Validate UUID format
     if (!uuidRegex.test(queryEventId)) {
-      console.error('❌ Invalid UUID format:', queryEventId)
       toast.add({
         severity: 'error',
         summary: 'Invalid Event ID',
@@ -445,7 +442,6 @@ onMounted(async () => {
         }
       }
     } catch (error) {
-      console.error('❌ Failed to load event for editing:', error)
 
       // Provide more specific error messages
       let errorMessage = 'Failed to load event for editing.'
@@ -480,7 +476,6 @@ onMounted(async () => {
     }
   } else {
     // CREATE MODE
-    console.log('🆕 CREATE MODE: Starting fresh event creation')
     
     // Clear any existing state
     eventStore.clearCache()
@@ -558,7 +553,6 @@ onBeforeUnmount(() => {
     })
   }
   
-  console.log('✅ State cleanup complete')
 })
 
 // Match tab index with component
@@ -599,7 +593,6 @@ provide('eventCreationState', {
   isEditMode,
   tabCompletionStates,
   setBasicInfoCompleted: (completed, id = null, data = null) => {
-    console.log('🔄 Setting basic info completed:', { completed, id })
     const eventStore = useEventStore()
 
     isBasicInfoCompleted.value = completed
@@ -610,7 +603,6 @@ provide('eventCreationState', {
       
       // CRITICAL: Switch to edit mode after event creation
       if (!isEditMode.value) {
-        console.log('🔄 Switching to edit mode after event creation')
         isEditMode.value = true
         
         // Notify all tabs about the mode change
@@ -630,7 +622,6 @@ provide('eventCreationState', {
 
         // Validate event data before setting in store
         if (!data.id || !data.name) {
-          console.error('❌ Invalid event data:', data)
           return
         }
 
@@ -640,15 +631,10 @@ provide('eventCreationState', {
           id: data.id.toString()
         }
         
-        console.log('📥 Updating store with event:', {
-          id: normalizedData.id,
-          name: normalizedData.name
-        })
         
         // Update the store using setCurrentEvent action
         eventStore.setCurrentEvent(normalizedData)
       } catch (error) {
-        console.error('❌ Failed to update event state:', error)
         toast.add({
           severity: 'error',
           summary: 'State Update Failed',
@@ -665,7 +651,6 @@ provide('eventCreationState', {
   },
   markTabCompleted: (tabIndex) => {
     tabCompletionStates.value[tabIndex] = true
-    console.log(`✅ Tab ${tabIndex} marked as completed`)
   }
 })
 
@@ -775,7 +760,6 @@ const changeTab = async (index) => {
       activeIndex.value = index
       tabsStore.setActiveTab(index)
       
-      console.log(`📑 Switched from tab ${previousTab} to tab ${index}:`, items.value[index].label)
       
       // Check if new tab has saved data to restore
       const tabData = tabsStore.getTabData(index)
@@ -799,7 +783,6 @@ const changeTab = async (index) => {
       }
       
     } catch (error) {
-      console.error('Tab change error:', error)
       toast.add({
         severity: 'error',
         summary: 'Tab Switch Error',
@@ -854,7 +837,7 @@ const loadTabSpecificData = async (tabIndex) => {
         break
     }
   } catch (error) {
-    console.warn(`Failed to load data for tab ${tabIndex}:`, error)
+    // Failed to load data for tab
   }
 }
 
@@ -915,7 +898,6 @@ const handleSaveDraft = async () => {
       })
     }
   } catch (error) {
-    console.error('Save error:', error)
     toast.add({
       severity: 'error',
       summary: 'Save Failed',
@@ -984,7 +966,7 @@ const handlePublishEvent = async () => {
   try {
     await saveCurrentTabData()
   } catch (error) {
-    console.warn('Failed to save current tab data before publishing:', error)
+    // Failed to save current tab data before publishing
   }
 
   // Check if tickets are created (comprehensive check)
@@ -1048,9 +1030,9 @@ const handlePublishEvent = async () => {
       life: 4000
     })
   } else if (isAgendaSkipped) {
-    console.log('📅 Agenda was skipped for this event')
+    // Agenda was skipped for this event
   } else {
-    console.log(`📅 Found ${hasAgendaItems} agenda items`)
+    // Found agenda items
   }
 
   isSubmitting.value = true
@@ -1059,7 +1041,6 @@ const handlePublishEvent = async () => {
     // Import the publishEvent API function
     const { publishEvent } = await import('@/composables/api')
     
-    console.log('🚀 Publishing event:', eventId.value)
     
     // Removed unnecessary publishing progress toast
     
@@ -1099,7 +1080,6 @@ const handlePublishEvent = async () => {
         life: 5000
       })
       
-      console.log('✅ Event published successfully')
       
       // Redirect to event list after a delay
       setTimeout(() => {
@@ -1110,7 +1090,6 @@ const handlePublishEvent = async () => {
       throw new Error(result?.message || 'Failed to publish event')
     }
   } catch (error) {
-    console.error('❌ Failed to publish event:', error)
     
     let errorMessage = 'Failed to publish event. Please try again.'
     if (error.message.includes('Authentication')) {

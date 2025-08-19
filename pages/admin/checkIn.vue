@@ -205,7 +205,6 @@ const performGeneralSearch = () => {
   loading.value = true
   searchPerformed.value = true // Indicate that a search has been performed
   showError.value = false // Hide error message from detailed search
-  console.log('Performing general search for:', generalSearchQuery.value)
   setTimeout(() => {
     const query = generalSearchQuery.value.toLowerCase()
     searchResults.value = sampleTickets.value.filter(
@@ -231,12 +230,6 @@ const performDetailedSearch = () => {
     showError.value = false
     loading.value = true
     searchPerformed.value = true // Indicate that a search has been performed
-    console.log('Performing detailed search with:', {
-      bookingReference: bookingReference.value,
-      ticketId: ticketId.value,
-      email: email.value,
-      phoneNumber: phoneNumber.value,
-    })
     setTimeout(() => {
       const refQuery = bookingReference.value.toLowerCase()
       const idQuery = ticketId.value.toLowerCase()

@@ -293,7 +293,6 @@ const loadEvents = async () => {
     debugAuth()
     
     const { status, data } = await fetchEvents()
-    console.log('loadEvents response:', { status, data })
 
     if (status === 200 && data.success && Array.isArray(data.data)) {
       // Clear existing events first
@@ -307,17 +306,10 @@ const loadEvents = async () => {
         // Ensure we have a valid UUID
         const eventId = ev.id?.toString()
         if (!eventId || !eventId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-          console.error('Invalid UUID format for event:', ev)
           return null
         }
 
         // Log each unique event ID for debugging
-        console.log('Processing event:', { 
-          id: eventId, 
-          name: ev.name,
-          category: `${ev.category_id} - ${ev.category_name}`,
-          is_published: ev.is_published
-        })
 
         // Return an object with display fields AND all original data
         return {
@@ -370,7 +362,6 @@ const loadEvents = async () => {
       }).filter(Boolean) // Remove any null entries
 
       totalItems.value = events.value.length
-      console.log('Loaded events:', events.value.map(e => ({ id: e.id, name: e.name })))
       
       // Update event statistics
       updateEventStats(events.value);
@@ -393,7 +384,6 @@ const loadEvents = async () => {
       })
     }
   } catch (error) {
-    console.error('Fetch events error:', error)
     toast.add({
       severity: 'error',
       summary: 'Fetch Error',
@@ -593,7 +583,6 @@ const manageTickets = (event) => {
       }
     })
   } catch (error) {
-    console.error('Failed to setup ticket management:', error)
     toast.add({
       severity: 'error',
       summary: 'Setup Failed',
@@ -612,7 +601,6 @@ const editEvent = async (event) => {
     // Verify authentication
     const token = getToken();
     if (!token) {
-      console.error('❌ No authentication token found');
       toast.add({
         severity: 'error',
         summary: 'Authentication Required',
@@ -625,12 +613,6 @@ const editEvent = async (event) => {
 
     // Enhanced event data validation
     if (!event?.id || !validateUUID(event.id)) {
-      console.error('❌ Invalid event data for editing:', {
-        event: event,
-        hasId: !!event?.id,
-        idFormat: event?.id,
-        isValidUUID: event?.id ? validateUUID(event.id) : false
-      });
       toast.add({
         severity: 'error',
         summary: 'Invalid Event',
@@ -641,14 +623,6 @@ const editEvent = async (event) => {
     }
 
     const eventId = event.id.toString();
-    console.log('📝 Starting enhanced edit process for event:', {
-      id: eventId,
-      name: event.name,
-      status: event.status,
-      category: event.category_name,
-      originalData: event._original ? 'Available' : 'Not available',
-      hasAllFields: !!(event.name && event.location && event.start_date)
-    });
 
     // Clear previous state to prevent data mixing
     eventStore.clearCache();
@@ -698,19 +672,6 @@ const editEvent = async (event) => {
       throw new Error('Failed to store event data correctly in the event store');
     }
 
-    console.log('✅ Event prepared for editing with complete data:', {
-      id: eventStore.currentEvent.id,
-      name: eventStore.currentEvent.name,
-      category: `${eventStore.currentEvent.category_id} - ${eventStore.currentEvent.category_name}`,
-      status: eventStore.currentEvent.status,
-      isPublished: eventStore.currentEvent.is_published,
-      hasImages: {
-        cover: !!eventStore.currentEvent.cover_image_url,
-        background: !!eventStore.currentEvent.event_background_url,
-        card: !!eventStore.currentEvent.card_background_url
-      },
-      fieldCount: Object.keys(eventStore.currentEvent).length
-    });
 
     // Navigate to edit view with enhanced parameters
     await router.push({
@@ -724,10 +685,8 @@ const editEvent = async (event) => {
       }
     });
 
-    console.log('🚀 Navigation to edit page initiated successfully');
 
   } catch (error) {
-    console.error('❌ Enhanced edit event error:', error);
     
     // Provide more specific error messages
     let errorMessage = 'Failed to prepare event for editing';
@@ -813,7 +772,6 @@ const removeEvent = async (event) => {
     })
 
   } catch (error) {
-    console.error('❌ Failed to delete event:', error)
     
     let errorMessage = 'Failed to delete event. Please try again.'
     if (error.message.includes('not found')) {

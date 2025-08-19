@@ -28,7 +28,6 @@ onMounted(async () => {
 
   if (!eventId) {
     error.value = 'No event ID provided'
-    console.error('❌ No event ID in route params')
     await router.push('/admin/CreateEvent')
     return
   }
@@ -37,7 +36,6 @@ onMounted(async () => {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
   if (!uuidRegex.test(eventId)) {
     error.value = 'Invalid event ID format'
-    console.error('❌ Invalid UUID format:', eventId)
     toast.add({
       severity: 'error',
       summary: 'Invalid Event ID',
@@ -49,7 +47,6 @@ onMounted(async () => {
   }
 
   try {
-    console.log('🔄 Enhanced event loading process started for UUID:', eventId)
     
     // Store the event ID and edit context in session for persistence
     if (process.client) {
@@ -61,7 +58,6 @@ onMounted(async () => {
     // Always clear and load fresh data to ensure consistency
     eventStore.clearCache()
     
-    console.log('📡 Loading event data from API for UUID:', eventId)
     const eventData = await eventStore.loadEventById(eventId)
 
     if (!eventData) {
@@ -73,28 +69,9 @@ onMounted(async () => {
     const requestedId = eventId.toString()
     
     if (loadedId !== requestedId) {
-      console.error('❌ Event ID mismatch:', {
-        requested: requestedId,
-        loaded: loadedId,
-        eventName: eventData.name
-      })
       throw new Error(`Event ID mismatch: expected ${requestedId}, got ${loadedId}`)
     }
 
-    console.log('✅ Event loaded successfully with complete data:', {
-      id: eventData.id,
-      name: eventData.name,
-      category: `${eventData.category_id} - ${eventData.category_name}`,
-      status: eventData.status,
-      isPublished: eventData.is_published,
-      hasImages: {
-        cover: !!eventData.cover_image_url,
-        background: !!eventData.event_background_url,
-        card: !!eventData.card_background_url
-      },
-      hasTickets: eventData.ticket_types?.length > 0,
-      fieldCount: Object.keys(eventData).length
-    })
 
     // Show success message with event details
     toast.add({
@@ -116,10 +93,8 @@ onMounted(async () => {
       }
     })
 
-    console.log('🚀 Successfully redirected to CreateEvent page for editing')
 
   } catch (e) {
-    console.error('❌ Enhanced event loading failed:', e)
     error.value = e.message
     
     // Provide more specific error messages

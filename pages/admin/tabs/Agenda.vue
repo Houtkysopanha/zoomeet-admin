@@ -492,7 +492,6 @@ const handleDateChange = (selectedDate) => {
   if (!selectedDate || !eventStartDate.value) return
   
   const dayNumber = getDayNumber(selectedDate)
-  console.log(`📅 Selected date corresponds to Day ${dayNumber}`)
   
   // Switch to the appropriate tab - ensure Day 1 is always index 0
   const targetTabIndex = Math.max(0, dayNumber - 1)
@@ -500,14 +499,11 @@ const handleDateChange = (selectedDate) => {
   // Always ensure Day 1 (first day) maps to tab index 0
   if (dayNumber === 1) {
     activeTabIndex.value = 0
-    console.log(`📅 Switching to Day 1 (tab index 0)`)
   } else if (targetTabIndex < daysWithItems.value.length) {
     activeTabIndex.value = targetTabIndex
-    console.log(`📅 Switching to Day ${dayNumber} (tab index ${targetTabIndex})`)
   } else if (daysWithItems.value.length > 0) {
     // Default to first available day if calculated day doesn't exist
     activeTabIndex.value = 0
-    console.log(`📅 Defaulting to first available day (tab index 0)`)
   }
 }
 
@@ -634,8 +630,6 @@ const createOrUpdateAgenda = async () => {
       agendaData.speakers = validSpeakers
     }
 
-    console.log('📅 Submitting agenda data:', agendaData)
-
     let response;
     if (isEditMode.value) {
       // Update existing agenda - ensure we have the agenda ID
@@ -691,10 +685,9 @@ const loadAgendaItems = async () => {
     const response = await getEventAgenda(currentEventId.value);
     if (response.success && response.data) {
       agendaItems.value = response.data;
-      console.log('📅 Loaded agenda items:', agendaItems.value.length)
     }
   } catch (error) {
-    console.warn('Failed to load agenda items:', error);
+    // Failed to load agenda items
   }
 }
 
@@ -745,7 +738,6 @@ const deleteAgendaAction = (event, agendaId) => {
           detail: 'Failed to delete agenda item.',
           life: 3000,
         });
-        console.error('Failed to delete agenda item:', error);
       }
     },
     reject: () => {},
@@ -811,20 +803,13 @@ const handleSaveCurrentTab = (event) => {
   
   // Validate event context if provided
   if (event?.detail?.eventId && event.detail.eventId !== currentEventId.value) {
-    console.warn('⚠️ Event ID mismatch in save request, ignoring:', {
-      requested: event.detail.eventId,
-      current: currentEventId.value
-    })
     return
   }
   
   // Only save if we have a valid event ID
   if (!currentEventId.value) {
-    console.warn('⚠️ No current event ID, cannot save agenda data')
     return
   }
-  
-  console.log('💾 Saving current agenda data for event:', currentEventId.value)
   
   // Save current agenda data to tab persistence
   const tabData = {
@@ -845,7 +830,6 @@ const handleSaveCurrentTab = (event) => {
     tabsStore.markTabComplete(1)
   }
   
-  console.log('💾 Agenda data saved to tab persistence for event:', currentEventId.value)
 }
 
 // Save agenda items
@@ -907,14 +891,7 @@ const saveAgenda = async () => {
       life: 4000
     })
     
-    console.log('🎉 Agenda save process completed successfully:', {
-      agendaCount: agendaItems.value.length,
-      eventId: currentEventId.value,
-      tabComplete: true
-    })
-    
   } catch (error) {
-    console.error('❌ Agenda save error:', error)
     toast.add({
       severity: 'error',
       summary: 'Save Failed',
@@ -925,8 +902,6 @@ const saveAgenda = async () => {
 }
 
 onMounted(async () => {
-  console.log('📅 Initializing Agenda component...')
-  
   // Get event data from store or props
   const eventStore = useEventStore()
   const tabsStore = useEventTabsStore()
@@ -938,13 +913,6 @@ onMounted(async () => {
     // Get event dates for day calculation
     eventStartDate.value = eventStore.currentEvent.start_date
     eventEndDate.value = eventStore.currentEvent.end_date
-    
-    console.log('📋 Current event found:', {
-      id: currentEventId.value,
-      name: currentEventName.value,
-      startDate: eventStartDate.value,
-      endDate: eventEndDate.value
-    })
     
     // Load existing agenda data
     const agendaTabData = tabsStore.getTabData(1)
@@ -963,7 +931,6 @@ onMounted(async () => {
     currentEventId.value = props.eventId
     await loadAgendaItems()
   } else {
-    console.warn("⚠️ No event found. Complete Basic Info first.")
     toast.add({
       severity: 'warn',
       summary: 'Event Required',
@@ -979,7 +946,6 @@ onMounted(async () => {
   // Listen for edit mode changes from main page
   window.addEventListener('editModeChanged', (event) => {
     if (event.detail?.eventId === currentEventId.value) {
-      console.log('📅 Agenda: Edit mode changed, updating state')
       // Update any local edit mode state if needed
     }
   })

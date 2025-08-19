@@ -307,14 +307,12 @@ const getPublishButtonTitle = computed(() => {
 
 // Initialize state on mount
 onMounted(async () => {
-  console.log('🚀 Initializing CreateEvent page...')
   const eventStore = useEventStore()
   const { getToken } = useAuth()
 
   // Verify authentication
   const token = getToken()
   if (!token) {
-    console.error('❌ No auth token found')
     router.push('/login')
     return
   }
@@ -328,16 +326,9 @@ onMounted(async () => {
   const currentStoredEventId = process.client ? sessionStorage.getItem('currentEventId') : null
   const isSwitchingEvents = isEdit && currentStoredEventId && currentStoredEventId !== queryEventId
 
-  console.log('🔍 Event switching check:', {
-    queryEventId,
-    currentStoredEventId,
-    isSwitchingEvents,
-    isEdit
-  })
 
   // ALWAYS clear state when switching events or starting fresh
   if (isSwitchingEvents || !isEdit) {
-    console.log('🧹 Clearing all state (switching events or new creation)...')
     eventStore.clearCache()
     tabsStore.resetTabs()
     
@@ -367,7 +358,6 @@ onMounted(async () => {
   if (isEdit && queryEventId) {
     // Validate UUID format
     if (!uuidRegex.test(queryEventId)) {
-      console.error('❌ Invalid UUID format:', queryEventId)
       toast.add({
         severity: 'error',
         summary: 'Invalid Event ID',
@@ -384,7 +374,6 @@ onMounted(async () => {
     }
     
     try {
-      console.log('📝 EDIT MODE: Loading event data for ID:', queryEventId)
 
       eventId.value = queryEventId
       isEditMode.value = true
@@ -400,16 +389,6 @@ onMounted(async () => {
         // Load event data into tab persistence system with fresh data
         tabsStore.loadEventData(eventStore.currentEvent)
 
-        console.log('✅ Event data loaded for editing:', {
-          id: eventId.value,
-          name: eventData.value.name,
-          ticketCount: eventStore.currentEvent.ticket_types?.length || 0,
-          hasImages: {
-            cover: !!eventData.value.cover_image_url,
-            background: !!eventData.value.event_background_url,
-            card: !!eventData.value.card_background_url
-          }
-        })
 
         toast.add({
           severity: 'success',
@@ -421,7 +400,6 @@ onMounted(async () => {
         throw new Error('Event data mismatch or not found')
       }
     } catch (error) {
-      console.error('❌ Failed to load event for editing:', error)
 
       // Reset to new event creation mode
       eventId.value = null
@@ -442,7 +420,6 @@ onMounted(async () => {
     }
   } else {
     // CREATE MODE
-    console.log('🆕 CREATE MODE: Starting fresh event creation')
     
     isEditMode.value = false
     isBasicInfoCompleted.value = false
@@ -464,16 +441,10 @@ onMounted(async () => {
 
   // Clear event data when leaving the page
 onBeforeUnmount(() => {
-  console.log('🚪 Leaving CreateEvent page - cleaning up state')
   const eventStore = useEventStore()
 
   // Log current state before cleanup
   if (eventStore.currentEvent) {
-    console.log('📝 Current event state:', {
-      id: eventStore.currentEvent.id,
-      name: eventStore.currentEvent.name,
-      isPublished: eventStore.currentEvent.is_published
-    })
   }
 
   // Clear all state storage
@@ -500,7 +471,6 @@ onBeforeUnmount(() => {
     })
   }
   
-  console.log('✅ State cleanup complete')
 })// Match tab index with component
 const tabComponents = [
   BasicInfor,
@@ -517,7 +487,6 @@ provide('eventCreationState', {
   eventData,
   isEditMode,
   setBasicInfoCompleted: (completed, id = null, data = null) => {
-    console.log('🔄 Setting basic info completed:', { completed, id })
     const eventStore = useEventStore()
 
     isBasicInfoCompleted.value = completed
@@ -531,7 +500,6 @@ provide('eventCreationState', {
 
         // Validate event data before setting in store
         if (!data.id || !data.name) {
-          console.error('❌ Invalid event data:', data)
           return
         }
 
@@ -541,15 +509,10 @@ provide('eventCreationState', {
           id: data.id.toString()
         }
         
-        console.log('📥 Updating store with event:', {
-          id: normalizedData.id,
-          name: normalizedData.name
-        })
         
         // Update the store using setCurrentEvent action
         eventStore.setCurrentEvent(normalizedData)
       } catch (error) {
-        console.error('❌ Failed to update event state:', error)
         toast.add({
           severity: 'error',
           summary: 'State Update Failed',
@@ -573,33 +536,24 @@ const isTabAccessible = (index) => {
   
   // All other tabs require Basic Info to be completed and saved first
   if (!isBasicInfoCompleted.value || !eventId.value) {
-    console.log(`🔒 Tab ${index} locked - Basic Info not completed:`, {
-      isBasicInfoCompleted: isBasicInfoCompleted.value,
-      hasEventId: !!eventId.value
-    })
     return false
   }
   
   // Tab-specific accessibility rules with API availability check
   switch (index) {
     case 1: // Agenda tab - LOCKED (No API implementation yet)
-      console.log(`🔒 Tab ${index} (Agenda) locked - API not implemented`)
       return false
       
     case 2: // Ticket Package tab - UNLOCKED (Has full API support)
-      console.log(`🔓 Tab ${index} (Tickets) unlocked - Basic Info completed & API available`)
       return true
       
     case 3: // Breakout Rooms tab - LOCKED (No API implementation yet)
-      console.log(`🔒 Tab ${index} (Breakout Rooms) locked - API not implemented`)
       return false
       
     case 4: // Settings & Policies tab - LOCKED (No API implementation yet)
-      console.log(`🔒 Tab ${index} (Settings) locked - API not implemented`)
       return false
       
     default:
-      console.log(`🔒 Tab ${index} not recognized`)
       return false
   }
 }
@@ -651,14 +605,12 @@ const changeTab = async (index) => {
     try {
       // Save current tab data before switching
       const currentTabIndex = activeIndex.value
-      console.log(`💾 Saving data for tab ${currentTabIndex} before switching`)
       
       // Auto-save current tab data
       await saveCurrentTabData()
       
       // Mark current tab as having unsaved changes if needed
       if (tabsStore.hasUnsavedChanges(currentTabIndex)) {
-        console.log(`📝 Tab ${currentTabIndex} has unsaved changes`)
       }
 
       // Use nextTick to ensure DOM is ready
@@ -672,7 +624,6 @@ const changeTab = async (index) => {
       activeIndex.value = index
       tabsStore.setActiveTab(index)
       
-      console.log(`📑 Switched from tab ${previousTab} to tab ${index}:`, items.value[index].label)
       
       // Check if new tab has saved data to restore
       const tabData = tabsStore.getTabData(index)
@@ -705,7 +656,6 @@ const changeTab = async (index) => {
       }
       
     } catch (error) {
-      console.error('Tab change error:', error)
       toast.add({
         severity: 'error',
         summary: 'Tab Switch Error',
@@ -731,7 +681,6 @@ const loadTabSpecificData = async (tabIndex) => {
     
     switch (tabIndex) {
       case 2: // Tickets tab
-        console.log('🎫 Loading ticket data for tab switch')
         // Trigger ticket data reload in the TicketPacket component
         window.dispatchEvent(new CustomEvent('loadTicketData', {
           detail: { eventId: eventId.value }
@@ -739,7 +688,6 @@ const loadTabSpecificData = async (tabIndex) => {
         break
         
       case 1: // Agenda tab
-        console.log('📅 Loading agenda data for tab switch')
         // Load agenda data if available
         if (eventStore.currentEvent?.agendas) {
           tabsStore.saveTabData(1, {
@@ -750,17 +698,14 @@ const loadTabSpecificData = async (tabIndex) => {
         break
         
       case 3: // Breakout Rooms tab
-        console.log('🏢 Loading breakout rooms data for tab switch')
         // Load rooms data if available
         break
         
       case 4: // Settings tab
-        console.log('⚙️ Loading settings data for tab switch')
         // Load settings data if available
         break
     }
   } catch (error) {
-    console.warn(`Failed to load data for tab ${tabIndex}:`, error)
   }
 }
 

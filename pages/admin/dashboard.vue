@@ -188,7 +188,6 @@ const updateDisplay = () => {
   if (start && end) {
     const formattedStart = start.toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' })
     const formattedEnd = end.toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' })
-    console.log(`Selected range: ${formattedStart} - ${formattedEnd}`)
   }
 }
 async function fetchUserInfo() {
@@ -197,19 +196,16 @@ async function fetchUserInfo() {
     const token = getToken()
     
     if (!token) {
-      console.warn('⚠️ No token found, redirecting to login')
       router.push('/login')
       return
     }
 
     if (isTokenExpired()) {
-      console.warn('⚠️ Token expired, clearing auth and redirecting')
       clearAuth()
       router.push('/login')
       return
     }
 
-    console.log('Using token:', token.substring(0, 20) + '...')
     const res = await fetch(`${config.public.apiBaseUrl}/info`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -218,10 +214,8 @@ async function fetchUserInfo() {
       },
     })
 
-    console.log('Fetch response status:', res.status)
     
     if (res.status === 401) {
-      console.warn('🔐 Authentication failed (401), clearing auth state')
       clearAuth()
       toast.add({
         severity: 'warn',
@@ -235,16 +229,13 @@ async function fetchUserInfo() {
     
     if (!res.ok) {
       const errorText = await res.text()
-      console.error('Fetch error:', errorText)
       throw new Error(`HTTP ${res.status}: Failed to fetch user info`)
     }
 
     const data = await res.json()
-    console.log('User info:', data)
     userName.value = data.name || data.preferred_username || 'No Name'
     userRole.value = data.role || 'No Role'
   } catch (error) {
-    console.error('fetchUserInfo error:', error)
     
     // Don't show error toast for auth issues (already handled above)
     if (!error.message.includes('401')) {

@@ -9,7 +9,6 @@ const getAuthToken = () => {
 
     // If no token from composable, try direct storage access as fallback
     if (!token && process.client) {
-      console.log('🔍 No token from composable, trying direct storage access...')
       
       // Try localStorage first
       const stored = localStorage.getItem('auth')
@@ -17,9 +16,7 @@ const getAuthToken = () => {
         try {
           const authData = JSON.parse(stored)
           token = authData?.token
-          console.log('📍 Found token in localStorage')
         } catch (e) {
-          console.error('❌ Failed to parse localStorage auth data:', e)
         }
       }
       
@@ -30,31 +27,22 @@ const getAuthToken = () => {
           try {
             const authData = JSON.parse(sessionStored)
             token = authData?.token
-            console.log('📍 Found token in sessionStorage')
           } catch (e) {
-            console.error('❌ Failed to parse sessionStorage auth data:', e)
           }
         }
       }
     }
 
     if (!token) {
-      console.log('❌ No token found in auth state or storage')
       return null
     }
 
 
 
     // Log token info without sensitive data
-    console.log('🔑 Token found:', {
-      length: token.length,
-      preview: token.substring(0, 20) + '...',
-      source: getToken() ? 'composable' : 'direct_storage'
-    })
 
     return token
   } catch (error) {
-    console.error('❌ Error getting auth token:', error)
     return null
   }
 }
@@ -70,9 +58,7 @@ const createAuthHeaders = (includeContentType = true) => {
   const token = getAuthToken()
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
-    console.log('✅ Auth headers created')
   } else {
-    console.warn('⚠️ Failed to create auth headers - no valid token')
     handleAuthRedirect()
   }
 
@@ -85,7 +71,6 @@ const handleAuthRedirect = () => {
     const router = useRouter()
     const currentPath = router.currentRoute.value.fullPath
     if (currentPath !== '/login') {
-      console.log('🔄 Auth failed - redirecting to login')
       router.push(`/login?redirect=${encodeURIComponent(currentPath)}`)
     }
   }
@@ -108,24 +93,12 @@ export async function login(identifier, password) {
   const API_BASE_URL = config.public.apiBaseUrl
 
   if (!API_BASE_URL) {
-    console.error('API Configuration Error:', {
-      apiBaseUrl: API_BASE_URL,
-      environment: config.public.environment,
-      nodeEnv: process.env.NODE_ENV
-    })
     throw new Error(`API base URL is not configured for ${process.env.NODE_ENV} environment.`)
   }
 
   try {
-    console.log('🔐 Login attempt:', {
-      identifier,
-      apiUrl: API_BASE_URL,
-      env: process.env.NODE_ENV,
-      environment: config.public.environment
-    })
 
     const loginUrl = normalizeApiUrl(API_BASE_URL, 'login')
-    console.log('🔗 Login URL:', loginUrl)
 
     const response = await $fetch(loginUrl, {
       method: 'POST',
@@ -135,10 +108,8 @@ export async function login(identifier, password) {
       },
     })
 
-    console.log('Login response:', response)
     return response
   } catch (error) {
-    console.error('Login error:', error)
     // Don't expose API endpoints or technical details in user-facing errors
     let userMessage = 'Login failed. Please check your credentials and try again.'
     
@@ -169,16 +140,10 @@ export async function fetchEvents() {
 
   try {
     const eventsUrl = normalizeApiUrl(API_ADMIN_BASE_URL, 'events')
-    console.log('🔍 Fetching events from:', eventsUrl)
-    console.log('🌍 Environment:', {
-      nodeEnv: process.env.NODE_ENV,
-      apiUrl: API_ADMIN_BASE_URL
-    })
     
     // Use consistent token handling
     const token = getAuthToken()
     if (!token) {
-      console.error('❌ No auth token available for events fetch')
       return { status: 401, data: { success: false, data: [], message: 'Authentication required' } }
     }
 
@@ -189,11 +154,6 @@ export async function fetchEvents() {
       'Accept': 'application/json'
     }
     
-    console.log('📨 Request prepared:', {
-      url: eventsUrl,
-      hasToken: !!token,
-      tokenPreview: token ? `${token.substring(0, 10)}...` : 'none'
-    })
 
     const response = await $fetch(eventsUrl, {
       method: 'GET',
@@ -205,14 +165,11 @@ export async function fetchEvents() {
       response.data.forEach((event, index) => {
         const eventId = event.id?.toString()
         if (!eventId || !eventId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-          console.error(`❌ Invalid UUID for event at index ${index}:`, event)
         } else {
-          console.log(`✅ Valid event UUID: ${eventId} - ${event.name}`)
         }
       })
     }
 
-    console.log('📊 Events API response:', response)
 
     // Ensure the response structure is always predictable
     if (response && response.data && Array.isArray(response.data)) {
@@ -232,7 +189,6 @@ export async function fetchEvents() {
         }
       }
     } else {
-      console.warn('Unexpected API response structure:', response)
       return {
         status: 200,
         data: {
@@ -243,11 +199,9 @@ export async function fetchEvents() {
       }
     }
   } catch (error) {
-    console.error('Fetch events error:', error)
     
     // Handle authentication errors specifically
     if (error.status === 401) {
-      console.warn('🔐 Authentication failed, clearing auth state')
       const { clearAuth } = useAuth()
       clearAuth()
       handleAuthRedirect()
@@ -291,16 +245,13 @@ export async function fetchUserInfo() {
 
   try {
     const userInfoUrl = normalizeApiUrl(API_BASE_URL, 'info')
-    console.log('Fetching user info from:', userInfoUrl)
     const response = await $fetch(userInfoUrl, {
       method: 'GET',
       headers: createAuthHeaders(),
     })
 
-    console.log('User info response:', response)
     return response
   } catch (error) {
-    console.error('Fetch user info error:', error)
     
     // Don't expose technical details
     let userMessage = 'Failed to load user information.'
@@ -332,20 +283,16 @@ export async function getEventDetails(eventId) {
   // Clean and validate UUID
   const cleanUUID = eventId.toString().trim()
   if (!validateUUID(cleanUUID)) {
-    console.error('❌ Invalid UUID format:', eventId)
     throw new Error('Invalid event ID format. Expected UUID format.')
   }
 
   // Store current event ID in session for debugging
   if (process.client) {
     sessionStorage.setItem('currentEventId', cleanUUID)
-    console.log('📝 Stored event ID in session:', cleanUUID)
   }
 
   try {
     const eventDetailsUrl = normalizeApiUrl(API_ADMIN_BASE_URL, `events/${cleanUUID}`)
-    console.log('🔍 Fetching event details for UUID:', cleanUUID)
-    console.log('🔗 Event details URL:', eventDetailsUrl)
     const response = await $fetch(eventDetailsUrl, {
       method: 'GET',
       headers: createAuthHeaders()
@@ -359,28 +306,14 @@ export async function getEventDetails(eventId) {
     let eventData = null
     if (response.data) {
       eventData = response.data
-      console.log('✅ Event details fetched (wrapped response):', {
-        id: eventData.id,
-        name: eventData.name,
-        category: eventData.category_name
-      })
     } else if (response.id) {
       eventData = response
-      console.log('✅ Event details fetched (direct response):', {
-        id: eventData.id,
-        name: eventData.name,
-        category: eventData.category_name
-      })
     } else {
       throw new Error('Invalid response structure from server')
     }
 
     // Validate that returned event ID matches requested ID
     if (eventData.id.toString() !== cleanUUID) {
-      console.error('❌ Event ID mismatch:', {
-        requested: cleanUUID,
-        received: eventData.id.toString()
-      })
       throw new Error('Event ID mismatch in response')
     }
 
@@ -390,7 +323,6 @@ export async function getEventDetails(eventId) {
       data: eventData
     }
   } catch (error) {
-    console.error('❌ Failed to fetch event details for UUID:', cleanUUID, error)
     
     // Enhanced error handling
     if (error.status === 404) {
@@ -430,7 +362,6 @@ export async function createEvent(eventData, isDraft = true) {
   if (process.client) {
     const currentEvent = localStorage.getItem('currentEvent')
     if (currentEvent) {
-      console.log('🧹 Clearing lingering event state from localStorage')
       localStorage.removeItem('currentEvent')
     }
   }
@@ -445,7 +376,6 @@ export async function createEvent(eventData, isDraft = true) {
     })
     
     if (missingFields.length > 0) {
-      console.error('❌ Missing required fields:', missingFields)
       return {
         success: false,
         message: `Missing required fields: ${missingFields.join(', ')}`,
@@ -493,17 +423,6 @@ export async function createEvent(eventData, isDraft = true) {
     }
     
     // Log the data being sent
-    console.log('🎯 Creating event:', {
-      isDraft,
-      name: eventData.name,
-      category_id: Number(eventData.category_id),
-      start_date: eventData.start_date,
-      end_date: eventData.end_date,
-      event_slug: eventData.event_slug,
-      has_cover_image: !!eventData.cover_image,
-      has_card_background: !!eventData.card_background,
-      has_event_background: !!eventData.event_background,
-    })
     const formData = new FormData()
     
     // Add required text fields first, ensuring they exist
@@ -519,7 +438,6 @@ export async function createEvent(eventData, isDraft = true) {
         value = Number(value)
       }
       formData.append(key, value)
-      console.log(`📝 Adding required field: ${key} = ${value}`)
     })
     
     // Add optional text fields if they have values
@@ -529,26 +447,12 @@ export async function createEvent(eventData, isDraft = true) {
         const value = eventData[key]?.trim()
         if (value) {
           formData.append(key, value)
-          console.log(`📝 Adding optional field: ${key} = ${value}`)
         }
       }
     })
     
     // Handle chairs array - API expects individual FormData fields format
     if (eventData.chairs && Array.isArray(eventData.chairs)) {
-      console.log('🪑 Processing chairs for API submission:', {
-        chairCount: eventData.chairs.length,
-        chairs: eventData.chairs.map((chair, index) => ({
-          index,
-          id: chair.id,
-          name: chair.name,
-          position: chair.position,
-          company: chair.company,
-          sort_order: chair.sort_order,
-          hasProfileImage: chair.profile_image instanceof File,
-          hasAvatar: !!chair.avatar
-        }))
-      })
       
       // Filter out chairs with empty required fields
       const validChairs = eventData.chairs.filter(chair => {
@@ -557,21 +461,11 @@ export async function createEvent(eventData, isDraft = true) {
         const hasValidCompany = chair.company && chair.company.trim().length > 0
         
         if (!hasValidName || !hasValidPosition || !hasValidCompany) {
-          console.warn('🪑 Skipping invalid chair:', {
-            id: chair.id,
-            name: chair.name,
-            position: chair.position,
-            company: chair.company,
-            hasValidName,
-            hasValidPosition,
-            hasValidCompany
-          })
           return false
         }
         return true
       })
       
-      console.log(`🪑 Filtered chairs: ${eventData.chairs.length} -> ${validChairs.length} valid chairs`)
       
       if (validChairs.length > 0) {
         // Send individual FormData fields (the format the API actually expects)
@@ -586,30 +480,16 @@ export async function createEvent(eventData, isDraft = true) {
           formData.append(`chairs[${index}][company]`, chairCompany)
           formData.append(`chairs[${index}][sort_order]`, chairSortOrder)
           
-          console.log(`🪑 Added chair ${index}:`, {
-            name: chairName,
-            position: chairPosition,
-            company: chairCompany,
-            sort_order: chairSortOrder
-          })
           
           // Handle profile image file separately
           if (chair.profile_image instanceof File) {
             formData.append(`chairs[${index}][profile_image]`, chair.profile_image)
-            console.log(`📎 Adding chair ${index} profile image: ${chair.profile_image.name} (${chair.profile_image.size} bytes)`)
           }
         })
         
-        console.log(`🪑 Successfully added ${validChairs.length} valid chairs to FormData`)
       } else {
-        console.log('🪑 No valid chairs to send - all chairs have missing required fields')
       }
     } else {
-      console.log('🪑 No chairs to process:', {
-        hasChairs: !!eventData.chairs,
-        isArray: Array.isArray(eventData.chairs),
-        chairsValue: eventData.chairs
-      })
     }
     
     // Add file fields separately with enhanced validation
@@ -640,7 +520,6 @@ export async function createEvent(eventData, isDraft = true) {
         }
         
         formData.append(key, file)
-        console.log(`📎 Adding file: ${key} = ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`)
       }
     })
     
@@ -649,29 +528,23 @@ export async function createEvent(eventData, isDraft = true) {
       throw new Error(`Total file size exceeds 5MB limit. Current size: ${(totalFileSize / 1024 / 1024).toFixed(2)}MB. Please compress your images.`)
     }
     
-    console.log(`📊 Total file payload: ${(totalFileSize / 1024 / 1024).toFixed(2)}MB`)
 
     // Set published state and status correctly
     const isPublishingNow = !isDraft
     formData.append('is_published', isPublishingNow ? '1' : '0')
     formData.append('status', isPublishingNow ? 'active' : 'draft')
-    console.log(`📝 Setting event state: is_published=${isPublishingNow ? '1' : '0'}, status=${isPublishingNow ? 'active' : 'draft'}`)
     
     // Log FormData contents for debugging
-    console.log('📋 FormData contents:')
     const formDataEntries = {}
     for (let [key, value] of formData.entries()) {
       if (value instanceof File) {
-        console.log(`${key}: [File] ${value.name} (${value.size} bytes, type: ${value.type})`)
         formDataEntries[key] = `[File] ${value.name} (${value.size} bytes)`
       } else {
-        console.log(`${key}: ${value}`)
         formDataEntries[key] = value
       }
     }
     
     // Log complete FormData structure
-    console.log('📋 Complete FormData structure:', formDataEntries)
     
     // Special validation for required fields (removed optional fields)
     const requiredFieldsCheck = [
@@ -679,17 +552,14 @@ export async function createEvent(eventData, isDraft = true) {
       'location', 'event_slug'
     ]
     
-    console.log('🔍 Required fields validation:')
     requiredFieldsCheck.forEach(field => {
       const hasField = formDataEntries.hasOwnProperty(field) && formDataEntries[field] !== null && formDataEntries[field] !== undefined && formDataEntries[field] !== ''
-      console.log(`${hasField ? '✅' : '❌'} ${field}: ${hasField ? formDataEntries[field] : 'MISSING OR EMPTY'}`)
     })
 
     // Use the correct API endpoint without duplicate admin prefix
     // Make the actual API call
     try {
       const createEventUrl = normalizeApiUrl(API_ADMIN_BASE_URL, 'events')
-      console.log('🔗 Create event URL:', createEventUrl)
       const response = await $fetch(createEventUrl, {
         method: 'POST',
         body: formData,
@@ -700,7 +570,6 @@ export async function createEvent(eventData, isDraft = true) {
 
       // Only return success if we get a valid response
       if (!response || typeof response !== 'object') {
-        console.error('❌ Invalid response format:', response)
         return {
           success: false,
           message: 'Invalid response from server',
@@ -708,7 +577,6 @@ export async function createEvent(eventData, isDraft = true) {
         }
       }
 
-      console.log('✅ Event created:', response)
       
       // Return normalized response
       return {
@@ -718,7 +586,6 @@ export async function createEvent(eventData, isDraft = true) {
       }
     } catch (error) {
       // Log the network error but return a structured response
-      console.error('🚨 Create event network error:', error)
       
       // Hide technical details in production
       const isProduction = process.env.NODE_ENV === 'production'
@@ -738,7 +605,6 @@ export async function createEvent(eventData, isDraft = true) {
       
       // Enhanced error handling for specific HTTP status codes
       if (error.status === 413) {
-        console.error('🚨 Request too large (413):', isProduction ? '[HIDDEN]' : error)
         return {
           success: false,
           message: 'Request too large. Please reduce image file sizes and try again. Maximum total size: 5MB.',
@@ -748,8 +614,6 @@ export async function createEvent(eventData, isDraft = true) {
       }
       
       if (error.status === 422) {
-        console.error('🚨 Validation errors from server:', error.data)
-        console.error('🚨 Full error object:', error)
         
         let detailedMessage = 'Validation failed:'
         let validationErrors = {}
@@ -769,10 +633,6 @@ export async function createEvent(eventData, isDraft = true) {
           detailedMessage = error.data.message
         }
         
-        console.error('🚨 Processed validation errors:', {
-          detailedMessage,
-          validationErrors
-        })
         
         return {
           success: false,
@@ -785,7 +645,6 @@ export async function createEvent(eventData, isDraft = true) {
       
       // Handle CORS and network errors
       if (error.message?.includes('CORS') || error.message?.includes('Failed to fetch') || error.message?.includes('fetch')) {
-        console.error('🚨 CORS or network error:', isProduction ? '[HIDDEN]' : error)
         return {
           success: false,
           message: 'Network connection error. This might be a CORS issue. Please check your internet connection and try again.',
@@ -821,7 +680,6 @@ export async function createEvent(eventData, isDraft = true) {
       }
     }
   } catch (error) {
-    console.error('Create event validation error:', error)
     return {
       success: false,
       message: error.message || 'Failed to validate event data',
@@ -864,7 +722,6 @@ export async function updateEvent(eventId, eventData) {
       try {
         if (value instanceof File) {
           formData.append(key, value)
-          console.log(`📎 Adding file: ${key} = ${value.name} (${value.size} bytes)`)
         } else if (value !== null && value !== undefined) {
           // Special handling for certain fields
           switch (key) {
@@ -970,7 +827,6 @@ export async function updateEvent(eventId, eventData) {
     }
 
   } catch (error) {
-    console.error('❌ Failed to update event:', error)
     
     // Hide technical details in production
     const isProduction = process.env.NODE_ENV === 'production'
@@ -988,7 +844,6 @@ export async function updateEvent(eventId, eventData) {
     
     // Handle specific error cases with enhanced error handling
     if (error.status === 422) {
-      console.error('🚨 Validation errors:', isProduction ? '[HIDDEN]' : error.data)
       
       let detailedMessage = 'Validation failed:'
       let validationErrors = {}
@@ -1065,7 +920,6 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
   }
 
   try {
-    console.log('🎫 Updating ticket type:', { eventId, ticketTypeId })
     
     // Create FormData for Laravel PUT method override
     const formData = new FormData()
@@ -1084,10 +938,8 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
       headers: createAuthHeaders(false) // Don't include Content-Type for FormData
     })
 
-    console.log('✅ Ticket type updated:', response)
     return response
   } catch (error) {
-    console.error('❌ Failed to update ticket type:', error)
     throw error
   }
 }
@@ -1107,7 +959,6 @@ export async function createTicketTypes(eventId, ticketTypesData) {
   }
 
   try {
-    console.log('🎫 Creating ticket types for event:', eventId)
     
     // Ensure ticketTypesData is an array
     const ticketsArray = Array.isArray(ticketTypesData) ? ticketTypesData : [ticketTypesData]
@@ -1139,18 +990,12 @@ export async function createTicketTypes(eventId, ticketTypesData) {
       }
     })
 
-    console.log('📝 Normalized ticket data for API:', {
-      eventId,
-      ticketCount: normalizedTickets.length,
-      tickets: normalizedTickets
-    })
 
     // Wrap tickets in proper structure that API expects
     const requestBody = {
       ticket_types: normalizedTickets
     }
 
-    console.log('📤 Sending request body:', requestBody)
 
     // Send tickets in proper structure to admin endpoint
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types`, {
@@ -1162,12 +1007,9 @@ export async function createTicketTypes(eventId, ticketTypesData) {
       }
     })
 
-    console.log('✅ Ticket types created:', response)
     return response
   } catch (error) {
-    console.error('❌ Failed to create ticket types:', error)
     if (error.status === 422) {
-      console.error('Validation errors:', error.data)
       
       // Extract detailed validation errors if available
       let errorMessage = 'The given data was invalid.'
@@ -1206,17 +1048,13 @@ export async function getEventTicketTypes(eventId) {
   }
 
   try {
-    console.log('🎫 Fetching ticket types for event:', eventId)
-    console.log('Using admin URL:', API_ADMIN_BASE_URL)
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types`, {
       method: 'GET',
       headers: createAuthHeaders()
     })
 
-    console.log('✅ Event ticket types fetched:', response)
     return response
   } catch (error) {
-    console.error('❌ Failed to fetch event ticket types:', error)
     throw error
   }
 }
@@ -1236,16 +1074,13 @@ export async function deleteEvent(eventId) {
   }
 
   try {
-    console.log('🗑️ Deleting event:', eventId)
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}`, {
       method: 'DELETE',
       headers: createAuthHeaders()
     })
 
-    console.log('✅ Event deleted:', response)
     return response
   } catch (error) {
-    console.error('❌ Failed to delete event:', error)
     
     // Enhanced error handling
     if (error.status === 404) {
@@ -1275,16 +1110,13 @@ export async function deleteTicketType(eventId, ticketTypeId) {
   }
 
   try {
-    console.log('🗑️ Deleting ticket type:', { eventId, ticketTypeId })
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types/${ticketTypeId}`, {
       method: 'DELETE',
       headers: createAuthHeaders()
     })
 
-    console.log('✅ Ticket type deleted:', response)
     return response
   } catch (error) {
-    console.error('❌ Failed to delete ticket type:', error)
     
     // Enhanced error handling
     if (error.status === 404) {
@@ -1314,16 +1146,13 @@ export async function getTicketTypeDetails(eventId, ticketTypeId) {
   }
 
   try {
-    console.log('🎫 Fetching ticket type details:', { eventId, ticketTypeId })
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types/${ticketTypeId}`, {
       method: 'GET',
       headers: createAuthHeaders()
     })
 
-    console.log('✅ Ticket type details fetched:', response)
     return response
   } catch (error) {
-    console.error('❌ Failed to fetch ticket type details:', error)
     
     if (error.status === 404) {
       throw new Error('Ticket type not found')
@@ -1343,17 +1172,14 @@ export async function createAgendaItems(eventId, agendaData) {
   }
 
   try {
-    console.log('📅 Creating agenda items for event:', eventId)
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/agendas`, {
       method: 'POST',
       body: agendaData,
       headers: createAuthHeaders()
     })
 
-    console.log('✅ Agenda items created:', response)
     return response
   } catch (error) {
-    console.error('❌ Failed to create agenda items:', error)
     throw error
   }
 }
@@ -1368,7 +1194,6 @@ export async function updateAgendaItem(eventId, agendaId, agendaData) {
   }
 
   try {
-    console.log('📅 Updating agenda item:', { eventId, agendaId })
     
     // Create FormData for Laravel PUT method override
     const formData = new FormData()
@@ -1398,10 +1223,8 @@ export async function updateAgendaItem(eventId, agendaId, agendaData) {
       headers: createAuthHeaders(false) // Don't include Content-Type for FormData
     })
 
-    console.log('✅ Agenda item updated:', response)
     return response
   } catch (error) {
-    console.error('❌ Failed to update agenda item:', error)
     throw error
   }
 }
@@ -1416,16 +1239,13 @@ export async function getEventAgenda(eventId) {
   }
 
   try {
-    console.log('📅 Fetching agenda for event:', eventId)
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/agendas`, {
       method: 'GET',
       headers: createAuthHeaders()
     })
 
-    console.log('✅ Event agenda fetched:', response)
     return response
   } catch (error) {
-    console.error('❌ Failed to fetch event agenda:', error)
     throw error
   }
 }
@@ -1449,16 +1269,13 @@ export async function deleteAgenda(eventId, agendaId) {
   }
 
   try {
-    console.log('🗑️ Deleting agenda:', agendaId)
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/agendas/${agendaId}`, {
       method: 'DELETE',
       headers: createAuthHeaders()
     })
 
-    console.log('✅ Agenda deleted:', response)
     return response
   } catch (error) {
-    console.error('❌ Failed to delete agenda:', error)
     
     // Enhanced error handling
     if (error.status === 404) {
@@ -1488,7 +1305,6 @@ export async function publishEvent(eventId) {
   }
 
   try {
-    console.log('🚀 Publishing event:', eventId)
     
     // Get current event data to preserve all fields including chairs
     const { getEventDetails } = await import('@/composables/api')
@@ -1497,13 +1313,7 @@ export async function publishEvent(eventId) {
     try {
       const eventResponse = await getEventDetails(eventId)
       currentEventData = eventResponse.data
-      console.log('📋 Current event data for publishing:', {
-        id: currentEventData.id,
-        name: currentEventData.name,
-        chairsCount: currentEventData.chairs?.length || 0
-      })
     } catch (error) {
-      console.warn('⚠️ Could not fetch current event data for publishing:', error)
     }
     
     // Create FormData for Laravel PUT method override
@@ -1514,7 +1324,6 @@ export async function publishEvent(eventId) {
     
     // Preserve chairs data if available
     if (currentEventData?.chairs && Array.isArray(currentEventData.chairs)) {
-      console.log('🪑 Preserving chairs data during publish:', currentEventData.chairs.length)
       currentEventData.chairs.forEach((chair, index) => {
         if (chair.name && chair.position && chair.company) {
           formData.append(`chairs[${index}][name]`, chair.name)
@@ -1531,10 +1340,8 @@ export async function publishEvent(eventId) {
       headers: createAuthHeaders(false) // Don't include Content-Type for FormData
     })
 
-    console.log('✅ Event published:', response)
     return response
   } catch (error) {
-    console.error('❌ Failed to publish event:', error)
     throw error
   }
 }
@@ -1554,16 +1361,13 @@ export async function unpublishEvent(eventId) {
   }
 
   try {
-    console.log('📤 Unpublishing event:', eventId)
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/unpublish`, {
       method: 'POST',
       headers: createAuthHeaders()
     })
 
-    console.log('✅ Event unpublished:', response)
     return response
   } catch (error) {
-    console.error('❌ Failed to unpublish event:', error)
     throw error
   }
 }
@@ -1579,12 +1383,10 @@ export async function fetchCategories() {
 
   try {
     const categoriesUrl = normalizeApiUrl(API_BASE_URL, 'events/categories')
-    console.log('🏷️ Fetching categories from:', categoriesUrl)
     
     // Use the same authentication pattern as other admin API calls
     const token = getAuthToken()
     if (!token) {
-      console.error('❌ No auth token available for categories fetch')
       throw new Error('Authentication required')
     }
 
@@ -1597,10 +1399,8 @@ export async function fetchCategories() {
       },
     })
 
-    console.log('✅ Categories fetched:', response)
     return response
   } catch (error) {
-    console.error('❌ Failed to fetch categories:', error)
     
     // Don't expose technical details
     let userMessage = 'Failed to load categories. Please try again.'
