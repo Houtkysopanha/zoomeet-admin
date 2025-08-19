@@ -913,7 +913,6 @@ export async function updateEvent(eventId, eventData) {
   }
 }
 
-// Update ticket type
 
 // Update ticket type
 export async function updateTicketType(eventId, ticketTypeId, ticketData) {
@@ -925,26 +924,37 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
   }
 
   try {
-    
-    // Create FormData for Laravel PUT method override
-    const formData = new FormData()
-    formData.append('_method', 'PUT')
-    
-    // Add ticket data to FormData
-    for (const [key, value] of Object.entries(ticketData)) {
-      if (value !== null && value !== undefined) {
-        formData.append(key, value)
-      }
+    // Validate and normalize ticket data
+    const normalizedData = {
+      name: String(ticketData.name || '').trim(),
+      price: parseFloat(ticketData.price || 0),
+      total: parseInt(ticketData.total || ticketData.quantity || 0),
+      tag: String(ticketData.tag || ticketData.description || '').trim(),
+      sort_order: ticketData.sort_order || 1,
+      is_active: ticketData.is_active !== undefined ? (ticketData.is_active ? 1 : 0) : 1
     }
+
+    // Validate required fields
+    if (!normalizedData.name) throw new Error('Ticket name is required')
+    if (isNaN(normalizedData.price) || normalizedData.price < 0) throw new Error('Price must be 0 or greater')
+    if (isNaN(normalizedData.total) || normalizedData.total < 1) throw new Error('Quantity must be at least 1')
+    if (!normalizedData.tag) throw new Error('Description is required')
+
+    console.log('🎫 Updating ticket with JSON data:', {
+      eventId,
+      ticketTypeId,
+      data: normalizedData
+    })
     
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types/${ticketTypeId}`, {
-      method: 'POST',
-      body: formData,
-      headers: createAuthHeaders(false) // Don't include Content-Type for FormData
+      method: 'PUT',
+      body: JSON,
+      headers: createAuthHeaders() // Use JSON Content-Type
     })
 
     return response
   } catch (error) {
+    console.error('❌ Ticket update error:', error)
     throw error
   }
 }
@@ -1199,37 +1209,17 @@ export async function updateAgendaItem(eventId, agendaId, agendaData) {
   }
 
   try {
-    
-    // Create FormData for Laravel PUT method override
-    const formData = new FormData()
-    formData.append('_method', 'PUT')
-    
-    // Add agenda data to FormData with proper handling
-    for (const [key, value] of Object.entries(agendaData)) {
-      if (value !== null && value !== undefined) {
-        if (key === 'speakers' && Array.isArray(value)) {
-          // Handle speakers array properly for FormData
-          value.forEach((speaker, index) => {
-            if (speaker.name && speaker.name.trim()) {
-              formData.append(`speakers[${index}][name]`, speaker.name.trim())
-              formData.append(`speakers[${index}][about]`, speaker.about || '')
-            }
-          })
-        } else {
-          // Handle regular fields
-          formData.append(key, value)
-        }
-      }
-    }
-    
+    console.log('📅 Updating agenda item:', { eventId, agendaId })
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/agendas/${agendaId}`, {
-      method: 'POST',
-      body: formData,
-      headers: createAuthHeaders(false) // Don't include Content-Type for FormData
+      method: 'PUT',
+      body: agendaData,
+      headers: createAuthHeaders()
     })
 
+    console.log('✅ Agenda item updated:', response)
     return response
   } catch (error) {
+    console.error('❌ Failed to update agenda item:', error)
     throw error
   }
 }

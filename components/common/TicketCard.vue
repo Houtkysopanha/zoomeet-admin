@@ -83,7 +83,6 @@
 </template>
 
 <script setup>
-import { defineProps } from 'vue'
 import Button from 'primevue/button'
 import Divider from 'primevue/divider' // Import Divider
 import qrcode from '@/assets/image/qr-code.png'

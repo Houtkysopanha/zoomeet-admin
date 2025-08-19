@@ -49,7 +49,7 @@
         <p class="text-gray-500 mb-6">View and manage your complete event schedule</p>
 
         <!-- Show tabs based on event date range -->
-        <TabView class="mb-6" v-model:activeIndex="activeTabIndex" v-if="agendaDays.length > 0">
+        <TabView class="mb-6" v-model:activeIndex="activeTabIndex" v-if="agendaDays.length > 0 && eventStartDate && eventEndDate">
           <TabPanel v-for="(day, dayIndex) in agendaDays" :key="dayIndex" :header="day.label">
             <div class="space-y-4">
               <div v-if="day.items.length === 0" class="text-center py-8">
@@ -101,12 +101,28 @@
         </TabView>
 
         <!-- No Event Dates Display -->
-        <div v-else class="text-center py-12">
+        <div v-else-if="!eventStartDate || !eventEndDate" class="text-center py-12">
           <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <Icon name="heroicons:calendar" class="w-10 h-10 text-gray-400" />
           </div>
           <h3 class="text-xl font-semibold text-gray-800 mb-2">Event Dates Required</h3>
           <p class="text-gray-600 mb-6">Please set event start and end dates in Basic Info to see agenda days.</p>
+          <Button
+            @click="generateInitialTabs"
+            class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-full font-medium hover:from-purple-700 hover:to-indigo-700 transition-all duration-300"
+          >
+            <Icon name="heroicons:calendar-days" class="w-5 h-5 mr-2" />
+            Start Creating Agenda
+          </Button>
+        </div>
+
+        <!-- Empty state when dates exist but no agenda -->
+        <div v-else class="text-center py-12">
+          <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Icon name="heroicons:calendar-days" class="w-10 h-10 text-gray-400" />
+          </div>
+          <h3 class="text-xl font-semibold text-gray-800 mb-2">Ready to Create Agenda</h3>
+          <p class="text-gray-600 mb-6">Your event dates are set. Start adding agenda items using the form on the right.</p>
         </div>
       </div>
 
@@ -387,7 +403,7 @@ const eventEndDate = ref(null)
 // Computed property for organizing agenda items by days with dynamic labels
 const agendaDays = computed(() => {
   if (!eventStartDate.value || !eventEndDate.value) {
-    return [{ date: new Date(), items: agendaItems.value, dayNumber: 1, label: 'Day 1' }]
+    return []
   }
 
   const startDate = new Date(eventStartDate.value)
@@ -441,7 +457,7 @@ const agendaDays = computed(() => {
     })
   }
   
-  return days.length > 0 ? days : [{ date: new Date(), items: [], dayNumber: 1, label: 'Day 1' }]
+  return days
 })
 
 // Computed property for days that have agenda items - show all days from event range
@@ -489,10 +505,19 @@ const getDayNumber = (date) => {
 
 // Handle date change to auto-determine day
 const handleDateChange = (selectedDate) => {
-  if (!selectedDate || !eventStartDate.value) return
+  if (!selectedDate || !eventStartDate.value) {
+    return
+  }
+
+  // toast.add({
+  //   severity: 'warn',
+  //   summary: 'Invalid Date',
+  //   detail: 'Please select a valid date within the event range.',
+  //   life: 3000
+  // });
   
   const dayNumber = getDayNumber(selectedDate)
-  
+
   // Switch to the appropriate tab - ensure Day 1 is always index 0
   const targetTabIndex = Math.max(0, dayNumber - 1)
   
@@ -574,20 +599,55 @@ const resetForm = () => {
 
 // Populate form for editing
 const editAgenda = (agenda) => {
-  eventForm.value = {
-    date: new Date(agenda.date), // Ensure date is a Date object for Calendar
-    time_start: agenda.time_start,
-    time_end: agenda.time_end,
-    title: agenda.title,
-    venu: agenda.venu,
-    room_no: agenda.room_no,
-    description: agenda.description,
-    speakers: agenda.speakers?.length ? [...agenda.speakers] : [{ name: null, about: null }],
-  };
-  isEditMode.value = true;
-  editingAgendaId.value = agenda.id;
-  clearErrors()
-  validationErrors.value = []
+  try {
+    if (!agenda || !agenda.id) {
+      toast.add({
+        severity: 'error',
+        summary: 'Edit Error',
+        detail: 'Invalid agenda item selected for editing.',
+        life: 3000
+      })
+      return
+    }
+
+    eventForm.value = {
+      date: agenda.date ? new Date(agenda.date) : null, // Ensure date is a Date object for Calendar
+      time_start: agenda.time_start || null,
+      time_end: agenda.time_end || null,
+      title: agenda.title || '',
+      venu: agenda.venu || '',
+      room_no: agenda.room_no || '',
+      description: agenda.description || '',
+      speakers: agenda.speakers?.length ? [...agenda.speakers] : [{ name: null, about: null }],
+    };
+    isEditMode.value = true;
+    editingAgendaId.value = agenda.id;
+    clearErrors()
+    validationErrors.value = []
+    
+    toast.add({
+      severity: 'info',
+      summary: 'Edit Mode',
+      detail: `Editing agenda: ${agenda.title || 'Untitled Session'}`,
+      life: 2000
+    })
+  } catch (error) {
+    console.error('Error editing agenda:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Edit Error',
+      detail: 'Failed to load agenda item for editing. Please try again.',
+      life: 4000
+    })
+  }
+};
+
+const formatDateLocal = (date) => {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 // Handle form submission (create or update)
@@ -607,7 +667,7 @@ const createOrUpdateAgenda = async () => {
   try {
     // Prepare agenda data with proper format and validation
     const agendaData = {
-      date: eventForm.value.date ? new Date(eventForm.value.date).toISOString().split('T')[0] : null,
+      date: eventForm.value.date ? formatDateLocal(eventForm.value.date) : null,
       time_start: eventForm.value.time_start,
       time_end: eventForm.value.time_end,
       title: eventForm.value.title?.trim(),
@@ -901,6 +961,26 @@ const saveAgenda = async () => {
   }
 }
 
+// Generate initial tabs when user clicks start
+const generateInitialTabs = () => {
+  if (!eventStartDate.value || !eventEndDate.value) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Event Dates Required',
+      detail: 'Please set event start and end dates in Basic Info first.',
+      life: 4000
+    })
+    return
+  }
+  
+  toast.add({
+    severity: 'success',
+    summary: 'Agenda Days Generated',
+    detail: `Generated ${agendaDays.value.length} day(s) based on your event dates. You can now add agenda items.`,
+    life: 4000
+  })
+}
+
 onMounted(async () => {
   // Get event data from store or props
   const eventStore = useEventStore()
@@ -938,6 +1018,8 @@ onMounted(async () => {
       life: 3000
     })
   }
+
+  console.log('Agenda items loaded:', agendaItems.value)
 
   // Add event listeners for agenda saving and tab switching
   window.addEventListener('saveAgenda', saveAgenda)

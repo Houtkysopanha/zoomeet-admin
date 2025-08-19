@@ -177,7 +177,7 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits, ref, computed } from 'vue'
+import { ref, computed } from 'vue'
 import Sidebar from 'primevue/sidebar'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'

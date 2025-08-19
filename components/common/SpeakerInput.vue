@@ -34,7 +34,6 @@
 
 <script setup>
 import InputText from 'primevue/inputtext';
-import { defineProps, defineEmits } from 'vue';
 
 const props = defineProps({
   speaker: {

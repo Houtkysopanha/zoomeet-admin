@@ -23,6 +23,17 @@ export default defineNuxtConfig({
     '@nuxt/icon',
     '@pinia/nuxt'
   ],
+  primevue: {
+    options: {
+      ripple: true
+    },
+    components: {
+      include: ['Toast', 'Badge', 'DataTable', 'Column', 'ColumnGroup', 'Row', 'TabMenu', 'InputText', 'Dropdown', 'Textarea', 'Calendar', 'Sidebar', 'Divider', 'Button', 'InputNumber', 'Dialog', 'Avatar', 'ProgressSpinner', 'TabView', 'TabPanel', 'ConfirmPopup']
+    },
+    directives: {
+      include: ['Badge', 'Tooltip']
+    }
+  },
   imports: {
     autoImport: true
   },
