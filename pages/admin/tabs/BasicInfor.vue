@@ -425,7 +425,7 @@ const eventId = computed(() => eventCreationState?.eventId?.value || null)
 
 // Computed URL based on slug
 const generatedUrl = computed(() => {
-  return `https://eticket.asia/e/${formData.eventSlug}`
+  return `https://etickets.asia/${formData.eventSlug}`
 })
 
 // Load categories and data on mount
