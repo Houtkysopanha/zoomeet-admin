@@ -218,13 +218,6 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
           tabData[tabKey].endDate &&
           tabData[tabKey].location
         )
-      }
-      
-      console.log(`💾 Tab ${tabIndex} (${tabKey}) data saved:`, {
-        dataKeys: Object.keys(data),
-        isComplete: tabData[tabKey].isComplete,
-        lastSaved: tabData[tabKey].lastSaved
-      })
     }
   }
 
@@ -543,7 +536,6 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
     const tabKey = tabKeys[tabIndex]
     
     if (tabKey && tabData[tabKey]) {
-      console.log(`🧹 Clearing tab ${tabIndex} (${tabKey}) data${eventId ? ` for event ${eventId}` : ''}`)
       
       // Reset tab data based on tab type
       switch (tabIndex) {
@@ -625,13 +617,13 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       // Remove from completed tabs
       completedTabs.value.delete(tabIndex)
       
-      console.log(`✅ Tab ${tabIndex} (${tabKey}) data cleared${eventId ? ` for event ${eventId}` : ''}`)
+
     }
   }
 
   // Function to clear all tab data for event switching
   function clearAllTabDataForEventSwitch(newEventId = null) {
-    console.log(`🧹 Clearing all tab data for event switch${newEventId ? ` to event ${newEventId}` : ''}`)
+   
     
     // Clear all tabs
     for (let i = 0; i < 5; i++) {
@@ -641,7 +633,6 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
     // Reset active tab to basic info
     activeTab.value = 0
     
-    console.log(`✅ All tab data cleared for event switch`)
   }
 
   // Function to validate event context for data operations
@@ -654,7 +645,6 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
     // Check if tab data belongs to the current event
     const tabEventId = tabData[tabKey].eventId
     if (tabEventId && eventId && tabEventId !== eventId) {
-      console.warn(`⚠️ Event context mismatch for tab ${tabIndex}: expected ${eventId}, found ${tabEventId}`)
       return false
     }
     
@@ -696,4 +686,5 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
     clearAllTabDataForEventSwitch,
     validateEventContext,
   }
+    }
 })

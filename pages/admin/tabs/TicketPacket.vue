@@ -74,7 +74,6 @@ import { useEventTabsStore } from '~/composables/useEventTabs'
 
 const loading = ref(false)
 const toast = useToast()
-const hasExistingTickets = ref(false)
 
 // Event data
 const currentEventId = ref(null)
@@ -86,6 +85,28 @@ const eventData = ref(null)
 // Track if there are new tickets added
 const hasNewTickets = computed(() => {
   return tickets.value.some(ticket => !ticket.ticket_type_id)
+})
+
+// Track if there are existing tickets being updated
+const hasExistingTickets = computed(() => {
+  return tickets.value.some(ticket => ticket.ticket_type_id)
+})
+
+// Track completion state like Basic Info
+const hasCompletedFirstDraft = ref(false)
+
+// Determine if this is first draft or save changes mode
+const isFirstDraft = computed(() => {
+  return !hasCompletedFirstDraft.value && !hasExistingTickets.value
+})
+
+// Determine button text like Basic Info
+const getTicketButtonText = computed(() => {
+  if (isFirstDraft.value) {
+    return 'Save Draft'
+  } else {
+    return 'Save Changes'
+  }
 })
 
 // Enhanced computed property to determine if we should show edit mode UI
@@ -229,24 +250,36 @@ const handleSaveCurrentTab = (event) => {
     return
   }
   
-  // Save current ticket data to tab persistence without API call
+  // Save current ticket data to tab persistence without API call - PRESERVE ticket_type_id
   const tabData = {
-    ticketTypes: tickets.value.map(ticket => ({
-      id: ticket.id,
-      ticket_type_id: ticket.ticket_type_id,
-      name: ticket.name || '',
-      description: ticket.description || ticket.tag || '',
-      tag: ticket.tag || ticket.description || '',
-      price: ticket.price || 0,
-      quantity: ticket.quantity || 1,
-      sort_order: ticket.sort_order,
-      is_active: ticket.is_active,
-      eventId: currentEventId.value // Ensure event ID is included
-    })),
+    ticketTypes: tickets.value.map(ticket => {
+      const savedTicket = {
+        id: ticket.id,
+        ticket_type_id: ticket.ticket_type_id, // CRITICAL: Must preserve for updates
+        name: ticket.name || '',
+        description: ticket.description || ticket.tag || '',
+        tag: ticket.tag || ticket.description || '',
+        price: ticket.price || 0,
+        quantity: ticket.quantity || 1,
+        sort_order: ticket.sort_order,
+        is_active: ticket.is_active,
+        eventId: currentEventId.value // Ensure event ID is included
+      }
+      
+      // Debug log to ensure ticket_type_id is preserved
+      if (ticket.ticket_type_id) {
+        console.log(`💾 Saving ticket "${ticket.name}" with ticket_type_id: ${ticket.ticket_type_id}`)
+      } else {
+        console.log(`💾 Saving new ticket "${ticket.name}" without ticket_type_id (will be created)`)
+      }
+      
+      return savedTicket
+    }),
     lastSaved: new Date().toISOString(),
     hasTickets: tickets.value.length > 0,
     eventId: currentEventId.value,
     isEditMode: isEditMode.value,
+    hasCompletedFirstDraft: hasCompletedFirstDraft.value, // Preserve completion state
     isComplete: tickets.value.length > 0 && tickets.value.every(t =>
       (t.name && t.name.trim()) &&
       (t.description && t.description.trim()) &&
@@ -386,6 +419,7 @@ const saveTicketsInternal = async (mode = 'draft') => {
     // Get existing tickets from API to determine update vs create strategy
     let existingTickets = []
     try {
+      console.log('🔍 Fetching existing tickets from API for event:', currentEventId.value)
       const existingTicketsResponse = await getEventTicketTypes(currentEventId.value)
       
       // Handle different response structures
@@ -396,7 +430,10 @@ const saveTicketsInternal = async (mode = 'draft') => {
       } else {
         existingTickets = []
       }
+      
+      console.log('📋 Found existing tickets in API:', existingTickets.map(t => ({ id: t.id, name: t.name })))
     } catch (error) {
+      console.warn('⚠️ Failed to fetch existing tickets from API:', error)
       existingTickets = []
     }
 
@@ -404,6 +441,13 @@ const saveTicketsInternal = async (mode = 'draft') => {
     if (!Array.isArray(existingTickets)) {
       existingTickets = []
     }
+
+    console.log('🎫 Current local tickets to process:', tickets.value.map(t => ({
+      id: t.id,
+      ticket_type_id: t.ticket_type_id,
+      name: t.name,
+      hasApiId: !!t.ticket_type_id
+    })))
 
     const ticketUpdates = []
     const updatePromises = []
@@ -430,8 +474,22 @@ const saveTicketsInternal = async (mode = 'draft') => {
         throw new Error(errors.join('\n'))
       }
 
+      // Enhanced ticket matching logic with debugging
+      console.log(`🔍 Processing ticket ${ticketNumber}:`, {
+        ticketId: ticket.id,
+        ticketTypeId: ticket.ticket_type_id,
+        name: name,
+        hasTicketTypeId: !!ticket.ticket_type_id
+      })
+      
       // Check if this ticket exists in API (by ID first, then by name)
-      const existingTicket = existingTickets.find(et => et.id === ticket.ticket_type_id)
+      const existingTicket = existingTickets.find(et => {
+        const match = et.id === ticket.ticket_type_id
+        console.log(`🔍 Checking existing ticket ${et.id} vs ${ticket.ticket_type_id}:`, match)
+        return match
+      })
+      
+      console.log(`🔍 Existing ticket found for "${name}":`, !!existingTicket, existingTicket?.id)
       
       const ticketData = {
         name: name,
@@ -442,43 +500,66 @@ const saveTicketsInternal = async (mode = 'draft') => {
         is_active: 1
       }
 
-      if (existingTicket) {
-        // UPDATE existing ticket using PUT method - only match by ID to avoid name conflicts
+      // Determine if this should be an update or create operation
+      const shouldUpdate = existingTicket && ticket.ticket_type_id
+      const shouldCreate = !ticket.ticket_type_id || !existingTicket
+
+      console.log(`🎯 Operation decision for "${name}":`, {
+        shouldUpdate,
+        shouldCreate,
+        hasTicketTypeId: !!ticket.ticket_type_id,
+        hasExistingTicket: !!existingTicket
+      })
+
+      if (shouldUpdate) {
+        // UPDATE existing ticket using PUT method
+        console.log(`🔄 UPDATING ticket "${name}" with ID ${existingTicket.id}`)
         const updatePromise = updateTicketType(currentEventId.value, existingTicket.id, ticketData)
           .then(() => {
+            console.log(`✅ Successfully updated ticket "${name}"`)
             ticketUpdates.push(`Updated: ${name}`)
-            // Update local ticket with the API ID
+            // Ensure local ticket maintains the API ID
             ticket.ticket_type_id = existingTicket.id
           })
           .catch((error) => {
+            console.error(`❌ Failed to update ticket "${name}":`, error)
             ticketUpdates.push(`Failed to update: ${name}`)
             throw error
           })
         
         updatePromises.push(updatePromise)
+      } else if (shouldCreate) {
+        // CREATE new ticket using POST method
+        console.log(`🆕 CREATING new ticket "${name}"`)
+        const createPromise = createTicketTypes(currentEventId.value, [ticketData])
+          .then((response) => {
+            console.log(`✅ Successfully created ticket "${name}"`)
+            ticketUpdates.push(`Created: ${name}`)
+            // Update local ticket with the new API ID if available
+            if (response?.data?.[0]?.id) {
+              ticket.ticket_type_id = response.data[0].id
+              console.log(`🔗 Assigned new ID ${response.data[0].id} to ticket "${name}"`)
+            }
+          })
+          .catch((error) => {
+            console.error(`❌ Failed to create ticket "${name}":`, error)
+            ticketUpdates.push(`Failed to create: ${name}`)
+            throw error
+          })
+        
+        updatePromises.push(createPromise)
       } else {
-        // CREATE new ticket using POST method only if it doesn't have a ticket_type_id
-        if (!ticket.ticket_type_id) {
-          const createPromise = createTicketTypes(currentEventId.value, [ticketData])
-            .then((response) => {
-              ticketUpdates.push(`Created: ${name}`)
-              // Update local ticket with the new API ID if available
-              if (response?.data?.[0]?.id) {
-                ticket.ticket_type_id = response.data[0].id
-              }
-            })
-            .catch((error) => {
-              ticketUpdates.push(`Failed to create: ${name}`)
-              throw error
-            })
-          
-          updatePromises.push(createPromise)
-        }
+        console.log(`⚠️ No operation needed for ticket "${name}" - skipping`)
       }
     }
 
     // Wait for all operations to complete
+    console.log(`⏳ Waiting for ${updatePromises.length} ticket operations to complete...`)
     await Promise.all(updatePromises)
+    console.log(`✅ All ticket operations completed`)
+
+      // Log the results for debugging
+      console.log('🎫 Ticket operation results:', ticketUpdates)
 
       // Update stores with new ticket data
       
@@ -496,38 +577,75 @@ const saveTicketsInternal = async (mode = 'draft') => {
         eventStore.currentEvent.ticket_types = updatedTickets
       }
 
-      // Update tab store and mark as complete
+      // Update tab store and mark as complete - PRESERVE ticket_type_id
       const tabData = {
-        ticketTypes: tickets.value,
+        ticketTypes: tickets.value.map(ticket => ({
+          id: ticket.id,
+          ticket_type_id: ticket.ticket_type_id, // CRITICAL: Preserve for future updates
+          name: ticket.name || '',
+          description: ticket.description || ticket.tag || '',
+          tag: ticket.tag || ticket.description || '',
+          price: ticket.price || 0,
+          quantity: ticket.quantity || 1,
+          sort_order: ticket.sort_order,
+          is_active: ticket.is_active,
+          eventId: currentEventId.value
+        })),
         lastSaved: new Date().toISOString(),
         hasTickets: true,
         eventId: currentEventId.value,
+        hasCompletedFirstDraft: hasCompletedFirstDraft.value, // Preserve completion state
         isComplete: true,
         validTickets: tickets.value.length > 0
       }
+      
+      // Debug log to ensure ticket_type_id is preserved after save
+      tickets.value.forEach((ticket, index) => {
+        console.log(`💾 After save - Ticket "${ticket.name}" ticket_type_id: ${ticket.ticket_type_id}`)
+      })
+      
       tabsStore.markTabComplete(2)
       tabsStore.markTabSaved(2)
       tabsStore.saveTabData(2, tabData)
 
-      // Show detailed success message with counts
+      // Show detailed success message with counts - Enhanced like Basic Info
       const updateCount = ticketUpdates.filter(update => update.includes('Updated:')).length
       const createCount = ticketUpdates.filter(update => update.includes('Created:')).length
+      const failedCount = ticketUpdates.filter(update => update.includes('Failed')).length
+      
+      console.log('📊 Operation counts:', { updateCount, createCount, failedCount, total: ticketUpdates.length })
       
       let summaryMessage = 'Tickets Saved Successfully! 🎫'
       let detailMessage = ''
       
       if (updateCount > 0 && createCount > 0) {
+        // Mixed operation - like Basic Info after first draft
         summaryMessage = 'Tickets have changed and created more! 🎫'
         detailMessage = `Successfully updated ${updateCount} existing ticket(s) and created ${createCount} new ticket(s). Your event now has ${tickets.value.length} total tickets.`
       } else if (updateCount > 0) {
+        // Only updates - like Basic Info save changes
         summaryMessage = 'Success for change ticket! 🎫'
         detailMessage = `Successfully updated ${updateCount} existing ticket(s)`
       } else if (createCount > 0) {
-        summaryMessage = `Created ${createCount} ticket${createCount > 1 ? 's' : ''}! 🎫`
-        detailMessage = `Successfully created ${createCount} new ticket(s)`
+        // Only creates - like Basic Info first draft
+        if (isFirstDraft.value) {
+          summaryMessage = 'Tickets Created! 🎫'
+          detailMessage = `Successfully created ${createCount} ticket(s). You can now add more tickets or edit existing ones.`
+        } else {
+          summaryMessage = `Created ${createCount} additional ticket${createCount > 1 ? 's' : ''}! 🎫`
+          detailMessage = `Successfully created ${createCount} new ticket(s)`
+        }
+      } else if (ticketUpdates.length > 0) {
+        // Some operations occurred but no clear success messages
+        summaryMessage = 'Tickets Processed! 🎫'
+        detailMessage = 'All ticket operations completed successfully'
       } else {
+        // Fallback message
+        summaryMessage = 'Tickets Saved! 🎫'
         detailMessage = 'All tickets processed successfully'
       }
+      
+      console.log('🎉 Showing success message:', { summaryMessage, detailMessage })
       
       toast.add({
         severity: 'success',
@@ -535,6 +653,22 @@ const saveTicketsInternal = async (mode = 'draft') => {
         detail: detailMessage,
         life: 5000
       })
+      
+      // Mark as completed after first successful save (like Basic Info)
+      if (isFirstDraft.value) {
+        hasCompletedFirstDraft.value = true
+        
+        // Save completion state to tab store for main page button
+        const tabsStore = useEventTabsStore()
+        const currentTabData = tabsStore.getTabData(2)
+        tabsStore.saveTabData(2, {
+          ...currentTabData,
+          hasCompletedFirstDraft: true,
+          firstDraftCompletedAt: new Date().toISOString()
+        })
+        
+        console.log('🎫 First draft completed, switching to "Save Changes" mode')
+      }
       
       // Mark ticket tab as completed in parent
       const eventCreationState = inject('eventCreationState')
@@ -606,7 +740,7 @@ const loadExistingTickets = async () => {
         tickets.value = existingTickets.map((ticket, index) => {
           const loadedTicket = {
             id: ticket.id || Date.now() + Math.random() + index,
-            ticket_type_id: ticket.id, // Store original ID for updates
+            ticket_type_id: ticket.id, // Store original ID for updates - CRITICAL for update detection
             name: ticket.name || '',
             description: ticket.description || ticket.tag || '',
             tag: ticket.tag || ticket.description || '', // Ensure both fields
@@ -618,15 +752,21 @@ const loadExistingTickets = async () => {
             eventId: currentEventId.value // Add event ID for validation
           }
           
-          console.log('📝 Loaded ticket from API:', {
+          console.log('📝 Loaded ticket from API for updates:', {
             index,
             eventId: currentEventId.value,
-            original: ticket,
-            loaded: loadedTicket
+            apiId: ticket.id,
+            ticketTypeId: loadedTicket.ticket_type_id,
+            name: loadedTicket.name,
+            canUpdate: !!loadedTicket.ticket_type_id
           })
           
           return loadedTicket
         })
+        
+        // Mark that we have existing tickets that can be updated
+        hasCompletedFirstDraft.value = true
+        console.log('🎫 Existing tickets loaded - marking first draft as completed for "Save Changes" mode')
         
         hasExistingTickets.value = true
         isEditMode.value = true
@@ -672,12 +812,24 @@ watch(tickets, (newTickets) => {
     console.log('🎫 Tickets changed, saving to tab store:', newTickets.length)
     const tabsStore = useEventTabsStore()
     
-    // Save current ticket data immediately
+    // Save current ticket data immediately - PRESERVE ticket_type_id
     const tabData = {
-      ticketTypes: newTickets,
+      ticketTypes: newTickets.map(ticket => ({
+        id: ticket.id,
+        ticket_type_id: ticket.ticket_type_id, // CRITICAL: Preserve for updates
+        name: ticket.name || '',
+        description: ticket.description || ticket.tag || '',
+        tag: ticket.tag || ticket.description || '',
+        price: ticket.price || 0,
+        quantity: ticket.quantity || 1,
+        sort_order: ticket.sort_order,
+        is_active: ticket.is_active,
+        eventId: currentEventId.value
+      })),
       lastSaved: new Date().toISOString(),
       hasTickets: newTickets.length > 0,
       eventId: currentEventId.value,
+      hasCompletedFirstDraft: hasCompletedFirstDraft.value, // Preserve completion state
       isComplete: newTickets.length > 0 && newTickets.every(t =>
         (t.name && t.name.trim()) &&
         (t.description && t.description.trim()) &&
@@ -686,6 +838,15 @@ watch(tickets, (newTickets) => {
       ),
       hasUnsavedChanges: true
     }
+    
+    // Debug log to track ticket_type_id preservation
+    newTickets.forEach((ticket, index) => {
+      if (ticket.ticket_type_id) {
+        console.log(`🔗 Watch: Ticket "${ticket.name}" has ticket_type_id: ${ticket.ticket_type_id}`)
+      } else {
+        console.log(`🆕 Watch: Ticket "${ticket.name}" is new (no ticket_type_id)`)
+      }
+    })
     
     tabsStore.saveTabData(2, tabData)
     tabsStore.markTabModified(2)
@@ -748,12 +909,18 @@ onMounted(async () => {
     const ticketTabData = tabsStore.getTabData(2)
     let ticketsRestored = false
     
+    // Check if first draft was already completed (restore completion state)
+    if (ticketTabData.hasCompletedFirstDraft) {
+      hasCompletedFirstDraft.value = true
+      console.log('🎫 Restored first draft completion state - button will show "Save Changes"')
+    }
+    
     // Priority 1: Tab persistence (user's current work)
     if (ticketTabData.ticketTypes && ticketTabData.ticketTypes.length > 0) {
       tickets.value = ticketTabData.ticketTypes.map((ticket, index) => {
         const restoredTicket = {
           id: ticket.id || Date.now() + Math.random() + index,
-          ticket_type_id: ticket.ticket_type_id || ticket.id,
+          ticket_type_id: ticket.ticket_type_id || ticket.id, // CRITICAL: Preserve ticket_type_id for updates
           name: ticket.name || '',
           description: ticket.description || ticket.tag || '',
           tag: ticket.tag || ticket.description || '', // Ensure both fields
@@ -764,18 +931,32 @@ onMounted(async () => {
           isValidating: false
         }
         
+        console.log('🔄 Restored ticket from tab persistence:', {
+          index,
+          ticketTypeId: restoredTicket.ticket_type_id,
+          name: restoredTicket.name,
+          canUpdate: !!restoredTicket.ticket_type_id
+        })
+        
         return restoredTicket
       })
       hasExistingTickets.value = true
       ticketsRestored = true
       tabsStore.markTabComplete(2)
+      
+      // If we have tickets with ticket_type_id, mark first draft as completed
+      const hasTicketsWithIds = tickets.value.some(t => t.ticket_type_id)
+      if (hasTicketsWithIds) {
+        hasCompletedFirstDraft.value = true
+        console.log('🎫 Restored tickets with IDs - marking first draft as completed')
+      }
     }
     // Priority 2: Event store (loaded from API)
     else if (eventStore.currentEvent.ticket_types?.length > 0) {
       tickets.value = eventStore.currentEvent.ticket_types.map((ticket, index) => {
         const restoredTicket = {
           id: ticket.id || Date.now() + Math.random() + index,
-          ticket_type_id: ticket.id,
+          ticket_type_id: ticket.id, // CRITICAL: Store API ID for updates
           name: ticket.name || '',
           description: ticket.description || ticket.tag || '',
           tag: ticket.tag || ticket.description || '', // Ensure both fields
@@ -786,10 +967,22 @@ onMounted(async () => {
           isValidating: false
         }
         
+        console.log('🏪 Restored ticket from event store:', {
+          index,
+          apiId: ticket.id,
+          ticketTypeId: restoredTicket.ticket_type_id,
+          name: restoredTicket.name,
+          canUpdate: !!restoredTicket.ticket_type_id
+        })
+        
         return restoredTicket
       })
       hasExistingTickets.value = true
       ticketsRestored = true
+      
+      // Mark first draft as completed since these are existing tickets
+      hasCompletedFirstDraft.value = true
+      console.log('🎫 Event store tickets loaded - marking first draft as completed')
       
       // Save to tab persistence for future use
       handleSaveCurrentTab()

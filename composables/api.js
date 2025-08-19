@@ -940,10 +940,10 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
       ticketTypeId,
       data: normalizedData
     })
-    
+    console.log(eventId, ticketTypeId)
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types/${ticketTypeId}`, {
       method: 'PUT',
-      body: JSON,
+      body: normalizedData,
       headers: createAuthHeaders() // Use JSON Content-Type
     })
 
