@@ -69,9 +69,10 @@
         <UploadPhoto
           label="Chair Profile Image (Optional)"
           :multiple="false"
-          :existing-image="chairData.avatar"
+          :existing-image-url="getImageSrc()"
           @file-selected="handleImageSelected"
           @file-removed="handleImageRemoved"
+          @existing-image-removed="handleImageRemoved"
         />
         <!-- Display current image if editing -->
         <div v-if="(chairData.avatar || chairData.profile_image) && isEdit" class="mt-3">

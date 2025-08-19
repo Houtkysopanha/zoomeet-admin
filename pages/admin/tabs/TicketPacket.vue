@@ -517,10 +517,10 @@ const saveTicketsInternal = async (mode = 'draft') => {
       let detailMessage = ''
       
       if (updateCount > 0 && createCount > 0) {
-        summaryMessage = `Updated ${updateCount}, Created ${createCount} tickets! 🎫`
-        detailMessage = `Successfully updated ${updateCount} existing ticket(s) and created ${createCount} new ticket(s)`
+        summaryMessage = 'Tickets have changed and created more! 🎫'
+        detailMessage = `Successfully updated ${updateCount} existing ticket(s) and created ${createCount} new ticket(s). Your event now has ${tickets.value.length} total tickets.`
       } else if (updateCount > 0) {
-        summaryMessage = `Updated ${updateCount} ticket${updateCount > 1 ? 's' : ''}! 🎫`
+        summaryMessage = 'Success for change ticket! 🎫'
         detailMessage = `Successfully updated ${updateCount} existing ticket(s)`
       } else if (createCount > 0) {
         summaryMessage = `Created ${createCount} ticket${createCount > 1 ? 's' : ''}! 🎫`
