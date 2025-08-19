@@ -1,5 +1,4 @@
 // Auto-imported by Nuxt: useRuntimeConfig, $fetch
-import { useProductionErrorHandler } from './useProductionErrorHandler'
 
 // Get auth token using proper Nuxt 3 pattern with enhanced error handling
 const getAuthToken = () => {
@@ -100,7 +99,6 @@ const normalizeApiUrl = (baseUrl, endpoint) => {
 export async function login(identifier, password) {
   const config = useRuntimeConfig()
   const API_BASE_URL = config.public.apiBaseUrl
-  const { handleApiError, withRetry } = useProductionErrorHandler()
 
   if (!API_BASE_URL) {
     throw new Error(`API base URL is not configured for ${process.env.NODE_ENV} environment.`)
@@ -128,10 +126,8 @@ export async function login(identifier, password) {
     return response
   } catch (error) {
     // Use centralized error handling
-    const errorInfo = handleApiError(error, 'login', 'authenticate user')
     
     // Customize login-specific error messages
-    let userMessage = errorInfo.userMessage
     
     if (error.status === 401) {
       userMessage = 'Invalid email or password. Please try again.'
@@ -150,7 +146,6 @@ export async function login(identifier, password) {
 export async function fetchEvents() {
   const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
-  const { handleApiError, withRetry } = useProductionErrorHandler()
 
   if (!API_ADMIN_BASE_URL) {
     return { status: 500, data: { success: false, data: [], message: 'API admin base URL is not configured.' } }
@@ -235,7 +230,6 @@ export async function fetchEvents() {
     }
     
     // Use centralized error handling
-    const errorInfo = handleApiError(error, 'events', 'load events')
     
     return {
       status: error?.status || 500,
