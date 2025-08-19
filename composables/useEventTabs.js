@@ -220,11 +220,11 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
         )
       }
       
-      console.log(`💾 Tab ${tabIndex} (${tabKey}) data saved:`, {
-        dataKeys: Object.keys(data),
-        isComplete: tabData[tabKey].isComplete,
-        lastSaved: tabData[tabKey].lastSaved
-      })
+      // console.log(`💾 Tab ${tabIndex} (${tabKey}) data saved:`, {
+      //   dataKeys: Object.keys(data),
+      //   isComplete: tabData[tabKey].isComplete,
+      //   lastSaved: tabData[tabKey].lastSaved
+      // })
     }
   }
 
@@ -315,17 +315,16 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
     }
     
     // Clear all existing tab data first to prevent data mixing
-    console.log('🧹 Clearing existing tab data before loading new event data')
     resetTabs()
     
-    console.log('📥 Loading event data into tabs with CRUD support:', {
-      id: eventData.id,
-      name: eventData.name,
-      hasTickets: !!eventData.ticket_types?.length,
-      hasAgendas: !!eventData.agendas?.length,
-      isPublished: eventData.is_published,
-      status: eventData.status
-    })
+    // console.log('📥 Loading event data into tabs with CRUD support:', {
+    //   id: eventData.id,
+    //   name: eventData.name,
+    //   hasTickets: !!eventData.ticket_types?.length,
+    //   hasAgendas: !!eventData.agendas?.length,
+    //   isPublished: eventData.is_published,
+    //   status: eventData.status
+    // })
     
     const loadTimestamp = new Date().toISOString()
     
@@ -471,14 +470,14 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       tabModified.value[key] = false
     })
     
-    console.log('✅ Event data loaded into tab persistence with CRUD support:', {
-      completedTabs: Array.from(completedTabs.value),
-      basicInfoComplete: tabData.basicInfo.isComplete,
-      ticketsCount: tabData.tickets.ticketTypes.length,
-      agendasCount: tabData.agenda.sessions.length,
-      eventId: eventData.id,
-      isPublished: tabData.basicInfo.isPublished
-    })
+    // console.log('✅ Event data loaded into tab persistence with CRUD support:', {
+    //   completedTabs: Array.from(completedTabs.value),
+    //   basicInfoComplete: tabData.basicInfo.isComplete,
+    //   ticketsCount: tabData.tickets.ticketTypes.length,
+    //   agendasCount: tabData.agenda.sessions.length,
+    //   eventId: eventData.id,
+    //   isPublished: tabData.basicInfo.isPublished
+    // })
   }
 
   // Enhanced function to get event data for API operations
@@ -543,7 +542,7 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
     const tabKey = tabKeys[tabIndex]
     
     if (tabKey && tabData[tabKey]) {
-      console.log(`🧹 Clearing tab ${tabIndex} (${tabKey}) data${eventId ? ` for event ${eventId}` : ''}`)
+      // console.log(`🧹 Clearing tab ${tabIndex} (${tabKey}) data${eventId ? ` for event ${eventId}` : ''}`)
       
       // Reset tab data based on tab type
       switch (tabIndex) {
@@ -625,13 +624,13 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       // Remove from completed tabs
       completedTabs.value.delete(tabIndex)
       
-      console.log(`✅ Tab ${tabIndex} (${tabKey}) data cleared${eventId ? ` for event ${eventId}` : ''}`)
+      // console.log(`✅ Tab ${tabIndex} (${tabKey}) data cleared${eventId ? ` for event ${eventId}` : ''}`)
     }
   }
 
   // Function to clear all tab data for event switching
   function clearAllTabDataForEventSwitch(newEventId = null) {
-    console.log(`🧹 Clearing all tab data for event switch${newEventId ? ` to event ${newEventId}` : ''}`)
+    // console.log(`🧹 Clearing all tab data for event switch${newEventId ? ` to event ${newEventId}` : ''}`)
     
     // Clear all tabs
     for (let i = 0; i < 5; i++) {
@@ -640,8 +639,6 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
     
     // Reset active tab to basic info
     activeTab.value = 0
-    
-    console.log(`✅ All tab data cleared for event switch`)
   }
 
   // Function to validate event context for data operations

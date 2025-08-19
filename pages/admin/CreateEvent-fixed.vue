@@ -142,7 +142,6 @@
         </div>
       </div>
     </div>
-
     <div class="min-h-0">
       <!-- Enhanced Tab Menu -->
       <div class="mb-4 lg:mb-6 w-full">
@@ -168,11 +167,11 @@
             <span class="sm:hidden">{{ item.shortLabel || item.label }}</span>
 
             <!-- Lock icon for disabled tabs -->
-            <Icon
+            <!-- <Icon
               v-if="!isTabAccessible(index)"
               name="heroicons:lock-closed"
               class="absolute -top-1 -right-1 text-xs bg-gray-300 text-gray-600 rounded-full p-1 w-5 h-5"
-            />
+            /> -->
           </button>
         </div>
       </div>
@@ -379,7 +378,6 @@ onMounted(async () => {
       isEditMode.value = true
 
       // Force load fresh data from API
-      console.log('🔄 Force loading fresh event data from API...')
       await eventStore.loadEventById(queryEventId)
 
       if (eventStore.currentEvent && eventStore.currentEvent.id === queryEventId) {
@@ -535,14 +533,14 @@ const isTabAccessible = (index) => {
   if (index === 0) return true
   
   // All other tabs require Basic Info to be completed and saved first
-  if (!isBasicInfoCompleted.value || !eventId.value) {
-    return false
-  }
+  // if (!isBasicInfoCompleted.value || !eventId.value) {
+  //   return false
+  // }
   
   // Tab-specific accessibility rules with API availability check
   switch (index) {
     case 1: // Agenda tab - LOCKED (No API implementation yet)
-      return false
+      return true
       
     case 2: // Ticket Package tab - UNLOCKED (Has full API support)
       return true
@@ -575,9 +573,9 @@ const changeTab = async (index) => {
     if (isBasicInfoCompleted.value && eventId.value) {
       switch (index) {
         case 1: // Agenda
-          message = 'Agenda management is coming soon. This feature is currently under development.'
-          summary = 'Feature Coming Soon'
-          break
+          // message = 'Agenda management is coming soon. This feature is currently under development.'
+          // summary = 'Feature Coming Soon'
+          return
         case 3: // Breakout Rooms
           message = 'Breakout Room management is coming soon. This feature is currently under development.'
           summary = 'Feature Coming Soon'
@@ -588,7 +586,6 @@ const changeTab = async (index) => {
           break
       }
     }
-    
     toast.add({
       severity: 'warn',
       summary: summary,

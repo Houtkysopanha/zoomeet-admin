@@ -134,6 +134,7 @@ export async function fetchEvents() {
   const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
 
+
   if (!API_ADMIN_BASE_URL) {
     return { status: 500, data: { success: false, data: [], message: 'API admin base URL is not configured.' } }
   }
@@ -159,6 +160,8 @@ export async function fetchEvents() {
       method: 'GET',
       headers: headers,
     })
+
+    console.log(response)
 
     // Validate and log each event ID
     if (response && Array.isArray(response.data)) {
@@ -569,13 +572,13 @@ export async function createEvent(eventData, isDraft = true) {
       })
 
       // Only return success if we get a valid response
-      if (!response || typeof response !== 'object') {
-        return {
-          success: false,
-          message: 'Invalid response from server',
-          error: new Error('Invalid response format')
-        }
-      }
+      // if (!response || typeof response !== 'object') {
+      //   return {
+      //     success: false,
+      //     message: 'Invalid response from server',
+      //     error: new Error('Invalid response format')
+      //   }
+      // }
 
       
       // Return normalized response
@@ -809,15 +812,17 @@ export async function updateEvent(eventId, eventData) {
       },
     })
 
+          console.log(response)
+
     // Validate response
-    if (!response || typeof response !== 'object') {
-      console.error('❌ Invalid response format:', response)
-      return {
-        success: false,
-        message: 'Invalid response from server',
-        error: new Error('Invalid response format')
-      }
-    }
+    // if (!response || typeof response !== 'object') {
+    //   console.error('❌ Invalid response format:', response)
+    //   return {
+    //     success: false,
+    //     message: 'Invalid response from server',
+    //     error: new Error('Invalid response format')
+    //   }
+    // }
 
     // Return normalized success response
     return {

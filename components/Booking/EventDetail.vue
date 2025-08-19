@@ -300,7 +300,7 @@ const handleCompleteBooking = () => {
     paymentMethod: paymentMethod.value,
   }
   emit('complete-booking', bookingDetails)
-  console.log('Booking details:', bookingDetails)
+  // console.log('Booking details:', bookingDetails)
   // Optionally close sidebar after booking
   // visible.value = false;
 }

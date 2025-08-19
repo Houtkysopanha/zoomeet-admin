@@ -297,7 +297,7 @@ const completeOrder = () => {
       showQrPopup.value = true // Show QR popup only when KHQR is selected and Order Completed is clicked
     } else {
       selectedBooking.value.status = 'Success' // Change status to Success for Cash payment
-      console.log(`Order for booking ${selectedBooking.value.bookingId} completed with ${paymentMethod.value} payment at ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Phnom_Penh' })}`)
+      // console.log(`Order for booking ${selectedBooking.value.bookingId} completed with ${paymentMethod.value} payment at ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Phnom_Penh' })}`)
     }
   }
 }
@@ -306,7 +306,7 @@ const completeOrder = () => {
 const closeQrPopup = () => {
   if (selectedBooking.value && paymentMethod.value === 'khqr') {
     selectedBooking.value.status = 'Success' // Change status to Success after QR payment
-    console.log(`Order for booking ${selectedBooking.value.bookingId} completed with KHQR payment at ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Phnom_Penh' })}`)
+    // console.log(`Order for booking ${selectedBooking.value.bookingId} completed with KHQR payment at ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Phnom_Penh' })}`)
   }
   showQrPopup.value = false
 }

@@ -780,6 +780,7 @@ const handleSaveDraft = async () => {
       const { createEvent } = await import('@/composables/api')
       result = await createEvent(eventData)
     }
+    console.log(result)
     
     if (result && result.success !== false && (result.id || result.data?.id)) {
       // Handle both direct response and wrapped response
