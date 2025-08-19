@@ -1,7 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
-  devtools: { enabled: true },
+  devtools: { enabled: process.env.NODE_ENV === 'development' },
   css: [
     '~/assets/css/tailwind.css',
     'primevue/resources/themes/saga-blue/theme.css',
@@ -15,7 +15,7 @@ export default defineNuxtConfig({
     },
   },
   build: {
-    transpile: ['primevue']
+    transpile: ['primevue', 'primeicons']
   },
   modules: [
     'nuxt-primevue',
@@ -23,9 +23,22 @@ export default defineNuxtConfig({
     '@nuxt/icon',
     '@pinia/nuxt'
   ],
+  // Font optimization - disable in production to reduce bundle size
+  fonts: {
+    families: [
+      // Only load essential fonts
+      { name: 'Inter', provider: 'google' }
+    ],
+    // Disable font loading in production for Khmer support
+    defaults: {
+      weights: [400, 500, 600, 700],
+      styles: ['normal'],
+      subsets: process.env.NODE_ENV === 'production' ? ['latin'] : ['latin', 'latin-ext']
+    }
+  },
   primevue: {
     options: {
-      ripple: true
+      ripple: process.env.NODE_ENV === 'development' // Disable ripple in production for performance
     },
     components: {
       include: ['Toast', 'Badge', 'DataTable', 'Column', 'ColumnGroup', 'Row', 'TabMenu', 'InputText', 'Dropdown', 'Textarea', 'Calendar', 'Sidebar', 'Divider', 'Button', 'InputNumber', 'Dialog', 'Avatar', 'ProgressSpinner', 'TabView', 'TabPanel', 'ConfirmPopup']
@@ -39,11 +52,11 @@ export default defineNuxtConfig({
   },
   icon: {
     serverBundle: {
-      collections: ['heroicons', 'mdi', 'ep', 'fluent', 'icon-park-solid'] // include collections you actually use
+      collections: ['heroicons', 'mdi', 'ep', 'fluent', 'icon-park-solid']
     },
     clientBundle: {
       scan: true,
-      sizeLimitKb: 256
+      sizeLimitKb: process.env.NODE_ENV === 'production' ? 128 : 256 // Reduce icon bundle size in production
     }
   },
   // Enhanced app configuration
@@ -75,6 +88,10 @@ export default defineNuxtConfig({
     // Error handling is now done via pages/[...slug].vue
   },
   ssr: true,
+  // Production optimizations
+  experimental: {
+    payloadExtraction: false // Disable payload extraction for better performance
+  },
   // Runtime configuration
   runtimeConfig: {
     public: {
@@ -101,4 +118,26 @@ export default defineNuxtConfig({
     }
   }
   },
+  // Production performance optimizations
+  vite: {
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'primevue': ['primevue'],
+            'vue-vendor': ['vue', 'vue-router', '@vue/runtime-core'],
+            'utils': ['axios', 'pinia']
+          }
+        }
+      }
+    },
+    optimizeDeps: {
+      include: ['primevue', 'primeicons']
+    },
+    resolve: {
+      alias: {
+        'primeicons/primeicons.css': 'primeicons/primeicons.css'
+      }
+    }
+  }
 })

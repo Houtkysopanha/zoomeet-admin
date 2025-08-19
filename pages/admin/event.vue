@@ -498,6 +498,11 @@ const actionMenu = ref(null)
 const currentEvent = ref(null)
 const actionMenus = ref({})
 const toggleActionMenu = (event, data) => {
+  console.log('🎯 Action menu toggled for event:', {
+    eventId: data.id,
+    eventName: data.name,
+    timestamp: Date.now()
+  })
   currentEvent.value = data
   const menu = actionMenus.value[data.id]
 
@@ -753,8 +758,8 @@ const endEvent = (event) => {
   })
 }
 
-const removeEvent = async (event) => {
-  if (!event?.id) {
+const removeEvent = async (eventData) => {
+  if (!eventData?.id) {
     toast.add({
       severity: 'error',
       summary: 'Invalid Event',
@@ -764,8 +769,14 @@ const removeEvent = async (event) => {
     return
   }
 
+  console.log('🗑️ Delete event triggered for:', {
+    eventId: eventData.id,
+    eventName: eventData.name,
+    actionSource: 'delete-menu-item'
+  })
+
   // Show confirmation dialog
-  const confirmed = confirm(`Are you sure you want to delete "${event.name}"? This action cannot be undone.`)
+  const confirmed = confirm(`Are you sure you want to delete "${eventData.name}"? This action cannot be undone.`)
   if (!confirmed) return
 
   try {
@@ -775,28 +786,32 @@ const removeEvent = async (event) => {
     toast.add({
       severity: 'info',
       summary: 'Deleting Event',
-      detail: `Deleting "${event.name}"...`,
+      detail: `Deleting "${eventData.name}"...`,
       life: 2000
     })
 
-    await deleteEvent(event.id)
+    console.log('🗑️ Calling deleteEvent API with eventId:', eventData.id)
+    const response = await deleteEvent(eventData.id)
+    console.log('✅ Delete API response:', response)
 
     // Remove from local events array
-    const index = events.value.findIndex(e => e.id === event.id)
+    const index = events.value.findIndex(e => e.id === eventData.id)
     if (index > -1) {
       events.value.splice(index, 1)
       totalItems.value = events.value.length
       updateEventStats(events.value)
+      console.log('✅ Event removed from local array, remaining events:', events.value.length)
     }
 
     toast.add({
       severity: 'success',
       summary: 'Event Deleted',
-      detail: `"${event.name}" has been successfully deleted`,
+      detail: `"${eventData.name}" has been successfully deleted`,
       life: 4000
     })
 
   } catch (error) {
+    console.error('❌ Delete event error:', error)
     
     let errorMessage = 'Failed to delete event. Please try again.'
     if (error.message.includes('not found')) {
