@@ -994,12 +994,35 @@ const openChairDialog = (chair = null, index = -1) => {
 }
 
 const handleChairSaved = (chairData) => {
+  console.log('🪑 Chair saved with data:', chairData)
+  
+  // Ensure profile_image File is preserved
+  const processedChairData = {
+    ...chairData,
+    // Preserve the File object for profile_image
+    profile_image: chairData.profile_image instanceof File ? chairData.profile_image : null,
+    // Keep avatar for display purposes
+    avatar: chairData.avatar || (chairData.profile_image instanceof File ? URL.createObjectURL(chairData.profile_image) : ''),
+    // Ensure all required fields are present
+    name: chairData.name || '',
+    position: chairData.position || '',
+    company: chairData.company || '',
+    sort_order: chairData.sort_order || 1
+  }
+  
+  console.log('🪑 Processed chair data:', {
+    ...processedChairData,
+    profile_image: processedChairData.profile_image ? `[File] ${processedChairData.profile_image.name}` : null
+  })
+  
   if (editingChairIndex.value >= 0) {
     // Update existing chair
-    formData.chairs[editingChairIndex.value] = chairData
+    formData.chairs[editingChairIndex.value] = processedChairData
+    console.log('🪑 Updated chair at index:', editingChairIndex.value)
   } else {
     // Add new chair
-    formData.chairs.push(chairData)
+    formData.chairs.push(processedChairData)
+    console.log('🪑 Added new chair, total chairs:', formData.chairs.length)
   }
   
   // Save to tabs store
@@ -1009,6 +1032,13 @@ const handleChairSaved = (chairData) => {
   showChairDialog.value = false
   editingChair.value = null
   editingChairIndex.value = -1
+  
+  toast.add({
+    severity: 'success',
+    summary: editingChairIndex.value >= 0 ? 'Chair Updated' : 'Chair Added',
+    detail: `${processedChairData.name} has been ${editingChairIndex.value >= 0 ? 'updated' : 'added'} successfully.`,
+    life: 3000
+  })
 }
 
 const deleteChair = (index) => {
