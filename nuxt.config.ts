@@ -82,5 +82,12 @@ export default defineNuxtConfig({
       appVersion: process.env.NUXT_PUBLIC_APP_VERSION || '1.0.0',
       environment: process.env.NODE_ENV || 'production'
     },
+    proxy: {
+    '/api/': {
+      target: 'https://api-ticket.etickets.asia/api/v1',
+      pathRewrite: { '^/api/': '' },
+      changeOrigin: true,
+    }
+  }
   },
 })

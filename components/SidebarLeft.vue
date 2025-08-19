@@ -17,7 +17,7 @@
             <img
               :src="logo1"
               alt="ZoomMeet logo"
-              class="w-full max-w-[200px] lg:max-w-none mx-auto"
+              class="w-full lg:w-52 lg:max-w-none mx-auto mb-5"
             />
           </div>
         </div>
@@ -128,7 +128,7 @@
 </template>
 
 <script setup>
-import logo1 from '@/assets/image/eticketsasia.png'
+import logo1 from '@/assets/image/finalize-logo.jpg'
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 

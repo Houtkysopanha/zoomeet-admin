@@ -1,5 +1,9 @@
 <template>
   <div class="p-3 lg:p-4 bg-[#F8F8FF]">
+   
+    
+    <!-- Disabled Dashboard Content -->
+    <div class="">
     <div class="">
       <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <!-- Left: Title -->
@@ -80,7 +84,24 @@
       </div>
 
       <div class="border border-gray-200 mt-4 lg:mt-5 mb-6 lg:mb-10"></div>
+       <div class="mb-6 p-6 bg-yellow-50 border border-yellow-200 rounded-2xl">
+      <div class="flex items-center">
+        <Icon name="heroicons:exclamation-triangle" class="w-8 h-8 text-yellow-600 mr-4" />
+        <div>
+          <h3 class="text-lg font-semibold text-yellow-800 mb-2">Dashboard Temporarily Unavailable</h3>
+          <p class="text-yellow-700">The dashboard feature is currently under development and will be available soon. Please use other sections of the admin panel.</p>
+          <div class="mt-4">
+            <NuxtLink to="/admin/event" class="inline-flex items-center px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors">
+              <Icon name="heroicons:calendar" class="w-4 h-4 mr-2" />
+              Go to Events
+            </NuxtLink>
+          </div>
+        </div>
+      </div>
     </div>
+       <!-- Dashboard Disabled Notice -->
+      <div class="opacity-30 pointer-events-none">
+
 
     <!-- Event Stats -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
@@ -104,8 +125,9 @@
       </div>
     </div>
 
-
-
+    </div>
+   </div>
+    </div>
   </div>
 </template>
 
@@ -166,41 +188,65 @@ const updateDisplay = () => {
   if (start && end) {
     const formattedStart = start.toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' })
     const formattedEnd = end.toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' })
-    console.log(`Selected range: ${formattedStart} - ${formattedEnd}`)
   }
 }
 async function fetchUserInfo() {
   try {
-    const auth = JSON.parse(localStorage.getItem('auth'))
-    const token = auth?.token
-    if (!token) throw new Error('No token found in localStorage')
+    const { getToken, isTokenExpired, clearAuth } = useAuth()
+    const token = getToken()
+    
+    if (!token) {
+      router.push('/login')
+      return
+    }
 
-    console.log('Using token:', token)
+    if (isTokenExpired()) {
+      clearAuth()
+      router.push('/login')
+      return
+    }
+
     const res = await fetch(`${config.public.apiBaseUrl}/info`, {
       headers: {
         Authorization: `Bearer ${token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
       },
     })
 
-    console.log('Fetch response status:', res.status)
+    
+    if (res.status === 401) {
+      clearAuth()
+      toast.add({
+        severity: 'warn',
+        summary: 'Session Expired',
+        detail: 'Please login again',
+        life: 3000,
+      })
+      router.push('/login')
+      return
+    }
+    
     if (!res.ok) {
       const errorText = await res.text()
-      console.error('Fetch error:', errorText)
-      throw new Error('Failed to fetch user info')
+      throw new Error(`HTTP ${res.status}: Failed to fetch user info`)
     }
 
     const data = await res.json()
-    console.log('User info:', data)
     userName.value = data.name || data.preferred_username || 'No Name'
     userRole.value = data.role || 'No Role'
   } catch (error) {
-    console.error(error)
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Unable to fetch user info',
-      life: 3000,
-    })
+    
+    // Don't show error toast for auth issues (already handled above)
+    if (!error.message.includes('401')) {
+      toast.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Unable to fetch user info',
+        life: 3000,
+      })
+    }
+    
     userName.value = 'Unknown User'
   }
 }

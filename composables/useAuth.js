@@ -7,7 +7,7 @@ export function useAuth() {
     serialize: JSON.stringify,
     deserialize: JSON.parse,
     httpOnly: false,
-    secure: true,
+    secure: process.env.NODE_ENV === 'production' && !process.dev,
     sameSite: 'strict'
   })
 
@@ -61,11 +61,13 @@ export function useAuth() {
             storage: 'all',
             loginTime: enhancedAuthData.loginTime
           })
-        }      console.log('✅ Auth data set successfully', {
-        token: authData.token ? 'present' : 'missing',
-        loginTime: enhancedAuthData.loginTime,
-        expiresAt: enhancedAuthData.expiresAt
-      })
+        }
+        
+        console.log('✅ Auth data set successfully', {
+          token: authData.token ? 'present' : 'missing',
+          loginTime: enhancedAuthData.loginTime,
+          expiresAt: enhancedAuthData.expiresAt
+        })
     } catch (e) {
       console.error('❌ Failed to set auth data:', e)
       clearAuth()
@@ -174,10 +176,56 @@ export function useAuth() {
     }
   }
 
+  
+
   // Check if token is expired
   function isTokenExpired() {
-    if (!user.value?.expiresAt) return false
-    return new Date() > new Date(user.value.expiresAt)
+    if (!user.value?.token) return true
+    
+    // If we have expiresAt, use it
+    if (user.value.expiresAt) {
+      const now = new Date()
+      const expiry = new Date(user.value.expiresAt)
+      const isExpired = now >= expiry
+      
+      if (isExpired) {
+        console.warn('⚠️ Token expired:', {
+          now: now.toISOString(),
+          expiry: expiry.toISOString(),
+          expired: isExpired
+        })
+      }
+      
+      return isExpired
+    }
+    
+    // Fallback: parse JWT token directly
+    try {
+      const token = user.value.token
+      const parts = token.split('.')
+      if (parts.length !== 3) return true
+      
+      const payload = JSON.parse(atob(parts[1]))
+      if (payload.exp) {
+        const now = Math.floor(Date.now() / 1000)
+        const isExpired = now >= payload.exp
+        
+        if (isExpired) {
+          console.warn('⚠️ JWT token expired:', {
+            now: now,
+            exp: payload.exp,
+            expired: isExpired
+          })
+        }
+        
+        return isExpired
+      }
+    } catch (e) {
+      console.error('❌ Failed to parse JWT token for expiration check:', e)
+      return true
+    }
+    
+    return false
   }
 
   // Get time until token expires
