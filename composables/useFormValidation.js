@@ -57,19 +57,19 @@ export const useFormValidation = () => {
     }
   }
 
-  // Validate date range
+  // Validate date range - allow same date/time
   const validateDateRange = (startDate, endDate) => {
     if (!startDate || !endDate) return null
     const start = new Date(startDate)
     const end = new Date(endDate)
     
-    if (end <= start) {
-      return 'End date must be after start date'
+    if (end < start) {
+      return 'End date and time cannot be before start date and time'
     }
     return null
   }
 
-  // Validate time range
+  // Validate time range - allow same time
   const validateTimeRange = (startTime, endTime) => {
     if (!startTime || !endTime) return null
     
@@ -79,8 +79,8 @@ export const useFormValidation = () => {
     const startMinutes = startHour * 60 + startMin
     const endMinutes = endHour * 60 + endMin
     
-    if (endMinutes <= startMinutes) {
-      return 'End time must be after start time'
+    if (endMinutes < startMinutes) {
+      return 'End time cannot be before start time'
     }
     return null
   }
@@ -191,8 +191,7 @@ export const useFormValidation = () => {
       { field: 'start_date', label: 'Start Date' },
       { field: 'end_date', label: 'End Date' },
       { field: 'location', label: 'Location' },
-      { field: 'event_slug', label: 'Event Slug' },
-      { field: 'online_link_meeting', label: 'Online Meeting Link' }
+      { field: 'event_slug', label: 'Event Slug' }
     ]
     
     requiredFields.forEach(({ field, label }) => {
@@ -226,7 +225,8 @@ export const useFormValidation = () => {
       }
     }
     
-    if (eventData.online_link_meeting) {
+    // Online link is optional, but if provided, must be valid URL
+    if (eventData.online_link_meeting && eventData.online_link_meeting.trim()) {
       const urlError = validateUrl(eventData.online_link_meeting)
       if (urlError) {
         basicErrors.online_link_meeting = urlError

@@ -238,26 +238,21 @@ async function fetchUserInfo() {
     const token = auth?.token
     if (!token) throw new Error('No token found in localStorage')
 
-    console.log('Using token:', token)
     const res = await fetch(`${config.public.apiBaseUrl}/info`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     })
 
-    console.log('Fetch response status:', res.status)
     if (!res.ok) {
       const errorText = await res.text()
-      console.error('Fetch error:', errorText)
       throw new Error('Failed to fetch user info')
     }
 
     const data = await res.json()
-    console.log('User info:', data)
     userName.value = data.name || data.preferred_username || 'No Name'
     userRole.value = data.role || 'No Role'
   } catch (error) {
-    console.error(error)
     toast.add({
       severity: 'error',
       summary: 'Error',

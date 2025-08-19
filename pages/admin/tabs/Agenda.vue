@@ -9,7 +9,7 @@
         </div>
         <div class="flex items-center space-x-4">
           <div v-if="currentEventId" class="text-right">
-            <p class="text-sm text-green-600 font-medium">✅ Basic Info Saved</p>
+            <p class="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-500">Basic Info Saved</p>
             <p class="text-xs text-gray-500">{{ currentEventName }}</p>
           </div>
           <Button
@@ -48,9 +48,17 @@
         <h2 class="text-2xl font-bold text-gray-800 mb-2">List of Created Agenda</h2>
         <p class="text-gray-500 mb-6">View and manage your complete event schedule</p>
 
-        <TabView class="mb-6" v-model:activeIndex="activeTabIndex" v-if="daysWithItems.length > 0">
-          <TabPanel v-for="(day, dayIndex) in daysWithItems" :key="dayIndex" :header="`Day ${day.dayNumber}`">
+        <!-- Show tabs based on event date range -->
+        <TabView class="mb-6" v-model:activeIndex="activeTabIndex" v-if="agendaDays.length > 0">
+          <TabPanel v-for="(day, dayIndex) in agendaDays" :key="dayIndex" :header="day.label">
             <div class="space-y-4">
+              <div v-if="day.items.length === 0" class="text-center py-8">
+                <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Icon name="heroicons:calendar" class="w-8 h-8 text-gray-400" />
+                </div>
+                <h3 class="text-lg font-medium text-gray-800 mb-2">No agenda for {{ formatDate(day.date) }}</h3>
+                <p class="text-gray-600">Add agenda items for this day using the form on the right.</p>
+              </div>
               <div v-for="item in day.items" :key="item.id" class="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
                 <div class="flex items-start space-x-4">
                   <div class="flex flex-col items-center text-center text-gray-600 min-w-[60px]">
@@ -92,13 +100,13 @@
           </TabPanel>
         </TabView>
 
-        <!-- No Agenda Items Display -->
+        <!-- No Event Dates Display -->
         <div v-else class="text-center py-12">
           <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <Icon name="heroicons:calendar" class="w-10 h-10 text-gray-400" />
           </div>
-          <h3 class="text-xl font-semibold text-gray-800 mb-2">No Agenda Items Yet</h3>
-          <p class="text-gray-600 mb-6">Start creating your event schedule by adding agenda items.</p>
+          <h3 class="text-xl font-semibold text-gray-800 mb-2">Event Dates Required</h3>
+          <p class="text-gray-600 mb-6">Please set event start and end dates in Basic Info to see agenda days.</p>
         </div>
       </div>
 
@@ -131,7 +139,7 @@
             <label class="block text-xs font-medium text-gray-600 mb-2">Time <span class="text-red-500">*</span></label>
             <div class="grid grid-cols-2 gap-4">
               <div class="relative">
-                <Icon name="heroicons-outline:clock" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+                <!-- <Icon name="heroicons:clock" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" /> -->
                 <InputText
                   v-model="eventForm.time_start"
                   type="time"
@@ -144,7 +152,7 @@
                 <small v-if="getFieldError('time_start')" class="text-red-500 text-xs">{{ getFieldError('time_start') }}</small>
               </div>
               <div class="relative">
-                <Icon name="heroicons-outline:clock" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" />
+                <!-- <Icon name="heroicons:clock" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 z-10" /> -->
                 <InputText
                   v-model="eventForm.time_end"
                   type="time"
@@ -376,34 +384,55 @@ const eventForm = ref({
 const eventStartDate = ref(null)
 const eventEndDate = ref(null)
 
-// Computed property for organizing agenda items by days
+// Computed property for organizing agenda items by days with dynamic labels
 const agendaDays = computed(() => {
   if (!eventStartDate.value || !eventEndDate.value) {
-    return [{ date: new Date(), items: agendaItems.value, dayNumber: 1 }]
+    return [{ date: new Date(), items: agendaItems.value, dayNumber: 1, label: 'Day 1' }]
   }
 
   const startDate = new Date(eventStartDate.value)
   const endDate = new Date(eventEndDate.value)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0) // Reset time for comparison
   const days = []
   
   // Calculate number of days between start and end
   const timeDiff = endDate.getTime() - startDate.getTime()
   const dayCount = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1
   
-  // Create day structure
+  // Create day structure with dynamic labels
   for (let i = 0; i < dayCount; i++) {
     const dayDate = new Date(startDate)
     dayDate.setDate(startDate.getDate() + i)
+    dayDate.setHours(0, 0, 0, 0) // Reset time for comparison
+    
+    // Generate dynamic label based on relation to today
+    let label = `Day ${i + 1}`
+    const dayDiff = Math.floor((dayDate.getTime() - today.getTime()) / (1000 * 3600 * 24))
+    
+    if (dayDiff === 0) {
+      label = `Day ${i + 1} (Today)`
+    } else if (dayDiff === 1) {
+      label = `Day ${i + 1} (Tomorrow)`
+    } else if (dayDiff === -1) {
+      label = `Day ${i + 1} (Yesterday)`
+    } else if (dayDiff > 1) {
+      label = `Day ${i + 1} (${dayDiff} days from now)`
+    } else if (dayDiff < -1) {
+      label = `Day ${i + 1} (${Math.abs(dayDiff)} days ago)`
+    }
     
     const dayItems = agendaItems.value.filter(item => {
       if (!item.date) return false
       const itemDate = new Date(item.date)
-      return itemDate.toDateString() === dayDate.toDateString()
+      itemDate.setHours(0, 0, 0, 0)
+      return itemDate.getTime() === dayDate.getTime()
     })
     
     days.push({
       date: dayDate,
       dayNumber: i + 1,
+      label: label,
       items: dayItems.sort((a, b) => {
         // Sort by time_start
         if (!a.time_start || !b.time_start) return 0
@@ -412,12 +441,12 @@ const agendaDays = computed(() => {
     })
   }
   
-  return days.length > 0 ? days : [{ date: new Date(), items: [], dayNumber: 1 }]
+  return days.length > 0 ? days : [{ date: new Date(), items: [], dayNumber: 1, label: 'Day 1' }]
 })
 
-// Computed property for days that have agenda items
+// Computed property for days that have agenda items - show all days from event range
 const daysWithItems = computed(() => {
-  return agendaDays.value.filter(day => day.items.length > 0)
+  return agendaDays.value // Show all days, not just those with items
 })
 
 // Helper functions for date formatting
@@ -463,7 +492,6 @@ const handleDateChange = (selectedDate) => {
   if (!selectedDate || !eventStartDate.value) return
   
   const dayNumber = getDayNumber(selectedDate)
-  console.log(`📅 Selected date corresponds to Day ${dayNumber}`)
   
   // Switch to the appropriate tab - ensure Day 1 is always index 0
   const targetTabIndex = Math.max(0, dayNumber - 1)
@@ -471,14 +499,11 @@ const handleDateChange = (selectedDate) => {
   // Always ensure Day 1 (first day) maps to tab index 0
   if (dayNumber === 1) {
     activeTabIndex.value = 0
-    console.log(`📅 Switching to Day 1 (tab index 0)`)
   } else if (targetTabIndex < daysWithItems.value.length) {
     activeTabIndex.value = targetTabIndex
-    console.log(`📅 Switching to Day ${dayNumber} (tab index ${targetTabIndex})`)
   } else if (daysWithItems.value.length > 0) {
     // Default to first available day if calculated day doesn't exist
     activeTabIndex.value = 0
-    console.log(`📅 Defaulting to first available day (tab index 0)`)
   }
 }
 
@@ -509,7 +534,7 @@ const validateAgendaForm = () => {
     errors.push('Session title is required')
   }
 
-  // Validate time range
+  // Validate time range - allow same time
   if (eventForm.value.time_start && eventForm.value.time_end) {
     const timeError = validateTimeRange(eventForm.value.time_start, eventForm.value.time_end)
     if (timeError) {
@@ -580,29 +605,37 @@ const createOrUpdateAgenda = async () => {
   isSubmitting.value = true
 
   try {
-    // Prepare agenda data with proper format
+    // Prepare agenda data with proper format and validation
     const agendaData = {
       date: eventForm.value.date ? new Date(eventForm.value.date).toISOString().split('T')[0] : null,
       time_start: eventForm.value.time_start,
       time_end: eventForm.value.time_end,
       title: eventForm.value.title?.trim(),
-      venu: eventForm.value.venu?.trim() || null,
-      room_no: eventForm.value.room_no?.trim() || null,
-      description: eventForm.value.description?.trim() || null,
-      speakers: eventForm.value.speakers.filter(speaker => 
-        speaker.name && speaker.name.trim()
-      ).map(speaker => ({
-        name: speaker.name.trim(),
-        about: speaker.about?.trim() || null
-      })),
+      venu: eventForm.value.venu?.trim() || '',
+      room_no: eventForm.value.room_no?.trim() || '',
+      description: eventForm.value.description?.trim() || '',
       is_break: false
     }
 
-    console.log('📅 Submitting agenda data:', agendaData)
+    // Handle speakers separately - only include valid speakers
+    const validSpeakers = eventForm.value.speakers.filter(speaker =>
+      speaker.name && speaker.name.trim()
+    ).map(speaker => ({
+      name: speaker.name.trim(),
+      about: speaker.about?.trim() || ''
+    }))
+
+    // Only add speakers if there are valid ones
+    if (validSpeakers.length > 0) {
+      agendaData.speakers = validSpeakers
+    }
 
     let response;
     if (isEditMode.value) {
-      // Update existing agenda
+      // Update existing agenda - ensure we have the agenda ID
+      if (!editingAgendaId.value) {
+        throw new Error('No agenda ID found for update operation')
+      }
       response = await updateAgendaItem(currentEventId.value, editingAgendaId.value, agendaData);
     } else {
       // Create new agenda
@@ -621,8 +654,13 @@ const createOrUpdateAgenda = async () => {
       resetForm();
       await loadAgendaItems()
       
-      // Update tab store
+      // Update tab store and mark tab as completed
       handleSaveCurrentTab()
+      
+      // Mark agenda tab as completed in parent
+      if (eventCreationState?.markTabCompleted) {
+        eventCreationState.markTabCompleted(1)
+      }
     } else {
       throw new Error(response.message || 'Failed to save agenda');
     }
@@ -647,10 +685,9 @@ const loadAgendaItems = async () => {
     const response = await getEventAgenda(currentEventId.value);
     if (response.success && response.data) {
       agendaItems.value = response.data;
-      console.log('📅 Loaded agenda items:', agendaItems.value.length)
     }
   } catch (error) {
-    console.warn('Failed to load agenda items:', error);
+    // Failed to load agenda items
   }
 }
 
@@ -701,7 +738,6 @@ const deleteAgendaAction = (event, agendaId) => {
           detail: 'Failed to delete agenda item.',
           life: 3000,
         });
-        console.error('Failed to delete agenda item:', error);
       }
     },
     reject: () => {},
@@ -767,20 +803,13 @@ const handleSaveCurrentTab = (event) => {
   
   // Validate event context if provided
   if (event?.detail?.eventId && event.detail.eventId !== currentEventId.value) {
-    console.warn('⚠️ Event ID mismatch in save request, ignoring:', {
-      requested: event.detail.eventId,
-      current: currentEventId.value
-    })
     return
   }
   
   // Only save if we have a valid event ID
   if (!currentEventId.value) {
-    console.warn('⚠️ No current event ID, cannot save agenda data')
     return
   }
-  
-  console.log('💾 Saving current agenda data for event:', currentEventId.value)
   
   // Save current agenda data to tab persistence
   const tabData = {
@@ -801,7 +830,6 @@ const handleSaveCurrentTab = (event) => {
     tabsStore.markTabComplete(1)
   }
   
-  console.log('💾 Agenda data saved to tab persistence for event:', currentEventId.value)
 }
 
 // Save agenda items
@@ -863,14 +891,7 @@ const saveAgenda = async () => {
       life: 4000
     })
     
-    console.log('🎉 Agenda save process completed successfully:', {
-      agendaCount: agendaItems.value.length,
-      eventId: currentEventId.value,
-      tabComplete: true
-    })
-    
   } catch (error) {
-    console.error('❌ Agenda save error:', error)
     toast.add({
       severity: 'error',
       summary: 'Save Failed',
@@ -881,8 +902,6 @@ const saveAgenda = async () => {
 }
 
 onMounted(async () => {
-  console.log('📅 Initializing Agenda component...')
-  
   // Get event data from store or props
   const eventStore = useEventStore()
   const tabsStore = useEventTabsStore()
@@ -894,13 +913,6 @@ onMounted(async () => {
     // Get event dates for day calculation
     eventStartDate.value = eventStore.currentEvent.start_date
     eventEndDate.value = eventStore.currentEvent.end_date
-    
-    console.log('📋 Current event found:', {
-      id: currentEventId.value,
-      name: currentEventName.value,
-      startDate: eventStartDate.value,
-      endDate: eventEndDate.value
-    })
     
     // Load existing agenda data
     const agendaTabData = tabsStore.getTabData(1)
@@ -919,7 +931,6 @@ onMounted(async () => {
     currentEventId.value = props.eventId
     await loadAgendaItems()
   } else {
-    console.warn("⚠️ No event found. Complete Basic Info first.")
     toast.add({
       severity: 'warn',
       summary: 'Event Required',
@@ -931,6 +942,13 @@ onMounted(async () => {
   // Add event listeners for agenda saving and tab switching
   window.addEventListener('saveAgenda', saveAgenda)
   window.addEventListener('saveCurrentTab', handleSaveCurrentTab)
+  
+  // Listen for edit mode changes from main page
+  window.addEventListener('editModeChanged', (event) => {
+    if (event.detail?.eventId === currentEventId.value) {
+      // Update any local edit mode state if needed
+    }
+  })
 });
 
 // Remove event listeners when component unmounts
