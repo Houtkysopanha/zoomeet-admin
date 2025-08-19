@@ -692,20 +692,48 @@ const createOrUpdateAgenda = async () => {
 
     let response;
     if (isEditMode.value) {
-      // Update existing agenda - ensure we have the agenda ID
+      // FIXED: Update existing agenda using PUT method
       if (!editingAgendaId.value) {
         throw new Error('No agenda ID found for update operation')
       }
+      
+      console.log('📅 Updating agenda item:', {
+        eventId: currentEventId.value,
+        agendaId: editingAgendaId.value,
+        method: 'PUT',
+        data: agendaData
+      })
+      
       response = await updateAgendaItem(currentEventId.value, editingAgendaId.value, agendaData);
     } else {
-      // Create new agenda
+      // FIXED: Create new agenda using POST method
+      console.log('📅 Creating new agenda item:', {
+        eventId: currentEventId.value,
+        method: 'POST',
+        data: agendaData
+      })
+      
       response = await createAgendaItems(currentEventId.value, agendaData);
     }
 
-    if (response.success) {
+    // FIXED: Enhanced response handling for different API response structures
+    const isSuccess = response && (
+      response.success === true ||
+      response.status === 'success' ||
+      (response.data && !response.error) ||
+      (!response.error && response.id) ||
+      (!response.error && !response.message)
+    )
+
+    if (isSuccess) {
+      console.log('✅ Agenda operation successful:', {
+        isEdit: isEditMode.value,
+        response: response
+      })
+      
       toast.add({
         severity: 'success',
-        summary: isEditMode.value ? 'Agenda Updated' : 'Agenda Created',
+        summary: isEditMode.value ? 'Agenda Updated! 📅' : 'Agenda Created! 📅',
         detail: isEditMode.value ? 'Agenda item updated successfully.' : 'Agenda item created successfully.',
         life: 3000,
       });
@@ -722,7 +750,7 @@ const createOrUpdateAgenda = async () => {
         eventCreationState.markTabCompleted(1)
       }
     } else {
-      throw new Error(response.message || 'Failed to save agenda');
+      throw new Error(response?.message || response?.error || 'Failed to save agenda item');
     }
   } catch (error) {
     console.error('❌ Agenda save error:', error)
@@ -737,17 +765,62 @@ const createOrUpdateAgenda = async () => {
   }
 };
 
-// Load agenda items
+// FIXED: Enhanced load agenda items with proper GET method and error handling
 const loadAgendaItems = async () => {
   if (!currentEventId.value) return
 
   try {
+    console.log('📅 Loading agenda items:', {
+      eventId: currentEventId.value,
+      method: 'GET',
+      endpoint: `/admin/events/${currentEventId.value}/agendas`
+    })
+    
     const response = await getEventAgenda(currentEventId.value);
-    if (response.success && response.data) {
-      agendaItems.value = response.data;
+    
+    console.log('📅 Agenda load response:', {
+      hasResponse: !!response,
+      hasSuccess: response?.success,
+      hasData: !!response?.data,
+      dataLength: response?.data?.length || 0,
+      responseStructure: Object.keys(response || {})
+    })
+    
+    // FIXED: Enhanced response handling for different API response structures
+    let agendaData = null
+    
+    if (response?.success && response?.data) {
+      agendaData = response.data
+    } else if (response?.data && Array.isArray(response.data)) {
+      agendaData = response.data
+    } else if (Array.isArray(response)) {
+      agendaData = response
+    } else if (response && !response.error) {
+      // Handle direct response without wrapper
+      agendaData = response
     }
+    
+    if (agendaData && Array.isArray(agendaData)) {
+      agendaItems.value = agendaData
+      console.log('✅ Loaded agenda items:', agendaData.length)
+    } else {
+      agendaItems.value = []
+      console.log('📅 No agenda items found or invalid response structure')
+    }
+    
   } catch (error) {
-    // Failed to load agenda items
+    console.error('❌ Failed to load agenda items:', error)
+    agendaItems.value = []
+    
+    // Only show error toast if it's not a 404 (no agenda items exist yet)
+    if (error.status !== 404) {
+      toast.add({
+        severity: 'warn',
+        summary: 'Load Warning',
+        detail: 'Could not load existing agenda items. You can create new ones.',
+        life: 3000
+      })
+    }
   }
 }
 
@@ -769,12 +842,30 @@ const deleteAgendaAction = (event, agendaId) => {
     },
     accept: async () => {
       try {
+        console.log('📅 Deleting agenda item:', {
+          eventId: currentEventId.value,
+          agendaId: agendaId,
+          method: 'DELETE',
+          endpoint: `/admin/events/${currentEventId.value}/agendas/${agendaId}`
+        })
+        
         const response = await deleteAgenda(currentEventId.value, agendaId);
-        if (response.success) {
+        
+        // FIXED: Enhanced response handling for delete operation
+        const isSuccess = response && (
+          response.success === true ||
+          response.status === 'success' ||
+          response.message === 'Agenda deleted successfully' ||
+          (!response.error && response.status !== 'error')
+        )
+        
+        if (isSuccess) {
+          console.log('✅ Agenda deleted successfully')
+          
           toast.add({
             severity: 'success',
-            summary: 'Agenda Deleted',
-            detail: 'Agenda deleted successfully',
+            summary: 'Agenda Deleted! 🗑️',
+            detail: 'Agenda item deleted successfully',
             life: 3000,
           });
           
@@ -789,13 +880,15 @@ const deleteAgendaAction = (event, agendaId) => {
           // Update tab store
           handleSaveCurrentTab()
         } else {
-          throw new Error(response.message);
+          throw new Error(response?.message || response?.error || 'Failed to delete agenda item');
         }
       } catch (error) {
+        console.error('❌ Failed to delete agenda:', error)
+        
         toast.add({
           severity: 'error',
           summary: 'Delete Failed',
-          detail: 'Failed to delete agenda item.',
+          detail: error.message || 'Failed to delete agenda item.',
           life: 3000,
         });
       }

@@ -756,13 +756,16 @@ const loadExistingTickets = async () => {
           return loadedTicket
         })
         
+        // FIXED: Set hasExistingTickets to true since we loaded tickets from API
         hasExistingTickets.value = true
         isEditMode.value = true
         
         console.log('📝 Loaded tickets for event:', {
           eventId: currentEventId.value,
           ticketCount: tickets.value.length,
-          isEditMode: isEditMode.value
+          isEditMode: isEditMode.value,
+          hasExistingTickets: hasExistingTickets.value,
+          allTicketsHaveIds: tickets.value.every(t => t.ticket_type_id)
         })
         
         toast.add({
@@ -894,9 +897,23 @@ onMounted(async () => {
         
         return restoredTicket
       })
-      hasExistingTickets.value = true
+      
+      // FIXED: Properly set hasExistingTickets based on saved tickets with ticket_type_id
+      const savedTicketsCount = tickets.value.filter(t => t.ticket_type_id).length
+      hasExistingTickets.value = savedTicketsCount > 0
       ticketsRestored = true
       tabsStore.markTabComplete(2)
+      
+      console.log('🎫 Restored tickets from tab store:', {
+        totalTickets: tickets.value.length,
+        savedTickets: savedTicketsCount,
+        hasExistingTickets: hasExistingTickets.value,
+        ticketDetails: tickets.value.map(t => ({
+          name: t.name,
+          hasId: !!t.ticket_type_id,
+          id: t.ticket_type_id
+        }))
+      })
     }
     // Priority 2: Event store (loaded from API)
     else if (eventStore.currentEvent.ticket_types?.length > 0) {
@@ -916,8 +933,16 @@ onMounted(async () => {
         
         return restoredTicket
       })
+      
+      // FIXED: All tickets from event store have ticket_type_id, so they are existing tickets
       hasExistingTickets.value = true
       ticketsRestored = true
+      
+      console.log('🎫 Restored tickets from event store:', {
+        totalTickets: tickets.value.length,
+        allHaveIds: tickets.value.every(t => t.ticket_type_id),
+        hasExistingTickets: hasExistingTickets.value
+      })
       
       // Save to tab persistence for future use
       handleSaveCurrentTab()

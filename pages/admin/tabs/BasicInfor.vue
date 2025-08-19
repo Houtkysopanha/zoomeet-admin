@@ -438,7 +438,7 @@ onMounted(async () => {
   window.addEventListener('saveCurrentTab', handleSaveCurrentTab)
 })
 
-// Enhanced data loading with comprehensive source checking
+// Enhanced data loading with comprehensive source checking and File object restoration
 const loadExistingData = async () => {
   if (isLoadingData.value) return
   
@@ -449,6 +449,11 @@ const loadExistingData = async () => {
     const tabData = tabsStore.getTabData(0) // Basic Info tab
     
     if (tabData && Object.keys(tabData).length > 0 && tabData.eventName) {
+      console.log('📋 Loading data from tabs store:', {
+        hasChairs: !!tabData.chairs,
+        chairCount: tabData.chairs?.length || 0,
+        hasFileObjects: !!tabData.chairFileObjects
+      })
       
       // Load data from tabs store
       Object.assign(formData, {
@@ -466,6 +471,20 @@ const loadExistingData = async () => {
         chairs: tabData.chairs || [],
         members: tabData.members || []
       })
+      
+      // FIXED: Restore File objects for chairs from special storage
+      if (tabData.chairFileObjects && Array.isArray(tabData.chairFileObjects)) {
+        console.log('🪑 Restoring File objects for chairs:', tabData.chairFileObjects.length)
+        
+        tabData.chairFileObjects.forEach(fileData => {
+          const chairIndex = formData.chairs.findIndex(c => c.name === fileData.name)
+          if (chairIndex >= 0 && fileData.fileObject instanceof File) {
+            formData.chairs[chairIndex].profile_image = fileData.fileObject
+            formData.chairs[chairIndex].avatar = URL.createObjectURL(fileData.fileObject)
+            console.log(`🪑 Restored File object for chair: ${fileData.name}`)
+          }
+        })
+      }
       
       return
     }
@@ -744,7 +763,7 @@ const handleSaveDraft = async () => {
       return
     }
     
-    // Prepare data for API - include file fields
+    // FIXED: Prepare data for API with proper File object preservation for chairs
     const eventData = {
       name: formData.eventName,
       category_id: formData.category,
@@ -756,13 +775,34 @@ const handleSaveDraft = async () => {
       company: formData.company || null,
       organizer: formData.organizer || null,
       online_link_meeting: formData.onlineLinkMeeting || null,
-      chairs: formData.chairs || [],
+      // CRITICAL: Preserve File objects in chairs array for API upload
+      chairs: formData.chairs.map(chair => ({
+        ...chair,
+        // Ensure File objects are preserved for API upload
+        profile_image: chair.profile_image instanceof File ? chair.profile_image : null,
+        // Keep profile_image_url for existing images from API
+        profile_image_url: chair.profile_image_url || null,
+        // Remove avatar URL to avoid confusion (it's for display only)
+        avatar: undefined
+      })) || [],
       members: formData.members || [],
       // Include file fields for proper upload
       cover_image: formData.coverImageFile || null,
       event_background: formData.eventBackgroundFile || null,
       card_background: formData.cardBackgroundFile || null
     }
+    
+    console.log('💾 Preparing event data for save:', {
+      chairsCount: eventData.chairs.length,
+      chairsWithFiles: eventData.chairs.filter(c => c.profile_image instanceof File).length,
+      chairsWithUrls: eventData.chairs.filter(c => c.profile_image_url).length,
+      chairDetails: eventData.chairs.map(c => ({
+        name: c.name,
+        hasFile: c.profile_image instanceof File,
+        hasUrl: !!c.profile_image_url,
+        fileName: c.profile_image instanceof File ? c.profile_image.name : null
+      }))
+    })
 
     // Only include event_slug if it's new or has changed (to avoid "already taken" error)
     if (!isEditMode.value || (isEditMode.value && formData.eventSlug && formData.eventSlug !== eventStore.currentEvent?.event_slug)) {
@@ -996,27 +1036,45 @@ const openChairDialog = (chair = null, index = -1) => {
 const handleChairSaved = (chairData) => {
   console.log('🪑 Chair saved with data:', chairData)
   
-  // Ensure profile_image File is preserved
+  // FIXED: Enhanced chair data processing with better File object preservation
   const processedChairData = {
     ...chairData,
-    // Preserve the File object for profile_image
-    profile_image: chairData.profile_image instanceof File ? chairData.profile_image : null,
-    // Keep avatar for display purposes
+    // CRITICAL: Preserve the File object for profile_image with better detection
+    profile_image: (chairData.profile_image instanceof File ||
+                   (chairData.profile_image && typeof chairData.profile_image === 'object' &&
+                    chairData.profile_image.constructor && chairData.profile_image.constructor.name === 'File'))
+                   ? chairData.profile_image : null,
+    // Keep avatar for display purposes - preserve existing avatar if no new image
     avatar: chairData.avatar || (chairData.profile_image instanceof File ? URL.createObjectURL(chairData.profile_image) : ''),
+    // Preserve existing profile_image_url from API if available
+    profile_image_url: chairData.profile_image_url || null,
     // Ensure all required fields are present
     name: chairData.name || '',
     position: chairData.position || '',
     company: chairData.company || '',
-    sort_order: chairData.sort_order || 1
+    sort_order: chairData.sort_order || 1,
+    // Preserve unique identifier for tracking
+    id: chairData.id || Date.now() + Math.random()
   }
   
   console.log('🪑 Processed chair data:', {
     ...processedChairData,
-    profile_image: processedChairData.profile_image ? `[File] ${processedChairData.profile_image.name}` : null
+    profile_image: processedChairData.profile_image ? `[File] ${processedChairData.profile_image.name}` : null,
+    profile_image_url: processedChairData.profile_image_url || 'none',
+    avatar: processedChairData.avatar ? 'present' : 'none'
   })
   
   if (editingChairIndex.value >= 0) {
-    // Update existing chair
+    // FIXED: Update existing chair while preserving File objects from other chairs
+    const existingChair = formData.chairs[editingChairIndex.value]
+    
+    // Preserve File objects from existing chair if no new image uploaded
+    if (!processedChairData.profile_image && existingChair.profile_image instanceof File) {
+      processedChairData.profile_image = existingChair.profile_image
+      processedChairData.avatar = existingChair.avatar || URL.createObjectURL(existingChair.profile_image)
+      console.log('🪑 Preserved existing File object for chair:', processedChairData.name)
+    }
+    
     formData.chairs[editingChairIndex.value] = processedChairData
     console.log('🪑 Updated chair at index:', editingChairIndex.value)
   } else {
@@ -1025,8 +1083,21 @@ const handleChairSaved = (chairData) => {
     console.log('🪑 Added new chair, total chairs:', formData.chairs.length)
   }
   
-  // Save to tabs store
-  tabsStore.saveTabData(0, { chairs: formData.chairs })
+  // FIXED: Enhanced tabs store saving with File object preservation
+  const chairsForStorage = formData.chairs.map(chair => ({
+    ...chair,
+    // Mark File objects for special handling
+    hasFileObject: chair.profile_image instanceof File,
+    fileObjectName: chair.profile_image instanceof File ? chair.profile_image.name : null
+  }))
+  
+  tabsStore.saveTabData(0, {
+    chairs: chairsForStorage,
+    chairFileObjects: formData.chairs.filter(c => c.profile_image instanceof File).map(c => ({
+      name: c.name,
+      fileObject: c.profile_image
+    }))
+  })
   tabsStore.markTabModified(0)
   
   showChairDialog.value = false
