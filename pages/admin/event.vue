@@ -198,13 +198,16 @@
         class="border-b border-gray-300 text-[12px]  text-start"
       >
         <template #body="slotProps">
+          <!-- FIXED: Enhanced action button with proper event data binding -->
           <Button
             icon="pi pi-ellipsis-v"
             class="p-button-rounded p-button-outlined p-button-indigo"
             @click="(event) => toggleActionMenu(event, slotProps.data)"
+            :title="`Actions for ${slotProps.data.name}`"
           />
+          <!-- FIXED: Menu with proper event data isolation -->
           <Menu
-            ref="actionMenu"
+            :ref="el => actionMenus[slotProps.data.id] = el"
             :model="actionItems(slotProps.data)"
             :popup="true"
             class="rounded-xl shadow-md"
@@ -493,9 +496,16 @@ const toggleFilters = () => {
 
 const actionMenu = ref(null)
 const currentEvent = ref(null)
+const actionMenus = ref({})
 const toggleActionMenu = (event, data) => {
   currentEvent.value = data
-  actionMenu.value.toggle(event)
+  const menu = actionMenus.value[data.id]
+
+  if (menu) {
+    menu.toggle(event)  // open menu for this row
+  } else {
+    console.error('Menu ref not found for row', data)
+  }
 }
 
 // Helper function to validate UUID
@@ -504,17 +514,32 @@ function validateUUID(uuid) {
   return uuidRegex.test(uuid?.toString());
 }
 
-const handleEditEvent = (event) => {
+// FIXED: Enhanced edit event handler with proper event isolation
+const handleEditEvent = (eventData) => {
+  console.log('🎯 Edit event handler called with:', {
+    eventId: eventData.id,
+    eventName: eventData.name,
+    source: 'action-menu'
+  })
+  
   // Use the existing editEvent function which is better implemented
-  editEvent(event);
+  editEvent(eventData);
 };
 
-
-const actionItems = (event) => [
+// FIXED: Action items function with proper event data binding
+const actionItems = (eventData) => [
   {
     label: 'Edit Event',
     icon: 'pi pi-pencil',
-    command: () => handleEditEvent(event),
+    // CRITICAL FIX: Pass the specific eventData, not the global currentEvent
+    command: () => {
+      console.log('🎯 Edit command triggered for event:', {
+        eventId: eventData.id,
+        eventName: eventData.name,
+        actionSource: 'edit-menu-item'
+      })
+      handleEditEvent(eventData)
+    },
   },
   // Disabled actions - no API support yet
   {
@@ -546,7 +571,15 @@ const actionItems = (event) => [
   {
     label: 'Delete Event',
     icon: 'pi pi-trash text-red-500',
-    command: () => removeEvent(event),
+    // FIXED: Pass the specific eventData, not the global currentEvent
+    command: () => {
+      console.log('🎯 Delete command triggered for event:', {
+        eventId: eventData.id,
+        eventName: eventData.name,
+        actionSource: 'delete-menu-item'
+      })
+      removeEvent(eventData)
+    },
   },
 ]
 

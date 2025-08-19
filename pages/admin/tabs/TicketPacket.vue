@@ -166,13 +166,23 @@ import { createTicketTypes, updateTicketType, getEventDetails, getEventTicketTyp
 import { useToast } from "primevue/usetoast"
 import { useEventStore } from '~/composables/useEventStore'
 import { useEventTabsStore } from '~/composables/useEventTabs'
+import { useTabEventIsolation } from '~/composables/useEventIsolation'
 
 const loading = ref(false)
 const toast = useToast()
 const hasExistingTickets = ref(false)
 
-// Event data
-const currentEventId = ref(null)
+// ENHANCED: Event isolation system
+const {
+  currentEventId,
+  isDataLoaded,
+  isDataValidForCurrentEvent,
+  clearComponentData,
+  loadDataForCurrentEvent,
+  validateEventContext
+} = useTabEventIsolation(2, 'TicketPacket') // Tab index 2 for tickets
+
+// Event data - now managed by isolation system
 const currentEventName = ref('')
 const tickets = ref([])
 const isEditMode = ref(false)
@@ -899,26 +909,26 @@ const saveTicketsInternal = async (mode = 'create') => {
   }
 }
 
-// Load existing tickets when in edit mode with proper event validation
+// ENHANCED: Load existing tickets with event isolation
 const loadExistingTickets = async () => {
-  if (!currentEventId.value) {
+  const eventId = currentEventId.value
+  if (!eventId) {
+    console.warn('⚠️ No current event ID for loading tickets')
     return
   }
 
-  // Validate that we're loading tickets for the correct event
-  const eventStore = useEventStore()
-  if (eventStore.currentEvent && eventStore.currentEvent.id !== currentEventId.value) {
-    tickets.value = []
-    hasExistingTickets.value = false
+  // Validate event context
+  if (!validateEventContext(eventId)) {
+    console.warn('⚠️ Invalid event context for loading tickets')
     return
   }
 
   loading.value = true
   try {
-    console.log('🎫 Loading existing tickets for event:', currentEventId.value)
-    const response = await getEventTicketTypes(currentEventId.value)
+    console.log('🎫 Loading existing tickets for event:', eventId)
+    const response = await getEventTicketTypes(eventId)
     
-    // FIXED: Handle new API response structure with ticket_types array
+    // Handle new API response structure with ticket_types array
     let existingTickets = []
     if (response && response.success && response.data && response.data.ticket_types && Array.isArray(response.data.ticket_types)) {
       existingTickets = response.data.ticket_types
@@ -932,26 +942,26 @@ const loadExistingTickets = async () => {
     if (existingTickets.length > 0) {
       console.log('✅ Processing existing tickets:', existingTickets.length)
       
-      // Clear current tickets and load existing ones with proper validation
+      // Clear current tickets and load existing ones with event validation
       tickets.value = existingTickets.map((ticket, index) => {
         const loadedTicket = {
           id: ticket.id || Date.now() + Math.random() + index,
           ticket_type_id: ticket.id, // Store original ID for updates
           name: ticket.name || '',
           description: ticket.description || ticket.tag || '',
-          tag: ticket.tag || ticket.description || '', // Ensure both fields
+          tag: ticket.tag || ticket.description || '',
           price: parseFloat(ticket.price) || 0,
-          // FIXED: Handle inventory.total field from new API structure
+          // Handle inventory.total field from new API structure
           quantity: parseInt(ticket.inventory?.total || ticket.total || ticket.quantity) || 1,
           sort_order: ticket.sort_order || (index + 1),
           is_active: ticket.is_active === undefined ? true : Boolean(ticket.is_active),
           isValidating: false,
-          eventId: currentEventId.value // Add event ID for validation
+          eventId: eventId // Ensure event ID is set
         }
         
         console.log('📝 Loaded ticket from API:', {
           index,
-          eventId: currentEventId.value,
+          eventId: eventId,
           original: ticket,
           loaded: loadedTicket,
           inventoryTotal: ticket.inventory?.total,
@@ -961,12 +971,12 @@ const loadExistingTickets = async () => {
         return loadedTicket
       })
       
-      // FIXED: Set hasExistingTickets to true since we loaded tickets from API
+      // Set hasExistingTickets to true since we loaded tickets from API
       hasExistingTickets.value = true
       isEditMode.value = true
       
       console.log('📝 Loaded tickets for event:', {
-        eventId: currentEventId.value,
+        eventId: eventId,
         ticketCount: tickets.value.length,
         isEditMode: isEditMode.value,
         hasExistingTickets: hasExistingTickets.value,
@@ -982,7 +992,7 @@ const loadExistingTickets = async () => {
     } else {
       console.log('📝 No existing tickets found, starting fresh')
       hasExistingTickets.value = false
-      tickets.value = [] // Clear any existing tickets
+      tickets.value = []
       isEditMode.value = false
     }
   } catch (error) {
@@ -993,7 +1003,7 @@ const loadExistingTickets = async () => {
       detail: error.message || 'Could not load existing tickets. You can create new ones.',
       life: 4000
     })
-    tickets.value = [] // Reset on error
+    tickets.value = []
     hasExistingTickets.value = false
     isEditMode.value = false
   } finally {
@@ -1027,38 +1037,49 @@ watch(tickets, (newTickets) => {
   }
 }, { deep: true })
 
-// Enhanced initialization with better data restoration
+// ENHANCED: Initialization with event isolation
 onMounted(async () => {
-  console.log('🎫 Initializing TicketPacket component...')
+  console.log('🎫 Initializing TicketPacket component with event isolation...')
   
-  // Use Pinia store instead of localStorage
-  const eventStore = useEventStore()
-  const tabsStore = useEventTabsStore()
-  
-  if (eventStore.hasCurrentEvent) {
-    currentEventId.value = eventStore.currentEvent.id
-    currentEventName.value = eventStore.currentEvent.name || "Unnamed Event"
-    eventData.value = eventStore.currentEvent
-    // Enhanced edit mode detection - if event has an ID, it's in edit mode
-    isEditMode.value = !!eventStore.currentEvent.id
+  // Initialize data loading function
+  const loadTicketData = async (eventId) => {
+    const eventStore = useEventStore()
+    const tabsStore = useEventTabsStore()
     
-    console.log('📋 Current event found:', {
-      id: currentEventId.value,
+    // Validate event context
+    if (!validateEventContext(eventId)) {
+      console.warn('⚠️ Invalid event context for ticket loading')
+      return
+    }
+    
+    // Get current event data
+    const currentEvent = eventStore.currentEvent
+    if (!currentEvent || currentEvent.id !== eventId) {
+      console.warn('⚠️ Event store mismatch')
+      return
+    }
+    
+    // Set component data
+    currentEventName.value = currentEvent.name || "Unnamed Event"
+    eventData.value = currentEvent
+    isEditMode.value = !!currentEvent.id
+    
+    console.log('📋 Loading tickets for event:', {
+      id: eventId,
       name: currentEventName.value,
       isEditMode: isEditMode.value,
-      status: eventStore.currentEvent.status,
-      isPublished: eventStore.currentEvent.is_published
+      status: currentEvent.status,
+      isPublished: currentEvent.is_published
     })
     
-    // Check if event has completed basic info from tab store
+    // Check basic info completion
     const basicInfoData = tabsStore.getTabData(0)
     const hasBasicInfo = basicInfoData.isComplete || (
-      eventStore.currentEvent &&
-      eventStore.currentEvent.name &&
-      eventStore.currentEvent.category_id &&
-      eventStore.currentEvent.start_date &&
-      eventStore.currentEvent.end_date &&
-      eventStore.currentEvent.location
+      currentEvent.name &&
+      currentEvent.category_id &&
+      currentEvent.start_date &&
+      currentEvent.end_date &&
+      currentEvent.location
     )
     
     if (!hasBasicInfo) {
@@ -1072,139 +1093,119 @@ onMounted(async () => {
       return
     }
     
-    console.log("📋 Loading event for tickets:", {
-      id: currentEventId.value,
-      name: currentEventName.value,
-      hasBasicInfo,
-      isTabComplete: tabsStore.isTabCompleted(0)
-    })
-
-    // Enhanced ticket restoration with priority order
-    const ticketTabData = tabsStore.getTabData(2)
-    let ticketsRestored = false
-    
-    // Priority 1: Tab persistence (user's current work)
-    if (ticketTabData.ticketTypes && ticketTabData.ticketTypes.length > 0) {
-      tickets.value = ticketTabData.ticketTypes.map((ticket, index) => {
-        const restoredTicket = {
-          id: ticket.id || Date.now() + Math.random() + index,
-          ticket_type_id: ticket.ticket_type_id || ticket.id,
-          name: ticket.name || '',
-          description: ticket.description || ticket.tag || '',
-          tag: ticket.tag || ticket.description || '', // Ensure both fields
-          price: parseFloat(ticket.price) || 0,
-          quantity: parseInt(ticket.quantity || ticket.total) || 1,
-          sort_order: ticket.sort_order || (index + 1),
-          is_active: ticket.is_active === undefined ? true : Boolean(ticket.is_active),
-          isValidating: false
-        }
-        
-        return restoredTicket
-      })
-      
-      // FIXED: Properly set hasExistingTickets based on saved tickets with ticket_type_id
-      const savedTicketsCount = tickets.value.filter(t => t.ticket_type_id).length
-      hasExistingTickets.value = savedTicketsCount > 0
-      ticketsRestored = true
-      tabsStore.markTabComplete(2)
-      
-      console.log('🎫 Restored tickets from tab store:', {
-        totalTickets: tickets.value.length,
-        savedTickets: savedTicketsCount,
-        hasExistingTickets: hasExistingTickets.value,
-        ticketDetails: tickets.value.map(t => ({
-          name: t.name,
-          hasId: !!t.ticket_type_id,
-          id: t.ticket_type_id
-        }))
-      })
-    }
-    // Priority 2: Event store (loaded from API)
-    else if (eventStore.currentEvent.ticket_types?.length > 0) {
-      tickets.value = eventStore.currentEvent.ticket_types.map((ticket, index) => {
-        const restoredTicket = {
-          id: ticket.id || Date.now() + Math.random() + index,
-          ticket_type_id: ticket.id,
-          name: ticket.name || '',
-          description: ticket.description || ticket.tag || '',
-          tag: ticket.tag || ticket.description || '', // Ensure both fields
-          price: parseFloat(ticket.price) || 0,
-          quantity: parseInt(ticket.total || ticket.quantity) || 1,
-          sort_order: ticket.sort_order || (index + 1),
-          is_active: ticket.is_active === undefined ? true : Boolean(ticket.is_active),
-          isValidating: false
-        }
-        
-        return restoredTicket
-      })
-      
-      // FIXED: All tickets from event store have ticket_type_id, so they are existing tickets
-      hasExistingTickets.value = true
-      ticketsRestored = true
-      
-      console.log('🎫 Restored tickets from event store:', {
-        totalTickets: tickets.value.length,
-        allHaveIds: tickets.value.every(t => t.ticket_type_id),
-        hasExistingTickets: hasExistingTickets.value
-      })
-      
-      // Save to tab persistence for future use
-      handleSaveCurrentTab()
-      tabsStore.markTabComplete(2)
-    }
-    
-    // Priority 3: Load fresh from API if nothing in stores
-    if (!ticketsRestored) {
-      await loadExistingTickets()
-    }
-    
-    // Auto-save current state for tab switching
-    if (tickets.value.length > 0) {
-      handleSaveCurrentTab()
-    }
-    
-  } else {
-    toast.add({
-      severity: 'warn',
-      summary: 'Event Required',
-      detail: 'Please complete and save Basic Info first.',
-      life: 3000
-    })
+    // Load ticket data with priority system
+    await loadTicketsWithPriority(eventId, currentEvent, tabsStore)
+  }
+  
+  // Load data if current event exists
+  if (currentEventId.value) {
+    await loadDataForCurrentEvent(loadTicketData)
   }
 
-  // Add event listeners for ticket saving and tab switching with event validation
+  // Add event listeners for ticket operations
   window.addEventListener('saveTickets', saveDraft)
   window.addEventListener('saveCurrentTab', handleSaveCurrentTab)
+  
+  // Enhanced event listener for ticket data loading
   window.addEventListener('loadTicketData', (event) => {
-    // Only load if the event ID matches current event
-    if (event.detail?.eventId === currentEventId.value) {
-      loadExistingTickets()
+    const { eventId } = event.detail || {}
+    if (eventId && validateEventContext(eventId)) {
+      loadDataForCurrentEvent(loadTicketData)
     }
   })
   
-  // Listen for edit mode changes from main page
+  // Listen for edit mode changes
   window.addEventListener('editModeChanged', (event) => {
-    if (event.detail?.eventId === currentEventId.value) {
-      isEditMode.value = event.detail.isEditMode
-      if (event.detail.eventData) {
-        eventData.value = event.detail.eventData
+    const { eventId, isEditMode: newEditMode, eventData: newEventData } = event.detail || {}
+    if (eventId && validateEventContext(eventId)) {
+      isEditMode.value = newEditMode
+      if (newEventData) {
+        eventData.value = newEventData
       }
     }
   })
-  
-  // Add event listener for event switching to clear data
-  window.addEventListener('clearTicketData', (event) => {
-    if (event.detail?.eventId !== currentEventId.value) {
-      tickets.value = []
-      hasExistingTickets.value = false
-      isEditMode.value = false
-      
-      // Clear tab store data
-      const tabsStore = useEventTabsStore()
-      tabsStore.clearTabData(2, event.detail?.eventId)
-    }
-  })
 })
+
+// ENHANCED: Ticket loading with priority system and event isolation
+const loadTicketsWithPriority = async (eventId, currentEvent, tabsStore) => {
+  console.log('🎫 Loading tickets with priority system for event:', eventId)
+  
+  let ticketsRestored = false
+  
+  // Priority 1: Tab persistence (user's current work) - but only for same event
+  const ticketTabData = tabsStore.getTabData(2)
+  if (ticketTabData.ticketTypes &&
+      ticketTabData.ticketTypes.length > 0 &&
+      ticketTabData.eventId === eventId) {
+    
+    console.log('📋 Restoring tickets from tab store for same event')
+    tickets.value = ticketTabData.ticketTypes.map((ticket, index) => ({
+      id: ticket.id || Date.now() + Math.random() + index,
+      ticket_type_id: ticket.ticket_type_id || ticket.id,
+      name: ticket.name || '',
+      description: ticket.description || ticket.tag || '',
+      tag: ticket.tag || ticket.description || '',
+      price: parseFloat(ticket.price) || 0,
+      quantity: parseInt(ticket.quantity || ticket.total) || 1,
+      sort_order: ticket.sort_order || (index + 1),
+      is_active: ticket.is_active === undefined ? true : Boolean(ticket.is_active),
+      isValidating: false,
+      eventId: eventId
+    }))
+    
+    const savedTicketsCount = tickets.value.filter(t => t.ticket_type_id).length
+    hasExistingTickets.value = savedTicketsCount > 0
+    ticketsRestored = true
+    tabsStore.markTabComplete(2)
+    
+    console.log('✅ Restored tickets from tab store:', {
+      totalTickets: tickets.value.length,
+      savedTickets: savedTicketsCount,
+      hasExistingTickets: hasExistingTickets.value
+    })
+  }
+  // Priority 2: Event store (loaded from API)
+  else if (currentEvent.ticket_types?.length > 0) {
+    console.log('📋 Loading tickets from event store')
+    tickets.value = currentEvent.ticket_types.map((ticket, index) => ({
+      id: ticket.id || Date.now() + Math.random() + index,
+      ticket_type_id: ticket.id,
+      name: ticket.name || '',
+      description: ticket.description || ticket.tag || '',
+      tag: ticket.tag || ticket.description || '',
+      price: parseFloat(ticket.price) || 0,
+      quantity: parseInt(ticket.inventory?.total || ticket.total || ticket.quantity) || 1,
+      sort_order: ticket.sort_order || (index + 1),
+      is_active: ticket.is_active === undefined ? true : Boolean(ticket.is_active),
+      isValidating: false,
+      eventId: eventId
+    }))
+    
+    hasExistingTickets.value = true
+    ticketsRestored = true
+    
+    console.log('✅ Loaded tickets from event store:', {
+      totalTickets: tickets.value.length,
+      allHaveIds: tickets.value.every(t => t.ticket_type_id),
+      hasExistingTickets: hasExistingTickets.value
+    })
+    
+    // Save to tab persistence for future use
+    handleSaveCurrentTab()
+    tabsStore.markTabComplete(2)
+  }
+  
+  // Priority 3: Load fresh from API if nothing in stores
+  if (!ticketsRestored) {
+    console.log('📋 Loading fresh tickets from API')
+    await loadExistingTickets()
+  }
+  
+  // Auto-save current state for tab switching
+  if (tickets.value.length > 0) {
+    handleSaveCurrentTab()
+  }
+}
 
 // Remove event listeners when component unmounts
 onUnmounted(() => {
