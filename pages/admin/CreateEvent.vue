@@ -1048,16 +1048,32 @@ const handlePublishEvent = async () => {
     const result = await publishEvent(eventId.value)
     
     if (result && result.success !== false) {
-      // Update local state
+      // CRITICAL FIX: Update local state with complete response data including chairs
       if (eventData.value) {
         eventData.value.is_published = true
         eventData.value.status = 'active'
+        
+        // IMPORTANT: Update chairs from API response to sync File objects -> URLs
+        if (result.data?.chairs && Array.isArray(result.data.chairs)) {
+          console.log('🔄 Syncing chairs from publish response:', result.data.chairs.length)
+          eventData.value.chairs = result.data.chairs
+        } else if (result.chairs && Array.isArray(result.chairs)) {
+          console.log('🔄 Syncing chairs from publish response (direct):', result.chairs.length)
+          eventData.value.chairs = result.chairs
+        }
       }
       
-      // Update store
+      // Update store with complete response data
       if (eventStore.currentEvent) {
         eventStore.currentEvent.is_published = true
         eventStore.currentEvent.status = 'active'
+        
+        // IMPORTANT: Update chairs in store as well
+        if (result.data?.chairs && Array.isArray(result.data.chairs)) {
+          eventStore.currentEvent.chairs = result.data.chairs
+        } else if (result.chairs && Array.isArray(result.chairs)) {
+          eventStore.currentEvent.chairs = result.chairs
+        }
       }
       
       // Mark all tabs as saved since event is now published

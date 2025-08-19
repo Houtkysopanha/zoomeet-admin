@@ -54,8 +54,9 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 
-defineProps({
+const props = defineProps({
   imageSrc: { type: String, default: '' },
   altText: { type: String, default: 'Promotional Image' },
   fallbackImage: { type: String, default: '' },
@@ -66,7 +67,52 @@ defineProps({
   owner: { type: String, default: 'An Sovanvichka' },
   location: { type: String, default: 'Hayatt Regency, Phnom Penh' },
   date: { type: String, default: '14-16 July, 2025' },
-  time: { type: String, default: '10:00 AM GMT+7' }
+  time: { type: String, default: '10:00 AM GMT+7' },
+  // FIXED: Add support for event data with chairs
+  eventData: { type: Object, default: null },
+  chairs: { type: Array, default: () => [] }
+})
+
+// FIXED: Enhanced image source logic to handle cover image, card background, and chair images
+const displayImageSrc = computed(() => {
+  // Priority 1: Explicit imageSrc prop
+  if (props.imageSrc && props.imageSrc.trim()) {
+    return props.imageSrc
+  }
+  
+  // Priority 2: Event data cover image
+  if (props.eventData?.cover_image_url) {
+    return props.eventData.cover_image_url
+  }
+  
+  // Priority 3: Event data card background
+  if (props.eventData?.card_background_url) {
+    return props.eventData.card_background_url
+  }
+  
+  // Priority 4: Event data event background
+  if (props.eventData?.event_background_url) {
+    return props.eventData.event_background_url
+  }
+  
+  // Priority 5: First chair image with profile_image_url
+  if (props.chairs && props.chairs.length > 0) {
+    const chairWithImage = props.chairs.find(chair => chair.profile_image_url)
+    if (chairWithImage) {
+      return chairWithImage.profile_image_url
+    }
+  }
+  
+  // Priority 6: Event data chairs
+  if (props.eventData?.chairs && props.eventData.chairs.length > 0) {
+    const chairWithImage = props.eventData.chairs.find(chair => chair.profile_image_url)
+    if (chairWithImage) {
+      return chairWithImage.profile_image_url
+    }
+  }
+  
+  // Fallback to default fallback image
+  return props.fallbackImage || '/assets/image/not-found.png'
 })
 </script>
 

@@ -347,7 +347,7 @@
 <script setup>
 import './css/style.css'
 import { ref, reactive, computed, onMounted, onBeforeUnmount, inject, watch, nextTick } from 'vue'
-import { useToast } from "primevue/usetoast"
+import { useOptimizedToast } from '~/composables/useOptimizedToast'
 import { useEventStore } from '~/composables/useEventStore'
 import { useEventTabsStore } from '~/composables/useEventTabs'
 import { fetchCategories } from '~/composables/api'
@@ -369,7 +369,7 @@ import ProgressSpinner from 'primevue/progressspinner'
 import ChairForm from '~/components/common/ChairForm.vue'
 import UploadPhoto from '~/components/common/UploadPhoto.vue'
 
-const toast = useToast()
+const toast = useOptimizedToast()
 const eventStore = useEventStore()
 const tabsStore = useEventTabsStore()
 const { getToken } = useAuth()
@@ -438,7 +438,7 @@ onMounted(async () => {
   window.addEventListener('saveCurrentTab', handleSaveCurrentTab)
 })
 
-// Enhanced data loading with comprehensive source checking
+// Enhanced data loading with comprehensive source checking and File object restoration
 const loadExistingData = async () => {
   if (isLoadingData.value) return
   
@@ -449,6 +449,11 @@ const loadExistingData = async () => {
     const tabData = tabsStore.getTabData(0) // Basic Info tab
     
     if (tabData && Object.keys(tabData).length > 0 && tabData.eventName) {
+      console.log('📋 Loading data from tabs store:', {
+        hasChairs: !!tabData.chairs,
+        chairCount: tabData.chairs?.length || 0,
+        hasFileObjects: !!tabData.chairFileObjects
+      })
       
       // Load data from tabs store
       Object.assign(formData, {
@@ -466,6 +471,60 @@ const loadExistingData = async () => {
         chairs: tabData.chairs || [],
         members: tabData.members || []
       })
+      
+      // CRITICAL FIX: Enhanced File object restoration system
+      if (tabData.chairFileObjects && Array.isArray(tabData.chairFileObjects)) {
+        console.log('🪑 Restoring File objects for chairs:', {
+          fileObjectsCount: tabData.chairFileObjects.length,
+          chairsCount: formData.chairs.length,
+          fileDetails: tabData.chairFileObjects.map(f => ({
+            name: f.name,
+            hasFile: f.fileObject instanceof File,
+            fileName: f.fileObject?.name
+          }))
+        })
+        
+        tabData.chairFileObjects.forEach(fileData => {
+          // Try multiple matching strategies
+          let chairIndex = -1
+          
+          // Strategy 1: Match by name
+          chairIndex = formData.chairs.findIndex(c => c.name === fileData.name)
+          
+          // Strategy 2: Match by index if name match fails
+          if (chairIndex === -1 && typeof fileData.index === 'number') {
+            chairIndex = fileData.index
+          }
+          
+          // Strategy 3: Match by chairId if available
+          if (chairIndex === -1 && fileData.chairId) {
+            chairIndex = formData.chairs.findIndex(c => c.id === fileData.chairId)
+          }
+          
+          if (chairIndex >= 0 && chairIndex < formData.chairs.length && fileData.fileObject instanceof File) {
+            // CRITICAL: Restore both File object and display URL
+            formData.chairs[chairIndex].profile_image = fileData.fileObject
+            formData.chairs[chairIndex].avatar = URL.createObjectURL(fileData.fileObject)
+            
+            // Mark as having a File object for tracking
+            formData.chairs[chairIndex]._hasFileObject = true
+            formData.chairs[chairIndex]._fileRestored = true
+            
+            console.log(`✅ Restored File object for chair ${chairIndex + 1}: ${fileData.name} (${fileData.fileObject.name})`)
+          } else {
+            console.warn(`⚠️ Could not restore File object for chair: ${fileData.name}`, {
+              chairIndex,
+              chairExists: chairIndex >= 0 && chairIndex < formData.chairs.length,
+              isFile: fileData.fileObject instanceof File
+            })
+          }
+        })
+        
+        console.log('🪑 File restoration complete:', {
+          totalChairs: formData.chairs.length,
+          chairsWithRestoredFiles: formData.chairs.filter(c => c._fileRestored).length
+        })
+      }
       
       return
     }
@@ -540,12 +599,8 @@ const loadExistingData = async () => {
     }
     
   } catch (error) {
-    toast.add({
-      severity: 'warn',
-      summary: 'Data Loading Issue',
-      detail: 'Some data may not have loaded properly. Please check your inputs.',
-      life: 3000
-    })
+    console.error('Data loading error:', error)
+    toast.warn('Data Loading Issue', 'Some data may not have loaded properly. Please check your inputs.')
   } finally {
     isLoadingData.value = false
   }
@@ -605,12 +660,8 @@ const loadCategories = async () => {
         { label: "Film & Media", value: 10 },
         { label: "Spiritual & Wellness", value: 11 },
       ]
-      toast.add({
-        severity: 'warn',
-        summary: 'Categories Load Issue',
-        detail: 'Using default categories. API response structure may have changed.',
-        life: 3000
-      })
+      console.warn('Categories API response structure changed, using defaults')
+      // Don't show toast for fallback categories in production
     }
   } catch (error) {
     // Fallback categories
@@ -627,12 +678,9 @@ const loadCategories = async () => {
       { label: "Film & Media", value: 10 },
       { label: "Spiritual & Wellness", value: 11 },
     ]
-    toast.add({
-      severity: 'error',
-      summary: 'Failed to Load Categories',
-      detail: 'Could not load event categories. Using default categories.',
-      life: 5000
-    })
+    console.error('Failed to load categories:', error)
+    // Only show error toast for critical category loading failures
+    toast.error('Categories Unavailable', 'Using default event categories')
   } finally {
     isLoadingCategories.value = false
   }
@@ -690,61 +738,56 @@ const handleSaveDraft = async () => {
     
     if (missingFields.length > 0) {
       const fieldNames = missingFields.map(({ label }) => label).join(', ')
-      toast.add({
-        severity: 'warn',
-        summary: 'Missing Required Fields',
-        detail: `Please fill in: ${fieldNames}`,
-        life: 4000
-      })
+      toast.warn('Missing Required Fields', `Please fill in: ${fieldNames}`)
       return
     }
     
     // Validate dates
     if (formData.startDate && formData.endDate && formData.startDate > formData.endDate) {
-      toast.add({
-        severity: 'warn',
-        summary: 'Invalid Date Range',
-        detail: 'End date must be after start date',
-        life: 4000
-      })
+      toast.warn('Invalid Date Range', 'End date must be after start date')
       return
     }
     
     // Validate URLs if provided
     const urlRegex = /^https?:\/\/.+/
     if (formData.mapUrl && !urlRegex.test(formData.mapUrl)) {
-      toast.add({
-        severity: 'warn',
-        summary: 'Invalid Map URL',
-        detail: 'Map URL must be a valid URL starting with http:// or https://',
-        life: 4000
-      })
+      toast.warn('Invalid Map URL', 'Map URL must start with http:// or https://')
       return
     }
     
     if (formData.onlineLinkMeeting && !urlRegex.test(formData.onlineLinkMeeting)) {
-      toast.add({
-        severity: 'warn',
-        summary: 'Invalid Online Meeting URL',
-        detail: 'Online meeting URL must be a valid URL starting with http:// or https://',
-        life: 4000
-      })
+      toast.warn('Invalid Meeting URL', 'Online meeting URL must start with http:// or https://')
       return
     }
     
     // Check for cover image requirement
     if (!formData.coverImageFile && !getCoverImageUrl()) {
       setFieldError('cover_image', 'Cover image is required')
-      toast.add({
-        severity: 'warn',
-        summary: 'Cover Image Required',
-        detail: 'Please upload a cover image for your event',
-        life: 4000
-      })
+      toast.warn('Cover Image Required', 'Please upload a cover image for your event')
       return
     }
     
-    // Prepare data for API - include file fields
+    // CRITICAL FIX: Enhanced data preparation with File object preservation
+    console.log('💾 Preparing event data for save - BEFORE processing:', {
+      chairsCount: formData.chairs.length,
+      chairsWithFiles: formData.chairs.filter(c => c.profile_image instanceof File).length,
+      chairsWithUrls: formData.chairs.filter(c => c.profile_image_url).length,
+      chairsWithRestoredFiles: formData.chairs.filter(c => c._fileRestored).length
+    })
+    
+    // Get File objects from tabs store as backup
+    const tabData = tabsStore.getTabData(0)
+    const chairFileObjectsMap = new Map()
+    
+    if (tabData?.chairFileObjects) {
+      tabData.chairFileObjects.forEach(fileData => {
+        if (fileData.fileObject instanceof File) {
+          chairFileObjectsMap.set(fileData.name, fileData.fileObject)
+        }
+      })
+      console.log('💾 Found File objects in tabs store:', chairFileObjectsMap.size)
+    }
+    
     const eventData = {
       name: formData.eventName,
       category_id: formData.category,
@@ -756,13 +799,60 @@ const handleSaveDraft = async () => {
       company: formData.company || null,
       organizer: formData.organizer || null,
       online_link_meeting: formData.onlineLinkMeeting || null,
-      chairs: formData.chairs || [],
+      // CRITICAL: Enhanced chair processing with File object recovery
+      chairs: formData.chairs.map((chair, index) => {
+        let profileImage = null
+        
+        // Priority 1: Use File object from chair data
+        if (chair.profile_image instanceof File) {
+          profileImage = chair.profile_image
+          console.log(`🪑 Chair ${index + 1} (${chair.name}): Using File from chair data - ${chair.profile_image.name}`)
+        }
+        // Priority 2: Recover File object from tabs store
+        else if (chairFileObjectsMap.has(chair.name)) {
+          profileImage = chairFileObjectsMap.get(chair.name)
+          console.log(`🪑 Chair ${index + 1} (${chair.name}): Recovered File from tabs store - ${profileImage.name}`)
+        }
+        // Priority 3: No File object, preserve URL if available
+        else if (chair.profile_image_url) {
+          console.log(`🪑 Chair ${index + 1} (${chair.name}): Using existing URL - ${chair.profile_image_url}`)
+        }
+        else {
+          console.log(`🪑 Chair ${index + 1} (${chair.name}): No image data`)
+        }
+        
+        return {
+          ...chair,
+          // CRITICAL: Preserve File objects for API upload
+          profile_image: profileImage,
+          // Keep profile_image_url for existing images from API
+          profile_image_url: chair.profile_image_url || null,
+          // Remove display-only fields
+          avatar: undefined,
+          _hasFileObject: undefined,
+          _fileRestored: undefined
+        }
+      }) || [],
       members: formData.members || [],
       // Include file fields for proper upload
       cover_image: formData.coverImageFile || null,
       event_background: formData.eventBackgroundFile || null,
       card_background: formData.cardBackgroundFile || null
     }
+    
+    console.log('💾 Final event data prepared for API:', {
+      chairsCount: eventData.chairs.length,
+      chairsWithFiles: eventData.chairs.filter(c => c.profile_image instanceof File).length,
+      chairsWithUrls: eventData.chairs.filter(c => c.profile_image_url).length,
+      chairDetails: eventData.chairs.map((c, i) => ({
+        index: i + 1,
+        name: c.name,
+        hasFile: c.profile_image instanceof File,
+        hasUrl: !!c.profile_image_url,
+        fileName: c.profile_image instanceof File ? c.profile_image.name : null,
+        imageUrl: c.profile_image_url || 'none'
+      }))
+    })
 
     // Only include event_slug if it's new or has changed (to avoid "already taken" error)
     if (!isEditMode.value || (isEditMode.value && formData.eventSlug && formData.eventSlug !== eventStore.currentEvent?.event_slug)) {
@@ -826,22 +916,13 @@ const handleSaveDraft = async () => {
         }
       }
       
-      // Prevent duplicate toasts for Khmer text by checking if toast is already showing
-      const existingToasts = document.querySelectorAll('.p-toast-message')
-      const hasRecentToast = Array.from(existingToasts).some(toast =>
-        toast.textContent.includes(isEditMode.value ? 'Event Updated' : 'Event Created')
+      // Show success toast with optimized deduplication
+      toast.success(
+        isEditMode.value ? 'Event Updated! 💾' : 'Event Created! 🎉',
+        isEditMode.value
+          ? 'Your changes have been saved successfully. You can continue editing other sections.'
+          : 'Your event has been created successfully. You can now add agenda and tickets.'
       )
-      
-      if (!hasRecentToast) {
-        toast.add({
-          severity: 'success',
-          summary: isEditMode.value ? 'Event Updated! 💾' : 'Event Created! 🎉',
-          detail: isEditMode.value
-            ? 'Your changes have been saved successfully. You can continue editing other sections.'
-            : 'Your event has been created successfully. You can now add agenda and tickets.',
-          life: 4000
-        })
-      }
       
     } else {
       throw new Error('Invalid response from server')
@@ -855,30 +936,15 @@ const handleSaveDraft = async () => {
       // Handle specific error types from our API wrapper
       switch (error.errorType) {
         case 'FILE_TOO_LARGE':
-          toast.add({
-            severity: 'error',
-            summary: 'Files Too Large 📁',
-            detail: error.message,
-            life: 8000
-          })
+          toast.criticalError('Files Too Large 📁', error.message)
           return
           
         case 'NETWORK_ERROR':
-          toast.add({
-            severity: 'error',
-            summary: 'Connection Error 🌐',
-            detail: 'Please check your internet connection and try again.',
-            life: 6000
-          })
+          toast.criticalError('Connection Error 🌐', 'Please check your internet connection and try again.')
           return
           
         case 'AUTH_ERROR':
-          toast.add({
-            severity: 'error',
-            summary: 'Authentication Required 🔐',
-            detail: 'Please login again to continue.',
-            life: 5000
-          })
+          toast.criticalError('Authentication Required 🔐', 'Please login again to continue.')
           // Redirect to login after delay
           setTimeout(() => {
             const router = useRouter()
@@ -887,12 +953,7 @@ const handleSaveDraft = async () => {
           return
           
         case 'SERVER_ERROR':
-          toast.add({
-            severity: 'error',
-            summary: 'Server Error 🔧',
-            detail: 'The server is experiencing issues. Please try again later.',
-            life: 6000
-          })
+          toast.criticalError('Server Error 🔧', 'The server is experiencing issues. Please try again later.')
           return
           
         case 'VALIDATION_ERROR':
@@ -904,12 +965,7 @@ const handleSaveDraft = async () => {
             })
           }
           
-          toast.add({
-            severity: 'error',
-            summary: 'Validation Errors ❌',
-            detail: error.message || 'Please check the highlighted fields and fix the errors.',
-            life: 8000
-          })
+          toast.error('Validation Errors ❌', error.message || 'Please check the highlighted fields and fix the errors.')
           return
       }
       
@@ -921,22 +977,12 @@ const handleSaveDraft = async () => {
           setFieldError(field, errorMsg)
         })
         
-        toast.add({
-          severity: 'error',
-          summary: 'Validation Errors',
-          detail: 'Please check the highlighted fields and fix the errors.',
-          life: 6000
-        })
+        toast.error('Validation Errors', 'Please check the highlighted fields and fix the errors.')
         return
       }
       
       // Generic API error
-      toast.add({
-        severity: 'error',
-        summary: 'Save Failed',
-        detail: error.message || 'Failed to save event. Please try again.',
-        life: 5000
-      })
+      toast.error('Save Failed', error.message || 'Failed to save event. Please try again.')
       return
     }
     
@@ -948,12 +994,7 @@ const handleSaveDraft = async () => {
         setFieldError(field, errorMsg)
       })
       
-      toast.add({
-        severity: 'error',
-        summary: 'Validation Errors',
-        detail: 'Please check the highlighted fields and fix the errors.',
-        life: 6000
-      })
+      toast.error('Validation Errors', 'Please check the highlighted fields and fix the errors.')
       return
     }
     
@@ -971,12 +1012,7 @@ const handleSaveDraft = async () => {
       errorMessage = error.message
     }
     
-    toast.add({
-      severity: 'error',
-      summary: 'Save Failed',
-      detail: errorMessage,
-      life: 5000
-    })
+    toast.error('Save Failed', errorMessage)
   } finally {
     isSubmitting.value = false
   }
@@ -997,27 +1033,45 @@ const openChairDialog = (chair = null, index = -1) => {
 const handleChairSaved = (chairData) => {
   console.log('🪑 Chair saved with data:', chairData)
   
-  // Ensure profile_image File is preserved
+  // FIXED: Enhanced chair data processing with better File object preservation
   const processedChairData = {
     ...chairData,
-    // Preserve the File object for profile_image
-    profile_image: chairData.profile_image instanceof File ? chairData.profile_image : null,
-    // Keep avatar for display purposes
+    // CRITICAL: Preserve the File object for profile_image with better detection
+    profile_image: (chairData.profile_image instanceof File ||
+                   (chairData.profile_image && typeof chairData.profile_image === 'object' &&
+                    chairData.profile_image.constructor && chairData.profile_image.constructor.name === 'File'))
+                   ? chairData.profile_image : null,
+    // Keep avatar for display purposes - preserve existing avatar if no new image
     avatar: chairData.avatar || (chairData.profile_image instanceof File ? URL.createObjectURL(chairData.profile_image) : ''),
+    // Preserve existing profile_image_url from API if available
+    profile_image_url: chairData.profile_image_url || null,
     // Ensure all required fields are present
     name: chairData.name || '',
     position: chairData.position || '',
     company: chairData.company || '',
-    sort_order: chairData.sort_order || 1
+    sort_order: chairData.sort_order || 1,
+    // Preserve unique identifier for tracking
+    id: chairData.id || Date.now() + Math.random()
   }
   
   console.log('🪑 Processed chair data:', {
     ...processedChairData,
-    profile_image: processedChairData.profile_image ? `[File] ${processedChairData.profile_image.name}` : null
+    profile_image: processedChairData.profile_image ? `[File] ${processedChairData.profile_image.name}` : null,
+    profile_image_url: processedChairData.profile_image_url || 'none',
+    avatar: processedChairData.avatar ? 'present' : 'none'
   })
   
   if (editingChairIndex.value >= 0) {
-    // Update existing chair
+    // FIXED: Update existing chair while preserving File objects from other chairs
+    const existingChair = formData.chairs[editingChairIndex.value]
+    
+    // Preserve File objects from existing chair if no new image uploaded
+    if (!processedChairData.profile_image && existingChair.profile_image instanceof File) {
+      processedChairData.profile_image = existingChair.profile_image
+      processedChairData.avatar = existingChair.avatar || URL.createObjectURL(existingChair.profile_image)
+      console.log('🪑 Preserved existing File object for chair:', processedChairData.name)
+    }
+    
     formData.chairs[editingChairIndex.value] = processedChairData
     console.log('🪑 Updated chair at index:', editingChairIndex.value)
   } else {
@@ -1026,20 +1080,55 @@ const handleChairSaved = (chairData) => {
     console.log('🪑 Added new chair, total chairs:', formData.chairs.length)
   }
   
-  // Save to tabs store
-  tabsStore.saveTabData(0, { chairs: formData.chairs })
+  // FIXED: Enhanced tabs store saving with File object preservation
+  const chairsForStorage = formData.chairs.map(chair => ({
+    ...chair,
+    // Mark File objects for special handling
+    hasFileObject: chair.profile_image instanceof File,
+    fileObjectName: chair.profile_image instanceof File ? chair.profile_image.name : null
+  }))
+  
+  // CRITICAL FIX: Enhanced File object preservation system
+  const chairFileObjects = formData.chairs
+    .map((chair, index) => {
+      if (chair.profile_image instanceof File) {
+        return {
+          name: chair.name,
+          fileObject: chair.profile_image,
+          index: index,
+          chairId: chair.id || `chair_${index}`,
+          timestamp: Date.now()
+        }
+      }
+      return null
+    })
+    .filter(Boolean)
+  
+  console.log('💾 Saving chair data with File objects:', {
+    totalChairs: formData.chairs.length,
+    chairsWithFiles: chairFileObjects.length,
+    fileDetails: chairFileObjects.map(f => ({
+      name: f.name,
+      fileName: f.fileObject.name,
+      fileSize: f.fileObject.size
+    }))
+  })
+  
+  tabsStore.saveTabData(0, {
+    chairs: chairsForStorage,
+    chairFileObjects: chairFileObjects,
+    lastChairUpdate: new Date().toISOString()
+  })
   tabsStore.markTabModified(0)
   
   showChairDialog.value = false
   editingChair.value = null
   editingChairIndex.value = -1
   
-  toast.add({
-    severity: 'success',
-    summary: editingChairIndex.value >= 0 ? 'Chair Updated' : 'Chair Added',
-    detail: `${processedChairData.name} has been ${editingChairIndex.value >= 0 ? 'updated' : 'added'} successfully.`,
-    life: 3000
-  })
+  toast.success(
+    editingChairIndex.value >= 0 ? 'Chair Updated' : 'Chair Added',
+    `${processedChairData.name} has been ${editingChairIndex.value >= 0 ? 'updated' : 'added'} successfully.`
+  )
 }
 
 const deleteChair = (index) => {
@@ -1049,60 +1138,72 @@ const deleteChair = (index) => {
   tabsStore.saveTabData(0, { chairs: formData.chairs })
   tabsStore.markTabModified(0)
   
-  toast.add({
-    severity: 'success',
-    summary: 'Chair Removed',
-    detail: 'Chair has been removed successfully',
-    life: 2000
-  })
+  toast.success('Chair Removed', 'Chair has been removed successfully')
 }
 
-// Get chair image source with proper handling
+// Get chair image source with proper handling - FIXED for profile_image_url
 const getChairImageSrc = (chair) => {
   if (!chair) return null
   
   try {
     // Priority 1: File object (newly uploaded)
     if (chair.photo instanceof File) {
+      console.log(`🖼️ Chair ${chair.name}: Using photo File object`)
       return URL.createObjectURL(chair.photo)
     }
     
     // Priority 2: profile_image File object
     if (chair.profile_image instanceof File) {
+      console.log(`🖼️ Chair ${chair.name}: Using profile_image File object`)
       return URL.createObjectURL(chair.profile_image)
     }
     
-    // Priority 3: Avatar URL (existing or generated)
+    // Priority 3: CRITICAL FIX - profile_image_url field (from API response)
+    if (chair.profile_image_url && typeof chair.profile_image_url === 'string' && chair.profile_image_url.trim()) {
+      console.log(`🖼️ Chair ${chair.name}: Using profile_image_url from API: ${chair.profile_image_url}`)
+      if (chair.profile_image_url.startsWith('http')) {
+        return chair.profile_image_url
+      }
+      return `${window.location.origin}${chair.profile_image_url}`
+    }
+    
+    // Priority 4: Avatar URL (existing or generated)
     if (chair.avatar && typeof chair.avatar === 'string' && chair.avatar.trim()) {
+      console.log(`🖼️ Chair ${chair.name}: Using avatar URL`)
       return chair.avatar
     }
     
-    // Priority 4: Photo URL string
+    // Priority 5: Photo URL string
     if (chair.photo && typeof chair.photo === 'string' && chair.photo.trim()) {
+      console.log(`🖼️ Chair ${chair.name}: Using photo URL string`)
       if (chair.photo.startsWith('http')) {
         return chair.photo
       }
       return `${window.location.origin}${chair.photo}`
     }
     
-    // Priority 5: Profile image URL (from API)
+    // Priority 6: Profile image URL (from API) - legacy field
     if (chair.profile_image && typeof chair.profile_image === 'string' && chair.profile_image.trim()) {
+      console.log(`🖼️ Chair ${chair.name}: Using profile_image URL string`)
       if (chair.profile_image.startsWith('http')) {
         return chair.profile_image
       }
       return `${window.location.origin}${chair.profile_image}`
     }
     
-    // Priority 6: photo_url field (from API)
+    // Priority 7: photo_url field (from API) - legacy field
     if (chair.photo_url && typeof chair.photo_url === 'string' && chair.photo_url.trim()) {
+      console.log(`🖼️ Chair ${chair.name}: Using photo_url from API`)
       if (chair.photo_url.startsWith('http')) {
         return chair.photo_url
       }
       return `${window.location.origin}${chair.photo_url}`
     }
     
+    console.log(`🖼️ Chair ${chair.name}: No image source found`)
     return null
   } catch (error) {
+    console.error(`🖼️ Chair ${chair.name}: Error getting image source:`, error)
     return null
   }
 }
@@ -1177,54 +1278,129 @@ const getCoverImageUrl = () => {
   return null
 }
 
-// Slug generation methods
+// Enhanced slug validation with better error handling
 const validateSlug = () => {
   try {
+    if (!formData.eventSlug) return
+    
     // Clear any existing error first
     clearFieldError('event_slug')
     
-    // Remove invalid characters and convert to lowercase
-    formData.eventSlug = formData.eventSlug
+    // Enhanced slug validation for Khmer text support
+    let cleanSlug = formData.eventSlug
       .toLowerCase()
-      .replace(/[^a-z0-9-]/g, '')
-      .replace(/--+/g, '-')
-      .replace(/^-|-$/g, '')
+      .trim()
+      // Remove Khmer characters and other non-ASCII
+      .replace(/[\u1780-\u17FF]/g, '') // Remove Khmer Unicode range
+      .replace(/[^\w\s-]/g, '') // Keep only word chars, spaces, hyphens
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single
+      .replace(/^-|-$/g, '') // Remove leading/trailing hyphens
+    
+    // If slug becomes empty after cleaning, generate a random one
+    if (!cleanSlug) {
+      const timestamp = Date.now().toString(36)
+      cleanSlug = `event-${timestamp}`
+    }
+    
+    // Ensure minimum length
+    if (cleanSlug.length < 3) {
+      cleanSlug = `${cleanSlug}-${Date.now().toString(36).slice(-3)}`
+    }
+    
+    formData.eventSlug = cleanSlug
   } catch (error) {
-    // Error in validateSlug
+    console.error('Slug validation error:', error)
+    // Fallback to timestamp-based slug
+    formData.eventSlug = `event-${Date.now().toString(36)}`
   }
 }
 
 const generateSlug = () => {
-  if (formData.eventName) {
-    formData.eventSlug = formData.eventName
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, '')
-      .replace(/--+/g, '-')
-      .replace(/^-|-$/g, '');
-    toast.add({ severity: 'success', summary: 'Slug Generated', detail: 'Slug generated from event name!', life: 3000 });
-  } else {
-    const adjectives = ['awesome', 'amazing', 'fantastic', 'incredible', 'spectacular', 'wonderful']
-    const nouns = ['event', 'conference', 'summit', 'meetup', 'workshop', 'seminar']
-    const numbers = Math.floor(Math.random() * 999) + 1
-    const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)]
-    const randomNoun = nouns[Math.floor(Math.random() * nouns.length)]
-    formData.eventSlug = `${randomAdjective}-${randomNoun}-${numbers}`
-    toast.add({ severity: 'success', summary: 'Slug Generated', detail: 'Random slug generated!', life: 3000 });
+  try {
+    if (formData.eventName && formData.eventName.trim()) {
+      // Enhanced slug generation with Khmer text handling
+      let baseSlug = formData.eventName
+        .toLowerCase()
+        .trim()
+        // Remove Khmer characters
+        .replace(/[\u1780-\u17FF]/g, '')
+        // Replace common words with shorter versions
+        .replace(/\b(the|and|or|but|in|on|at|to|for|of|with|by)\b/g, '')
+        // Clean up
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+      
+      // If nothing remains after cleaning, use fallback
+      if (!baseSlug || baseSlug.length < 3) {
+        const adjectives = ['awesome', 'amazing', 'fantastic', 'incredible', 'spectacular', 'wonderful']
+        const nouns = ['event', 'conference', 'summit', 'meetup', 'workshop', 'seminar']
+        const numbers = Math.floor(Math.random() * 999) + 1
+        const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)]
+        const randomNoun = nouns[Math.floor(Math.random() * nouns.length)]
+        baseSlug = `${randomAdjective}-${randomNoun}-${numbers}`
+      }
+      
+      formData.eventSlug = baseSlug
+      // Only show toast if slug was actually generated
+      if (baseSlug !== formData.eventName.toLowerCase()) {
+        toast.success('Slug Generated', 'Event URL slug created successfully')
+      }
+    } else {
+      // Generate random slug when no event name
+      const timestamp = Date.now().toString(36)
+      const randomNum = Math.floor(Math.random() * 999) + 1
+      formData.eventSlug = `event-${timestamp}-${randomNum}`
+      toast.success('Slug Generated', 'Random event URL created')
+    }
+  } catch (error) {
+    console.error('Slug generation error:', error)
+    // Fallback slug
+    formData.eventSlug = `event-${Date.now().toString(36)}`
+    toast.error('Slug Generation Failed', 'Using fallback URL slug')
   }
 }
 
 const copyUrl = async () => {
   try {
+    if (!generatedUrl.value) {
+      toast.warn('No URL', 'Please generate a slug first')
+      return
+    }
+    
     await navigator.clipboard.writeText(generatedUrl.value)
-    toast.add({ severity: 'success', summary: 'Copied!', detail: 'URL copied to clipboard!', life: 3000 })
+    toast.success('Copied!', 'Event URL copied to clipboard')
   } catch (err) {
-    toast.add({ severity: 'error', summary: 'Copy Failed', detail: 'Failed to copy URL', life: 3000 })
+    console.error('Copy failed:', err)
+    // Fallback for older browsers
+    try {
+      const textArea = document.createElement('textarea')
+      textArea.value = generatedUrl.value
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      toast.success('Copied!', 'Event URL copied to clipboard')
+    } catch (fallbackErr) {
+      toast.error('Copy Failed', 'Please copy the URL manually')
+    }
   }
 }
 
 const openUrl = () => {
-  window.open(generatedUrl.value, '_blank')
-  toast.add({ severity: 'info', summary: 'Opening URL', detail: 'Opening URL in new tab', life: 3000 })
+  try {
+    if (!generatedUrl.value) {
+      toast.warn('No URL', 'Please generate a slug first')
+      return
+    }
+    
+    window.open(generatedUrl.value, '_blank', 'noopener,noreferrer')
+  } catch (error) {
+    console.error('Failed to open URL:', error)
+    toast.error('Failed to Open', 'Could not open URL in new tab')
+  }
 }
 
 // Watch for form changes to mark tab as modified and save changes

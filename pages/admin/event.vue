@@ -198,13 +198,16 @@
         class="border-b border-gray-300 text-[12px]  text-start"
       >
         <template #body="slotProps">
+          <!-- FIXED: Enhanced action button with proper event data binding -->
           <Button
             icon="pi pi-ellipsis-v"
             class="p-button-rounded p-button-outlined p-button-indigo"
             @click="(event) => toggleActionMenu(event, slotProps.data)"
+            :title="`Actions for ${slotProps.data.name}`"
           />
+          <!-- FIXED: Menu with proper event data isolation -->
           <Menu
-            ref="actionMenu"
+            :ref="el => actionMenus[slotProps.data.id] = el"
             :model="actionItems(slotProps.data)"
             :popup="true"
             class="rounded-xl shadow-md"
@@ -493,9 +496,21 @@ const toggleFilters = () => {
 
 const actionMenu = ref(null)
 const currentEvent = ref(null)
+const actionMenus = ref({})
 const toggleActionMenu = (event, data) => {
+  console.log('🎯 Action menu toggled for event:', {
+    eventId: data.id,
+    eventName: data.name,
+    timestamp: Date.now()
+  })
   currentEvent.value = data
-  actionMenu.value.toggle(event)
+  const menu = actionMenus.value[data.id]
+
+  if (menu) {
+    menu.toggle(event)  // open menu for this row
+  } else {
+    console.error('Menu ref not found for row', data)
+  }
 }
 
 // Helper function to validate UUID
@@ -504,17 +519,32 @@ function validateUUID(uuid) {
   return uuidRegex.test(uuid?.toString());
 }
 
-const handleEditEvent = (event) => {
+// FIXED: Enhanced edit event handler with proper event isolation
+const handleEditEvent = (eventData) => {
+  console.log('🎯 Edit event handler called with:', {
+    eventId: eventData.id,
+    eventName: eventData.name,
+    source: 'action-menu'
+  })
+  
   // Use the existing editEvent function which is better implemented
-  editEvent(event);
+  editEvent(eventData);
 };
 
-
-const actionItems = (event) => [
+// FIXED: Action items function with proper event data binding
+const actionItems = (eventData) => [
   {
     label: 'Edit Event',
     icon: 'pi pi-pencil',
-    command: () => handleEditEvent(event),
+    // CRITICAL FIX: Pass the specific eventData, not the global currentEvent
+    command: () => {
+      console.log('🎯 Edit command triggered for event:', {
+        eventId: eventData.id,
+        eventName: eventData.name,
+        actionSource: 'edit-menu-item'
+      })
+      handleEditEvent(eventData)
+    },
   },
   // Disabled actions - no API support yet
   {
@@ -544,17 +574,17 @@ const actionItems = (event) => [
     visible: false, // Disabled
   },
   {
-    label: 'Remove',
+    label: 'Delete Event',
     icon: 'pi pi-trash text-red-500',
+    // FIXED: Pass the specific eventData, not the global currentEvent
     command: () => {
-      toast.add({
-        severity: 'info',
-        summary: 'Feature Coming Soon',
-        detail: 'Event removal is currently under development.',
-        life: 3000
-      });
+      console.log('🎯 Delete command triggered for event:', {
+        eventId: eventData.id,
+        eventName: eventData.name,
+        actionSource: 'delete-menu-item'
+      })
+      removeEvent(eventData)
     },
-    visible: false, // Disabled
   },
 ]
 
@@ -728,8 +758,8 @@ const endEvent = (event) => {
   })
 }
 
-const removeEvent = async (event) => {
-  if (!event?.id) {
+const removeEvent = async (eventData) => {
+  if (!eventData?.id) {
     toast.add({
       severity: 'error',
       summary: 'Invalid Event',
@@ -739,8 +769,14 @@ const removeEvent = async (event) => {
     return
   }
 
+  console.log('🗑️ Delete event triggered for:', {
+    eventId: eventData.id,
+    eventName: eventData.name,
+    actionSource: 'delete-menu-item'
+  })
+
   // Show confirmation dialog
-  const confirmed = confirm(`Are you sure you want to delete "${event.name}"? This action cannot be undone.`)
+  const confirmed = confirm(`Are you sure you want to delete "${eventData.name}"? This action cannot be undone.`)
   if (!confirmed) return
 
   try {
@@ -750,28 +786,32 @@ const removeEvent = async (event) => {
     toast.add({
       severity: 'info',
       summary: 'Deleting Event',
-      detail: `Deleting "${event.name}"...`,
+      detail: `Deleting "${eventData.name}"...`,
       life: 2000
     })
 
-    await deleteEvent(event.id)
+    console.log('🗑️ Calling deleteEvent API with eventId:', eventData.id)
+    const response = await deleteEvent(eventData.id)
+    console.log('✅ Delete API response:', response)
 
     // Remove from local events array
-    const index = events.value.findIndex(e => e.id === event.id)
+    const index = events.value.findIndex(e => e.id === eventData.id)
     if (index > -1) {
       events.value.splice(index, 1)
       totalItems.value = events.value.length
       updateEventStats(events.value)
+      console.log('✅ Event removed from local array, remaining events:', events.value.length)
     }
 
     toast.add({
       severity: 'success',
       summary: 'Event Deleted',
-      detail: `"${event.name}" has been successfully deleted`,
+      detail: `"${eventData.name}" has been successfully deleted`,
       life: 4000
     })
 
   } catch (error) {
+    console.error('❌ Delete event error:', error)
     
     let errorMessage = 'Failed to delete event. Please try again.'
     if (error.message.includes('not found')) {

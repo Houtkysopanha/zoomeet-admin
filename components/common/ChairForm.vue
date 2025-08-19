@@ -241,7 +241,7 @@ const saveChair = async () => {
       detail: `${chairData.value.name} has been ${props.isEdit ? 'updated' : 'added'} successfully.`,
       life: 3000
     })
-
+    
     closeDialog()
   } catch (error) {
     console.error('Error saving chair:', error)
