@@ -1,6 +1,7 @@
 // Auto-imported by Nuxt: useRuntimeConfig, $fetch
+import { useProductionErrorHandler } from './useProductionErrorHandler'
 
-// Get auth token using proper Nuxt 3 pattern
+// Get auth token using proper Nuxt 3 pattern with enhanced error handling
 const getAuthToken = () => {
   try {
     // Use the useAuth composable consistently for token management
@@ -17,6 +18,7 @@ const getAuthToken = () => {
           const authData = JSON.parse(stored)
           token = authData?.token
         } catch (e) {
+          console.warn('Failed to parse auth data from localStorage')
         }
       }
       
@@ -28,6 +30,7 @@ const getAuthToken = () => {
             const authData = JSON.parse(sessionStored)
             token = authData?.token
           } catch (e) {
+            console.warn('Failed to parse auth data from sessionStorage')
           }
         }
       }
@@ -37,12 +40,18 @@ const getAuthToken = () => {
       return null
     }
 
-
-
-    // Log token info without sensitive data
+    // Validate token format in development
+    if (process.env.NODE_ENV === 'development' && token) {
+      const parts = token.split('.')
+      if (parts.length !== 3) {
+        console.warn('Invalid JWT token format')
+        return null
+      }
+    }
 
     return token
   } catch (error) {
+    console.error('Error getting auth token:', error)
     return null
   }
 }
@@ -87,41 +96,49 @@ const normalizeApiUrl = (baseUrl, endpoint) => {
   return `${cleanBaseUrl}/${cleanEndpoint}`
 }
 
-// Login API
+// Login API with enhanced error handling
 export async function login(identifier, password) {
   const config = useRuntimeConfig()
   const API_BASE_URL = config.public.apiBaseUrl
+  const { handleApiError, withRetry } = useProductionErrorHandler()
 
   if (!API_BASE_URL) {
     throw new Error(`API base URL is not configured for ${process.env.NODE_ENV} environment.`)
   }
 
-  try {
+  // Input validation
+  if (!identifier || !password) {
+    throw new Error('Email/phone and password are required')
+  }
 
+  try {
     const loginUrl = normalizeApiUrl(API_BASE_URL, 'login')
 
-    const response = await $fetch(loginUrl, {
-      method: 'POST',
-      body: { identifier, password },
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
+    // Use retry mechanism for network issues
+    const response = await withRetry(async () => {
+      return await $fetch(loginUrl, {
+        method: 'POST',
+        body: { identifier: identifier.trim(), password },
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+    }, 2, 1000) // 2 retries with 1 second delay
 
     return response
   } catch (error) {
-    // Don't expose API endpoints or technical details in user-facing errors
-    let userMessage = 'Login failed. Please check your credentials and try again.'
+    // Use centralized error handling
+    const errorInfo = handleApiError(error, 'login', 'authenticate user')
+    
+    // Customize login-specific error messages
+    let userMessage = errorInfo.userMessage
     
     if (error.status === 401) {
       userMessage = 'Invalid email or password. Please try again.'
     } else if (error.status === 429) {
       userMessage = 'Too many login attempts. Please wait a moment and try again.'
-    } else if (error.status === 500) {
-      userMessage = 'Server error. Please try again later.'
-    } else if (error.data?.message && !error.data.message.includes('http') && !error.data.message.includes('api')) {
-      // Only use server message if it doesn't contain technical details
-      userMessage = error.data.message
+    } else if (error.status === 423) {
+      userMessage = 'Account is locked. Please contact support.'
     }
     
     throw new Error(userMessage)
@@ -129,11 +146,11 @@ export async function login(identifier, password) {
 }
 
 
-// Fetch events list
+// Fetch events list with enhanced error handling
 export async function fetchEvents() {
   const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
-
+  const { handleApiError, withRetry } = useProductionErrorHandler()
 
   if (!API_ADMIN_BASE_URL) {
     return { status: 500, data: { success: false, data: [], message: 'API admin base URL is not configured.' } }
@@ -154,25 +171,24 @@ export async function fetchEvents() {
       'Authorization': `Bearer ${token}`,
       'Accept': 'application/json'
     }
-    
 
-    const response = await $fetch(eventsUrl, {
-      method: 'GET',
-      headers: headers,
-    })
+    // Use retry mechanism for network issues
+    const response = await withRetry(async () => {
+      return await $fetch(eventsUrl, {
+        method: 'GET',
+        headers: headers,
+      })
+    }, 2, 1000)
 
-    console.log(response)
-
-    // Validate and log each event ID
-    if (response && Array.isArray(response.data)) {
+    // Validate event IDs in development only
+    if (process.env.NODE_ENV === 'development' && response && Array.isArray(response.data)) {
       response.data.forEach((event, index) => {
         const eventId = event.id?.toString()
         if (!eventId || !eventId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-        } else {
+          console.warn(`Event ${index + 1} has invalid ID format:`, eventId)
         }
       })
     }
-
 
     // Ensure the response structure is always predictable
     if (response && response.data && Array.isArray(response.data)) {
@@ -202,7 +218,6 @@ export async function fetchEvents() {
       }
     }
   } catch (error) {
-    
     // Handle authentication errors specifically
     if (error.status === 401) {
       const { clearAuth } = useAuth()
@@ -219,20 +234,15 @@ export async function fetchEvents() {
       }
     }
     
-    // Don't expose technical details to users
-    let userMessage = 'Failed to load events. Please try again.'
-    if (error.status === 403) {
-      userMessage = 'Access denied. Please check your permissions.'
-    } else if (error.status === 500) {
-      userMessage = 'Server error. Please try again later.'
-    }
+    // Use centralized error handling
+    const errorInfo = handleApiError(error, 'events', 'load events')
     
     return {
       status: error?.status || 500,
       data: {
         success: false,
         data: [],
-        message: userMessage
+        message: errorInfo.userMessage
       }
     }
   }
@@ -484,9 +494,18 @@ export async function createEvent(eventData, isDraft = true) {
           formData.append(`chairs[${index}][sort_order]`, chairSortOrder)
           
           
-          // Handle profile image file separately
-          if (chair.profile_image instanceof File) {
+          // Handle profile image file separately - FIXED: Better file detection
+          if (chair.profile_image && (
+            chair.profile_image instanceof File ||
+            (typeof chair.profile_image === 'object' &&
+             chair.profile_image.constructor &&
+             chair.profile_image.constructor.name === 'File') ||
+            (chair.profile_image.name && chair.profile_image.size && chair.profile_image.type)
+          )) {
+            console.log(`✅ Adding chair ${index + 1} profile image:`, chair.profile_image.name)
             formData.append(`chairs[${index}][profile_image]`, chair.profile_image)
+          } else if (chair.profile_image) {
+            console.log(`⚠️ Chair ${index + 1} profile_image is not a valid File:`, typeof chair.profile_image, chair.profile_image.constructor?.name)
           }
         })
         
@@ -526,9 +545,37 @@ export async function createEvent(eventData, isDraft = true) {
       }
     })
     
-    // Validate total payload size (max 5MB total to prevent 413)
-    if (totalFileSize > 5 * 1024 * 1024) {
-      throw new Error(`Total file size exceeds 5MB limit. Current size: ${(totalFileSize / 1024 / 1024).toFixed(2)}MB. Please compress your images.`)
+    // Add chair profile images to total file size calculation
+    if (eventData.chairs && Array.isArray(eventData.chairs)) {
+      eventData.chairs.forEach((chair, index) => {
+        if (chair.profile_image instanceof File) {
+          const file = chair.profile_image
+          
+          // Validate individual chair image file size (max 2MB per file)
+          if (file.size > 2 * 1024 * 1024) {
+            throw new Error(`Chair ${index + 1} profile image file size exceeds 2MB limit. Please compress the image.`)
+          }
+          
+          // Track total payload size including chair images
+          totalFileSize += file.size
+          
+          // Validate file type
+          if (!file.type.startsWith('image/')) {
+            throw new Error(`Chair ${index + 1} profile image must be an image file`)
+          }
+          
+          // Validate file format (only allow common web formats)
+          const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+          if (!allowedTypes.includes(file.type.toLowerCase())) {
+            throw new Error(`Chair ${index + 1} profile image must be in JPEG, PNG, or WebP format`)
+          }
+        }
+      })
+    }
+    
+    // Validate total payload size (max 10MB total to accommodate chair images)
+    if (totalFileSize > 10 * 1024 * 1024) {
+      throw new Error(`Total file size exceeds 10MB limit. Current size: ${(totalFileSize / 1024 / 1024).toFixed(2)}MB. Please compress your images.`)
     }
     
 
@@ -572,13 +619,13 @@ export async function createEvent(eventData, isDraft = true) {
       })
 
       // Only return success if we get a valid response
-      // if (!response || typeof response !== 'object') {
-      //   return {
-      //     success: false,
-      //     message: 'Invalid response from server',
-      //     error: new Error('Invalid response format')
-      //   }
-      // }
+      if (!response || typeof response !== 'object') {
+        return {
+          success: false,
+          message: 'Invalid response from server',
+          error: new Error('Invalid response format')
+        }
+      }
 
       
       // Return normalized response
@@ -778,9 +825,40 @@ export async function updateEvent(eventId, eventData) {
                     formData.append(`chairs[${index}][company]`, chairCompany)
                     formData.append(`chairs[${index}][sort_order]`, chairSortOrder)
                     
-                    // Handle profile image file separately
-                    if (chair.profile_image instanceof File) {
+                    // Handle profile image file separately with validation - FIXED: Better file detection
+                    if (chair.profile_image && (
+                      chair.profile_image instanceof File ||
+                      (typeof chair.profile_image === 'object' &&
+                       chair.profile_image.constructor &&
+                       chair.profile_image.constructor.name === 'File') ||
+                      (chair.profile_image.name && chair.profile_image.size && chair.profile_image.type)
+                    )) {
+                      const file = chair.profile_image
+                      
+                      // Validate chair image file size (max 2MB per file)
+                      if (file.size > 2 * 1024 * 1024) {
+                        throw new Error(`Chair ${index + 1} profile image file size exceeds 2MB limit. Please compress the image.`)
+                      }
+                      
+                      // Validate file type
+                      if (!file.type.startsWith('image/')) {
+                        throw new Error(`Chair ${index + 1} profile image must be an image file`)
+                      }
+                      
+                      // Validate file format (only allow common web formats)
+                      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+                      if (!allowedTypes.includes(file.type.toLowerCase())) {
+                        throw new Error(`Chair ${index + 1} profile image must be in JPEG, PNG, or WebP format`)
+                      }
+                      
+                      console.log(`✅ Updating chair ${index + 1} with new image:`, file.name)
                       formData.append(`chairs[${index}][profile_image]`, chair.profile_image)
+                    } else if (chair.profile_image_url && chair.profile_image_url.trim() !== '') {
+                      // FIXED: Preserve existing image URL from API response
+                      console.log(`✅ Preserving chair ${index + 1} existing image:`, chair.profile_image_url)
+                      formData.append(`chairs[${index}][profile_image_url]`, chair.profile_image_url)
+                    } else if (chair.profile_image) {
+                      console.log(`⚠️ Chair ${index + 1} profile_image is not a valid File:`, typeof chair.profile_image, chair.profile_image.constructor?.name)
                     }
                   })
                 }
@@ -812,17 +890,15 @@ export async function updateEvent(eventId, eventData) {
       },
     })
 
-          console.log(response)
-
     // Validate response
-    // if (!response || typeof response !== 'object') {
-    //   console.error('❌ Invalid response format:', response)
-    //   return {
-    //     success: false,
-    //     message: 'Invalid response from server',
-    //     error: new Error('Invalid response format')
-    //   }
-    // }
+    if (!response || typeof response !== 'object') {
+      console.error('❌ Invalid response format:', response)
+      return {
+        success: false,
+        message: 'Invalid response from server',
+        error: new Error('Invalid response format')
+      }
+    }
 
     // Return normalized success response
     return {
@@ -914,47 +990,69 @@ export async function updateEvent(eventId, eventData) {
 }
 
 
-// Update ticket type
+// Update ticket type - UPDATED: Match exact API specification
 export async function updateTicketType(eventId, ticketTypeId, ticketData) {
   const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl // FIXED: Use admin base URL for consistency
 
   if (!eventId || !ticketTypeId) {
     throw new Error('Event ID and Ticket Type ID are required')
   }
 
+  // Validate UUID format
+  if (!validateUUID(eventId)) {
+    throw new Error('Invalid event ID format')
+  }
+
   try {
-    // Validate and normalize ticket data
+    // Validate and normalize ticket data to match API specification
     const normalizedData = {
       name: String(ticketData.name || '').trim(),
       price: parseFloat(ticketData.price || 0),
       total: parseInt(ticketData.total || ticketData.quantity || 0),
-      tag: String(ticketData.tag || ticketData.description || '').trim(),
-      sort_order: ticketData.sort_order || 1,
-      is_active: ticketData.is_active !== undefined ? (ticketData.is_active ? 1 : 0) : 1
+      tag: String(ticketData.tag || ticketData.description || '').trim()
     }
 
     // Validate required fields
     if (!normalizedData.name) throw new Error('Ticket name is required')
     if (isNaN(normalizedData.price) || normalizedData.price < 0) throw new Error('Price must be 0 or greater')
     if (isNaN(normalizedData.total) || normalizedData.total < 1) throw new Error('Quantity must be at least 1')
-    if (!normalizedData.tag) throw new Error('Description is required')
 
-    console.log('🎫 Updating ticket with JSON data:', {
+    console.log('🎫 Updating ticket via PUT with JSON body:', {
       eventId,
       ticketTypeId,
+      endpoint: `/admin/events/${eventId}/ticket-types/${ticketTypeId}`,
+      method: 'PUT',
       data: normalizedData
     })
     
+    // FIXED: API: PUT /admin/events/:event_id/ticket-types/:ticket_type_id (use admin endpoint for consistency)
+    // Body: raw JSON as specified by user
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types/${ticketTypeId}`, {
       method: 'PUT',
-      body: JSON,
+      body: normalizedData,
       headers: createAuthHeaders() // Use JSON Content-Type
+    })
+
+    console.log('✅ Ticket updated successfully:', {
+      eventId,
+      ticketTypeId,
+      ticketName: normalizedData.name,
+      success: response?.success,
+      message: response?.message
     })
 
     return response
   } catch (error) {
     console.error('❌ Ticket update error:', error)
+    
+    // Enhanced error handling
+    if (error.status === 404) {
+      throw new Error('Ticket type not found')
+    } else if (error.status === 422) {
+      throw new Error('Invalid ticket data provided')
+    }
+    
     throw error
   }
 }
@@ -1049,7 +1147,7 @@ export async function createTicketTypes(eventId, ticketTypesData) {
   }
 }
 
-// Get event ticket types
+// Get event ticket types - UPDATED: Match exact API specification
 export async function getEventTicketTypes(eventId) {
   const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
@@ -1063,13 +1161,73 @@ export async function getEventTicketTypes(eventId) {
   }
 
   try {
+    // API: GET /admin/events/:event_id/ticket-types
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types`, {
       method: 'GET',
       headers: createAuthHeaders()
     })
 
+    console.log('🎫 Retrieved ticket types:', {
+      eventId,
+      success: response?.success,
+      count: response?.data?.ticket_types?.length || 0,
+      endpoint: `/admin/events/${eventId}/ticket-types`,
+      responseStructure: {
+        hasSuccess: !!response?.success,
+        hasMessage: !!response?.message,
+        hasData: !!response?.data,
+        hasTicketTypes: !!response?.data?.ticket_types,
+        hasOrganizers: !!response?.data?.organizers
+      }
+    })
+
     return response
   } catch (error) {
+    console.error('❌ Failed to get ticket types:', error)
+    throw error
+  }
+}
+
+// Get single ticket type details - UPDATED: Match exact API specification
+export async function getTicketTypeDetails(eventId, ticketTypeId) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!eventId || !ticketTypeId) {
+    throw new Error('Event ID and Ticket Type ID are required')
+  }
+
+  if (!validateUUID(eventId)) {
+    throw new Error('Invalid event ID format')
+  }
+
+  try {
+    // API: GET /admin/events/:event_id/ticket-types/:ticket_type_id
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types/${ticketTypeId}`, {
+      method: 'GET',
+      headers: createAuthHeaders()
+    })
+
+    console.log('🎫 Retrieved ticket type details:', {
+      eventId,
+      ticketTypeId,
+      success: response?.success,
+      hasData: !!response?.data,
+      endpoint: `/admin/events/${eventId}/ticket-types/${ticketTypeId}`,
+      ticketData: response?.data ? {
+        id: response.data.id,
+        name: response.data.name,
+        price: response.data.price,
+        inventoryTotal: response.data.inventory?.total
+      } : null
+    })
+
+    return response
+  } catch (error) {
+    console.error('❌ Failed to get ticket type details:', error)
+    if (error.status === 404) {
+      throw new Error('Ticket type not found')
+    }
     throw error
   }
 }
@@ -1110,10 +1268,10 @@ export async function deleteEvent(eventId) {
   }
 }
 
-// Delete ticket type - ENHANCED WITH VALIDATION
+// Delete ticket type - UPDATED: Match exact API specification
 export async function deleteTicketType(eventId, ticketTypeId) {
   const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl // FIXED: Use admin base URL
 
   if (!eventId || !ticketTypeId) {
     throw new Error('Event ID and Ticket Type ID are required')
@@ -1125,13 +1283,23 @@ export async function deleteTicketType(eventId, ticketTypeId) {
   }
 
   try {
+    // FIXED: API: DELETE /admin/events/:event_id/ticket-types/:ticket_type_id (use admin base URL)
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types/${ticketTypeId}`, {
       method: 'DELETE',
       headers: createAuthHeaders()
     })
 
+    console.log('🗑️ Deleted ticket type:', {
+      eventId,
+      ticketTypeId,
+      success: response?.success,
+      message: response?.message,
+      endpoint: `/admin/events/${eventId}/ticket-types/${ticketTypeId}`
+    })
+
     return response
   } catch (error) {
+    console.error('❌ Failed to delete ticket type:', error)
     
     // Enhanced error handling
     if (error.status === 404) {
@@ -1146,36 +1314,7 @@ export async function deleteTicketType(eventId, ticketTypeId) {
   }
 }
 
-// Get ticket type details
-export async function getTicketTypeDetails(eventId, ticketTypeId) {
-  const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
-
-  if (!eventId || !ticketTypeId) {
-    throw new Error('Event ID and Ticket Type ID are required')
-  }
-
-  // Validate UUID format for event ID
-  if (!validateUUID(eventId)) {
-    throw new Error('Invalid event ID format. Expected UUID format.')
-  }
-
-  try {
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types/${ticketTypeId}`, {
-      method: 'GET',
-      headers: createAuthHeaders()
-    })
-
-    return response
-  } catch (error) {
-    
-    if (error.status === 404) {
-      throw new Error('Ticket type not found')
-    }
-    
-    throw error
-  }
-}
+// Duplicate function removed - keeping the one at line 1173 which has better logging
 
 // Create agenda items
 export async function createAgendaItems(eventId, agendaData) {
@@ -1300,15 +1439,82 @@ export async function publishEvent(eventId) {
   }
 
   try {
+    console.log('🚀 Publishing event:', eventId)
     
-    // Get current event data to preserve all fields including chairs
+    // CRITICAL FIX: Enhanced File object preservation system for publish
     const { getEventDetails } = await import('@/composables/api')
     let currentEventData = null
+    let localChairFiles = new Map() // Store File objects from local state
+    let chairFileObjectsFromTabs = new Map() // Store File objects from tabs store
+    
+    // Get local state from event store to preserve File objects
+    if (process.client) {
+      const { useEventStore } = await import('~/composables/useEventStore')
+      const eventStore = useEventStore()
+      
+      if (eventStore.currentEvent && eventStore.currentEvent.chairs) {
+        eventStore.currentEvent.chairs.forEach((chair, index) => {
+          if (chair.profile_image instanceof File) {
+            localChairFiles.set(chair.name, chair.profile_image)
+            console.log(`💾 Preserved File object from event store for chair: ${chair.name}`)
+          }
+        })
+      }
+      
+      // CRITICAL: Enhanced tabs store File object recovery
+      const { useEventTabsStore } = await import('~/composables/useEventTabs')
+      const tabsStore = useEventTabsStore()
+      const basicInfoData = tabsStore.getTabData(0)
+      
+      // Priority 1: Get File objects from chairFileObjects storage
+      if (basicInfoData?.chairFileObjects && Array.isArray(basicInfoData.chairFileObjects)) {
+        basicInfoData.chairFileObjects.forEach((fileData) => {
+          if (fileData.fileObject instanceof File) {
+            chairFileObjectsFromTabs.set(fileData.name, fileData.fileObject)
+            console.log(`💾 Preserved File object from tabs chairFileObjects for chair: ${fileData.name} (${fileData.fileObject.name})`)
+          }
+        })
+      }
+      
+      // Priority 2: Get File objects from chairs array
+      if (basicInfoData?.chairs) {
+        basicInfoData.chairs.forEach((chair) => {
+          if (chair.profile_image instanceof File && !chairFileObjectsFromTabs.has(chair.name)) {
+            chairFileObjectsFromTabs.set(chair.name, chair.profile_image)
+            console.log(`💾 Preserved File object from tabs chairs for chair: ${chair.name}`)
+          }
+        })
+      }
+      
+      console.log('💾 File object preservation summary:', {
+        eventStoreFiles: localChairFiles.size,
+        tabsStoreFiles: chairFileObjectsFromTabs.size,
+        totalUniqueFiles: new Set([...localChairFiles.keys(), ...chairFileObjectsFromTabs.keys()]).size
+      })
+    }
     
     try {
       const eventResponse = await getEventDetails(eventId)
       currentEventData = eventResponse.data
+      console.log('📋 Current event data loaded for publish:', {
+        id: currentEventData?.id,
+        chairsCount: currentEventData?.chairs?.length || 0,
+        chairsWithImages: currentEventData?.chairs?.filter(c => c.profile_image_url).length || 0,
+        localFileObjects: localChairFiles.size,
+        chairsData: currentEventData?.chairs?.map(c => ({
+          name: c.name,
+          hasImageUrl: !!c.profile_image_url,
+          hasLocalFile: localChairFiles.has(c.name),
+          imageUrl: c.profile_image_url
+        })) || []
+      })
     } catch (error) {
+      console.warn('Failed to get current event data for publishing:', error)
+    }
+    
+    // CRITICAL FIX: Use FormData approach but preserve File objects
+    if (!currentEventData) {
+      throw new Error('Cannot publish event: Unable to retrieve current event data')
     }
     
     // Create FormData for Laravel PUT method override
@@ -1317,17 +1523,67 @@ export async function publishEvent(eventId) {
     formData.append('is_published', '1')
     formData.append('status', 'active')
     
-    // Preserve chairs data if available
+    // CRITICAL FIX: Enhanced chair processing with comprehensive File object recovery
     if (currentEventData?.chairs && Array.isArray(currentEventData.chairs)) {
+      console.log('📋 Processing chairs for publish:', {
+        chairsCount: currentEventData.chairs.length,
+        localFiles: localChairFiles.size,
+        tabsFiles: chairFileObjectsFromTabs.size
+      })
+      
       currentEventData.chairs.forEach((chair, index) => {
         if (chair.name && chair.position && chair.company) {
           formData.append(`chairs[${index}][name]`, chair.name)
           formData.append(`chairs[${index}][position]`, chair.position)
           formData.append(`chairs[${index}][company]`, chair.company)
           formData.append(`chairs[${index}][sort_order]`, chair.sort_order || (index + 1))
+          
+          // CRITICAL FIX: Enhanced priority system for chair images
+          let imageProcessed = false
+          
+          // Priority 1: File objects from tabs store (most reliable)
+          if (chairFileObjectsFromTabs.has(chair.name)) {
+            const fileObject = chairFileObjectsFromTabs.get(chair.name)
+            formData.append(`chairs[${index}][profile_image]`, fileObject)
+            console.log(`🔥 Using tabs File object for chair ${index + 1}: ${chair.name} (${fileObject.name})`)
+            imageProcessed = true
+          }
+          // Priority 2: Local File objects from event store
+          else if (localChairFiles.has(chair.name)) {
+            const fileObject = localChairFiles.get(chair.name)
+            formData.append(`chairs[${index}][profile_image]`, fileObject)
+            console.log(`🔥 Using event store File object for chair ${index + 1}: ${chair.name} (${fileObject.name})`)
+            imageProcessed = true
+          }
+          // Priority 3: File object in chair data (direct)
+          else if (chair.profile_image && (
+            chair.profile_image instanceof File ||
+            (typeof chair.profile_image === 'object' &&
+             chair.profile_image.constructor &&
+             chair.profile_image.constructor.name === 'File') ||
+            (chair.profile_image.name && chair.profile_image.size && chair.profile_image.type)
+          )) {
+            formData.append(`chairs[${index}][profile_image]`, chair.profile_image)
+            console.log(`✅ Using direct File object for chair ${index + 1}: ${chair.profile_image.name}`)
+            imageProcessed = true
+          }
+          // Priority 4: Existing image URL from API
+          else if (chair.profile_image_url && chair.profile_image_url.trim() !== '') {
+            formData.append(`chairs[${index}][profile_image_url]`, chair.profile_image_url)
+            console.log(`✅ Preserving existing image URL for chair ${index + 1}: ${chair.profile_image_url}`)
+            imageProcessed = true
+          }
+          
+          if (!imageProcessed) {
+            console.log(`⚪ No image data found for chair ${index + 1}: ${chair.name}`)
+          }
         }
       })
+      
+      console.log('📋 Chair processing complete for publish')
     }
+    
+    console.log('📤 Sending publish request with preserved chair images and File objects')
     
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}`, {
       method: 'POST',
@@ -1335,8 +1591,22 @@ export async function publishEvent(eventId) {
       headers: createAuthHeaders(false) // Don't include Content-Type for FormData
     })
 
+    console.log('✅ Event published successfully')
+    console.log('📥 Publish API response:', {
+      success: !!response,
+      hasData: !!response?.data,
+      chairsInResponse: response?.data?.chairs?.length || response?.chairs?.length || 0,
+      chairsData: (response?.data?.chairs || response?.chairs || []).map(c => ({
+        name: c.name,
+        hasImageUrl: !!c.profile_image_url,
+        imageUrl: c.profile_image_url
+      }))
+    })
+    
     return response
+    
   } catch (error) {
+    console.error('❌ Publish event error:', error)
     throw error
   }
 }
