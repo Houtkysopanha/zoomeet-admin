@@ -1,5 +1,5 @@
 <template>
-  <div class=" min-h-full w-full">
+  <div class="h-screen min-h-full w-full" style="background-color: #F8F8FF;">
 
     <!-- Page Content -->
     <slot />

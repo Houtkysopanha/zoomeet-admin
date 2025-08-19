@@ -1,88 +1,58 @@
 <template>
-  <div class="grid grid-cols-2 container py-6 gap-20">
-    <div class="w-full ">
-      <img
-          src="../assets/image/eticketsasia.png"
-          class="w-30 sm:w-60 lg:w-45 h-auto mb-4 filter drop-shadow-lg"
-        />
-        <div class="justify-start text-neutral-800 text-2xl leading-10">Manage your events, ticketing and <br/>reporting in one place</div>
-      <div class="grid grid-cols-2 gap-15 py-5">
-        <div class="relative">
-          <div class="w-72 absolute px-6 py-4 bg-white shadow-sm rounded-2xl z-10  gap-2.5">
-            <div class="flex items-center gap-5 relative z-1">
-              <img src="../assets/image/Group 228.png" alt="" class="w-12">
-              <div class="text-center justify-start text-violet-700 text-xl font-bold leading-7">Event Service</div>            
-            </div>            
-              <div class="justify-start text-neutral-400 text-base font-normal leading-normal py-2">
-                Create and manage events with <br/>customizable options
-              </div>
+  <div class="min-h-screen bg-gray-100/50 flex items-center justify-center p-4">
+
+    <div class="w-full max-w-full h-full  mx-auto grid grid-cols-1 lg:grid-cols-2 bg-white rounded-2xl   overflow-hidden">
+      
+      <div class="p-8 lg:p-12 bg-gray-100/50 hidden lg:flex flex-col justify-between">
+        <div>
+          <div class="mb-10">
+            <img :src="logo" alt="etickets.asia Logo" class=" h-auto w-auto mb-6" />
+            <h1 class="text-3xl font-bold text-gray-800">
+              Manage your events, ticketing and reporting in one place
+            </h1>
           </div>
-          <div class="absolute top-[120px] left-[-10px] w-40 h-10 px-6 py-4 opacity-60 bg-violet-700 rounded-2xl blur-[32px] inline-flex flex-col justify-center items-center gap-2.5">
-            <div class="flex-1 flex flex-col justify-start items-start gap-6">
-              <div class="w-40 h-16"></div>
+
+          <div class="grid grid-cols-2 gap-6">
+            <div class="bg-white p-4 rounded-lg border border-gray-200 transition hover:shadow-xl hover:-translate-y-1 shadow-lg shadow-purple-600/20">
+              <Icon name="ep:checked" class="text-xl text-purple-600 mb-2" />
+              <h3 class="font-semibold text-gray-700">Event Service</h3>
+              <p class="text-sm text-gray-500 mt-1">Create and manage events with customizable options</p>
+            </div>
+            <div class="bg-white p-4 rounded-lg border border-gray-200 transition hover:shadow-xl hover:-translate-y-1 shadow-lg shadow-purple-600/20">
+              <Icon name="fluent:ticket-diagonal-28-filled" class="text-xl text-purple-600 mb-2" />
+              <h3 class="font-semibold text-gray-700">Booking Service</h3>
+              <p class="text-sm text-gray-500 mt-1">Simplify ticket reservations and secure payments</p>
+            </div>
+            <div class="bg-white p-4 rounded-lg border border-gray-200 transition hover:shadow-xl hover:-translate-y-1 shadow-lg shadow-purple-600/20">
+               <Icon name="icon-park-solid:check-one" class="text-xl text-purple-600 mb-2" />
+              <h3 class="font-semibold text-gray-700">Check-in Service</h3>
+              <p class="text-sm text-gray-500 mt-1">Fast and seamless attendee check-in at events</p>
+            </div>
+            <div class="bg-white p-4 rounded-lg border border-gray-200 transition hover:shadow-xl hover:-translate-y-1 shadow-lg shadow-purple-600/20">
+               <Icon name="mdi:chart-bar" class="text-xl text-purple-600 mb-2" />
+              <h3 class="font-semibold text-gray-700">Report</h3>
+              <p class="text-sm text-gray-500 mt-1">Track sales, attendance, and performance insights</p>
             </div>
           </div>
+            <div class="mt-10 mx-auto">
+          <p class="text-sm text-center text-gray-600 mx-auto mb-4">
+            If you have any questions, please contact our support <br>
+          </p>
+          <p class="text-sm text-center text-gray-600 mx-auto ">team via <a href="mailto:info@etickets.asia" class="font-semibold text-purple-600 hover:underline">info@etickets.asia</a></p>
         </div>
-        <div class="relative">
-          <div class="w-72 absolute px-6 py-4 bg-white shadow-sm rounded-2xl z-10  gap-2.5">
-            <div class="flex items-center gap-5 relative z-1">
-              <img src="../assets/image/Group 228 (1).png" alt="" class="w-12">
-              <div class="text-center justify-start text-violet-700 text-xl font-bold leading-7">Booking Service</div>            
-            </div>            
-              <div class="justify-start text-neutral-400 text-base font-normal leading-normal py-2">
-                 Simplify ticket reservations and <br/>secure payments
-              </div>
-          </div>
-          <div class="absolute top-[120px] left-[-10px] w-40 h-10 px-6 py-4 opacity-60 bg-violet-700 rounded-2xl blur-[32px] inline-flex flex-col justify-center items-center gap-2.5">
-            <div class="flex-1 flex flex-col justify-start items-start gap-6">
-              <div class="w-40 h-16"></div>
-            </div>
-          </div>
         </div>
+
       </div>
-      <div class="grid grid-cols-2 gap-15" style="padding-top: 200px;">
-        <div class="relative">
-          <div class="w-72 absolute px-6 py-4 bg-white shadow-sm rounded-2xl z-10  gap-2.5">
-            <div class="flex items-center gap-5 relative z-1">
-              <img src="../assets/image/Group 228 (2).png" alt="" class="w-12">
-              <div class="text-center justify-start text-violet-700 text-xl font-bold leading-7">Event Service</div>            
-            </div>            
-              <div class="justify-start text-neutral-400 text-base font-normal leading-normal py-2">
-                Create and manage events with <br/>customizable options
-              </div>
-          </div>
-          <div class="absolute top-[120px] left-[-10px] w-40 h-10 px-6 py-4 opacity-60 bg-violet-700 rounded-2xl blur-[32px] inline-flex flex-col justify-center items-center gap-2.5">
-            <div class="flex-1 flex flex-col justify-start items-start gap-6">
-              <div class="w-40 h-16"></div>
-            </div>
-          </div>
-        </div>
-        <div class="relative">
-          <div class="w-72 absolute px-6 py-4 bg-white shadow-sm rounded-2xl z-10  gap-2.5">
-            <div class="flex items-center gap-5 relative z-1">
-              <img src="../assets/image/Group 228 (3).png" alt="" class="w-12">
-              <div class="text-center justify-start text-violet-700 text-xl font-bold leading-7">Booking Service</div>            
-            </div>            
-              <div class="justify-start text-neutral-400 text-base font-normal leading-normal py-2">
-                 Simplify ticket reservations and <br/>secure payments
-              </div>
-          </div>
-          <div class="absolute top-[120px] left-[-10px] w-40 h-10 px-6 py-4 opacity-60 bg-violet-700 rounded-2xl blur-[32px] inline-flex flex-col justify-center items-center gap-2.5">
-            <div class="flex-1 flex flex-col justify-start items-start gap-6">
-              <div class="w-40 h-16"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="w-full flex justify-center py-5 px-15">
-      <div class="w-full p-5 bg-white rounded-[20px] shadow-[0px_10px_15px_0px_rgba(0,0,0,0.03)]">
-        <div class="justify-start text-neutral-800 text-2xl leading-10">Login to your account</div>
-          <div class=" mb-6 grid grid-cols-2 py-5">
+
+      <div ref="formRef" class="p-8 lg:p-12 w-full flex flex-col justify-center rounded-2xl">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900 mb-4">Login to your account</h2>
+        
+          <div class="flex border-b border-gray-200 mb-6">
             <button
               @click="currentTab = 'phone'" 
               :class="[
-                'py-2 px-1 mr-6 font-semibold transition-colors duration-200 self-stretch text-center justify-start text-lg leading-loose',
+                'py-2 px-1 mr-6 text-sm font-semibold transition-colors duration-200',
                 currentTab === 'phone' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-500 hover:text-gray-700'
               ]"
               role="tab"
@@ -93,7 +63,7 @@
             <button
               @click="currentTab = 'email'"
               :class="[
-                'py-2 px-1 mr-6 font-semibold transition-colors duration-200 self-stretch text-center justify-start text-lg leading-loose',
+                'py-2 px-1 text-sm font-semibold transition-colors duration-200',
                 currentTab === 'email' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-500 hover:text-gray-700'
               ]"
               role="tab"
@@ -102,9 +72,24 @@
               Email
             </button>
           </div>
+          
           <form @submit.prevent="handleLogin" class="space-y-6">
             <div v-if="currentTab === 'phone'">
-              <PhoneNumber v-model="phoneNumber"/>
+              <label for="phone-number" class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+              <div class="flex items-center">
+                <div class="flex items-center border border-r-0 border-gray-300 rounded-l-md bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                  <Icon name="twemoji:flag-cambodia" class="mr-2" />
+                  <span>+855</span>
+                </div>
+                <input
+                  id="phone-number"
+                  v-model="phoneNumber"
+                  type="text"
+                  required
+                  class="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-r-md focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+                  placeholder="12 345 678"
+                />
+              </div>
             </div>
             
             <div v-if="currentTab === 'email'">
@@ -114,19 +99,19 @@
                 v-model="email"
                 type="text"
                 required
-                class="w-full p-4 text-sm text-gray-900 bg-neutral-100  rounded-lg"
+                class="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-md focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
-              <label for="password" class="self-stretch justify-start text-zinc-800 text-md mb-3 font-normal leading-7">Password</label>
+              <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
               <input
                 id="password"
                 v-model="password"
                 type="password"
                 required
-                class="w-full text-sm border-0 bg-neutral-100 text-gray-900 p-4 rounded-lg focus:ring-0"
+                class="w-full px-3 py-2 text-sm text-gray-900 border border-gray-300 rounded-md focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
                 placeholder="Enter password"
               />
             </div>
@@ -164,10 +149,11 @@
               <p class="text-xs text-gray-400">Copyright ©2025 by etickets.asia</p>
             </div>
           </form>
+        </div>
       </div>
+      <Toast />
     </div>
   </div>
-
 </template>
 
 <script setup>
@@ -178,14 +164,16 @@ import { useToast } from "primevue/usetoast";
 import Toast from 'primevue/toast';
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue';
 import { classicLoader } from '~/composables/useClassicLoader.js';
+import { Icon } from '#components';
 
-// Images
-import logo1 from '@/assets/image/eticketsasia.png';
-import PhoneNumber from "~/components/PhoneNumber.vue";
+// Use a placeholder or your actual logo path
+import logo from '@/assets/image/finalize-logo.jpg'; // UPDATE THIS PATH
+
 definePageMeta({
   layout: "default",
 });
 
+// Your script block remains the same, no changes needed here.
 const email = ref("");
 const phoneNumber = ref(""); 
 const password = ref("");
@@ -216,7 +204,7 @@ async function handleLogin() {
       'Authenticating credentials',
       'Loading dashboard'
     ])
-    const identifier = currentTab.value === 'email' ? email.value : phoneNumber.value.replace(/^\+/, '');
+    const identifier = currentTab.value === 'email' ? email.value : phoneNumber.value;
     if (!identifier || !password.value) {
       throw new Error('Please fill in all required fields')
     }
@@ -282,7 +270,4 @@ async function handleLogin() {
     classicLoader.hide()
   }
 }
-
-
 </script>
-
