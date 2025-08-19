@@ -1,12 +1,12 @@
 <template>
-  <div class="grid grid-cols-2 container">
+  <div class="grid grid-cols-2 container py-6">
     <div class="w-full">
       <img
           src="../assets/image/eticketsasia.png"
           class="w-30 sm:w-60 lg:w-45 h-auto mb-4 filter drop-shadow-lg"
         />
         <div class="justify-start text-neutral-800 text-2xl leading-10">Manage your events, ticketing and <br/>reporting in one place</div>
-        <div class="grid grid-cols-2 gap-15 py-5">
+      <div class="grid grid-cols-2 gap-15 py-5">
         <div class="relative">
           <div class="w-72 absolute px-6 py-4 bg-white shadow-sm rounded-2xl z-10  gap-2.5">
             <div class="flex items-center gap-5 relative z-1">
@@ -17,7 +17,7 @@
                 Create and manage events with <br/>customizable options
               </div>
           </div>
-          <div class="absolute bottom-1 w-40 h-10 px-6 py-4 opacity-60 bg-violet-700 rounded-2xl blur-[32px] inline-flex flex-col justify-center items-center gap-2.5">
+          <div class="absolute top-[120px] left-[-10px] w-40 h-10 px-6 py-4 opacity-60 bg-violet-700 rounded-2xl blur-[32px] inline-flex flex-col justify-center items-center gap-2.5">
             <div class="flex-1 flex flex-col justify-start items-start gap-6">
               <div class="w-40 h-16"></div>
             </div>
@@ -26,43 +26,55 @@
         <div class="relative">
           <div class="w-72 absolute px-6 py-4 bg-white shadow-sm rounded-2xl z-10  gap-2.5">
             <div class="flex items-center gap-5 relative z-1">
-              <img src="../assets/image/Group 228.png" alt="" class="w-12">
+              <img src="../assets/image/Group 228 (1).png" alt="" class="w-12">
+              <div class="text-center justify-start text-violet-700 text-xl font-bold leading-7">Booking Service</div>            
+            </div>            
+              <div class="justify-start text-neutral-400 text-base font-normal leading-normal py-2">
+                 Simplify ticket reservations and <br/>secure payments
+              </div>
+          </div>
+          <div class="absolute top-[120px] left-[-10px] w-40 h-10 px-6 py-4 opacity-60 bg-violet-700 rounded-2xl blur-[32px] inline-flex flex-col justify-center items-center gap-2.5">
+            <div class="flex-1 flex flex-col justify-start items-start gap-6">
+              <div class="w-40 h-16"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-15" style="padding-top: 200px;">
+        <div class="relative">
+          <div class="w-72 absolute px-6 py-4 bg-white shadow-sm rounded-2xl z-10  gap-2.5">
+            <div class="flex items-center gap-5 relative z-1">
+              <img src="../assets/image/Group 228 (2).png" alt="" class="w-12">
               <div class="text-center justify-start text-violet-700 text-xl font-bold leading-7">Event Service</div>            
             </div>            
               <div class="justify-start text-neutral-400 text-base font-normal leading-normal py-2">
                 Create and manage events with <br/>customizable options
               </div>
           </div>
-          <div class="absolute bottom-0 w-40 h-10 px-6 py-4 opacity-60 bg-violet-700 rounded-2xl blur-[32px] inline-flex flex-col justify-center items-center gap-2.5">
+          <div class="absolute top-[120px] left-[-10px] w-40 h-10 px-6 py-4 opacity-60 bg-violet-700 rounded-2xl blur-[32px] inline-flex flex-col justify-center items-center gap-2.5">
             <div class="flex-1 flex flex-col justify-start items-start gap-6">
               <div class="w-40 h-16"></div>
             </div>
           </div>
         </div>
-        
-            <!-- <div class="w-72 px-6 py-4 bg-white rounded-2xl inline-flex flex-col gap-2.5">
-              <div class="flex items-center gap-5">
-                <img src="../assets/image/Group 228 (1).png" alt="" class="w-12">
-                <div class="text-center justify-start text-violet-700 text-xl font-bold leading-7">Booking Service</div>            </div>            
-                <div class="justify-start text-neutral-400 text-base font-normal leading-normal py-2">
-                  Simplify ticket reservations and <br/>secure payments</div>
-            </div>
-            <div class="w-72 px-6 py-2 bg-white rounded-2xl inline-flex flex-col  gap-2.5">
-              <div class="flex items-center gap-5">
-                <img src="../assets/image/Group 228 (2).png" alt="" class="w-12">
-                <div class="text-center justify-start text-violet-700 text-xl font-bold leading-7">Check-in Service</div>            </div>            
-                <div class="justify-start text-neutral-400 text-base font-normal leading-normal py-2">
-                  Fast and seamless attendee <br/>check-in at events
-            </div>
-          </div>
-          <div class="w-72 px-6 py-2 bg-white rounded-2xl inline-flex flex-col gap-2.5">
-            <div class="flex items-center gap-5">
+        <div class="relative">
+          <div class="w-72 absolute px-6 py-4 bg-white shadow-sm rounded-2xl z-10  gap-2.5">
+            <div class="flex items-center gap-5 relative z-1">
               <img src="../assets/image/Group 228 (3).png" alt="" class="w-12">
-              <div class="text-center justify-start text-violet-700 text-xl font-bold leading-7">Report</div>            </div>            
+              <div class="text-center justify-start text-violet-700 text-xl font-bold leading-7">Booking Service</div>            
+            </div>            
               <div class="justify-start text-neutral-400 text-base font-normal leading-normal py-2">
-                Track sales, attendance, and <br/>performance insights</div>
-          </div> -->
+                 Simplify ticket reservations and <br/>secure payments
+              </div>
+          </div>
+          <div class="absolute top-[120px] left-[-10px] w-40 h-10 px-6 py-4 opacity-60 bg-violet-700 rounded-2xl blur-[32px] inline-flex flex-col justify-center items-center gap-2.5">
+            <div class="flex-1 flex flex-col justify-start items-start gap-6">
+              <div class="w-40 h-16"></div>
+            </div>
+          </div>
         </div>
+      </div>
+      
     </div>
     <div>h</div>
   </div>
@@ -122,10 +134,10 @@ async function handleLogin() {
       'Loading dashboard'
     ])
 
-    console.log('🔑 Login attempt:', { 
-      username: username.value,
-      method: currentTab.value 
-    })
+    // console.log('🔑 Login attempt:', { 
+    //   username: username.value,
+    //   method: currentTab.value 
+    // })
 
     // Validate input
     const identifier = currentTab.value === 'username-password' ? username.value : username.value
@@ -139,7 +151,6 @@ async function handleLogin() {
 
     // Attempt login
     const data = await login(identifier, password.value)
-    console.log('📥 Login response received:', data)
 
     // Update progress
     classicLoader.updateProgress(60, 'Verifying account...')

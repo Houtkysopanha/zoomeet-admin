@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
       ? 'https://dev-gateway.prestigealliance.co/api/v1'
       : 'https://gateway.etickets.asia/api/v1'
 
-    console.log('Server-side API URL:', externalApiUrl)
+    // console.log('Server-side API URL:', externalApiUrl)
 
     // Get authorization header from the request
     const authHeader = getHeader(event, 'authorization')
@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
       },
     })
 
-    console.log('Server-side user info response:', response)
+    // console.log('Server-side user info response:', response)
     return response
   } catch (error: any) {
     console.error('Server-side user info error:', error)

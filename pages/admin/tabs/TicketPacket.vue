@@ -593,14 +593,14 @@ const loadExistingTickets = async () => {
 
   loading.value = true
   try {
-    console.log('🎫 Loading existing tickets for event:', currentEventId.value)
+    // console.log('🎫 Loading existing tickets for event:', currentEventId.value)
     const response = await getEventTicketTypes(currentEventId.value)
     
     if (response && response.data && Array.isArray(response.data)) {
       const existingTickets = response.data
       
       if (existingTickets.length > 0) {
-        console.log('✅ Found existing tickets:', existingTickets.length)
+        // console.log('✅ Found existing tickets:', existingTickets.length)
         
         // Clear current tickets and load existing ones with proper validation
         tickets.value = existingTickets.map((ticket, index) => {
@@ -618,12 +618,12 @@ const loadExistingTickets = async () => {
             eventId: currentEventId.value // Add event ID for validation
           }
           
-          console.log('📝 Loaded ticket from API:', {
-            index,
-            eventId: currentEventId.value,
-            original: ticket,
-            loaded: loadedTicket
-          })
+          // console.log('📝 Loaded ticket from API:', {
+          //   index,
+          //   eventId: currentEventId.value,
+          //   original: ticket,
+          //   loaded: loadedTicket
+          // })
           
           return loadedTicket
         })
@@ -631,11 +631,11 @@ const loadExistingTickets = async () => {
         hasExistingTickets.value = true
         isEditMode.value = true
         
-        console.log('📝 Loaded tickets for event:', {
-          eventId: currentEventId.value,
-          ticketCount: tickets.value.length,
-          isEditMode: isEditMode.value
-        })
+        // console.log('📝 Loaded tickets for event:', {
+        //   eventId: currentEventId.value,
+        //   ticketCount: tickets.value.length,
+        //   isEditMode: isEditMode.value
+        // })
         
         toast.add({
           severity: 'success',
@@ -643,12 +643,13 @@ const loadExistingTickets = async () => {
           detail: `Loaded ${existingTickets.length} existing ticket(s) for editing`,
           life: 3000
         })
-      } else {
-        console.log('📝 No existing tickets found, starting fresh')
-        hasExistingTickets.value = false
-        tickets.value = [] // Clear any existing tickets
-        isEditMode.value = false
-      }
+      } 
+      // else {
+      //   console.log('📝 No existing tickets found, starting fresh')
+      //   hasExistingTickets.value = false
+      //   tickets.value = [] // Clear any existing tickets
+      //   isEditMode.value = false
+      // }
     }
   } catch (error) {
     console.error('❌ Failed to load existing tickets:', error)
@@ -669,7 +670,7 @@ const loadExistingTickets = async () => {
 // Watch tickets array for changes
 watch(tickets, (newTickets) => {
   if (currentEventId.value) {
-    console.log('🎫 Tickets changed, saving to tab store:', newTickets.length)
+    // console.log('🎫 Tickets changed, saving to tab store:', newTickets.length)
     const tabsStore = useEventTabsStore()
     
     // Save current ticket data immediately
@@ -694,7 +695,7 @@ watch(tickets, (newTickets) => {
 
 // Enhanced initialization with better data restoration
 onMounted(async () => {
-  console.log('🎫 Initializing TicketPacket component...')
+  // console.log('🎫 Initializing TicketPacket component...')
   
   // Use Pinia store instead of localStorage
   const eventStore = useEventStore()
@@ -707,13 +708,13 @@ onMounted(async () => {
     // Enhanced edit mode detection - if event has an ID, it's in edit mode
     isEditMode.value = !!eventStore.currentEvent.id
     
-    console.log('📋 Current event found:', {
-      id: currentEventId.value,
-      name: currentEventName.value,
-      isEditMode: isEditMode.value,
-      status: eventStore.currentEvent.status,
-      isPublished: eventStore.currentEvent.is_published
-    })
+    // console.log('📋 Current event found:', {
+    //   id: currentEventId.value,
+    //   name: currentEventName.value,
+    //   isEditMode: isEditMode.value,
+    //   status: eventStore.currentEvent.status,
+    //   isPublished: eventStore.currentEvent.is_published
+    // })
     
     // Check if event has completed basic info from tab store
     const basicInfoData = tabsStore.getTabData(0)
@@ -737,12 +738,12 @@ onMounted(async () => {
       return
     }
     
-    console.log("📋 Loading event for tickets:", {
-      id: currentEventId.value,
-      name: currentEventName.value,
-      hasBasicInfo,
-      isTabComplete: tabsStore.isTabCompleted(0)
-    })
+    // console.log("📋 Loading event for tickets:", {
+    //   id: currentEventId.value,
+    //   name: currentEventName.value,
+    //   hasBasicInfo,
+    //   isTabComplete: tabsStore.isTabCompleted(0)
+    // })
 
     // Enhanced ticket restoration with priority order
     const ticketTabData = tabsStore.getTabData(2)

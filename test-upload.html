@@ -179,7 +179,7 @@
                 const lastAction = ref('None');
 
                 const triggerFileInput = (event) => {
-                    console.log('🖱️ Triggering file input click', event?.target?.tagName);
+                    // console.log('🖱️ Triggering file input click', event?.target?.tagName);
                     lastAction.value = 'triggerFileInput called';
                     
                     if (event) {
@@ -188,7 +188,7 @@
                     }
                     
                     if (fileInput.value) {
-                        console.log('📁 File input found, triggering click');
+                        // console.log('📁 File input found, triggering click');
                         lastAction.value = 'File input click triggered';
                         // Use setTimeout to ensure the click happens after event handling
                         setTimeout(() => {
@@ -201,7 +201,7 @@
                 };
 
                 const handleBrowseClick = (event) => {
-                    console.log('🖱️ Browse button clicked');
+                    // console.log('🖱️ Browse button clicked');
                     lastAction.value = 'Browse button clicked';
                     event.preventDefault();
                     event.stopPropagation();
@@ -217,15 +217,15 @@
                 };
 
                 const handleFileSelect = (event) => {
-                    console.log('📁 File input changed', event.target.files);
+                    // console.log('📁 File input changed', event.target.files);
                     lastAction.value = 'File input changed';
                     const file = event.target.files[0];
                     if (file) {
-                        console.log('📎 File selected:', file.name, file.size, file.type);
+                        // console.log('📎 File selected:', file.name, file.size, file.type);
                         lastAction.value = `File selected: ${file.name}`;
                         validateAndProcessFile(file);
                     } else {
-                        console.log('❌ No file selected');
+                        // console.log('❌ No file selected');
                         lastAction.value = 'No file selected';
                     }
                 };
@@ -240,14 +240,14 @@
                 };
 
                 const validateAndProcessFile = (file) => {
-                    console.log('🔍 Validating file:', file.name, file.size, file.type);
+                    // console.log('🔍 Validating file:', file.name, file.size, file.type);
                     lastAction.value = `Validating file: ${file.name}`;
                     hasError.value = false;
                     
                     // Check file size (10MB limit)
                     const maxSize = 10 * 1024 * 1024;
                     if (file.size > maxSize) {
-                        console.error('❌ File too large:', file.size, 'max:', maxSize);
+                        // console.error('❌ File too large:', file.size, 'max:', maxSize);
                         hasError.value = true;
                         lastAction.value = 'ERROR: File too large';
                         return;
@@ -256,13 +256,13 @@
                     // Check file type
                     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
                     if (!allowedTypes.includes(file.type)) {
-                        console.error('❌ Invalid file type:', file.type, 'allowed:', allowedTypes);
+                        // console.error('❌ Invalid file type:', file.type, 'allowed:', allowedTypes);
                         hasError.value = true;
                         lastAction.value = 'ERROR: Invalid file type';
                         return;
                     }
                     
-                    console.log('✅ File validation passed');
+                    // console.log('✅ File validation passed');
                     lastAction.value = `SUCCESS: File validated - ${file.name}`;
                     selectedFile.value = file;
                 };

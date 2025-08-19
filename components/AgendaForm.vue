@@ -164,7 +164,6 @@ import Textarea from 'primevue/textarea';
 import Calendar from 'primevue/calendar';
 import TabView from 'primevue/tabview';
 import TabPanel from 'primevue/tabpanel';
-// import { useToast } from 'vue3-toastify';
 import SpeakerInput from '~/components/common/SpeakerInput.vue';
 
 // Placeholder data for the agenda list
@@ -224,7 +223,7 @@ const removeSpeakerField = (index) => {
 
 // Placeholder function for adding agenda item
 const addAgenda = () => {
-  console.log('Adding Agenda:', eventForm.value);
+  // console.log('Adding Agenda:', eventForm.value);
   const toast = useToast();
   toast.success('Agenda item added (simulated)!', {
     position: 'top-right',

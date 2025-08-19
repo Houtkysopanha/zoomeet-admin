@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
     const path = event.context.params?._ || ''
     const method = getMethod(event)
     
-    console.log(`Server-side generic API request: ${method} /${path}`)
+    // console.log(`Server-side generic API request: ${method} /${path}`)
 
     // Skip if this is already handled by specific handlers
     if (path.startsWith('login') || path.startsWith('info') || 
@@ -31,7 +31,7 @@ export default defineEventHandler(async (event) => {
     }
 
     const fullUrl = `${externalApiUrl}/${path}`
-    console.log('Server-side generic API URL:', fullUrl)
+    // console.log('Server-side generic API URL:', fullUrl)
 
     // Get authorization header from the request
     const authHeader = getHeader(event, 'authorization')
@@ -75,7 +75,7 @@ export default defineEventHandler(async (event) => {
       headers: headers,
     })
 
-    console.log(`Server-side generic API response for ${method} /${path}:`, response)
+    // console.log(`Server-side generic API response for ${method} /${path}:`, response)
     return response
   } catch (error: any) {
     console.error(`Server-side generic API error:`, error)

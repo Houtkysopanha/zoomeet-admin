@@ -4,14 +4,14 @@ export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
 
   try {
-    console.log('Server-side login attempt:', { identifier: body.identifier })
+    // console.log('Server-side login attempt:', { identifier: body.identifier })
 
     // Use the actual external API URL, not the proxy URL
     const externalApiUrl = process.env.NODE_ENV === 'development'
       ? 'https://dev-gateway.prestigealliance.co/api/v1'
       : 'https://gateway.etickets.asia/api/v1'
 
-    console.log('Server-side API URL:', externalApiUrl)
+    // console.log('Server-side API URL:', externalApiUrl)
 
     // Try multiple possible login endpoints
     const possibleEndpoints = [
@@ -26,7 +26,7 @@ export default defineEventHandler(async (event) => {
 
     for (const endpoint of possibleEndpoints) {
       try {
-        console.log(`Trying login endpoint: ${endpoint}`)
+        // console.log(`Trying login endpoint: ${endpoint}`)
         response = await $fetch(endpoint, {
           method: 'POST',
           body: body,
@@ -34,10 +34,10 @@ export default defineEventHandler(async (event) => {
             'Content-Type': 'application/json',
           },
         })
-        console.log(`✅ Login successful with endpoint: ${endpoint}`)
+        // console.log(`✅ Login successful with endpoint: ${endpoint}`)
         break
       } catch (error: any) {
-        console.log(`❌ Failed with endpoint ${endpoint}:`, error.statusCode || error.status)
+        // console.log(`❌ Failed with endpoint ${endpoint}:`, error.statusCode || error.status)
         lastError = error
         continue
       }
@@ -48,7 +48,7 @@ export default defineEventHandler(async (event) => {
       throw lastError
     }
 
-    console.log('Server-side login response:', response)
+    // console.log('Server-side login response:', response)
     return response
   } catch (error: any) {
     console.error('Server-side login error:', error)

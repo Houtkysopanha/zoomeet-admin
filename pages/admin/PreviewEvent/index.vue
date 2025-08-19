@@ -168,12 +168,12 @@ const loadEventData = async () => {
       return
     }
 
-    console.log('Loading event data for ID:', eventId)
+    // console.log('Loading event data for ID:', eventId)
     const response = await fetchEventById(eventId)
     
     if (response && response.data && response.data.success) {
       eventData.value = response.data.data
-      console.log('Event data loaded:', eventData.value)
+      // console.log('Event data loaded:', eventData.value)
     } else {
       toast.add({
         severity: 'error',

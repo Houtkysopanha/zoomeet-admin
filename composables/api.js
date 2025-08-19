@@ -569,13 +569,13 @@ export async function createEvent(eventData, isDraft = true) {
       })
 
       // Only return success if we get a valid response
-      if (!response || typeof response !== 'object') {
-        return {
-          success: false,
-          message: 'Invalid response from server',
-          error: new Error('Invalid response format')
-        }
-      }
+      // if (!response || typeof response !== 'object') {
+      //   return {
+      //     success: false,
+      //     message: 'Invalid response from server',
+      //     error: new Error('Invalid response format')
+      //   }
+      // }
 
       
       // Return normalized response
@@ -809,15 +809,17 @@ export async function updateEvent(eventId, eventData) {
       },
     })
 
+          console.log(response)
+
     // Validate response
-    if (!response || typeof response !== 'object') {
-      console.error('❌ Invalid response format:', response)
-      return {
-        success: false,
-        message: 'Invalid response from server',
-        error: new Error('Invalid response format')
-      }
-    }
+    // if (!response || typeof response !== 'object') {
+    //   console.error('❌ Invalid response format:', response)
+    //   return {
+    //     success: false,
+    //     message: 'Invalid response from server',
+    //     error: new Error('Invalid response format')
+    //   }
+    // }
 
     // Return normalized success response
     return {

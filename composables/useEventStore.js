@@ -146,7 +146,7 @@ export const useEventStore = defineStore('event', () => {
       }
 
       // Fetch ticket types
-      console.log('🎫 Fetching ticket types for event:', eventIdStr)
+      // console.log('🎫 Fetching ticket types for event:', eventIdStr)
       try {
         const ticketResponse = await getEventTicketTypes(eventIdStr)
         if (ticketResponse && ticketResponse.data) {

@@ -56,18 +56,18 @@ export function useAuth() {
             throw new Error('Failed to verify token storage')
           }
 
-          console.log('✅ Auth data stored successfully:', {
-            token: parsed.token ? 'present' : 'missing',
-            storage: 'all',
-            loginTime: enhancedAuthData.loginTime
-          })
+          // console.log('✅ Auth data stored successfully:', {
+          //   token: parsed.token ? 'present' : 'missing',
+          //   storage: 'all',
+          //   loginTime: enhancedAuthData.loginTime
+          // })
         }
         
-        console.log('✅ Auth data set successfully', {
-          token: authData.token ? 'present' : 'missing',
-          loginTime: enhancedAuthData.loginTime,
-          expiresAt: enhancedAuthData.expiresAt
-        })
+        // console.log('✅ Auth data set successfully', {
+        //   token: authData.token ? 'present' : 'missing',
+        //   loginTime: enhancedAuthData.loginTime,
+        //   expiresAt: enhancedAuthData.expiresAt
+        // })
     } catch (e) {
       console.error('❌ Failed to set auth data:', e)
       clearAuth()
@@ -76,9 +76,7 @@ export function useAuth() {
   }
 
   // Clear authentication data
-  function clearAuth() {
-    console.log('🗑️ Clearing auth data...')
-    
+  function clearAuth() {    
     // Clear reactive state
     cookie.value = null
     user.value = null
@@ -89,7 +87,6 @@ export function useAuth() {
         localStorage.removeItem('auth')
         sessionStorage.removeItem('auth')
         document.cookie = `${AUTH_COOKIE}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`
-        console.log('✅ Auth data cleared from all storage locations')
       } catch (e) {
         console.error('❌ Error clearing auth data:', e)
       }
@@ -109,13 +106,11 @@ export function useAuth() {
   // Initialize auth state from storage
   function initAuth() {
     if (process.client) {
-      console.log('🔄 Initializing auth state...')
       let authData = null
 
       // Try getting from localStorage first (most reliable)
       const stored = localStorage.getItem('auth')
       if (stored) {
-        console.log('📍 Found auth data in localStorage')
         try {
           authData = JSON.parse(stored)
           // Immediately set in all storages to ensure consistency
@@ -124,7 +119,6 @@ export function useAuth() {
             sessionStorage.setItem('auth', stored)
             cookie.value = authData
             user.value = authData
-            console.log('✅ Auth data restored and synchronized')
             return
           }
         } catch (e) {
@@ -134,7 +128,6 @@ export function useAuth() {
 
       // Try cookie as backup
       if (!authData?.token && cookie.value?.token) {
-        console.log('📍 Found auth data in cookie')
         authData = cookie.value
       }
 
@@ -142,7 +135,6 @@ export function useAuth() {
       if (!authData?.token) {
         const sessionStored = sessionStorage.getItem('auth')
         if (sessionStored) {
-          console.log('📍 Found auth data in sessionStorage')
           try {
             authData = JSON.parse(sessionStored)
           } catch (e) {

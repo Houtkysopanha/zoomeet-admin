@@ -9,28 +9,24 @@ export default defineNuxtRouteMiddleware((to, from) => {
     const auth = localStorage.getItem('auth')
 
     if (!auth) {
-      console.log('No auth found, redirecting to login')
       return navigateTo('/login?redirect=' + encodeURIComponent(to.fullPath))
     }
 
     try {
       const parsed = JSON.parse(auth)
       if (!parsed.token) {
-        console.log('No token found, redirecting to login')
         localStorage.removeItem('auth')
         return navigateTo('/login?redirect=' + encodeURIComponent(to.fullPath))
       }
 
       // Check token expiration if available
       if (parsed.expiresAt && new Date() > new Date(parsed.expiresAt)) {
-        console.log('Token expired, redirecting to login')
         localStorage.removeItem('auth')
         return navigateTo('/login?redirect=' + encodeURIComponent(to.fullPath))
       }
 
       // Validate token format (basic JWT check)
       if (parsed.token && !isValidJWT(parsed.token)) {
-        console.log('Invalid token format, redirecting to login')
         localStorage.removeItem('auth')
         return navigateTo('/login?redirect=' + encodeURIComponent(to.fullPath))
       }
