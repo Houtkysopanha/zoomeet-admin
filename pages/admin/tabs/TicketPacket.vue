@@ -24,7 +24,6 @@
       </div>
     </div>
     
-    <!-- Dynamically rendered Ticket Forms -->
     <!-- Edit Mode Warning for Published Events -->
     <div v-if="isEditMode && eventData?.is_published" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
       <div class="flex items-center">
@@ -36,28 +35,102 @@
       </div>
     </div>
 
-    <TransitionGroup name="ticket-list" tag="div">
-      <TicketForm
-        v-for="(ticket, index) in tickets"
-        :key="ticket.id"
-        v-model="tickets[index]"
-        :ticket-index="index"
-        :readonly="false"
-      />
-    </TransitionGroup>
+    <!-- FIXED: Ticket Display Based on Workflow State -->
+    <div v-if="tickets.length > 0" class="space-y-4 mb-6">
+      <TransitionGroup name="ticket-list" tag="div" class="space-y-4">
+        <div
+          v-for="(ticket, index) in tickets"
+          :key="ticket.id"
+          class="relative bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200"
+        >
+          <!-- FIXED: Edit Icon Only for Saved Tickets (after draft) -->
+          <div v-if="ticket.ticket_type_id && hasExistingTickets" class="absolute top-4 right-4 z-10">
+            <Button
+              icon="pi pi-pencil"
+              text
+              rounded
+              size="small"
+              class="edit-ticket-btn text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+              @click="editTicket(index)"
+              title="Edit this saved ticket"
+            />
+          </div>
+          
+          <!-- Ticket Form Component -->
+          <div class="p-4">
+            <TicketForm
+              v-model="tickets[index]"
+              :ticket-index="index"
+              :readonly="false"
+              @remove-ticket="removeTicket"
+            />
+          </div>
+        </div>
+      </TransitionGroup>
+    </div>
 
-    <!-- Action Buttons -->
-    <div class="flex justify-center items-center mt-6">
+    <!-- Empty State -->
+    <div v-else class="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+      <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <Icon name="heroicons:ticket" class="w-8 h-8 text-purple-600" />
+      </div>
+      <h3 class="text-lg font-medium text-gray-900 mb-2">No tickets created yet</h3>
+      <p class="text-gray-500 mb-6">Create your first ticket package to get started.</p>
       <Button
+        @click="addTicket"
+        class="create-first-ticket-btn"
+        :disabled="!currentEventId"
+      >
+        <Icon name="heroicons:plus" class="mr-2" />
+        Create First Ticket
+      </Button>
+    </div>
+
+    <!-- FIXED: Action Buttons Based on Workflow State -->
+    <div class="flex justify-center items-center mt-6 gap-4">
+      <!-- PHASE 1: Create First Ticket (No tickets exist) -->
+      <Button
+        v-if="tickets.length === 0"
+        @click="addTicket"
+        class="create-first-ticket-btn"
+        :disabled="!currentEventId"
+      >
+        <Icon name="heroicons:plus" class="mr-2" />
+        Create Ticket
+      </Button>
+      
+      <!-- PHASE 2: Add More Tickets (Tickets exist but not saved) -->
+      <Button
+        v-else-if="!hasExistingTickets"
         @click="addTicket"
         class="add-ticket-btn"
         :disabled="!currentEventId"
       >
         <Icon name="heroicons:plus" class="mr-2" />
-        Add Ticket Package
+        Add Another Ticket
       </Button>
       
-      <!-- Note: All save and update actions are handled by the main page buttons -->
+      <!-- PHASE 3: After Draft Saved - Show Add + Edit Options -->
+      <template v-else>
+        <Button
+          @click="addTicket"
+          class="add-ticket-btn"
+          :disabled="!currentEventId"
+        >
+          <Icon name="heroicons:plus" class="mr-2" />
+          Add Ticket Package
+        </Button>
+        
+        <Button
+          @click="updateTickets"
+          class="update-tickets-btn"
+          :disabled="!currentEventId || loading"
+          :loading="loading"
+        >
+          <Icon name="heroicons:arrow-path" class="mr-2" />
+          {{ loading ? 'Updating...' : 'Save Changes' }}
+        </Button>
+      </template>
     </div>
   </div>
 </template>
@@ -213,6 +286,61 @@ const addTicket = () => {
     return
   }
   tickets.value.push(createNewTicket())
+}
+
+// FIXED: Add edit ticket functionality
+const editTicket = (index) => {
+  const ticket = tickets.value[index]
+  if (!ticket) return
+  
+  console.log('✏️ Editing ticket:', ticket.name, 'at index:', index)
+  
+  // Show edit notification
+  toast.add({
+    severity: 'info',
+    summary: 'Edit Mode',
+    detail: `Now editing "${ticket.name}". Make your changes and click "Save Changes" to update.`,
+    life: 4000
+  })
+  
+  // Scroll to the ticket form for better UX
+  const ticketElement = document.querySelector(`[data-ticket-index="${index}"]`)
+  if (ticketElement) {
+    ticketElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+  
+  // Mark the ticket as being edited (for visual feedback)
+  ticket.isEditing = true
+  
+  // Auto-save current state
+  handleSaveCurrentTab()
+}
+
+// FIXED: Add remove ticket functionality
+const removeTicket = (index) => {
+  const ticket = tickets.value[index]
+  if (!ticket) return
+  
+  const ticketName = ticket.name || `Ticket ${index + 1}`
+  
+  // Confirm deletion for existing tickets
+  if (ticket.ticket_type_id) {
+    if (!confirm(`Are you sure you want to remove "${ticketName}"? This action cannot be undone.`)) {
+      return
+    }
+  }
+  
+  tickets.value.splice(index, 1)
+  
+  toast.add({
+    severity: 'success',
+    summary: 'Ticket Removed',
+    detail: `"${ticketName}" has been removed successfully.`,
+    life: 3000
+  })
+  
+  // Auto-save after removal
+  handleSaveCurrentTab()
 }
 
 // Enhanced save current tab data for tab switching with event validation
@@ -859,6 +987,24 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* FIXED: Enhanced button styles for different workflow phases */
+.create-first-ticket-btn {
+  @apply bg-gradient-to-r from-purple-600 to-indigo-600 text-white;
+  @apply hover:from-purple-700 hover:to-indigo-700;
+  @apply px-8 py-4 rounded-full font-semibold shadow-lg hover:shadow-xl;
+  @apply transition-all duration-300 ease-in-out border-0;
+  @apply text-lg;
+}
+
+.create-first-ticket-btn:hover {
+  transform: translateY(-2px);
+}
+
+.create-first-ticket-btn:disabled {
+  @apply bg-gray-300 text-gray-500 cursor-not-allowed;
+  transform: none;
+}
+
 .add-ticket-btn {
   @apply bg-gradient-to-r from-purple-600 to-indigo-600 text-white;
   @apply hover:from-purple-700 hover:to-indigo-700;
@@ -870,19 +1016,8 @@ onUnmounted(() => {
   transform: translateY(-2px);
 }
 
-.save-draft-btn {
-  @apply bg-gradient-to-r from-purple-600 to-indigo-600 text-white;
-  @apply hover:from-purple-700 hover:to-indigo-700;
-  @apply px-6 py-3 rounded-full font-medium shadow-lg hover:shadow-xl;
-  @apply transition-all duration-300 ease-in-out border-0;
-}
-
-.save-draft-btn:hover {
-  transform: translateY(-2px);
-}
-
-.save-draft-btn:disabled {
-  @apply bg-gray-400 cursor-not-allowed;
+.add-ticket-btn:disabled {
+  @apply bg-gray-300 text-gray-500 cursor-not-allowed;
   transform: none;
 }
 
@@ -902,6 +1037,15 @@ onUnmounted(() => {
   transform: none;
 }
 
+.edit-ticket-btn {
+  @apply transition-all duration-200 ease-in-out;
+  @apply hover:scale-110;
+}
+
+.edit-ticket-btn:hover {
+  transform: scale(1.1) translateY(-1px);
+}
+
 /* Transition for adding/removing tickets */
 .ticket-list-enter-active,
 .ticket-list-leave-active {
@@ -915,5 +1059,22 @@ onUnmounted(() => {
 .ticket-list-leave-active {
   position: absolute;
   width: 100%;
+}
+
+/* Enhanced visual feedback for workflow phases */
+.save-draft-btn {
+  @apply bg-gradient-to-r from-purple-600 to-indigo-600 text-white;
+  @apply hover:from-purple-700 hover:to-indigo-700;
+  @apply px-6 py-3 rounded-full font-medium shadow-lg hover:shadow-xl;
+  @apply transition-all duration-300 ease-in-out border-0;
+}
+
+.save-draft-btn:hover {
+  transform: translateY(-2px);
+}
+
+.save-draft-btn:disabled {
+  @apply bg-gray-400 cursor-not-allowed;
+  transform: none;
 }
 </style>

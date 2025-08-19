@@ -544,17 +544,9 @@ const actionItems = (event) => [
     visible: false, // Disabled
   },
   {
-    label: 'Remove',
+    label: 'Delete Event',
     icon: 'pi pi-trash text-red-500',
-    command: () => {
-      toast.add({
-        severity: 'info',
-        summary: 'Feature Coming Soon',
-        detail: 'Event removal is currently under development.',
-        life: 3000
-      });
-    },
-    visible: false, // Disabled
+    command: () => removeEvent(event),
   },
 ]
 

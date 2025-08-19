@@ -1,9 +1,15 @@
 <template>
-  <div class="ticket-form-container ">
+  <div class="ticket-form-container" :data-ticket-index="ticketIndex">
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-purple-700 font-medium flex items-center">
         <Icon name="mdi:ticket-confirmation" class="text-2xl mr-2" />
         Ticket {{ ticketIndex + 1 }}
+        <span v-if="modelValue?.ticket_type_id" class="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+          Existing
+        </span>
+        <span v-else class="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+          New
+        </span>
       </h3>
       <Button
         v-if="ticketIndex > 0"

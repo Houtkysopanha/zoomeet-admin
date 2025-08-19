@@ -1056,52 +1056,69 @@ const deleteChair = (index) => {
   })
 }
 
-// Get chair image source with proper handling
+// Get chair image source with proper handling - FIXED for profile_image_url
 const getChairImageSrc = (chair) => {
   if (!chair) return null
   
   try {
     // Priority 1: File object (newly uploaded)
     if (chair.photo instanceof File) {
+      console.log(`🖼️ Chair ${chair.name}: Using photo File object`)
       return URL.createObjectURL(chair.photo)
     }
     
     // Priority 2: profile_image File object
     if (chair.profile_image instanceof File) {
+      console.log(`🖼️ Chair ${chair.name}: Using profile_image File object`)
       return URL.createObjectURL(chair.profile_image)
     }
     
-    // Priority 3: Avatar URL (existing or generated)
+    // Priority 3: CRITICAL FIX - profile_image_url field (from API response)
+    if (chair.profile_image_url && typeof chair.profile_image_url === 'string' && chair.profile_image_url.trim()) {
+      console.log(`🖼️ Chair ${chair.name}: Using profile_image_url from API: ${chair.profile_image_url}`)
+      if (chair.profile_image_url.startsWith('http')) {
+        return chair.profile_image_url
+      }
+      return `${window.location.origin}${chair.profile_image_url}`
+    }
+    
+    // Priority 4: Avatar URL (existing or generated)
     if (chair.avatar && typeof chair.avatar === 'string' && chair.avatar.trim()) {
+      console.log(`🖼️ Chair ${chair.name}: Using avatar URL`)
       return chair.avatar
     }
     
-    // Priority 4: Photo URL string
+    // Priority 5: Photo URL string
     if (chair.photo && typeof chair.photo === 'string' && chair.photo.trim()) {
+      console.log(`🖼️ Chair ${chair.name}: Using photo URL string`)
       if (chair.photo.startsWith('http')) {
         return chair.photo
       }
       return `${window.location.origin}${chair.photo}`
     }
     
-    // Priority 5: Profile image URL (from API)
+    // Priority 6: Profile image URL (from API) - legacy field
     if (chair.profile_image && typeof chair.profile_image === 'string' && chair.profile_image.trim()) {
+      console.log(`🖼️ Chair ${chair.name}: Using profile_image URL string`)
       if (chair.profile_image.startsWith('http')) {
         return chair.profile_image
       }
       return `${window.location.origin}${chair.profile_image}`
     }
     
-    // Priority 6: photo_url field (from API)
+    // Priority 7: photo_url field (from API) - legacy field
     if (chair.photo_url && typeof chair.photo_url === 'string' && chair.photo_url.trim()) {
+      console.log(`🖼️ Chair ${chair.name}: Using photo_url from API`)
       if (chair.photo_url.startsWith('http')) {
         return chair.photo_url
       }
       return `${window.location.origin}${chair.photo_url}`
     }
     
+    console.log(`🖼️ Chair ${chair.name}: No image source found`)
     return null
   } catch (error) {
+    console.error(`🖼️ Chair ${chair.name}: Error getting image source:`, error)
     return null
   }
 }
