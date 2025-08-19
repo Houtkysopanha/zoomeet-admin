@@ -1,6 +1,6 @@
 <template>
   <div class="flex items-center justify-center p-4 bg-cover bg-center min-h-full">
-    <div class="w-full max-w-md lg:max-w-lg mx-auto">
+    <div class="w-full max-w-md lg:max-w-lg mx-auto">      
       <div class="text-center mb-6 lg:mb-8">
         <img
           :src="logo1"
