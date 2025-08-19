@@ -1194,37 +1194,17 @@ export async function updateAgendaItem(eventId, agendaId, agendaData) {
   }
 
   try {
-    
-    // Create FormData for Laravel PUT method override
-    const formData = new FormData()
-    formData.append('_method', 'PUT')
-    
-    // Add agenda data to FormData with proper handling
-    for (const [key, value] of Object.entries(agendaData)) {
-      if (value !== null && value !== undefined) {
-        if (key === 'speakers' && Array.isArray(value)) {
-          // Handle speakers array properly for FormData
-          value.forEach((speaker, index) => {
-            if (speaker.name && speaker.name.trim()) {
-              formData.append(`speakers[${index}][name]`, speaker.name.trim())
-              formData.append(`speakers[${index}][about]`, speaker.about || '')
-            }
-          })
-        } else {
-          // Handle regular fields
-          formData.append(key, value)
-        }
-      }
-    }
-    
+    console.log('📅 Updating agenda item:', { eventId, agendaId })
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/agendas/${agendaId}`, {
-      method: 'POST',
-      body: formData,
-      headers: createAuthHeaders(false) // Don't include Content-Type for FormData
+      method: 'PUT',
+      body: agendaData,
+      headers: createAuthHeaders()
     })
 
+    console.log('✅ Agenda item updated:', response)
     return response
   } catch (error) {
+    console.error('❌ Failed to update agenda item:', error)
     throw error
   }
 }

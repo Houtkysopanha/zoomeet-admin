@@ -489,10 +489,19 @@ const getDayNumber = (date) => {
 
 // Handle date change to auto-determine day
 const handleDateChange = (selectedDate) => {
-  if (!selectedDate || !eventStartDate.value) return
+  if (!selectedDate || !eventStartDate.value) {
+    return
+  }
+
+  // toast.add({
+  //   severity: 'warn',
+  //   summary: 'Invalid Date',
+  //   detail: 'Please select a valid date within the event range.',
+  //   life: 3000
+  // });
   
   const dayNumber = getDayNumber(selectedDate)
-  
+
   // Switch to the appropriate tab - ensure Day 1 is always index 0
   const targetTabIndex = Math.max(0, dayNumber - 1)
   
@@ -590,6 +599,14 @@ const editAgenda = (agenda) => {
   validationErrors.value = []
 };
 
+const formatDateLocal = (date) => {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 // Handle form submission (create or update)
 const createOrUpdateAgenda = async () => {
   if (!validateAgendaForm()) {
@@ -607,7 +624,7 @@ const createOrUpdateAgenda = async () => {
   try {
     // Prepare agenda data with proper format and validation
     const agendaData = {
-      date: eventForm.value.date ? new Date(eventForm.value.date).toISOString().split('T')[0] : null,
+      date: eventForm.value.date ? formatDateLocal(eventForm.value.date) : null,
       time_start: eventForm.value.time_start,
       time_end: eventForm.value.time_end,
       title: eventForm.value.title?.trim(),
@@ -938,6 +955,8 @@ onMounted(async () => {
       life: 3000
     })
   }
+
+  console.log('Agenda items loaded:', agendaItems.value)
 
   // Add event listeners for agenda saving and tab switching
   window.addEventListener('saveAgenda', saveAgenda)
