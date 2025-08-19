@@ -977,10 +977,10 @@ export async function updateEvent(eventId, eventData) {
 }
 
 
-// Update ticket type - FIXED: Use proper PUT method with JSON body as requested
+// Update ticket type - UPDATED: Match exact API specification
 export async function updateTicketType(eventId, ticketTypeId, ticketData) {
   const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl // FIXED: Use admin base URL for consistency
 
   if (!eventId || !ticketTypeId) {
     throw new Error('Event ID and Ticket Type ID are required')
@@ -992,21 +992,18 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
   }
 
   try {
-    // Validate and normalize ticket data
+    // Validate and normalize ticket data to match API specification
     const normalizedData = {
       name: String(ticketData.name || '').trim(),
       price: parseFloat(ticketData.price || 0),
       total: parseInt(ticketData.total || ticketData.quantity || 0),
-      tag: String(ticketData.tag || ticketData.description || '').trim(),
-      sort_order: ticketData.sort_order || 1,
-      is_active: ticketData.is_active !== undefined ? (ticketData.is_active ? 1 : 0) : 1
+      tag: String(ticketData.tag || ticketData.description || '').trim()
     }
 
     // Validate required fields
     if (!normalizedData.name) throw new Error('Ticket name is required')
     if (isNaN(normalizedData.price) || normalizedData.price < 0) throw new Error('Price must be 0 or greater')
     if (isNaN(normalizedData.total) || normalizedData.total < 1) throw new Error('Quantity must be at least 1')
-    if (!normalizedData.tag) throw new Error('Description is required')
 
     console.log('🎫 Updating ticket via PUT with JSON body:', {
       eventId,
@@ -1016,9 +1013,8 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
       data: normalizedData
     })
     
-    // FIXED: Use proper PUT method with JSON body as requested
-    // Endpoint: PUT /admin/events/:event_id/ticket-types/:ticket_type_id
-    // Body: raw JSON
+    // FIXED: API: PUT /admin/events/:event_id/ticket-types/:ticket_type_id (use admin endpoint for consistency)
+    // Body: raw JSON as specified by user
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types/${ticketTypeId}`, {
       method: 'PUT',
       body: normalizedData,
@@ -1028,7 +1024,9 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
     console.log('✅ Ticket updated successfully:', {
       eventId,
       ticketTypeId,
-      ticketName: normalizedData.name
+      ticketName: normalizedData.name,
+      success: response?.success,
+      message: response?.message
     })
 
     return response
@@ -1136,7 +1134,7 @@ export async function createTicketTypes(eventId, ticketTypesData) {
   }
 }
 
-// Get event ticket types - FIXED: Use proper admin endpoint
+// Get event ticket types - UPDATED: Match exact API specification
 export async function getEventTicketTypes(eventId) {
   const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
@@ -1150,7 +1148,7 @@ export async function getEventTicketTypes(eventId) {
   }
 
   try {
-    // FIXED: Use proper admin endpoint as requested
+    // API: GET /admin/events/:event_id/ticket-types
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types`, {
       method: 'GET',
       headers: createAuthHeaders()
@@ -1158,8 +1156,16 @@ export async function getEventTicketTypes(eventId) {
 
     console.log('🎫 Retrieved ticket types:', {
       eventId,
-      count: response?.data?.length || 0,
-      endpoint: `/admin/events/${eventId}/ticket-types`
+      success: response?.success,
+      count: response?.data?.ticket_types?.length || 0,
+      endpoint: `/admin/events/${eventId}/ticket-types`,
+      responseStructure: {
+        hasSuccess: !!response?.success,
+        hasMessage: !!response?.message,
+        hasData: !!response?.data,
+        hasTicketTypes: !!response?.data?.ticket_types,
+        hasOrganizers: !!response?.data?.organizers
+      }
     })
 
     return response
@@ -1169,7 +1175,7 @@ export async function getEventTicketTypes(eventId) {
   }
 }
 
-// Get single ticket type details - NEW: As requested
+// Get single ticket type details - UPDATED: Match exact API specification
 export async function getTicketTypeDetails(eventId, ticketTypeId) {
   const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
@@ -1183,7 +1189,7 @@ export async function getTicketTypeDetails(eventId, ticketTypeId) {
   }
 
   try {
-    // FIXED: Use proper admin endpoint as requested: /admin/events/:event_id/ticket-types/:ticket_type_id
+    // API: GET /admin/events/:event_id/ticket-types/:ticket_type_id
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types/${ticketTypeId}`, {
       method: 'GET',
       headers: createAuthHeaders()
@@ -1192,7 +1198,15 @@ export async function getTicketTypeDetails(eventId, ticketTypeId) {
     console.log('🎫 Retrieved ticket type details:', {
       eventId,
       ticketTypeId,
-      endpoint: `/admin/events/${eventId}/ticket-types/${ticketTypeId}`
+      success: response?.success,
+      hasData: !!response?.data,
+      endpoint: `/admin/events/${eventId}/ticket-types/${ticketTypeId}`,
+      ticketData: response?.data ? {
+        id: response.data.id,
+        name: response.data.name,
+        price: response.data.price,
+        inventoryTotal: response.data.inventory?.total
+      } : null
     })
 
     return response
@@ -1241,10 +1255,10 @@ export async function deleteEvent(eventId) {
   }
 }
 
-// Delete ticket type - ENHANCED WITH VALIDATION
+// Delete ticket type - UPDATED: Match exact API specification
 export async function deleteTicketType(eventId, ticketTypeId) {
   const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl // FIXED: Use admin base URL
 
   if (!eventId || !ticketTypeId) {
     throw new Error('Event ID and Ticket Type ID are required')
@@ -1256,13 +1270,23 @@ export async function deleteTicketType(eventId, ticketTypeId) {
   }
 
   try {
+    // FIXED: API: DELETE /admin/events/:event_id/ticket-types/:ticket_type_id (use admin base URL)
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types/${ticketTypeId}`, {
       method: 'DELETE',
       headers: createAuthHeaders()
     })
 
+    console.log('🗑️ Deleted ticket type:', {
+      eventId,
+      ticketTypeId,
+      success: response?.success,
+      message: response?.message,
+      endpoint: `/admin/events/${eventId}/ticket-types/${ticketTypeId}`
+    })
+
     return response
   } catch (error) {
+    console.error('❌ Failed to delete ticket type:', error)
     
     // Enhanced error handling
     if (error.status === 404) {

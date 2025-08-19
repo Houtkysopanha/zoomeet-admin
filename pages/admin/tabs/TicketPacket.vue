@@ -8,7 +8,7 @@
       <div v-if="currentEventId" class="text-right">
         <p class="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-500">Basic Info Saved</p>
         <p class="text-xs text-gray-500">{{ currentEventName }}</p>
-        <p v-if="shouldShowEditMode" class="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-500">Edit Mode</p>
+        <p v-if="shouldShowEditMode" class="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-500">Click Icon for update and click Update before save draft</p>
         <p v-else class="text-xs text-purple-600 font-medium">🆕 Create Mode</p>
       </div>
     </div>
@@ -35,7 +35,7 @@
       </div>
     </div>
 
-    <!-- FIXED: Ticket Display Based on Workflow State -->
+    <!-- Ticket Display Based on Workflow State -->
     <div v-if="tickets.length > 0" class="space-y-4 mb-6">
       <TransitionGroup name="ticket-list" tag="div" class="space-y-4">
         <div
@@ -43,16 +43,25 @@
           :key="ticket.id"
           class="relative bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200"
         >
-          <!-- FIXED: Edit Icon Only for Saved Tickets (after draft) -->
-          <div v-if="ticket.ticket_type_id && hasExistingTickets" class="absolute top-4 right-4 z-10">
+          <!-- Edit Icon Only for Saved Tickets (after draft) -->
+          <div v-if="ticket.ticket_type_id && hasExistingTickets" class="absolute top-4 right-4 z-10 flex gap-2">
             <Button
               icon="pi pi-pencil"
               text
               rounded
               size="small"
               class="edit-ticket-btn text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-              @click="editTicket(index)"
+              @click="editTicket(ticket.ticket_type_id, index)"
               title="Edit this saved ticket"
+            />
+            <Button
+              icon="pi pi-trash"
+              text
+              rounded
+              size="small"
+              class="delete-ticket-btn text-red-600 hover:text-red-800 hover:bg-red-50"
+              @click="deleteTicket(ticket.ticket_type_id, index)"
+              title="Delete this ticket"
             />
           </div>
           
@@ -61,7 +70,8 @@
             <TicketForm
               v-model="tickets[index]"
               :ticket-index="index"
-              :readonly="false"
+              :readonly="ticket.ticket_type_id && hasExistingTickets && !ticket.isEditing"
+              :is-editing="ticket.isEditing"
               @remove-ticket="removeTicket"
             />
           </div>
@@ -86,7 +96,7 @@
       </Button>
     </div>
 
-    <!-- FIXED: Action Buttons Based on Workflow State -->
+    <!-- Action Buttons Based on Workflow State (Agenda Pattern) -->
     <div class="flex justify-center items-center mt-6 gap-4">
       <!-- PHASE 1: Create First Ticket (No tickets exist) -->
       <Button
@@ -99,18 +109,29 @@
         Create Ticket
       </Button>
       
-      <!-- PHASE 2: Add More Tickets (Tickets exist but not saved) -->
-      <Button
-        v-else-if="!hasExistingTickets"
-        @click="addTicket"
-        class="add-ticket-btn"
-        :disabled="!currentEventId"
-      >
-        <Icon name="heroicons:plus" class="mr-2" />
-        Add Another Ticket
-      </Button>
+      <!-- PHASE 2: Save Draft (New tickets exist but not saved) -->
+      <template v-else-if="!hasExistingTickets">
+        <Button
+          @click="addTicket"
+          class="add-ticket-btn"
+          :disabled="!currentEventId"
+        >
+          <Icon name="heroicons:plus" class="mr-2" />
+          Add Another Ticket
+        </Button>
+        
+        <Button
+          @click="saveDraft"
+          class="save-draft-btn"
+          :disabled="!currentEventId || loading || !isValidTicketData"
+          :loading="loading"
+        >
+          <Icon name="heroicons:document-plus" class="mr-2" />
+          {{ loading ? 'Saving...' : 'Save Draft' }}
+        </Button>
+      </template>
       
-      <!-- PHASE 3: After Draft Saved - Show Add + Edit Options -->
+      <!-- PHASE 3: After Draft Saved - Show Add + Save Changes (like Agenda) -->
       <template v-else>
         <Button
           @click="addTicket"
@@ -122,13 +143,14 @@
         </Button>
         
         <Button
-          @click="updateTickets"
-          class="update-tickets-btn"
+          v-if="hasUnsavedChanges"
+          @click="saveChanges"
+          class="save-changes-btn"
           :disabled="!currentEventId || loading"
           :loading="loading"
         >
           <Icon name="heroicons:arrow-path" class="mr-2" />
-          {{ loading ? 'Updating...' : 'Save Changes' }}
+          {{ loading ? 'Saving...' : 'Update' }}
         </Button>
       </template>
     </div>
@@ -136,11 +158,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, inject } from "vue"
+import { ref, computed, watch, onMounted, onUnmounted, inject } from "vue"
 import Button from "primevue/button"
 import TicketForm from '~/components/common/TicketForm.vue'
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
-import { createTicketTypes, updateTicketType, getEventDetails, getEventTicketTypes } from '@/composables/api'
+import { createTicketTypes, updateTicketType, getEventDetails, getEventTicketTypes, getTicketTypeDetails } from '@/composables/api'
 import { useToast } from "primevue/usetoast"
 import { useEventStore } from '~/composables/useEventStore'
 import { useEventTabsStore } from '~/composables/useEventTabs'
@@ -160,6 +182,9 @@ const eventData = ref(null)
 const hasNewTickets = computed(() => {
   return tickets.value.some(ticket => !ticket.ticket_type_id)
 })
+
+// Track if there are unsaved changes (like Agenda pattern)
+const hasUnsavedChanges = ref(false)
 
 // Enhanced computed property to determine if we should show edit mode UI
 const shouldShowEditMode = computed(() => {
@@ -288,32 +313,156 @@ const addTicket = () => {
   tickets.value.push(createNewTicket())
 }
 
-// FIXED: Add edit ticket functionality
-const editTicket = (index) => {
+// Edit ticket functionality (Agenda Pattern) - Load from server
+const editTicket = async (ticketTypeId, index) => {
+  if (!ticketTypeId || !currentEventId.value) return
+  
+  loading.value = true
+  try {
+    console.log('✏️ Loading individual ticket from server for editing:', {
+      eventId: currentEventId.value,
+      ticketTypeId: ticketTypeId,
+      method: 'GET',
+      endpoint: `/admin/events/${currentEventId.value}/ticket-types/${ticketTypeId}`
+    })
+    
+    // FIXED: Use getTicketTypeDetails to get individual ticket data (like Agenda pattern)
+    const response = await getTicketTypeDetails(currentEventId.value, ticketTypeId)
+    
+    if (response?.success && response?.data) {
+      const serverTicket = response.data
+      
+      console.log('✅ Loaded individual ticket data from server:', {
+        ticketId: serverTicket.id,
+        name: serverTicket.name,
+        price: serverTicket.price,
+        inventoryTotal: serverTicket.inventory?.total,
+        tag: serverTicket.tag
+      })
+      
+      // FIXED: Load fresh data from server with correct field mapping
+      tickets.value[index] = {
+        id: tickets.value[index].id, // Keep local ID
+        ticket_type_id: serverTicket.id,
+        name: serverTicket.name || '',
+        description: serverTicket.tag || '', // API uses 'tag' field
+        tag: serverTicket.tag || '',
+        price: parseFloat(serverTicket.price) || 0,
+        quantity: parseInt(serverTicket.inventory?.total || serverTicket.total) || 1, // FIXED: Use inventory.total
+        sort_order: serverTicket.sort_order || (index + 1),
+        is_active: serverTicket.is_active === undefined ? true : Boolean(serverTicket.is_active),
+        isEditing: true, // Mark as being edited
+        isValidating: false,
+        eventId: currentEventId.value
+      }
+      
+      toast.add({
+        severity: 'info',
+        summary: 'Edit Mode',
+        detail: `Now editing "${serverTicket.name}". Make your changes and click "Save Changes".`,
+        life: 4000
+      })
+      
+      // Scroll to the ticket form
+      const ticketElement = document.querySelector(`[data-ticket-index="${index}"]`)
+      if (ticketElement) {
+        ticketElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+      
+      // Mark as having unsaved changes
+      hasUnsavedChanges.value = true
+      
+    } else {
+      throw new Error('Invalid response structure from server')
+    }
+    
+  } catch (error) {
+    console.error('❌ Failed to load ticket for editing:', error)
+    
+    // Enhanced error handling
+    let errorMessage = 'Could not load ticket data for editing. Please try again.'
+    if (error.status === 404) {
+      errorMessage = 'Ticket not found on server. It may have been deleted.'
+    } else if (error.status === 403) {
+      errorMessage = 'You do not have permission to edit this ticket.'
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+    
+    toast.add({
+      severity: 'error',
+      summary: 'Edit Failed',
+      detail: errorMessage,
+      life: 4000
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+// Delete ticket functionality (Agenda Pattern)
+const deleteTicket = async (ticketTypeId, index) => {
+  if (!ticketTypeId || !currentEventId.value) return
+  
   const ticket = tickets.value[index]
-  if (!ticket) return
+  const ticketName = ticket?.name || `Ticket ${index + 1}`
   
-  console.log('✏️ Editing ticket:', ticket.name, 'at index:', index)
-  
-  // Show edit notification
-  toast.add({
-    severity: 'info',
-    summary: 'Edit Mode',
-    detail: `Now editing "${ticket.name}". Make your changes and click "Save Changes" to update.`,
-    life: 4000
-  })
-  
-  // Scroll to the ticket form for better UX
-  const ticketElement = document.querySelector(`[data-ticket-index="${index}"]`)
-  if (ticketElement) {
-    ticketElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  if (!confirm(`Are you sure you want to delete "${ticketName}"? This action cannot be undone.`)) {
+    return
   }
   
-  // Mark the ticket as being edited (for visual feedback)
-  ticket.isEditing = true
-  
-  // Auto-save current state
-  handleSaveCurrentTab()
+  loading.value = true
+  try {
+    console.log('🗑️ Deleting ticket:', {
+      eventId: currentEventId.value,
+      ticketTypeId: ticketTypeId,
+      method: 'DELETE'
+    })
+    
+    // DELETE request to remove ticket from server
+    const { deleteTicketType } = await import('@/composables/api')
+    const response = await deleteTicketType(currentEventId.value, ticketTypeId)
+    
+    // Check if deletion was successful
+    const isSuccess = response && (
+      response.success === true ||
+      response.status === 'success' ||
+      response.message === 'Ticket deleted successfully' ||
+      (!response.error && response.status !== 'error')
+    )
+    
+    if (isSuccess) {
+      // Remove from local array
+      tickets.value.splice(index, 1)
+      
+      toast.add({
+        severity: 'success',
+        summary: 'Ticket Deleted! 🗑️',
+        detail: `"${ticketName}" has been deleted successfully.`,
+        life: 3000
+      })
+      
+      // Reload tickets to get updated list
+      await loadExistingTickets()
+      
+      // Update tab store
+      handleSaveCurrentTab()
+      
+    } else {
+      throw new Error(response?.message || response?.error || 'Failed to delete ticket')
+    }
+    
+  } catch (error) {
+    console.error('❌ Failed to delete ticket:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Delete Failed',
+      detail: error.message || 'Could not delete ticket. Please try again.',
+      life: 4000
+    })
+  } finally {
+    loading.value = false
+  }
 }
 
 // FIXED: Add remove ticket functionality
@@ -386,19 +535,23 @@ const handleSaveCurrentTab = (event) => {
   tabsStore.saveTabData(2, tabData)
 }
 
-// Save Draft - for new tickets or adding more tickets
+// Save Draft - for new tickets (POST method like Agenda)
 const saveDraft = async () => {
-  await saveTicketsInternal('draft')
+  await saveTicketsInternal('create')
 }
 
-// Update Tickets - for editing existing tickets
-const updateTickets = async () => {
+// Save Changes - for editing existing tickets (PUT method like Agenda)
+const saveChanges = async () => {
   await saveTicketsInternal('update')
 }
 
+// Legacy method for backward compatibility
+const updateTickets = async () => {
+  await saveChanges()
+}
 
-// Internal save method - ENHANCED FOR NEW FLOW with edit/create mode validation
-const saveTicketsInternal = async (mode = 'draft') => {
+// Internal save method - RESTRUCTURED TO MATCH AGENDA PATTERN
+const saveTicketsInternal = async (mode = 'create') => {
   const eventStore = useEventStore()
   const tabsStore = useEventTabsStore()
 
@@ -511,169 +664,210 @@ const saveTicketsInternal = async (mode = 'draft') => {
   loading.value = true
 
   try {
-    // Get existing tickets from API to determine update vs create strategy
-    let existingTickets = []
-    try {
-      const existingTicketsResponse = await getEventTicketTypes(currentEventId.value)
-      
-      // Handle different response structures
-      if (existingTicketsResponse?.data && Array.isArray(existingTicketsResponse.data)) {
-        existingTickets = existingTicketsResponse.data
-      } else if (Array.isArray(existingTicketsResponse)) {
-        existingTickets = existingTicketsResponse
-      } else {
-        existingTickets = []
-      }
-    } catch (error) {
-      existingTickets = []
-    }
-
-    // Ensure existingTickets is always an array
-    if (!Array.isArray(existingTickets)) {
-      existingTickets = []
-    }
+    console.log('🎫 Starting ticket save operation:', {
+      mode: mode,
+      eventId: currentEventId.value,
+      ticketCount: tickets.value.length,
+      method: mode === 'create' ? 'POST' : 'PUT'
+    })
 
     const ticketUpdates = []
-    const updatePromises = []
+    const promises = []
     
-    // Process each ticket individually
-    for (let index = 0; index < tickets.value.length; index++) {
-      const ticket = tickets.value[index]
-      const ticketNumber = index + 1
+    if (mode === 'create') {
+      // CREATE MODE: Save all new tickets using POST (like Agenda createAgendaItems)
+      const newTickets = tickets.value.filter(ticket => !ticket.ticket_type_id)
       
-      const name = String(ticket.name || '').trim()
-      const description = String(ticket.description || ticket.tag || '').trim()
-      const price = parseFloat(ticket.price || 0)
-      const quantity = parseInt(ticket.quantity || 0)
+      if (newTickets.length > 0) {
+        const ticketsData = newTickets.map((ticket, index) => {
+          const name = String(ticket.name || '').trim()
+          const description = String(ticket.description || ticket.tag || '').trim()
+          const price = parseFloat(ticket.price || 0)
+          const quantity = parseInt(ticket.quantity || 0)
 
+          // Enhanced validation
+          const errors = []
+          if (!name) errors.push(`Ticket ${index + 1}: Name is required`)
+          if (!description) errors.push(`Ticket ${index + 1}: Description is required`)
+          if (isNaN(price) || price < 0) errors.push(`Ticket ${index + 1}: Price must be 0 or greater`)
+          if (isNaN(quantity) || quantity < 1) errors.push(`Ticket ${index + 1}: Quantity must be at least 1`)
 
-      // Enhanced validation
-      const errors = []
-      if (!name) errors.push(`Ticket ${ticketNumber}: Name is required`)
-      if (!description) errors.push(`Ticket ${ticketNumber}: Description is required`)
-      if (isNaN(price) || price < 0) errors.push(`Ticket ${ticketNumber}: Price must be 0 or greater`)
-      if (isNaN(quantity) || quantity < 1) errors.push(`Ticket ${ticketNumber}: Quantity must be at least 1`)
+          if (errors.length > 0) {
+            throw new Error(errors.join('\n'))
+          }
 
-      if (errors.length > 0) {
-        throw new Error(errors.join('\n'))
-      }
+          return {
+            name: name,
+            price: parseFloat(price),
+            total: quantity,
+            tag: description,
+            sort_order: tickets.value.indexOf(ticket) + 1,
+            is_active: 1
+          }
+        })
 
-      // Check if this ticket exists in API (by ID first, then by name)
-      const existingTicket = existingTickets.find(et => et.id === ticket.ticket_type_id)
-      
-      const ticketData = {
-        name: name,
-        price: parseFloat(price),
-        total: quantity,
-        tag: description,
-        sort_order: index + 1,
-        is_active: 1
-      }
-
-      if (existingTicket) {
-        // UPDATE existing ticket using PUT method - only match by ID to avoid name conflicts
-        const updatePromise = updateTicketType(currentEventId.value, existingTicket.id, ticketData)
-          .then(() => {
-            ticketUpdates.push(`Updated: ${name}`)
-            // Update local ticket with the API ID
-            ticket.ticket_type_id = existingTicket.id
+        console.log('📝 Creating new tickets:', ticketsData.length)
+        
+        const createPromise = createTicketTypes(currentEventId.value, ticketsData)
+          .then((response) => {
+            console.log('✅ Tickets created successfully:', response)
+            
+            // FIXED: Handle new API response structure with ticket_types array
+            let createdTickets = []
+            if (response?.data?.ticket_types && Array.isArray(response.data.ticket_types)) {
+              createdTickets = response.data.ticket_types
+              console.log('✅ Using ticket_types array from new API structure')
+            } else if (response?.data && Array.isArray(response.data)) {
+              createdTickets = response.data
+              console.log('✅ Using legacy API structure')
+            }
+            
+            // Update local tickets with API IDs
+            if (createdTickets.length > 0) {
+              createdTickets.forEach((createdTicket, index) => {
+                if (newTickets[index] && createdTicket.id) {
+                  newTickets[index].ticket_type_id = createdTicket.id
+                  ticketUpdates.push(`Created: ${createdTicket.name}`)
+                }
+              })
+            }
+            
+            // Mark as having existing tickets after successful creation
+            hasExistingTickets.value = true
           })
           .catch((error) => {
+            console.error('❌ Failed to create tickets:', error)
+            throw error
+          })
+        
+        promises.push(createPromise)
+      }
+      
+    } else if (mode === 'update') {
+      // UPDATE MODE: Update individual tickets using PUT (like Agenda updateAgendaItem)
+      const ticketsToUpdate = tickets.value.filter(ticket => ticket.ticket_type_id && ticket.isEditing)
+      
+      for (const ticket of ticketsToUpdate) {
+        const name = String(ticket.name || '').trim()
+        const description = String(ticket.description || ticket.tag || '').trim()
+        const price = parseFloat(ticket.price || 0)
+        const quantity = parseInt(ticket.quantity || 0)
+
+        // Enhanced validation
+        const errors = []
+        if (!name) errors.push(`${ticket.name || 'Ticket'}: Name is required`)
+        if (!description) errors.push(`${ticket.name || 'Ticket'}: Description is required`)
+        if (isNaN(price) || price < 0) errors.push(`${ticket.name || 'Ticket'}: Price must be 0 or greater`)
+        if (isNaN(quantity) || quantity < 1) errors.push(`${ticket.name || 'Ticket'}: Quantity must be at least 1`)
+
+        if (errors.length > 0) {
+          throw new Error(errors.join('\n'))
+        }
+
+        const ticketData = {
+          name: name,
+          price: parseFloat(price),
+          total: quantity,
+          tag: description,
+          sort_order: tickets.value.indexOf(ticket) + 1,
+          is_active: 1
+        }
+
+        console.log('📝 Updating ticket:', {
+          ticketTypeId: ticket.ticket_type_id,
+          data: ticketData
+        })
+
+        const updatePromise = updateTicketType(currentEventId.value, ticket.ticket_type_id, ticketData)
+          .then(() => {
+            console.log('✅ Ticket updated successfully:', ticket.name)
+            ticketUpdates.push(`Updated: ${name}`)
+            // Clear editing state
+            ticket.isEditing = false
+          })
+          .catch((error) => {
+            console.error('❌ Failed to update ticket:', error)
             ticketUpdates.push(`Failed to update: ${name}`)
             throw error
           })
         
-        updatePromises.push(updatePromise)
-      } else {
-        // CREATE new ticket using POST method only if it doesn't have a ticket_type_id
-        if (!ticket.ticket_type_id) {
-          const createPromise = createTicketTypes(currentEventId.value, [ticketData])
-            .then((response) => {
-              ticketUpdates.push(`Created: ${name}`)
-              // Update local ticket with the new API ID if available
-              if (response?.data?.[0]?.id) {
-                ticket.ticket_type_id = response.data[0].id
-              }
-            })
-            .catch((error) => {
-              ticketUpdates.push(`Failed to create: ${name}`)
-              throw error
-            })
-          
-          updatePromises.push(createPromise)
-        }
+        promises.push(updatePromise)
       }
     }
 
     // Wait for all operations to complete
-    await Promise.all(updatePromises)
+    await Promise.all(promises)
 
-      // Update stores with new ticket data
+    // FIXED: Clean success handling for post-draft workflow
+    if (mode === 'create') {
+      // After successful creation, mark as having existing tickets and reload clean data
+      hasExistingTickets.value = true
       
-      // Update event store
-      if (eventStore.currentEvent) {
-        const updatedTickets = tickets.value.map(ticket => ({
-          id: ticket.ticket_type_id || ticket.id,
-          name: ticket.name,
-          price: parseFloat(ticket.price) || 0,
-          total: parseInt(ticket.quantity) || 0,
-          tag: ticket.description || '',
-          sort_order: ticket.sort_order,
-          is_active: ticket.is_active ? 1 : 0
-        }))
-        eventStore.currentEvent.ticket_types = updatedTickets
-      }
-
-      // Update tab store and mark as complete
-      const tabData = {
-        ticketTypes: tickets.value,
-        lastSaved: new Date().toISOString(),
-        hasTickets: true,
-        eventId: currentEventId.value,
-        isComplete: true,
-        validTickets: tickets.value.length > 0
-      }
-      tabsStore.markTabComplete(2)
-      tabsStore.markTabSaved(2)
-      tabsStore.saveTabData(2, tabData)
-
-      // Show detailed success message with counts
-      const updateCount = ticketUpdates.filter(update => update.includes('Updated:')).length
+      // Clear unsaved changes flag
+      hasUnsavedChanges.value = false
+      
+      // Reload tickets from server to get clean data with IDs
+      await loadExistingTickets()
+      
       const createCount = ticketUpdates.filter(update => update.includes('Created:')).length
-      
-      let summaryMessage = 'Tickets Saved Successfully! 🎫'
-      let detailMessage = ''
-      
-      if (updateCount > 0 && createCount > 0) {
-        summaryMessage = 'Tickets have changed and created more! 🎫'
-        detailMessage = `Successfully updated ${updateCount} existing ticket(s) and created ${createCount} new ticket(s). Your event now has ${tickets.value.length} total tickets.`
-      } else if (updateCount > 0) {
-        summaryMessage = 'Success for change ticket! 🎫'
-        detailMessage = `Successfully updated ${updateCount} existing ticket(s)`
-      } else if (createCount > 0) {
-        summaryMessage = `Created ${createCount} ticket${createCount > 1 ? 's' : ''}! 🎫`
-        detailMessage = `Successfully created ${createCount} new ticket(s)`
-      } else {
-        detailMessage = 'All tickets processed successfully'
-      }
       
       toast.add({
         severity: 'success',
-        summary: summaryMessage,
-        detail: detailMessage,
+        summary: `Created ${createCount} ticket${createCount > 1 ? 's' : ''}! 🎫`,
+        detail: `Successfully created ${createCount} new ticket(s). You can now edit individual tickets or add more.`,
         life: 5000
       })
       
-      // Mark ticket tab as completed in parent
-      const eventCreationState = inject('eventCreationState')
-      if (eventCreationState?.markTabCompleted) {
-        eventCreationState.markTabCompleted(2)
-      }
+    } else if (mode === 'update') {
+      // After successful update, clear editing states and unsaved changes
+      tickets.value.forEach(ticket => {
+        ticket.isEditing = false
+      })
+      hasUnsavedChanges.value = false
+      
+      const updateCount = ticketUpdates.filter(update => update.includes('Updated:')).length
+      
+      toast.add({
+        severity: 'success',
+        summary: 'Tickets Updated! 🎫',
+        detail: `Successfully updated ${updateCount} ticket(s).`,
+        life: 4000
+      })
+    }
 
-    // Reload tickets to get updated data with fresh IDs
-    setTimeout(async () => {
-      await loadExistingTickets()
-    }, 1000) // Small delay to ensure server has processed the changes
+    // Update stores with new ticket data
+    if (eventStore.currentEvent) {
+      const updatedTickets = tickets.value.map(ticket => ({
+        id: ticket.ticket_type_id || ticket.id,
+        name: ticket.name,
+        price: parseFloat(ticket.price) || 0,
+        total: parseInt(ticket.quantity) || 0,
+        tag: ticket.description || '',
+        sort_order: ticket.sort_order,
+        is_active: ticket.is_active ? 1 : 0
+      }))
+      eventStore.currentEvent.ticket_types = updatedTickets
+    }
+
+    // Update tab store and mark as complete
+    const tabData = {
+      ticketTypes: tickets.value,
+      lastSaved: new Date().toISOString(),
+      hasTickets: true,
+      eventId: currentEventId.value,
+      isComplete: true,
+      validTickets: tickets.value.length > 0,
+      hasExistingTickets: hasExistingTickets.value
+    }
+    tabsStore.markTabComplete(2)
+    tabsStore.markTabSaved(2)
+    tabsStore.saveTabData(2, tabData)
+    
+    // Mark ticket tab as completed in parent
+    const eventCreationState = inject('eventCreationState')
+    if (eventCreationState?.markTabCompleted) {
+      eventCreationState.markTabCompleted(2)
+    }
 
   } catch (error) {
     
@@ -724,62 +918,72 @@ const loadExistingTickets = async () => {
     console.log('🎫 Loading existing tickets for event:', currentEventId.value)
     const response = await getEventTicketTypes(currentEventId.value)
     
-    if (response && response.data && Array.isArray(response.data)) {
-      const existingTickets = response.data
+    // FIXED: Handle new API response structure with ticket_types array
+    let existingTickets = []
+    if (response && response.success && response.data && response.data.ticket_types && Array.isArray(response.data.ticket_types)) {
+      existingTickets = response.data.ticket_types
+      console.log('✅ Found existing tickets in new API structure:', existingTickets.length)
+    } else if (response && response.data && Array.isArray(response.data)) {
+      // Fallback for old API structure
+      existingTickets = response.data
+      console.log('✅ Found existing tickets in legacy API structure:', existingTickets.length)
+    }
+    
+    if (existingTickets.length > 0) {
+      console.log('✅ Processing existing tickets:', existingTickets.length)
       
-      if (existingTickets.length > 0) {
-        console.log('✅ Found existing tickets:', existingTickets.length)
+      // Clear current tickets and load existing ones with proper validation
+      tickets.value = existingTickets.map((ticket, index) => {
+        const loadedTicket = {
+          id: ticket.id || Date.now() + Math.random() + index,
+          ticket_type_id: ticket.id, // Store original ID for updates
+          name: ticket.name || '',
+          description: ticket.description || ticket.tag || '',
+          tag: ticket.tag || ticket.description || '', // Ensure both fields
+          price: parseFloat(ticket.price) || 0,
+          // FIXED: Handle inventory.total field from new API structure
+          quantity: parseInt(ticket.inventory?.total || ticket.total || ticket.quantity) || 1,
+          sort_order: ticket.sort_order || (index + 1),
+          is_active: ticket.is_active === undefined ? true : Boolean(ticket.is_active),
+          isValidating: false,
+          eventId: currentEventId.value // Add event ID for validation
+        }
         
-        // Clear current tickets and load existing ones with proper validation
-        tickets.value = existingTickets.map((ticket, index) => {
-          const loadedTicket = {
-            id: ticket.id || Date.now() + Math.random() + index,
-            ticket_type_id: ticket.id, // Store original ID for updates
-            name: ticket.name || '',
-            description: ticket.description || ticket.tag || '',
-            tag: ticket.tag || ticket.description || '', // Ensure both fields
-            price: parseFloat(ticket.price) || 0,
-            quantity: parseInt(ticket.total || ticket.quantity) || 1,
-            sort_order: ticket.sort_order || (index + 1),
-            is_active: ticket.is_active === undefined ? true : Boolean(ticket.is_active),
-            isValidating: false,
-            eventId: currentEventId.value // Add event ID for validation
-          }
-          
-          console.log('📝 Loaded ticket from API:', {
-            index,
-            eventId: currentEventId.value,
-            original: ticket,
-            loaded: loadedTicket
-          })
-          
-          return loadedTicket
-        })
-        
-        // FIXED: Set hasExistingTickets to true since we loaded tickets from API
-        hasExistingTickets.value = true
-        isEditMode.value = true
-        
-        console.log('📝 Loaded tickets for event:', {
+        console.log('📝 Loaded ticket from API:', {
+          index,
           eventId: currentEventId.value,
-          ticketCount: tickets.value.length,
-          isEditMode: isEditMode.value,
-          hasExistingTickets: hasExistingTickets.value,
-          allTicketsHaveIds: tickets.value.every(t => t.ticket_type_id)
+          original: ticket,
+          loaded: loadedTicket,
+          inventoryTotal: ticket.inventory?.total,
+          finalQuantity: loadedTicket.quantity
         })
         
-        toast.add({
-          severity: 'success',
-          summary: 'Tickets Loaded',
-          detail: `Loaded ${existingTickets.length} existing ticket(s) for editing`,
-          life: 3000
-        })
-      } else {
-        console.log('📝 No existing tickets found, starting fresh')
-        hasExistingTickets.value = false
-        tickets.value = [] // Clear any existing tickets
-        isEditMode.value = false
-      }
+        return loadedTicket
+      })
+      
+      // FIXED: Set hasExistingTickets to true since we loaded tickets from API
+      hasExistingTickets.value = true
+      isEditMode.value = true
+      
+      console.log('📝 Loaded tickets for event:', {
+        eventId: currentEventId.value,
+        ticketCount: tickets.value.length,
+        isEditMode: isEditMode.value,
+        hasExistingTickets: hasExistingTickets.value,
+        allTicketsHaveIds: tickets.value.every(t => t.ticket_type_id)
+      })
+      
+      toast.add({
+        severity: 'success',
+        summary: 'Tickets Loaded',
+        detail: `Loaded ${existingTickets.length} existing ticket(s) for editing`,
+        life: 3000
+      })
+    } else {
+      console.log('📝 No existing tickets found, starting fresh')
+      hasExistingTickets.value = false
+      tickets.value = [] // Clear any existing tickets
+      isEditMode.value = false
     }
   } catch (error) {
     console.error('❌ Failed to load existing tickets:', error)
@@ -1101,5 +1305,30 @@ onUnmounted(() => {
 .save-draft-btn:disabled {
   @apply bg-gray-400 cursor-not-allowed;
   transform: none;
+}
+
+.save-changes-btn {
+  @apply bg-gradient-to-r from-green-600 to-emerald-600 text-white;
+  @apply hover:from-green-700 hover:to-emerald-700;
+  @apply px-6 py-3 rounded-full font-medium shadow-lg hover:shadow-xl;
+  @apply transition-all duration-300 ease-in-out border-0;
+}
+
+.save-changes-btn:hover {
+  transform: translateY(-2px);
+}
+
+.save-changes-btn:disabled {
+  @apply bg-gray-400 cursor-not-allowed;
+  transform: none;
+}
+
+.delete-ticket-btn {
+  @apply transition-all duration-200 ease-in-out;
+  @apply hover:scale-110;
+}
+
+.delete-ticket-btn:hover {
+  transform: scale(1.1) translateY(-1px);
 }
 </style>
