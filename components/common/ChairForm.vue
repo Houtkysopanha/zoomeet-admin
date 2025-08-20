@@ -153,6 +153,7 @@ const chairData = ref({
   avatar: ''
 })
 
+
 // Watch for chair prop changes to populate form
 watch(() => props.chair, (newChair) => {
   if (newChair && props.isEdit) {
