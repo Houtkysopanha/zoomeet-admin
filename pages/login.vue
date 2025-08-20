@@ -2,7 +2,7 @@
   <div class="grid grid-cols-2 container py-6 gap-20">
     <div class="w-full ">
       <img
-          src="../assets/image/eticketsasia.png"
+          src="../assets/image/finalize-logo.jpg"
           class="w-30 sm:w-60 lg:w-45 h-auto mb-4 filter drop-shadow-lg"
         />
         <div class="justify-start text-neutral-800 text-2xl leading-10">Manage your events, ticketing and <br/>reporting in one place</div>
@@ -10,7 +10,7 @@
         <div class="relative">
           <div class="w-72 absolute px-6 py-4 bg-white shadow-sm rounded-2xl z-10  gap-2.5">
             <div class="flex items-center gap-5 relative z-1">
-              <img src="../assets/image/Group 228.png" alt="" class="w-12">
+              <img src="../assets/image/event-store.png" alt="" class="w-12">
               <div class="text-center justify-start text-violet-700 text-xl font-bold leading-7">Event Service</div>            
             </div>            
               <div class="justify-start text-neutral-400 text-base font-normal leading-normal py-2">
@@ -26,7 +26,7 @@
         <div class="relative">
           <div class="w-72 absolute px-6 py-4 bg-white shadow-sm rounded-2xl z-10  gap-2.5">
             <div class="flex items-center gap-5 relative z-1">
-              <img src="../assets/image/Group 228 (1).png" alt="" class="w-12">
+              <img src="../assets/image/Booking.png" alt="" class="w-12">
               <div class="text-center justify-start text-violet-700 text-xl font-bold leading-7">Booking Service</div>            
             </div>            
               <div class="justify-start text-neutral-400 text-base font-normal leading-normal py-2">
@@ -44,7 +44,7 @@
         <div class="relative">
           <div class="w-72 absolute px-6 py-4 bg-white shadow-sm rounded-2xl z-10  gap-2.5">
             <div class="flex items-center gap-5 relative z-1">
-              <img src="../assets/image/Group 228 (2).png" alt="" class="w-12">
+              <img src="../assets/image/checking-service.png" alt="" class="w-12">
               <div class="text-center justify-start text-violet-700 text-xl font-bold leading-7">Event Service</div>            
             </div>            
               <div class="justify-start text-neutral-400 text-base font-normal leading-normal py-2">
@@ -60,7 +60,7 @@
         <div class="relative">
           <div class="w-72 absolute px-6 py-4 bg-white shadow-sm rounded-2xl z-10  gap-2.5">
             <div class="flex items-center gap-5 relative z-1">
-              <img src="../assets/image/Group 228 (3).png" alt="" class="w-12">
+              <img src="../assets/image/report.png" alt="" class="w-12">
               <div class="text-center justify-start text-violet-700 text-xl font-bold leading-7">Booking Service</div>            
             </div>            
               <div class="justify-start text-neutral-400 text-base font-normal leading-normal py-2">
