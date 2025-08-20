@@ -108,7 +108,6 @@ import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
 import Button from 'primevue/button'
 import UploadPhoto from '~/components/common/UploadPhoto.vue'
-import { useFormValidation } from '~/composables/useFormValidation'
 import { useToast } from 'primevue/usetoast'
 
 const props = defineProps({
@@ -132,15 +131,15 @@ const toast = useToast()
 const loading = ref(false)
 
 // Form validation
-const {
-  errors,
-  clearErrors,
-  clearFieldError,
-  setFieldError,
-  getFieldError,
-  validateField,
-  validateRequired
-} = useFormValidation()
+// const {
+//   errors,
+//   clearErrors,
+//   clearFieldError,
+//   setFieldError,
+//   getFieldError,
+//   validateField,
+//   validateRequired
+// } = useFormValidation()
 
 // Chair data
 const chairData = ref({

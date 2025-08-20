@@ -347,7 +347,6 @@ import { useConfirm } from "primevue/useconfirm";
 import { getEventAgenda, createAgendaItems, updateAgendaItem, deleteAgenda } from '@/composables/api'
 import { useEventStore } from '~/composables/useEventStore'
 import { useEventTabsStore } from '~/composables/useEventTabs'
-import { useFormValidation } from '~/composables/useFormValidation'
 // Icon is auto-imported by Nuxt
 
 const props = defineProps(['eventId'])
@@ -356,17 +355,7 @@ const toast = useToast();
 const confirm = useConfirm();
 
 // Form validation
-const {
-  errors,
-  hasErrors,
-  clearErrors,
-  clearFieldError,
-  setFieldError,
-  getFieldError,
-  validateField,
-  validateRequired,
-  validateTimeRange
-} = useFormValidation()
+
 
 // Event creation state from parent
 const eventCreationState = inject('eventCreationState')

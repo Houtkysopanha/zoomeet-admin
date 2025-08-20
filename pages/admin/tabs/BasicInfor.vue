@@ -347,12 +347,10 @@
 <script setup>
 import './css/style.css'
 import { ref, reactive, computed, onMounted, onBeforeUnmount, inject, watch, nextTick } from 'vue'
-import { useOptimizedToast } from '~/composables/useOptimizedToast'
 import { useEventStore } from '~/composables/useEventStore'
 import { useEventTabsStore } from '~/composables/useEventTabs'
 import { fetchCategories } from '~/composables/api'
 import { useAuth } from '~/composables/useAuth'
-import { useFormValidation } from '~/composables/useFormValidation'
 
 // Import PrimeVue components
 import InputText from 'primevue/inputtext'
@@ -369,23 +367,11 @@ import ProgressSpinner from 'primevue/progressspinner'
 import ChairForm from '~/components/common/ChairForm.vue'
 import UploadPhoto from '~/components/common/UploadPhoto.vue'
 
-const toast = useOptimizedToast()
 const eventStore = useEventStore()
 const tabsStore = useEventTabsStore()
 const { getToken } = useAuth()
 
-// Form validation
-const {
-  errors,
-  hasErrors,
-  clearErrors,
-  clearFieldError,
-  setFieldError,
-  getFieldError,
-  validateField,
-  validateBasicInfo,
-  validateDateRange
-} = useFormValidation()
+
 
 // Inject parent state
 const eventCreationState = inject('eventCreationState')
