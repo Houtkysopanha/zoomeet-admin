@@ -472,19 +472,53 @@ const loadExistingData = async () => {
         members: tabData.members || []
       })
       
-      // FIXED: Restore File objects for chairs from special storage
-      if (tabData.chairFileObjects && Array.isArray(tabData.chairFileObjects)) {
-        console.log('🪑 Restoring File objects for chairs:', tabData.chairFileObjects.length)
+      // Initialize or get chairFileObjects Map
+      let chairFileObjects;
+      if (tabData.chairFileObjects instanceof Map) {
+        chairFileObjects = tabData.chairFileObjects;
+      } else {
+        // Create new Map if not exists or not a Map
+        chairFileObjects = new Map();
         
-        tabData.chairFileObjects.forEach(fileData => {
-          const chairIndex = formData.chairs.findIndex(c => c.name === fileData.name)
-          if (chairIndex >= 0 && fileData.fileObject instanceof File) {
-            formData.chairs[chairIndex].profile_image = fileData.fileObject
-            formData.chairs[chairIndex].avatar = URL.createObjectURL(fileData.fileObject)
-            console.log(`🪑 Restored File object for chair: ${fileData.name}`)
-          }
-        })
+        // Convert array or object to Map if needed
+        if (Array.isArray(tabData.chairFileObjects)) {
+          tabData.chairFileObjects.forEach(item => {
+            if (item && item.id && item.fileObject instanceof File) {
+              chairFileObjects.set(item.id, item.fileObject);
+            }
+          });
+        } else if (tabData.chairFileObjects && typeof tabData.chairFileObjects === 'object') {
+          Object.entries(tabData.chairFileObjects).forEach(([id, fileObject]) => {
+            if (fileObject instanceof File) {
+              chairFileObjects.set(id, fileObject);
+            }
+          });
+        }
       }
+
+      console.log('🗃️ Initialized chairFileObjects Map:', {
+        isMap: chairFileObjects instanceof Map,
+        size: chairFileObjects.size
+      });
+
+      // Restore File objects and create avatars
+      formData.chairs.forEach(chair => {
+        const fileObject = chairFileObjects.get(chair.id);
+        if (fileObject instanceof File) {
+          chair.profile_image = fileObject;
+          chair.avatar = URL.createObjectURL(fileObject);
+          console.log(`🪑 Restored File object for chair ${chair.name} with ID ${chair.id}`);
+        } else if (chair.profile_image_url) {
+          chair.avatar = chair.profile_image_url;
+          console.log(`🪑 Using profile_image_url for chair ${chair.name}`);
+        }
+      });
+
+      // Update tabs store with the proper Map
+      tabsStore.saveTabData(0, {
+        ...tabData,
+        chairFileObjects
+      });
       
       return
     }
@@ -763,33 +797,132 @@ const handleSaveDraft = async () => {
       return
     }
     
-    // FIXED: Prepare data for API with proper File object preservation for chairs
-    const eventData = {
-      name: formData.eventName,
-      category_id: formData.category,
-      description: formData.description,
-      start_date: formData.startDate?.toISOString(),
-      end_date: formData.endDate?.toISOString(),
-      location: formData.location,
-      map_url: formData.mapUrl || null,
-      company: formData.company || null,
-      organizer: formData.organizer || null,
-      online_link_meeting: formData.onlineLinkMeeting || null,
-      // CRITICAL: Preserve File objects in chairs array for API upload
-      chairs: formData.chairs.map(chair => ({
-        ...chair,
-        // Ensure File objects are preserved for API upload
-        profile_image: chair.profile_image instanceof File ? chair.profile_image : null,
-        // Keep profile_image_url for existing images from API
-        profile_image_url: chair.profile_image_url || null,
-        // Remove avatar URL to avoid confusion (it's for display only)
-        avatar: undefined
-      })) || [],
-      members: formData.members || [],
-      // Include file fields for proper upload
-      cover_image: formData.coverImageFile || null,
-      event_background: formData.eventBackgroundFile || null,
-      card_background: formData.cardBackgroundFile || null
+    // FIXED: Prepare data for API with explicit chair IDs and profile images
+const eventData = {
+  name: formData.eventName,
+  category_id: formData.category,
+  description: formData.description,
+  start_date: formData.startDate?.toISOString(),
+  end_date: formData.endDate?.toISOString(),
+  location: formData.location,
+  map_url: formData.mapUrl || null,
+  company: formData.company || null,
+  organizer: formData.organizer || null,
+  online_link_meeting: formData.onlineLinkMeeting || null,
+  chairs: [],
+  members: formData.members || [],
+  cover_image: formData.coverImageFile || null,
+  event_background: formData.eventBackgroundFile || null,
+  card_background: formData.cardBackgroundFile || null
+};
+
+// Get chairFileObjects Map from tabs store
+const tabData = tabsStore.getTabData(0);
+const chairFileObjects = tabData?.chairFileObjects instanceof Map ? 
+  tabData.chairFileObjects : new Map();
+
+console.log('📝 Preparing chairs for API:', {
+  totalChairs: formData.chairs.length,
+  chairFileObjectsSize: chairFileObjects.size
+});
+
+// Prepare chair data with ID preservation and proper image handling
+eventData.chairs = formData.chairs.map((chair, index) => {
+  // Use existing ID or server ID to prevent duplicates
+  const chairId = chair.id ?? null; // only keep real ID
+
+  
+  // Build chair data preserving existing information
+  const chairData = {
+    id: chairId,
+    event_id: chair.event_id || null,
+    name: chair.name || '',
+    position: chair.position || '',
+    company: chair.company || '',
+    sort_order: parseInt(chair.sort_order) || 1,
+    // Preserve existing profile_image_url if it exists
+    profile_image_url: chair.profile_image_url || null
+  };
+
+  // Get file object from the Map using the preserved ID
+  const storedFile = chairFileObjects.get(chairId);
+  
+  // Handle profile image with explicit checks
+  if (chair.profile_image instanceof File) {
+    chairData.profile_image = chair.profile_image;
+    console.log(`📤 Chair ${chairData.name}: Using direct File object`, {
+      id: chairId,
+      fileName: chair.profile_image.name
+    });
+  } else if (storedFile instanceof File) {
+    chairData.profile_image = storedFile;
+    console.log(`📤 Chair ${chairData.name}: Using stored File object`, {
+      id: chairId,
+      fileName: storedFile.name
+    });
+  } else if (chair.profile_image_url) {
+    chairData.profile_image_url = chair.profile_image_url;
+    console.log(`📤 Chair ${chairData.name}: Using existing URL`, {
+      id: chairId,
+      url: chair.profile_image_url
+    });
+  }
+
+  console.log(`📦 Chair data prepared:`, {
+    id: chairId,
+    name: chairData.name,
+    hasImage: !!(chairData.profile_image || chairData.profile_image_url)
+  });
+
+  return chairData;
+});
+    
+    console.log('📝 Preparing event data for API...')
+
+    // CRITICAL: Enhanced chair data handling with improved file preservation
+    if (formData.chairs && Array.isArray(formData.chairs)) {
+      // Get chairFileObjects Map from tabsStore
+      const chairFileObjects = tabsStore.getTabData(0)?.chairFileObjects || new Map()
+      
+      eventData.chairs = formData.chairs.map(chair => {
+        // Get stored file object from Map using chair ID
+        const fileObject = chairFileObjects.get(chair.id)
+        
+        // Priority chain for profile_image
+        let profileImage = null
+        let profileImageUrl = null
+        
+        // Try each source in order of preference
+        if (fileObject instanceof File) {
+          // Priority 1: File object from chairFileObjects
+          profileImage = fileObject
+          console.log(`✅ Using stored File object for chair ${chair.name}:`, fileObject.name)
+        } else if (chair.profile_image instanceof File) {
+          // Priority 2: Direct File object on chair
+          profileImage = chair.profile_image
+          console.log(`✅ Using direct File object for chair ${chair.name}:`, chair.profile_image.name)
+        } else if (chair.profile_image_url) {
+          // Priority 3: Existing image URL from API
+          profileImageUrl = chair.profile_image_url
+          console.log(`✅ Using existing API URL for chair ${chair.name}:`, profileImageUrl)
+        } else {
+          console.log(`⚪ No image found for chair ${chair.name}`)
+        }
+        
+        return {
+          id: chair.id, // Keep original ID if it exists
+          name: chair.name,
+          position: chair.position,
+          company: chair.company,
+          sort_order: chair.sort_order || 1,
+          profile_image: profileImage,
+          profile_image_url: profileImageUrl,
+          // Remove display-only fields
+          avatar: undefined,
+          hasFileObject: undefined,
+          fileObjectName: undefined
+        }
+      })
     }
     
     console.log('💾 Preparing event data for save:', {
@@ -1033,84 +1166,74 @@ const openChairDialog = (chair = null, index = -1) => {
   showChairDialog.value = true
 }
 
+const ensureLocalKey = (chair) => {
+  if (!chair.localKey) chair.localKey = crypto.randomUUID();
+  return chair;
+};
+
 const handleChairSaved = (chairData) => {
-  console.log('🪑 Chair saved with data:', chairData)
-  
-  // FIXED: Enhanced chair data processing with better File object preservation
-  const processedChairData = {
-    ...chairData,
-    // CRITICAL: Preserve the File object for profile_image with better detection
-    profile_image: (chairData.profile_image instanceof File ||
-                   (chairData.profile_image && typeof chairData.profile_image === 'object' &&
-                    chairData.profile_image.constructor && chairData.profile_image.constructor.name === 'File'))
-                   ? chairData.profile_image : null,
-    // Keep avatar for display purposes - preserve existing avatar if no new image
-    avatar: chairData.avatar || (chairData.profile_image instanceof File ? URL.createObjectURL(chairData.profile_image) : ''),
-    // Preserve existing profile_image_url from API if available
-    profile_image_url: chairData.profile_image_url || null,
-    // Ensure all required fields are present
-    name: chairData.name || '',
-    position: chairData.position || '',
-    company: chairData.company || '',
-    sort_order: chairData.sort_order || 1,
-    // Preserve unique identifier for tracking
-    id: chairData.id || Date.now() + Math.random()
+  const isEdit = editingChairIndex.value >= 0;
+
+  // Never invent an ID. Keep server ID if present, else null.
+  const existing = isEdit ? formData.chairs[editingChairIndex.value] : null;
+
+  // Keep a stable localKey for mapping (do NOT send to API)
+  const localKey = existing?.localKey || crypto.randomUUID();
+
+  const processed = {
+    // server id – only if we really have one
+    id: (chairData.id ?? existing?.id) ?? null,
+    event_id: chairData.event_id ?? existing?.event_id ?? null,
+    localKey,               // client-only, not sent to API
+    name: chairData.name || existing?.name || '',
+    position: chairData.position || existing?.position || '',
+    company: chairData.company || existing?.company || '',
+    sort_order: parseInt(chairData.sort_order ?? existing?.sort_order ?? 1) || 1,
+
+    // If a new file was chosen, keep it; else keep URL
+    profile_image: chairData.profile_image instanceof File
+      ? chairData.profile_image
+      : null,
+    profile_image_url: chairData.profile_image instanceof File
+      ? null
+      : (chairData.profile_image_url ?? existing?.profile_image_url ?? null),
+
+    // for preview only
+    avatar: chairData.profile_image instanceof File
+      ? URL.createObjectURL(chairData.profile_image)
+      : (chairData.avatar ?? existing?.avatar ?? chairData.profile_image_url ?? null),
+  };
+
+  if (isEdit) formData.chairs[editingChairIndex.value] = processed;
+  else formData.chairs.push(processed);
+
+  // Merge file map by localKey (not by id)
+  const tab0 = tabsStore.getTabData(0) || {};
+  const fileMap = (tab0.chairFileObjects instanceof Map) ? tab0.chairFileObjects : new Map();
+
+  if (processed.profile_image instanceof File) {
+    fileMap.set(localKey, processed.profile_image);
   }
-  
-  console.log('🪑 Processed chair data:', {
-    ...processedChairData,
-    profile_image: processedChairData.profile_image ? `[File] ${processedChairData.profile_image.name}` : null,
-    profile_image_url: processedChairData.profile_image_url || 'none',
-    avatar: processedChairData.avatar ? 'present' : 'none'
-  })
-  
-  if (editingChairIndex.value >= 0) {
-    // FIXED: Update existing chair while preserving File objects from other chairs
-    const existingChair = formData.chairs[editingChairIndex.value]
-    
-    // Preserve File objects from existing chair if no new image uploaded
-    if (!processedChairData.profile_image && existingChair.profile_image instanceof File) {
-      processedChairData.profile_image = existingChair.profile_image
-      processedChairData.avatar = existingChair.avatar || URL.createObjectURL(existingChair.profile_image)
-      console.log('🪑 Preserved existing File object for chair:', processedChairData.name)
-    }
-    
-    formData.chairs[editingChairIndex.value] = processedChairData
-    console.log('🪑 Updated chair at index:', editingChairIndex.value)
-  } else {
-    // Add new chair
-    formData.chairs.push(processedChairData)
-    console.log('🪑 Added new chair, total chairs:', formData.chairs.length)
-  }
-  
-  // FIXED: Enhanced tabs store saving with File object preservation
-  const chairsForStorage = formData.chairs.map(chair => ({
-    ...chair,
-    // Mark File objects for special handling
-    hasFileObject: chair.profile_image instanceof File,
-    fileObjectName: chair.profile_image instanceof File ? chair.profile_image.name : null
-  }))
-  
+
   tabsStore.saveTabData(0, {
-    chairs: chairsForStorage,
-    chairFileObjects: formData.chairs.filter(c => c.profile_image instanceof File).map(c => ({
-      name: c.name,
-      fileObject: c.profile_image
-    }))
-  })
-  tabsStore.markTabModified(0)
-  
-  showChairDialog.value = false
-  editingChair.value = null
-  editingChairIndex.value = -1
-  
+    ...formData,
+    chairs: formData.chairs.map(c => ({ ...c, hasFileObject: undefined, fileObjectName: undefined })),
+    chairFileObjects: fileMap,
+  });
+  tabsStore.markTabModified(0);
+
+  showChairDialog.value = false;
+  editingChair.value = null;
+  editingChairIndex.value = -1;
+
   toast.add({
     severity: 'success',
-    summary: editingChairIndex.value >= 0 ? 'Chair Updated' : 'Chair Added',
-    detail: `${processedChairData.name} has been ${editingChairIndex.value >= 0 ? 'updated' : 'added'} successfully.`,
+    summary: isEdit ? 'Chair Updated' : 'Chair Added',
+    detail: `${processed.name} has been ${isEdit ? 'updated' : 'added'} successfully.`,
     life: 3000
-  })
-}
+  });
+};
+
 
 const deleteChair = (index) => {
   formData.chairs.splice(index, 1)
@@ -1129,70 +1252,47 @@ const deleteChair = (index) => {
 
 // Get chair image source with proper handling - FIXED for profile_image_url
 const getChairImageSrc = (chair) => {
-  if (!chair) return null
-  
+  if (!chair) {
+    console.warn('🖼️ No chair provided to getChairImageSrc');
+    return null;
+  }
+
   try {
     // Priority 1: File object (newly uploaded)
-    if (chair.photo instanceof File) {
-      console.log(`🖼️ Chair ${chair.name}: Using photo File object`)
-      return URL.createObjectURL(chair.photo)
-    }
-    
-    // Priority 2: profile_image File object
     if (chair.profile_image instanceof File) {
-      console.log(`🖼️ Chair ${chair.name}: Using profile_image File object`)
-      return URL.createObjectURL(chair.profile_image)
+      console.log(`🖼️ Chair ${chair.name}: Using profile_image File object`);
+      return URL.createObjectURL(chair.profile_image);
     }
-    
-    // Priority 3: CRITICAL FIX - profile_image_url field (from API response)
+
+    // Priority 2: profile_image_url from API
     if (chair.profile_image_url && typeof chair.profile_image_url === 'string' && chair.profile_image_url.trim()) {
-      console.log(`🖼️ Chair ${chair.name}: Using profile_image_url from API: ${chair.profile_image_url}`)
-      if (chair.profile_image_url.startsWith('http')) {
-        return chair.profile_image_url
-      }
-      return `${window.location.origin}${chair.profile_image_url}`
+      console.log(`🖼️ Chair ${chair.name}: Using profile_image_url from API: ${chair.profile_image_url}`);
+      return chair.profile_image_url.startsWith('http')
+        ? chair.profile_image_url
+        : `${window.location.origin}${chair.profile_image_url}`;
     }
-    
-    // Priority 4: Avatar URL (existing or generated)
+
+    // Priority 3: Avatar URL (existing or generated)
     if (chair.avatar && typeof chair.avatar === 'string' && chair.avatar.trim()) {
-      console.log(`🖼️ Chair ${chair.name}: Using avatar URL`)
-      return chair.avatar
+      console.log(`🖼️ Chair ${chair.name}: Using avatar URL`);
+      return chair.avatar;
     }
-    
-    // Priority 5: Photo URL string
+
+    // Priority 4: Legacy photo field
     if (chair.photo && typeof chair.photo === 'string' && chair.photo.trim()) {
-      console.log(`🖼️ Chair ${chair.name}: Using photo URL string`)
-      if (chair.photo.startsWith('http')) {
-        return chair.photo
-      }
-      return `${window.location.origin}${chair.photo}`
+      console.log(`🖼️ Chair ${chair.name}: Using photo URL string`);
+      return chair.photo.startsWith('http')
+        ? chair.photo
+        : `${window.location.origin}${chair.photo}`;
     }
-    
-    // Priority 6: Profile image URL (from API) - legacy field
-    if (chair.profile_image && typeof chair.profile_image === 'string' && chair.profile_image.trim()) {
-      console.log(`🖼️ Chair ${chair.name}: Using profile_image URL string`)
-      if (chair.profile_image.startsWith('http')) {
-        return chair.profile_image
-      }
-      return `${window.location.origin}${chair.profile_image}`
-    }
-    
-    // Priority 7: photo_url field (from API) - legacy field
-    if (chair.photo_url && typeof chair.photo_url === 'string' && chair.photo_url.trim()) {
-      console.log(`🖼️ Chair ${chair.name}: Using photo_url from API`)
-      if (chair.photo_url.startsWith('http')) {
-        return chair.photo_url
-      }
-      return `${window.location.origin}${chair.photo_url}`
-    }
-    
-    console.log(`🖼️ Chair ${chair.name}: No image source found`)
-    return null
+
+    console.warn(`🖼️ Chair ${chair.name}: No image source found`);
+    return null;
   } catch (error) {
-    console.error(`🖼️ Chair ${chair.name}: Error getting image source:`, error)
-    return null
+    console.error(`🖼️ Chair ${chair.name}: Error getting image source:`, error);
+    return null;
   }
-}
+};
 
 // Handle chair image load errors
 const handleChairImageError = (event) => {

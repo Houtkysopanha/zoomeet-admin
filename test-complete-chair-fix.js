@@ -109,8 +109,9 @@ function testEnhancedImageDisplay() {
   // Test the enhanced getChairImageSrc function
   function getChairImageSrc(chair) {
     if (!chair) return null;
-    
     try {
+          // console.log(chair)
+
       // Priority 1: File object (newly uploaded)
       if (chair.photo instanceof File) {
         console.log(`🖼️ Chair ${chair.name}: Using photo File object`);
@@ -140,7 +141,7 @@ function testEnhancedImageDisplay() {
       
       // Other priorities...
       
-      console.log(`🖼️ Chair ${chair.name}: No image source found`);
+      // console.log(`🖼️ Chair ${chair.name}: No image source found`);
       return null;
     } catch (error) {
       console.error(`🖼️ Chair ${chair.name}: Error getting image source:`, error);

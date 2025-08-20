@@ -7,6 +7,9 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
   const isTabChanging = ref(false)
   
   // Enhanced tab data persistence with timestamps and validation
+  // Add dedicated storage for chair files
+  const chairFiles = reactive(new Map())
+
   const tabData = reactive({
     basicInfo: {
       eventName: '',
@@ -24,6 +27,7 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       eventBackgroundFile: null,
       cardBackgroundFile: null,
       chairs: [],
+      chairFileObjects: new Map(), // Store chair file objects separately
       members: [],
       lastSaved: null,
       isComplete: false
@@ -124,6 +128,8 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
     completedTabs.value = new Set()
     
     // Reset all tab data with enhanced structure
+    const existingChairFileObjects = tabData.basicInfo?.chairFileObjects instanceof Map ? tabData.basicInfo.chairFileObjects : null;
+    
     tabData.basicInfo = {
       eventName: '',
       category: null,
@@ -140,6 +146,7 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       eventBackgroundFile: null,
       cardBackgroundFile: null,
       chairs: [],
+      chairFileObjects: existingChairFileObjects || reactive(new Map()), // Preserve existing chairFileObjects
       members: [],
       lastSaved: null,
       isComplete: false
@@ -194,12 +201,42 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
     })
   }
 
-  // Enhanced save data for a specific tab with validation
+  // Enhanced save data for a specific tab with validation and chair file handling
   function saveTabData(tabIndex, data) {
     const tabKeys = ['basicInfo', 'agenda', 'tickets', 'breakoutRooms', 'settings']
     const tabKey = tabKeys[tabIndex]
     
     if (tabKey && tabData[tabKey]) {
+      // Special handling for chairs with file objects
+      if (tabKey === 'basicInfo' && data.chairs) {
+        // Initialize chairFileObjects as a reactive Map if it doesn't exist
+        if (!tabData[tabKey].chairFileObjects || !(tabData[tabKey].chairFileObjects instanceof Map)) {
+          tabData[tabKey].chairFileObjects = reactive(new Map())
+        }
+        
+        // CRITICAL FIX: Store chair files and preserve existing files
+        data.chairs.forEach(chair => {
+          // If there's a new profile_image File, store it
+          if (chair.profile_image instanceof File) {
+            tabData[tabKey].chairFileObjects.set(chair.id, chair.profile_image)
+            console.log(`💾 Storing new file for chair ${chair.name}:`, chair.profile_image.name)
+          }
+          // Preserve existing file if no new file provided
+          else if (!tabData[tabKey].chairFileObjects.has(chair.id) && chair.profile_image_url) {
+            // Keep the existing profile_image_url
+            chair.profile_image = chair.profile_image_url
+            console.log(`🔄 Preserving existing image URL for chair ${chair.name}:`, chair.profile_image_url)
+          }
+          // Get file from existing chairFileObjects if available
+          else if (tabData[tabKey].chairFileObjects.has(chair.id)) {
+            const existingFile = tabData[tabKey].chairFileObjects.get(chair.id)
+            if (existingFile instanceof File) {
+              console.log(`♻️ Using existing file for chair ${chair.name}:`, existingFile.name)
+            }
+          }
+        })
+      }
+
       // Merge the new data with existing data
       Object.assign(tabData[tabKey], data)
       
@@ -207,6 +244,14 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       tabData[tabKey].lastSaved = new Date().toISOString()
       tabModified.value[tabIndex] = true
       tabLastInteraction.value[tabIndex] = new Date().toISOString()
+      
+      // Restore file objects to chairs after save
+      if (tabKey === 'basicInfo' && tabData[tabKey].chairs) {
+        tabData[tabKey].chairs = tabData[tabKey].chairs.map(chair => ({
+          ...chair,
+          imageFile: tabData[tabKey].chairFileObjects?.get(chair.id) || chair.imageFile || null
+        }))
+      }
       
       // Auto-validate completion for certain tabs
       if (tabIndex === 0) { // Basic Info
@@ -223,24 +268,53 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       console.log(`💾 Tab ${tabIndex} (${tabKey}) data saved:`, {
         dataKeys: Object.keys(data),
         isComplete: tabData[tabKey].isComplete,
-        lastSaved: tabData[tabKey].lastSaved
+        lastSaved: tabData[tabKey].lastSaved,
+        chairCount: tabKey === 'basicInfo' ? tabData[tabKey].chairs?.length : 0,
+        chairFilesCount: tabKey === 'basicInfo' ? tabData[tabKey].chairFileObjects?.size : 0
       })
     }
   }
 
-  // Get data for a specific tab with metadata
+  // Get data for a specific tab with metadata and chair file handling
   function getTabData(tabIndex) {
     const tabKeys = ['basicInfo', 'agenda', 'tickets', 'breakoutRooms', 'settings']
     const tabKey = tabKeys[tabIndex]
     
     if (tabKey && tabData[tabKey]) {
+      const data = { ...tabData[tabKey] }
+
+      // CRITICAL FIX: Enhanced handling for chair files in basic info tab
+      if (tabKey === 'basicInfo' && data.chairs) {
+        data.chairs = data.chairs.map(chair => {
+          const chairCopy = { ...chair }
+          
+          // Priority 1: Get file from chairFileObjects Map
+          if (data.chairFileObjects?.has(chair.id)) {
+            const storedFile = data.chairFileObjects.get(chair.id)
+            if (storedFile instanceof File) {
+              chairCopy.profile_image = storedFile
+              chairCopy.profile_image_local = URL.createObjectURL(storedFile)
+              console.log(`✅ Restored file for chair ${chair.name}:`, storedFile.name)
+            }
+          }
+          // Priority 2: Keep existing profile_image_url if no new file
+          else if (chair.profile_image_url) {
+            chairCopy.profile_image = chair.profile_image_url
+            console.log(`✅ Using existing image URL for chair ${chair.name}:`, chair.profile_image_url)
+          }
+          
+          return chairCopy
+        })
+      }
+      
       return {
-        ...tabData[tabKey],
+        ...data,
         _metadata: {
           tabIndex,
           tabKey,
           hasUnsavedChanges: tabModified.value[tabIndex],
-          lastInteraction: tabLastInteraction.value[tabIndex]
+          lastInteraction: tabLastInteraction.value[tabIndex],
+          chairFilesCount: tabKey === 'basicInfo' ? data.chairFileObjects?.size : 0
         }
       }
     }
@@ -314,9 +388,18 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       return
     }
     
+    // Save existing chair file objects before resetting
+    const existingChairFileObjects = tabData.basicInfo?.chairFileObjects instanceof Map ? 
+      tabData.basicInfo.chairFileObjects : new Map();
+    
     // Clear all existing tab data first to prevent data mixing
     console.log('🧹 Clearing existing tab data before loading new event data')
     resetTabs()
+    
+    // Restore chair file objects
+    if (existingChairFileObjects.size > 0) {
+      tabData.basicInfo.chairFileObjects = existingChairFileObjects;
+    }
     
     console.log('📥 Loading event data into tabs with CRUD support:', {
       id: eventData.id,
@@ -345,7 +428,14 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       coverImageFile: null, // Files need to be handled separately
       eventBackgroundFile: null,
       cardBackgroundFile: null,
-      chairs: eventData.chairs || [],
+      chairs: (eventData.chairs || []).map(chair => ({
+        ...chair,
+        id: chair.id || chair.event_id || 633,
+        event_id: chair.event_id || null,
+        profile_image: chair.profile_image_url ? chair.profile_image_url : null,
+        profile_image_url: chair.profile_image_url || null
+      })),
+      chairFileObjects: tabData.basicInfo?.chairFileObjects || reactive(new Map()), // Preserve existing chairFileObjects
       members: eventData.members || [],
       // Additional metadata for CRUD operations
       eventId: eventData.id,
@@ -489,6 +579,42 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       return null
     }
 
+    // Process chairs with file objects and preserved IDs
+    const processedChairs = basicInfo.chairs.map(chair => {
+      // Ensure chair has an ID and preserve it
+      const chairId = chair.id || chair.event_id || 633;
+      
+      const chairWithFiles = {
+        ...chair,
+        id: chairId,
+        event_id: chair.event_id || null
+      }
+      
+      // Get file from chairFileObjects Map using preserved ID
+      const fileObject = basicInfo.chairFileObjects?.get(chairId)
+      if (fileObject instanceof File) {
+        chairWithFiles.profile_image = fileObject
+        console.log(`📎 Using stored file for chair ${chair.name}:`, {
+          id: chairId,
+          fileName: fileObject.name
+        })
+      } else if (chair.profile_image instanceof File) {
+        chairWithFiles.profile_image = chair.profile_image
+        console.log(`📎 Using direct file for chair ${chair.name}:`, {
+          id: chairId,
+          fileName: chair.profile_image.name
+        })
+      } else if (chair.profile_image_url) {
+        chairWithFiles.profile_image_url = chair.profile_image_url
+        console.log(`📎 Using existing URL for chair ${chair.name}:`, {
+          id: chairId,
+          url: chair.profile_image_url
+        })
+      }
+      
+      return chairWithFiles
+    })
+
     return {
       id: basicInfo.eventId,
       name: basicInfo.eventName,
@@ -504,7 +630,7 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       event_slug: basicInfo.eventSlug,
       is_published: basicInfo.isPublished,
       status: basicInfo.status,
-      chairs: basicInfo.chairs,
+      chairs: processedChairs,
       members: basicInfo.members,
       ticket_types: tabData.tickets.ticketTypes,
       agendas: tabData.agenda.sessions,

@@ -307,7 +307,6 @@ const getPublishButtonTitle = computed(() => {
 
 // Initialize state on mount
 onMounted(async () => {
-  console.log('🚀 Initializing CreateEvent page...')
   const eventStore = useEventStore()
   const { getToken } = useAuth()
 
@@ -516,7 +515,6 @@ onMounted(async () => {
 
 // Clear event data when leaving the page
 onBeforeUnmount(() => {
-  console.log('🚪 Leaving CreateEvent page - cleaning up state')
   const eventStore = useEventStore()
 
   // Log current state before cleanup

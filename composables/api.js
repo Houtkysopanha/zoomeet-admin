@@ -452,54 +452,45 @@ export async function createEvent(eventData, isDraft = true) {
     })
     
     // Handle chairs array - API expects individual FormData fields format
-    if (eventData.chairs && Array.isArray(eventData.chairs)) {
-      
-      // Filter out chairs with empty required fields
-      const validChairs = eventData.chairs.filter(chair => {
-        const hasValidName = chair.name && chair.name.trim().length > 0
-        const hasValidPosition = chair.position && chair.position.trim().length > 0
-        const hasValidCompany = chair.company && chair.company.trim().length > 0
-        
-        if (!hasValidName || !hasValidPosition || !hasValidCompany) {
-          return false
-        }
-        return true
-      })
-      
-      
-      if (validChairs.length > 0) {
-        // Send individual FormData fields (the format the API actually expects)
-        validChairs.forEach((chair, index) => {
-          const chairName = chair.name.trim()
-          const chairPosition = chair.position.trim()
-          const chairCompany = chair.company.trim()
-          const chairSortOrder = chair.sort_order || (index + 1)
-          
-          formData.append(`chairs[${index}][name]`, chairName)
-          formData.append(`chairs[${index}][position]`, chairPosition)
-          formData.append(`chairs[${index}][company]`, chairCompany)
-          formData.append(`chairs[${index}][sort_order]`, chairSortOrder)
-          
-          
-          // Handle profile image file separately - FIXED: Better file detection
-          if (chair.profile_image && (
-            chair.profile_image instanceof File ||
-            (typeof chair.profile_image === 'object' &&
-             chair.profile_image.constructor &&
-             chair.profile_image.constructor.name === 'File') ||
-            (chair.profile_image.name && chair.profile_image.size && chair.profile_image.type)
-          )) {
-            console.log(`✅ Adding chair ${index + 1} profile image:`, chair.profile_image.name)
-            formData.append(`chairs[${index}][profile_image]`, chair.profile_image)
-          } else if (chair.profile_image) {
-            console.log(`⚠️ Chair ${index + 1} profile_image is not a valid File:`, typeof chair.profile_image, chair.profile_image.constructor?.name)
-          }
-        })
-        
-      } else {
-      }
-    } else {
+if (eventData.chairs && Array.isArray(eventData.chairs)) {
+  // Filter out chairs with missing required fields
+  const validChairs = eventData.chairs.filter(chair => {
+    const hasValidName = chair.name && chair.name.trim().length > 0;
+    const hasValidPosition = chair.position && chair.position.trim().length > 0;
+    const hasValidCompany = chair.company && chair.company.trim().length > 0;
+    return hasValidName && hasValidPosition && hasValidCompany;
+  });
+
+  validChairs.forEach((chair, index) => {
+    const chairName = chair.name.trim();
+    const chairPosition = chair.position.trim();
+    const chairCompany = chair.company.trim();
+    const chairSortOrder = chair.sort_order || (index + 1);
+
+    // Only include real IDs (from server). Skip client-only keys.
+    if (chair.id) {
+      formData.append(`chairs[${index}][id]`, chair.id);
     }
+    if (chair.event_id) {
+      formData.append(`chairs[${index}][event_id]`, chair.event_id);
+    }
+
+    formData.append(`chairs[${index}][name]`, chairName);
+    formData.append(`chairs[${index}][position]`, chairPosition);
+    formData.append(`chairs[${index}][company]`, chairCompany);
+    formData.append(`chairs[${index}][sort_order]`, chairSortOrder);
+
+    // --- Profile image handling ---
+    if (chair.profile_image instanceof File) {
+      console.log(`✅ Adding chair ${index + 1} profile image:`, chair.profile_image.name);
+      formData.append(`chairs[${index}][profile_image]`, chair.profile_image);
+    } else if (chair.profile_image_url) {
+      // Preserve existing server URL (so backend doesn’t overwrite with null)
+      formData.append(`chairs[${index}][profile_image_url]`, chair.profile_image_url);
+    }
+  });
+}
+
     
     // Add file fields separately with enhanced validation
     const fileFields = ['cover_image', 'event_background', 'card_background']
@@ -787,69 +778,80 @@ export async function updateEvent(eventId, eventData) {
               formData.append(key, value);
               break;
               
-            case 'chairs':
-              // Handle chairs array - API expects individual FormData fields format
-              if (Array.isArray(value)) {
-                // Filter out chairs with empty required fields
-                const validChairs = value.filter(chair => {
-                  const hasValidName = chair.name && chair.name.trim().length > 0
-                  const hasValidPosition = chair.position && chair.position.trim().length > 0
-                  const hasValidCompany = chair.company && chair.company.trim().length > 0
-                  
-                  return hasValidName && hasValidPosition && hasValidCompany
-                })
-                
-                if (validChairs.length > 0) {
-                  // Send individual FormData fields (the format the API actually expects)
-                  validChairs.forEach((chair, index) => {
-                    const chairName = chair.name.trim()
-                    const chairPosition = chair.position.trim()
-                    const chairCompany = chair.company.trim()
-                    const chairSortOrder = chair.sort_order || (index + 1)
-                    
-                    formData.append(`chairs[${index}][name]`, chairName)
-                    formData.append(`chairs[${index}][position]`, chairPosition)
-                    formData.append(`chairs[${index}][company]`, chairCompany)
-                    formData.append(`chairs[${index}][sort_order]`, chairSortOrder)
-                    
-                    // Handle profile image file separately with validation - FIXED: Better file detection
-                    if (chair.profile_image && (
-                      chair.profile_image instanceof File ||
-                      (typeof chair.profile_image === 'object' &&
-                       chair.profile_image.constructor &&
-                       chair.profile_image.constructor.name === 'File') ||
-                      (chair.profile_image.name && chair.profile_image.size && chair.profile_image.type)
-                    )) {
-                      const file = chair.profile_image
-                      
-                      // Validate chair image file size (max 2MB per file)
-                      if (file.size > 2 * 1024 * 1024) {
-                        throw new Error(`Chair ${index + 1} profile image file size exceeds 2MB limit. Please compress the image.`)
-                      }
-                      
-                      // Validate file type
-                      if (!file.type.startsWith('image/')) {
-                        throw new Error(`Chair ${index + 1} profile image must be an image file`)
-                      }
-                      
-                      // Validate file format (only allow common web formats)
-                      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-                      if (!allowedTypes.includes(file.type.toLowerCase())) {
-                        throw new Error(`Chair ${index + 1} profile image must be in JPEG, PNG, or WebP format`)
-                      }
-                      
-                      console.log(`✅ Updating chair ${index + 1} with new image:`, file.name)
-                      formData.append(`chairs[${index}][profile_image]`, chair.profile_image)
-                    } else if (chair.profile_image_url && chair.profile_image_url.trim() !== '') {
-                      // FIXED: Preserve existing image URL from API response
-                      console.log(`✅ Preserving chair ${index + 1} existing image:`, chair.profile_image_url)
-                      formData.append(`chairs[${index}][profile_image_url]`, chair.profile_image_url)
-                    } else if (chair.profile_image) {
-                      console.log(`⚠️ Chair ${index + 1} profile_image is not a valid File:`, typeof chair.profile_image, chair.profile_image.constructor?.name)
-                    }
-                  })
-                }
-              }
+           case 'chairs':
+  if (Array.isArray(value)) {
+    // Filter out chairs with missing required fields
+    const validChairs = value.filter(chair => {
+      const hasValidName = chair.name && chair.name.trim().length > 0;
+      const hasValidPosition = chair.position && chair.position.trim().length > 0;
+      const hasValidCompany = chair.company && chair.company.trim().length > 0;
+      return hasValidName && hasValidPosition && hasValidCompany;
+    });
+
+    if (validChairs.length > 0) {
+      validChairs.forEach((chair, index) => {
+        const chairName = chair.name.trim();
+        const chairPosition = chair.position.trim();
+        const chairCompany = chair.company.trim();
+        const chairSortOrder = chair.sort_order || (index + 1);
+
+        // ✅ Keep server-provided IDs so backend updates instead of inserts
+        if (chair.id) {
+          formData.append(`chairs[${index}][id]`, chair.id);
+        }
+        if (chair.event_id) {
+          formData.append(`chairs[${index}][event_id]`, chair.event_id);
+        }
+
+        formData.append(`chairs[${index}][name]`, chairName);
+        formData.append(`chairs[${index}][position]`, chairPosition);
+        formData.append(`chairs[${index}][company]`, chairCompany);
+        formData.append(`chairs[${index}][sort_order]`, chairSortOrder);
+
+        // --- Profile image handling ---
+        if (chair.profile_image instanceof File) {
+          const file = chair.profile_image;
+
+          // Validate file size (max 2MB)
+          if (file.size > 2 * 1024 * 1024) {
+            throw new Error(
+              `Chair ${index + 1} profile image file size exceeds 2MB limit. Please compress the image.`
+            );
+          }
+
+          // Validate file type
+          if (!file.type.startsWith('image/')) {
+            throw new Error(
+              `Chair ${index + 1} profile image must be an image file`
+            );
+          }
+
+          // Allow only common formats
+          const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+          if (!allowedTypes.includes(file.type.toLowerCase())) {
+            throw new Error(
+              `Chair ${index + 1} profile image must be in JPEG, PNG, or WebP format`
+            );
+          }
+
+          console.log(`✅ Updating chair ${index + 1} with new image:`, file.name);
+          formData.append(`chairs[${index}][profile_image]`, file);
+        } else if (chair.profile_image_url && chair.profile_image_url.trim() !== '') {
+          // ✅ Preserve existing server image URL
+          console.log(`✅ Preserving chair ${index + 1} existing image:`, chair.profile_image_url);
+          formData.append(`chairs[${index}][profile_image_url]`, chair.profile_image_url);
+        } else if (chair.profile_image) {
+          console.log(
+            `⚠️ Chair ${index + 1} profile_image is not a valid File:`,
+            typeof chair.profile_image,
+            chair.profile_image.constructor?.name
+          );
+        }
+      });
+    }
+  }
+  break;
+
               break;
               
             default:
@@ -1496,40 +1498,38 @@ export async function publishEvent(eventId) {
     if (currentEventData?.chairs && Array.isArray(currentEventData.chairs)) {
       console.log('📋 Processing chairs for publish:', currentEventData.chairs.length)
       
-      currentEventData.chairs.forEach((chair, index) => {
-        if (chair.name && chair.position && chair.company) {
-          formData.append(`chairs[${index}][name]`, chair.name)
-          formData.append(`chairs[${index}][position]`, chair.position)
-          formData.append(`chairs[${index}][company]`, chair.company)
-          formData.append(`chairs[${index}][sort_order]`, chair.sort_order || (index + 1))
-          
-          // CRITICAL FIX: Priority system for chair images
-          // Priority 1: Local File objects (newly uploaded, not yet saved)
-          if (localChairFiles.has(chair.name)) {
-            const fileObject = localChairFiles.get(chair.name)
-            formData.append(`chairs[${index}][profile_image]`, fileObject)
-            console.log(`🔥 Using local File object for chair ${index + 1}: ${chair.name} (${fileObject.name})`)
-          }
-          // Priority 2: Existing image URL from API
-          else if (chair.profile_image_url && chair.profile_image_url.trim() !== '') {
-            formData.append(`chairs[${index}][profile_image_url]`, chair.profile_image_url)
-            console.log(`✅ Preserving existing image URL for chair ${index + 1}: ${chair.profile_image_url}`)
-          }
-          // Priority 3: File object in chair data (fallback)
-          else if (chair.profile_image && (
-            chair.profile_image instanceof File ||
-            (typeof chair.profile_image === 'object' &&
-             chair.profile_image.constructor &&
-             chair.profile_image.constructor.name === 'File') ||
-            (chair.profile_image.name && chair.profile_image.size && chair.profile_image.type)
-          )) {
-            formData.append(`chairs[${index}][profile_image]`, chair.profile_image)
-            console.log(`✅ Using chair File object for chair ${index + 1}: ${chair.profile_image.name}`)
-          } else {
-            console.log(`⚪ No image for chair ${index + 1}: ${chair.name}`)
-          }
-        }
-      })
+     currentEventData.chairs.forEach((chair, index) => {
+  if (chair.name && chair.position && chair.company) {
+    // ✅ Preserve IDs so backend knows which chair to update
+    if (chair.id) {
+      formData.append(`chairs[${index}][id]`, chair.id)
+    }
+    if (chair.event_id) {
+      formData.append(`chairs[${index}][event_id]`, chair.event_id)
+    }
+
+    formData.append(`chairs[${index}][name]`, chair.name)
+    formData.append(`chairs[${index}][position]`, chair.position)
+    formData.append(`chairs[${index}][company]`, chair.company)
+    formData.append(`chairs[${index}][sort_order]`, chair.sort_order || (index + 1))
+
+    // 🔥 Priority system for images
+    if (localChairFiles.has(chair.name)) {
+      const fileObject = localChairFiles.get(chair.name)
+      formData.append(`chairs[${index}][profile_image]`, fileObject)
+      console.log(`🔥 Using local File object for chair ${index + 1}: ${chair.name} (${fileObject.name})`)
+    } else if (chair.profile_image_url && chair.profile_image_url.trim() !== '') {
+      formData.append(`chairs[${index}][profile_image_url]`, chair.profile_image_url)
+      console.log(`✅ Preserving existing image URL for chair ${index + 1}: ${chair.profile_image_url}`)
+    } else if (chair.profile_image instanceof File) {
+      formData.append(`chairs[${index}][profile_image]`, chair.profile_image)
+      console.log(`✅ Using chair File object for chair ${index + 1}: ${chair.profile_image.name}`)
+    } else {
+      console.log(`⚪ No image for chair ${index + 1}: ${chair.name}`)
+    }
+  }
+})
+
     }
     
     console.log('📤 Sending publish request with preserved chair images and File objects')
