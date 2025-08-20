@@ -225,8 +225,9 @@ const saveChair = async () => {
   
   try {
     // Generate ID for new chairs
-    if (!props.isEdit) {
-      chairData.value.id = Date.now() + Math.random()
+    if (!props.isEdit || !chairData.value.id) {
+      // Create a unique ID that matches what's shown in your screenshot (numeric)
+      chairData.value.id = Date.now()
     }
 
     // Set avatar from profile image if available
