@@ -742,25 +742,56 @@ const handleSaveDraft = async () => {
     
     
     if (missingFields.length > 0) {
-      const fieldNames = missingFields.map(({ label }) => label).join(', ')
-      toast.add({
-        severity: 'warn',
-        summary: 'Missing Required Fields',
-        detail: `Please fill in: ${fieldNames}`,
-        life: 4000
-      })
-      return
+      // Set field-specific errors
+      missingFields.forEach(({ field, label }) => {
+        setFieldError(field, `${label} is required`);
+      });
+
+      // Show a single toast with clear guidance
+      if (missingFields.length === 1) {
+        toast.add({
+          severity: 'warn',
+          summary: 'Required Field Missing',
+          detail: `Please fill in the ${missingFields[0].label.toLowerCase()} field to continue.`,
+          life: 3000
+        });
+      } else {
+        const fieldCount = missingFields.length;
+        toast.add({
+          severity: 'warn',
+          summary: 'Required Fields Missing',
+          detail: `Please fill in all ${fieldCount} required fields to continue.`,
+          life: 3000
+        });
+      }
+      return;
     }
     
-    // Validate dates
-    if (formData.startDate && formData.endDate && formData.startDate > formData.endDate) {
-      toast.add({
-        severity: 'warn',
-        summary: 'Invalid Date Range',
-        detail: 'End date must be after start date',
-        life: 4000
-      })
-      return
+    // Enhanced date validation
+    if (formData.startDate && formData.endDate) {
+      // Check if dates are the same
+      if (formData.startDate.getTime() === formData.endDate.getTime()) {
+        setFieldError('date_range', 'Start time and end time cannot be the same')
+        toast.add({
+          severity: 'warn',
+          summary: 'Invalid Event Time',
+          detail: 'Please set different start and end times for your event',
+          life: 4000
+        })
+        return
+      }
+      
+      // Check if end date is before start date
+      if (formData.startDate > formData.endDate) {
+        setFieldError('date_range', 'Event must end after it starts')
+        toast.add({
+          severity: 'warn',
+          summary: 'Invalid Event Time',
+          detail: 'The event end time must be after the start time',
+          life: 4000
+        })
+        return
+      }
     }
     
     // Validate URLs if provided
@@ -998,21 +1029,31 @@ eventData.chairs = formData.chairs.map((chair, index) => {
         }
       }
       
-      // Prevent duplicate toasts for Khmer text by checking if toast is already showing
-      const existingToasts = document.querySelectorAll('.p-toast-message')
-      const hasRecentToast = Array.from(existingToasts).some(toast =>
-        toast.textContent.includes(isEditMode.value ? 'Event Updated' : 'Event Created')
-      )
+      // More focused toast management
+      const toastKey = isEditMode.value ? 'event-update' : 'event-create';
+      const existingToasts = document.querySelectorAll('.p-toast-message');
+      const hasRecentToast = Array.from(existingToasts).some(toast => 
+        toast.dataset.key === toastKey
+      );
       
       if (!hasRecentToast) {
-        toast.add({
-          severity: 'success',
-          summary: isEditMode.value ? 'Event Updated! 💾' : 'Event Created! 🎉',
-          detail: isEditMode.value
-            ? 'Your changes have been saved successfully. You can continue editing other sections.'
-            : 'Your event has been created successfully. You can now add agenda and tickets.',
-          life: 4000
-        })
+        if (isEditMode.value) {
+          toast.add({
+            severity: 'success',
+            summary: 'Changes Saved',
+            detail: 'Your event has been updated successfully.',
+            life: 3000,
+            data: { key: toastKey }
+          });
+        } else {
+          toast.add({
+            severity: 'success',
+            summary: 'Event Created',
+            detail: 'Great! Your event has been created. You can now add more details.',
+            life: 4000,
+            data: { key: toastKey }
+          });
+        }
       }
       
     } else {
@@ -1129,18 +1170,32 @@ eventData.chairs = formData.chairs.map((chair, index) => {
       return
     }
     
-    // Handle other legacy errors
-    let errorMessage = 'Failed to save event. Please try again.'
-    if (error.message?.includes('Authentication')) {
-      errorMessage = 'Please login again to continue.'
+    // Enhanced error handling with user-friendly messages
+    let errorMessage = 'There was a problem saving your event. Please try again.'
+    
+    if (error.message?.includes('slug') || error.message?.includes('URL') || error.status === 422) {
+      // Handle slug already taken error
+      if (error.message?.includes('already') || error.message?.includes('taken') || 
+          error.data?.errors?.event_slug?.includes('taken')) {
+        setFieldError('event_slug', 'This URL is already taken')
+        errorMessage = 'The event URL you chose is already in use. Please try a different one.'
+      }
+    } else if (error.message?.includes('Authentication')) {
+      errorMessage = 'Your session has expired. Please login again to continue.'
     } else if (error.message?.includes('validation')) {
-      errorMessage = 'Please check your input and try again.'
-    } else if (error.message?.includes('CORS')) {
-      errorMessage = 'Network connection error. Please check your internet connection.'
+      errorMessage = 'Please check the highlighted fields and fix any errors.'
+    } else if (error.message?.includes('CORS') || error.message?.includes('network')) {
+      errorMessage = 'Connection problem. Please check your internet and try again.'
     } else if (error.message?.includes('413') || error.message?.includes('too large')) {
-      errorMessage = 'Files are too large. Please compress your images and try again.'
+      errorMessage = 'Your images are too large. Please compress them and try again.'
     } else if (error.message) {
+      // Try to make technical errors more user-friendly
       errorMessage = error.message
+        .replace(/HTTP \d+/g, '')
+        .replace(/API|server|endpoint/gi, 'system')
+        .replace(/invalid/gi, 'incorrect')
+        .replace(/error|exception/gi, 'problem')
+        .trim()
     }
     
     toast.add({

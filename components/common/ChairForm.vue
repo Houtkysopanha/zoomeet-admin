@@ -225,7 +225,6 @@ const saveChair = async () => {
   try {
     // Generate ID for new chairs
     if (!props.isEdit || !chairData.value.id) {
-      // Create a unique ID that matches what's shown in your screenshot (numeric)
       chairData.value.id = Date.now()
     }
 
@@ -242,28 +241,34 @@ const saveChair = async () => {
       detail: `${chairData.value.name} has been ${props.isEdit ? 'updated' : 'added'} successfully.`,
       life: 3000
     })
-    
+
+    // ✅ Reset only if adding new chair
+    if (!props.isEdit) {
+      chairData.value = {
+        id: null,
+        name: '',
+        position: '',
+        company: '',
+        sort_order: 1,
+        profile_image: null,
+        avatar: ''
+      }
+    }
+
     closeDialog()
   } catch (error) {
     console.error('Error saving chair:', error)
-    
-    // User-friendly error message without technical details
-    let errorMessage = 'Unable to save chair information. Please check your input and try again.'
-    
-    if (error.message && !error.message.includes('http') && !error.message.includes('api')) {
-      errorMessage = error.message
-    }
-    
     toast.add({
       severity: 'error',
       summary: 'Save Failed',
-      detail: errorMessage,
+      detail: 'Unable to save chair information. Please check your input and try again.',
       life: 4000
     })
   } finally {
     loading.value = false
   }
 }
+
 
 const closeDialog = () => {
   emit('update:visible', false)
