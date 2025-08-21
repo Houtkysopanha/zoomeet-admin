@@ -119,17 +119,38 @@
               />
             </div>
 
-            <div>
-              <label for="password" class="self-stretch justify-start text-zinc-800 text-md mb-3 font-normal leading-7">Password</label>
-              <input
-                id="password"
-                v-model="password"
-                type="password"
-                required
-                class="w-full text-sm border-0 bg-neutral-100 text-gray-900 p-4 rounded-lg focus:ring-0"
-                placeholder="Enter password"
-              />
-            </div>
+          <div class="relative">
+  <label
+    for="password"
+    class="block text-zinc-800 text-md mb-3 font-normal leading-7"
+  >
+    Password
+  </label>
+
+  <input
+    id="password"
+    v-model="password"
+    :type="showPassword ? 'text' : 'password'"
+    required
+    class="w-full text-sm border-0 bg-neutral-100 text-gray-900 p-4 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 pr-12"
+    placeholder="Enter password"
+  />
+
+  <!-- Eye toggle button -->
+  <button
+    type="button"
+    class="absolute inset-y-0 right-0 flex items-center pr-4 mt-10 text-gray-500 hover:text-purple-600 focus:outline-none"
+    @click="showPassword = !showPassword"
+    tabindex="-1"
+  >
+    <Icon
+      :icon="showPassword ? 'mdi:eye-off-outline' : 'mdi:eye-outline'"
+      width="22"
+      height="22"
+    />
+  </button>
+</div>
+
             
             <div class="flex items-center justify-between text-sm">
               <div class="flex items-center">
@@ -178,7 +199,7 @@ import { useToast } from "primevue/usetoast";
 import Toast from 'primevue/toast';
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue';
 import { classicLoader } from '~/composables/useClassicLoader.js';
-
+import { Icon } from '@iconify/vue'
 // Images
 import logo1 from '@/assets/image/eticketsasia.png';
 import PhoneNumber from "~/components/PhoneNumber.vue";
@@ -189,6 +210,7 @@ definePageMeta({
 const email = ref("");
 const phoneNumber = ref(""); 
 const password = ref("");
+const showPassword = ref(false)
 const currentTab = ref("phone");
 const isLoading = ref(false);
 const formRef = ref(null);
