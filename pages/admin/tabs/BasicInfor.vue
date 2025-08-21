@@ -438,6 +438,20 @@ onMounted(async () => {
   window.addEventListener('saveCurrentTab', handleSaveCurrentTab)
 })
 
+function parseLocalDate(dateString) {
+  if (!dateString) return null;
+
+  // Take only date + time (ignore timezone part if present)
+  const [datePart, timePart] = dateString.split("T");
+  if (!timePart) return new Date(dateString); // fallback
+
+  const [year, month, day] = datePart.split("-").map(Number);
+  const [hour, minute, second] = timePart.split(":").map(Number);
+
+  // Construct Date in local timezone (no UTC shift)
+  return new Date(year, month - 1, day, hour, minute, second || 0);
+}
+
 // Enhanced data loading with comprehensive source checking and File object restoration
 const loadExistingData = async () => {
   if (isLoadingData.value) return
@@ -531,8 +545,8 @@ const loadExistingData = async () => {
         eventName: event.name || '',
         category: event.category_id || null,
         description: event.description || '',
-        startDate: event.start_date ? new Date(event.start_date) : null,
-        endDate: event.end_date ? new Date(event.end_date) : null,
+        startDate: event.start_date ? parseLocalDate(event.start_date) : null,
+        endDate: event.end_date ? parseLocalDate(event.end_date) : null,
         location: event.location || '',
         mapUrl: event.map_url || '',
         company: event.company || '',
@@ -566,8 +580,9 @@ const loadExistingData = async () => {
             eventName: event.name || '',
             category: event.category_id || null,
             description: event.description || '',
-            startDate: event.start_date ? new Date(event.start_date) : null,
-            endDate: event.end_date ? new Date(event.end_date) : null,
+            startDate: event.start_date ? parseLocalDate(event.start_date) : null,
+endDate: event.end_date ? parseLocalDate(event.end_date) : null,
+
             location: event.location || '',
             mapUrl: event.map_url || '',
             company: event.company || '',
@@ -829,14 +844,30 @@ const handleSaveDraft = async () => {
       })
       return
     }
-    
+    function toLocalISOString(date) {
+  if (!date) return null;
+  const pad = (n) => String(n).padStart(2, "0");
+  return (
+    date.getFullYear() +
+    "-" +
+    pad(date.getMonth() + 1) +
+    "-" +
+    pad(date.getDate()) +
+    "T" +
+    pad(date.getHours()) +
+    ":" +
+    pad(date.getMinutes()) +
+    ":" +
+    pad(date.getSeconds())
+  );
+}
     // FIXED: Prepare data for API with explicit chair IDs and profile images
 const eventData = {
   name: formData.eventName,
   category_id: formData.category,
   description: formData.description,
-  start_date: formData.startDate?.toISOString(),
-  end_date: formData.endDate?.toISOString(),
+start_date: toLocalISOString(formData.startDate),
+end_date: toLocalISOString(formData.endDate),
   location: formData.location,
   map_url: formData.mapUrl || null,
   company: formData.company || null,
