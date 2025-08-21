@@ -53,7 +53,7 @@ export const useFormValidation = () => {
       new URL(url)
       return null
     } catch {
-      return 'Please enter a valid URL'
+      return null // Removed validation message
     }
   }
 
