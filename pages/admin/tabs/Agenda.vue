@@ -80,7 +80,7 @@
                         </button>
                       </div>
                     </div>
-                    <h3 class="text-lg font-normal text-gray-800 mb-2">{{ item.title || 'Untitled Session' }}</h3>
+                    <h3 class="text-lg font-normal text-gray-800 mb-2 whitespace-pre-line">{{ item.title || 'Untitled Session' }}</h3>
                     <div v-if="item.description" class="text-sm text-gray-600 mb-2">{{ item.description }}</div>
                     <div v-if="item.venu || item.room_no" class="text-sm text-gray-500 mb-2">
                       <Icon name="heroicons:map-pin" class="w-4 h-4 inline mr-1" />
@@ -186,10 +186,11 @@
           <!-- Session Title -->
           <div>
             <label for="session-title" class="block text-sm font-medium text-gray-700 mb-1">Session Title <span class="text-red-500">*</span></label>
-            <InputText
+            <Textarea
               id="session-title"
               v-model="eventForm.title"
               placeholder="Enter session title"
+              rows="4"
               :class="[
                 'w-full bg-gray-100 p-3 rounded-2xl border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-gray-800 placeholder-gray-400',
                 getFieldError('title') ? 'border-red-500 border-2' : ''
