@@ -714,6 +714,52 @@ const handleSaveDraft = async () => {
   isSubmitting.value = true
   
   try {
+    // First validate the slug format
+    if (!validateSlug()) {
+      isSubmitting.value = false
+      toast.add({
+        severity: 'error',
+        summary: 'Invalid Event URL',
+        detail: 'Please enter a valid URL using only letters, numbers, and hyphens.',
+        life: 4000
+      })
+      return
+    }
+
+    // Check if the slug is available (only if we have a slug)
+    if (formData.eventSlug) {
+      try {
+        const { checkSlugAvailability } = await import('@/composables/api')
+        const result = await checkSlugAvailability(formData.eventSlug, eventId.value)
+
+        if (!result.success) {
+          throw new Error('Failed to check URL availability')
+        }
+
+        if (!result.isAvailable) {
+          setFieldError('event_slug', 'This URL is already in use')
+          toast.add({
+            severity: 'error',
+            summary: 'URL Already Taken',
+            detail: 'This event URL is already being used by another event. Please choose a different one.',
+            life: 5000
+          })
+          isSubmitting.value = false
+          return
+        }
+      } catch (error) {
+        console.error('Error checking slug availability:', error)
+        setFieldError('event_slug', 'Error checking URL availability')
+        toast.add({
+          severity: 'error',
+          summary: 'URL Check Failed',
+          detail: 'Unable to verify if this URL is available. Please try a different one.',
+          life: 4000
+        })
+        isSubmitting.value = false
+        return
+      }
+    }
     
     // Validate required fields (added Company and Organizer as required)
     const requiredFields = [
@@ -1354,54 +1400,172 @@ const handleChairImageError = (event) => {
   event.target.style.display = 'none'
 }
 
+// Validate image file
+const validateImageFile = (file, maxSize = 2) => {
+  if (!file) return { isValid: false, error: 'No file provided' };
+
+  // Check if it's a File object
+  if (!(file instanceof File)) {
+    return { isValid: false, error: 'Invalid file format' };
+  }
+
+  // Check file size (maxSize in MB)
+  const maxSizeBytes = maxSize * 1024 * 1024;
+  if (file.size > maxSizeBytes) {
+    return {
+      isValid: false,
+      error: `Image size (${(file.size / 1024 / 1024).toFixed(2)}MB) exceeds ${maxSize}MB limit`
+    };
+  }
+
+  // Check file type
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+  if (!allowedTypes.includes(file.type.toLowerCase())) {
+    return { isValid: false, error: 'Only JPEG, PNG, and WebP images are allowed' };
+  }
+
+  return { isValid: true };
+};
+
 // File upload handlers
 const handleCoverImageUpload = (file) => {
-  formData.coverImageFile = file
-  clearFieldError('cover_image') // Clear any existing error
-  tabsStore.markTabModified(0)
-  
-  // Save to tabs store immediately
-  tabsStore.saveTabData(0, {
-    ...formData,
-    lastSaved: new Date().toISOString(),
-    hasUnsavedChanges: true
-  })
+  try {
+    const validation = validateImageFile(file, 2); // 2MB limit
+    if (!validation.isValid) {
+      toast.add({
+        severity: 'error',
+        summary: 'Cover Image Error',
+        detail: validation.error,
+        life: 5000
+      });
+      return;
+    }
+
+    formData.coverImageFile = file;
+    clearFieldError('cover_image');
+    tabsStore.markTabModified(0);
+
+    // Save to tabs store immediately
+    tabsStore.saveTabData(0, {
+      ...formData,
+      lastSaved: new Date().toISOString(),
+      hasUnsavedChanges: true
+    });
+
+    toast.add({
+      severity: 'success',
+      summary: 'Cover Image Added',
+      detail: `Image size: ${(file.size / 1024 / 1024).toFixed(2)}MB`,
+      life: 3000
+    });
+  } catch (error) {
+    console.error('Error handling cover image:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to process cover image. Please try again.',
+      life: 4000
+    });
+  }
 }
 
 const handleCoverImageRemoved = () => {
-  formData.coverImageFile = null
-  tabsStore.markTabModified(0)
+  formData.coverImageFile = null;
+  tabsStore.markTabModified(0);
   
   // Save to tabs store immediately
   tabsStore.saveTabData(0, {
     ...formData,
     lastSaved: new Date().toISOString(),
     hasUnsavedChanges: true
-  })
+  });
+
+  toast.add({
+    severity: 'info',
+    summary: 'Cover Image Removed',
+    detail: 'Cover image has been removed',
+    life: 3000
+  });
 }
 
 const handleEventBackgroundUpload = (file) => {
-  formData.eventBackgroundFile = file
-  tabsStore.markTabModified(0)
-  
-  // Save to tabs store immediately
-  tabsStore.saveTabData(0, {
-    ...formData,
-    lastSaved: new Date().toISOString(),
-    hasUnsavedChanges: true
-  })
+  try {
+    const validation = validateImageFile(file, 2); // 2MB limit
+    if (!validation.isValid) {
+      toast.add({
+        severity: 'error',
+        summary: 'Background Image Error',
+        detail: validation.error,
+        life: 5000
+      });
+      return;
+    }
+
+    formData.eventBackgroundFile = file;
+    tabsStore.markTabModified(0);
+    
+    // Save to tabs store immediately
+    tabsStore.saveTabData(0, {
+      ...formData,
+      lastSaved: new Date().toISOString(),
+      hasUnsavedChanges: true
+    });
+
+    toast.add({
+      severity: 'success',
+      summary: 'Background Image Added',
+      detail: `Image size: ${(file.size / 1024 / 1024).toFixed(2)}MB`,
+      life: 3000
+    });
+  } catch (error) {
+    console.error('Error handling background image:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to process background image. Please try again.',
+      life: 4000
+    });
+  }
 }
 
 const handleCardBackgroundUpload = (file) => {
-  formData.cardBackgroundFile = file
-  tabsStore.markTabModified(0)
-  
-  // Save to tabs store immediately
-  tabsStore.saveTabData(0, {
-    ...formData,
-    lastSaved: new Date().toISOString(),
-    hasUnsavedChanges: true
-  })
+  try {
+    const validation = validateImageFile(file, 2); // 2MB limit
+    if (!validation.isValid) {
+      toast.add({
+        severity: 'error',
+        summary: 'Card Background Error',
+        detail: validation.error,
+        life: 5000
+      });
+      return;
+    }
+
+    formData.cardBackgroundFile = file;
+    tabsStore.markTabModified(0);
+    
+    // Save to tabs store immediately
+    tabsStore.saveTabData(0, {
+      ...formData,
+      lastSaved: new Date().toISOString(),
+      hasUnsavedChanges: true
+    });
+
+    toast.add({
+      severity: 'success',
+      summary: 'Card Background Added',
+      detail: `Image size: ${(file.size / 1024 / 1024).toFixed(2)}MB`,
+      life: 3000
+    });
+  } catch (error) {
+    console.error('Error handling card background:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to process card background image. Please try again.',
+      life: 4000
+    });
+  }
 }
 
 // Get cover image URL for display
@@ -1419,11 +1583,17 @@ const getCoverImageUrl = () => {
   return null
 }
 
-// Slug generation methods
+// Slug validation methods
 const validateSlug = () => {
   try {
     // Clear any existing error first
     clearFieldError('event_slug')
+    
+    // If slug is empty, return false
+    if (!formData.eventSlug) {
+      setFieldError('event_slug', 'Event URL is required')
+      return false
+    }
     
     // Remove invalid characters and convert to lowercase
     formData.eventSlug = formData.eventSlug
@@ -1431,8 +1601,18 @@ const validateSlug = () => {
       .replace(/[^a-z0-9-]/g, '')
       .replace(/--+/g, '-')
       .replace(/^-|-$/g, '')
+
+    // If slug is empty after cleaning, return false
+    if (!formData.eventSlug) {
+      setFieldError('event_slug', 'Event URL must contain letters, numbers, or hyphens')
+      return false
+    }
+
+    return true
   } catch (error) {
-    // Error in validateSlug
+    console.error('Error in validateSlug:', error)
+    setFieldError('event_slug', 'Error validating URL format')
+    return false
   }
 }
 

@@ -321,20 +321,67 @@ const handleImageSelected = (file) => {
 
     // Validate that we have a proper File object
     if (file instanceof File) {
+      // Check file size (2MB limit)
+      const maxSize = 2 * 1024 * 1024 // 2MB in bytes
+      if (file.size > maxSize) {
+        toast.add({
+          severity: 'error',
+          summary: 'Image Too Large',
+          detail: `Image size (${(file.size / 1024 / 1024).toFixed(2)}MB) exceeds 2MB limit. Please compress the image.`,
+          life: 5000
+        })
+        return
+      }
+
+      // Check file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+      if (!allowedTypes.includes(file.type.toLowerCase())) {
+        toast.add({
+          severity: 'error',
+          summary: 'Invalid File Type',
+          detail: 'Only JPEG, PNG, and WebP images are allowed.',
+          life: 5000
+        })
+        return
+      }
+
+      // File is valid, process it
       chairData.value.profile_image = file
       // Create and store the object URL
       const objectUrl = URL.createObjectURL(file)
       objectUrls.value.push(objectUrl)
       chairData.value.avatar = objectUrl
+
+      // Show success message with file info
+      toast.add({
+        severity: 'success',
+        summary: 'Image Selected',
+        detail: `Image size: ${(file.size / 1024 / 1024).toFixed(2)}MB`,
+        life: 3000
+      })
     } else {
       console.warn('Invalid file object received:', file)
       chairData.value.profile_image = null
       chairData.value.avatar = ''
+      
+      toast.add({
+        severity: 'error',
+        summary: 'Invalid File',
+        detail: 'Failed to process the selected file. Please try again.',
+        life: 4000
+      })
     }
   } catch (error) {
     console.error('Error handling image selection:', error)
     chairData.value.profile_image = null
     chairData.value.avatar = ''
+    
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to process image. Please try again.',
+      life: 4000
+    })
   }
 }
 
