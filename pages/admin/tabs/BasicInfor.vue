@@ -726,41 +726,7 @@ const handleSaveDraft = async () => {
       return
     }
 
-    // Check if the slug is available (only if we have a slug)
-    if (formData.eventSlug) {
-      try {
-        const { checkSlugAvailability } = await import('@/composables/api')
-        const result = await checkSlugAvailability(formData.eventSlug, eventId.value)
-
-        if (!result.success) {
-          throw new Error('Failed to check URL availability')
-        }
-
-        if (!result.isAvailable) {
-          setFieldError('event_slug', 'This URL is already in use')
-          toast.add({
-            severity: 'error',
-            summary: 'URL Already Taken',
-            detail: 'This event URL is already being used by another event. Please choose a different one.',
-            life: 5000
-          })
-          isSubmitting.value = false
-          return
-        }
-      } catch (error) {
-        console.error('Error checking slug availability:', error)
-        setFieldError('event_slug', 'Error checking URL availability')
-        toast.add({
-          severity: 'error',
-          summary: 'URL Check Failed',
-          detail: 'Unable to verify if this URL is available. Please try a different one.',
-          life: 4000
-        })
-        isSubmitting.value = false
-        return
-      }
-    }
-    
+    // Check if the slug is available (only if we have a slug)    
     // Validate required fields (added Company and Organizer as required)
     const requiredFields = [
       { field: 'eventName', label: 'Event Name' },

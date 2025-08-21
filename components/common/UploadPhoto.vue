@@ -115,7 +115,7 @@ const props = defineProps({
   },
   maxSizeText: {
     type: String,
-    default: 'below 10MB'
+    default: 'below 2MB'
   },
   dimensionsText: {
     type: String,

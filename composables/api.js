@@ -502,7 +502,7 @@ if (eventData.chairs && Array.isArray(eventData.chairs)) {
         
         // Validate individual file size (max 2MB per file to prevent 413)
         if (file.size > 2 * 1024 * 1024) {
-          throw new Error(`${key} file size exceeds 2MB limit. Please compress the image.`)
+          throw new Error(`${key} file size exceeds 1.5MB limit. Please compress the image.`)
         }
         
         // Track total payload size
@@ -531,7 +531,7 @@ if (eventData.chairs && Array.isArray(eventData.chairs)) {
           
           // Validate individual chair image file size (max 2MB per file)
           if (file.size > 2 * 1024 * 1024) {
-            throw new Error(`Chair ${index + 1} profile image file size exceeds 2MB limit. Please compress the image.`)
+            throw new Error(`Chair ${index + 1} profile image file size exceeds 1.5MB limit. Please compress the image.`)
           }
           
           // Track total payload size including chair images
@@ -815,7 +815,7 @@ export async function updateEvent(eventId, eventData) {
           // Validate file size (max 2MB)
           if (file.size > 2 * 1024 * 1024) {
             throw new Error(
-              `Chair ${index + 1} profile image file size exceeds 2MB limit. Please compress the image.`
+              `Chair ${index + 1} profile image file size exceeds 1.5MB limit. Please compress the image.`
             );
           }
 
