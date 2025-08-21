@@ -102,7 +102,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onBeforeUnmount } from 'vue'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
@@ -229,12 +229,28 @@ const saveChair = async () => {
       chairData.value.id = Date.now()
     }
 
-    // Set avatar from profile image if available
+    // Validate profile_image is a File object before trying to use it
     if (chairData.value.profile_image) {
-      chairData.value.avatar = URL.createObjectURL(chairData.value.profile_image)
+      if (!(chairData.value.profile_image instanceof File)) {
+        console.warn('Profile image is not a File object:', chairData.value.profile_image)
+        // Clear invalid profile image
+        chairData.value.profile_image = null
+      }
     }
 
-    emit('save', { ...chairData.value })
+    // Create a clean copy of chair data for emitting
+    const chairToSave = {
+      id: chairData.value.id,
+      name: chairData.value.name,
+      position: chairData.value.position,
+      company: chairData.value.company,
+      sort_order: chairData.value.sort_order,
+      profile_image: chairData.value.profile_image,
+      // Only include avatar URL if it's from an existing image
+      avatar: chairData.value.profile_image ? null : chairData.value.avatar
+    }
+
+    emit('save', chairToSave)
     
     toast.add({
       severity: 'success',
@@ -276,20 +292,55 @@ const closeDialog = () => {
   clearErrors()
 }
 
+// Store object URLs to clean them up later
+const objectUrls = ref([])
+
+// Clean up any existing object URLs
+const cleanupObjectUrls = () => {
+  objectUrls.value.forEach(url => {
+    try {
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.warn('Failed to revoke object URL:', url, error)
+    }
+  })
+  objectUrls.value = []
+}
+
 // Handle image selection
 const handleImageSelected = (file) => {
   try {
-    chairData.value.profile_image = file
-    if (file && typeof file === 'object' && file.constructor && file.constructor.name === 'File') {
-      chairData.value.avatar = URL.createObjectURL(file)
+    // Clean up any existing object URLs first
+    cleanupObjectUrls()
+
+    if (!file) {
+      chairData.value.profile_image = null
+      chairData.value.avatar = ''
+      return
+    }
+
+    // Validate that we have a proper File object
+    if (file instanceof File) {
+      chairData.value.profile_image = file
+      // Create and store the object URL
+      const objectUrl = URL.createObjectURL(file)
+      objectUrls.value.push(objectUrl)
+      chairData.value.avatar = objectUrl
+    } else {
+      console.warn('Invalid file object received:', file)
+      chairData.value.profile_image = null
+      chairData.value.avatar = ''
     }
   } catch (error) {
     console.error('Error handling image selection:', error)
+    chairData.value.profile_image = null
+    chairData.value.avatar = ''
   }
 }
 
 // Handle image removal
 const handleImageRemoved = () => {
+  cleanupObjectUrls()
   chairData.value.profile_image = null
   chairData.value.avatar = ''
 }
@@ -297,18 +348,30 @@ const handleImageRemoved = () => {
 // Safe image source getter
 const getImageSrc = () => {
   try {
-    if (chairData.value.profile_image &&
-        typeof chairData.value.profile_image === 'object' &&
-        chairData.value.profile_image.constructor &&
-        chairData.value.profile_image.constructor.name === 'File') {
-      return URL.createObjectURL(chairData.value.profile_image)
+    // If we have a profile_image File object and it's valid
+    if (chairData.value.profile_image instanceof File) {
+      const objectUrl = URL.createObjectURL(chairData.value.profile_image)
+      objectUrls.value.push(objectUrl)
+      return objectUrl
     }
-    return chairData.value.avatar || ''
+    
+    // If we have an avatar URL (from existing image)
+    if (chairData.value.avatar) {
+      return chairData.value.avatar
+    }
+
+    // No image
+    return ''
   } catch (error) {
     console.error('Error getting image source:', error)
-    return chairData.value.avatar || ''
+    return ''
   }
 }
+
+// Cleanup on dialog close and component unmount
+onBeforeUnmount(() => {
+  cleanupObjectUrls()
+})
 
 // Handle image load errors
 const handleImageError = (event) => {
