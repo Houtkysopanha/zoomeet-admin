@@ -7,16 +7,13 @@
     ]"
   >
     <div class="text-center">
-      <!-- Main Loading Container -->
       <div class="relative">
-        <!-- Outer Ring -->
         <div
           :class="[
             'relative mx-auto rounded-full border-4 border-purple-300/50',
             sizeClasses.outer
           ]"
         >
-          <!-- Progress Ring -->
           <svg 
             :class="[
               'absolute inset-0 transform -rotate-90',
@@ -24,7 +21,6 @@
             ]"
             viewBox="0 0 100 100"
           >
-            <!-- Background Circle -->
             <circle
               cx="50"
               cy="50"
@@ -33,7 +29,6 @@
               stroke-width="4"
               fill="none"
             />
-            <!-- Progress Circle -->
             <circle
               cx="50"
               cy="50"
@@ -48,7 +43,6 @@
             />
           </svg>
 
-          <!-- Inner Spinner -->
           <div
             :class="[
               'absolute inset-4 rounded-full border-2 border-purple-300/50 border-t-purple-600 animate-spin',
@@ -56,14 +50,12 @@
             ]"
           ></div>
 
-          <!-- Center Content -->
           <div
             :class="[
               'absolute inset-0 flex flex-col items-center justify-center text-purple-700',
               sizeClasses.content
             ]"
           >
-            <!-- eTicket Asia Logo -->
             <div v-if="showLogo" class="mb-2">
               <img
                 :src="logoSrc"
@@ -73,7 +65,6 @@
               />
             </div>
 
-            <!-- Percentage -->
             <div 
               :class="[
                 'font-bold tabular-nums',
@@ -83,7 +74,6 @@
               {{ Math.round(currentProgress) }}%
             </div>
 
-            <!-- Loading Text -->
             <div 
               v-if="showText"
               :class="[
@@ -96,7 +86,6 @@
           </div>
         </div>
 
-        <!-- Floating Dots Animation -->
         <div v-if="showDots" class="absolute inset-0 pointer-events-none">
           <div
             v-for="i in 8"
@@ -110,7 +99,6 @@
         </div>
       </div>
 
-      <!-- Status Text -->
       <div
         v-if="statusText"
         class="mt-6 text-purple-600 text-sm font-medium"
@@ -118,7 +106,6 @@
         {{ statusText }}
       </div>
 
-      <!-- Progress Steps -->
       <div v-if="showSteps && steps.length" class="mt-4 space-y-2">
         <div
           v-for="(step, index) in steps"
@@ -134,7 +121,9 @@
               index < currentStep ? 'bg-purple-600 text-white' : 'bg-purple-200'
             ]"
           >
-            <i v-if="index < currentStep" class="pi pi-check"></i>
+            <svg v-if="index < currentStep" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+            </svg>
             <span v-else>{{ index + 1 }}</span>
           </div>
           {{ step }}
@@ -145,195 +134,176 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
-import logoImage from '@/assets/image/eticketsasia.png'
+import { ref, computed, watch } from 'vue';
+// Use a more descriptive name for the imported image.
+import logoImage from '@/assets/image/logo1.png';
 
 // Props
 const props = defineProps({
-  // Visibility
   visible: {
     type: Boolean,
     default: false
   },
-  
-  // Progress (0-100)
   progress: {
     type: Number,
     default: 0
   },
-  
-  // Loading text
   text: {
     type: String,
     default: 'Loading...'
   },
-  
-  // Status text
   statusText: {
     type: String,
     default: ''
   },
-  
-  // Size variant
   size: {
     type: String,
     default: 'lg',
     validator: (value) => ['md', 'lg', 'xl'].includes(value)
   },
-  
-  // Show text
   showText: {
     type: Boolean,
     default: true
   },
-  
-  // Show logo
   showLogo: {
     type: Boolean,
     default: true
   },
-  
-  // Show floating dots
   showDots: {
     type: Boolean,
     default: true
   },
-  
-  // Show progress steps
   showSteps: {
     type: Boolean,
     default: false
   },
-  
-  // Progress steps
   steps: {
     type: Array,
     default: () => []
   },
-  
-  // Current step
   currentStep: {
     type: Number,
     default: 0
   },
-  
-  // Logo source
   logoSrc: {
     type: String,
     default: logoImage
   }
-})
+});
 
-// Reactive progress for smooth animation
-const currentProgress = ref(0)
+const currentProgress = ref(props.progress);
 
-// Watch progress changes for smooth animation
+// Use a cleaner, more reliable watch with a direct transition
 watch(() => props.progress, (newProgress) => {
-  const duration = 500 // Animation duration in ms
-  const steps = 30 // Number of animation steps
-  const stepDuration = duration / steps
-  const progressDiff = newProgress - currentProgress.value
-  const stepSize = progressDiff / steps
-  
-  let step = 0
-  const animate = () => {
-    if (step < steps) {
-      currentProgress.value += stepSize
-      step++
-      setTimeout(animate, stepDuration)
-    } else {
-      currentProgress.value = newProgress
-    }
-  }
-  animate()
-}, { immediate: true })
+  currentProgress.value = newProgress;
+});
 
-// Size configurations
 const sizeClasses = computed(() => {
   const sizes = {
     md: {
       outer: 'w-24 h-24',
       svg: 'w-24 h-24',
       inner: 'w-16 h-16',
-      content: 'text-center',
-      logo: 'w-6 h-6',
-      percentage: 'text-lg',
-      text: 'text-xs'
+      logo: 'w-10 h-10',
+      percentage: 'text-xl',
+      text: 'text-sm'
     },
     lg: {
       outer: 'w-32 h-32',
       svg: 'w-32 h-32',
       inner: 'w-24 h-24',
-      content: 'text-center',
-      logo: 'w-8 h-8',
-      percentage: 'text-2xl',
-      text: 'text-sm'
-    },
-    xl: {
-      outer: 'w-40 h-40',
-      svg: 'w-40 h-40',
-      inner: 'w-32 h-32',
-      content: 'text-center',
-      logo: 'w-10 h-10',
+      logo: 'w-14 h-14',
       percentage: 'text-3xl',
       text: 'text-base'
+    },
+    xl: {
+      outer: 'w-44 h-44',
+      svg: 'w-44 h-44',
+      inner: 'w-32 h-32',
+      logo: 'w-20 h-20',
+      percentage: 'text-4xl',
+      text: 'text-lg'
     }
-  }
-  return sizes[props.size]
-})
+  };
+  // Use a default size if the prop is invalid, though the validator prevents this.
+  return sizes[props.size] || sizes.lg;
+});
+
 
 // Circle calculations
-const radius = 46
-const circumference = 2 * Math.PI * radius
+const radius = 46;
+const circumference = 2 * Math.PI * radius;
 
 const strokeDashoffset = computed(() => {
-  const progress = Math.max(0, Math.min(100, currentProgress.value))
-  return circumference - (progress / 100) * circumference
-})
+  const progress = Math.max(0, Math.min(100, currentProgress.value));
+  return circumference - (progress / 100) * circumference;
+});
 
 // Floating dots positioning
 const getDotStyle = (index) => {
-  const angle = (index - 1) * 45 // 8 dots, 45 degrees apart
-  const radius = 60 // Distance from center
-  const x = 50 + radius * Math.cos((angle * Math.PI) / 180)
-  const y = 50 + radius * Math.sin((angle * Math.PI) / 180)
+  const angle = (index - 1) * 45;
+  const dotRadius = 60; // Renamed for clarity
+  const x = 50 + dotRadius * Math.cos((angle * Math.PI) / 180);
+  const y = 50 + dotRadius * Math.sin((angle * Math.PI) / 180);
   
   return {
     left: `${x}%`,
     top: `${y}%`,
     transform: 'translate(-50%, -50%)',
-    animationDelay: `${index * 0.2}s`
-  }
-}
+    animationDelay: `${(index - 1) * 0.2}s` // Start delay from 0s for the first dot
+  };
+};
 </script>
 
 <style scoped>
-/* Smooth animations */
+/* Scoped styles remain largely the same, but comments are added for clarity. */
 .transition-all {
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Loader glow effect */
+svg circle:nth-child(2) {
+  filter: drop-shadow(0 0 8px rgba(147, 51, 234, 0.7));
+}
+
+/* Inner spinner with glow */
+.animate-spin {
+  border-top-color: #9333ea;
+  filter: drop-shadow(0 0 6px rgba(147, 51, 234, 0.8));
+}
+
+/* Gradient text for percentage */
+.tabular-nums {
+  background: linear-gradient(90deg, #6a11cb, #2575fc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
 }
 
 /* Floating dots animation */
 @keyframes float {
   0%, 100% {
     transform: translate(-50%, -50%) scale(1);
-    opacity: 0.7;
+    opacity: 0.6;
   }
   50% {
-    transform: translate(-50%, -50%) scale(1.2);
+    transform: translate(-50%, -50%) scale(1.4);
     opacity: 1;
   }
 }
 
-.dot-1 { animation: float 2s ease-in-out infinite; }
-.dot-2 { animation: float 2s ease-in-out infinite 0.25s; }
-.dot-3 { animation: float 2s ease-in-out infinite 0.5s; }
-.dot-4 { animation: float 2s ease-in-out infinite 0.75s; }
-.dot-5 { animation: float 2s ease-in-out infinite 1s; }
-.dot-6 { animation: float 2s ease-in-out infinite 1.25s; }
-.dot-7 { animation: float 2s ease-in-out infinite 1.5s; }
-.dot-8 { animation: float 2s ease-in-out infinite 1.75s; }
+/* Removed redundant individual dot animations.
+   Instead, use a single class with `animation-delay` set in JS. */
+.dot {
+  animation: float 2s ease-in-out infinite;
+}
+
+/* Floating dots glow */
+[class*="dot-"] {
+  box-shadow: 0 0 10px rgba(147, 51, 234, 0.7);
+}
 
 /* Backdrop blur fallback */
 @supports not (backdrop-filter: blur(12px)) {
