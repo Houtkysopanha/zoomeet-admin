@@ -1634,3 +1634,45 @@ export async function fetchCategories() {
 export async function fetchEventById(eventId) {
   return await getEventDetails(eventId)
 }
+
+// Check if event slug is available
+export async function checkSlugAvailability(slug, currentEventId = null) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!slug) {
+    throw new Error('Slug is required')
+  }
+
+  try {
+    // Normalize the slug format
+    const normalizedSlug = slug.toLowerCase().trim()
+    
+    // Add current event ID if we're editing (to ignore current event's slug)
+    const queryParams = new URLSearchParams()
+    if (currentEventId) {
+      queryParams.append('current_event_id', currentEventId)
+    }
+    queryParams.append('slug', normalizedSlug)
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/check-slug?${queryParams}`, {
+      method: 'GET',
+      headers: createAuthHeaders()
+    })
+
+    return {
+      success: true,
+      isAvailable: response?.available ?? false,
+      message: response?.message ?? 'Slug availability checked successfully'
+    }
+  } catch (error) {
+    console.error('Slug check error:', error)
+    
+    // Return structured response for better error handling
+    return {
+      success: false,
+      isAvailable: false,
+      message: error.message || 'Failed to check slug availability'
+    }
+  }
+}
