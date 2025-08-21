@@ -409,13 +409,18 @@ const agendaDays = computed(() => {
 
   const startDate = new Date(eventStartDate.value)
   const endDate = new Date(eventEndDate.value)
+
+  // Normalize both to midnight
+  startDate.setHours(0, 0, 0, 0)
+  endDate.setHours(0, 0, 0, 0)
+
   const today = new Date()
   today.setHours(0, 0, 0, 0) // Reset time for comparison
   const days = []
   
   // Calculate number of days between start and end
   const timeDiff = endDate.getTime() - startDate.getTime()
-  const dayCount = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1
+  const dayCount = Math.floor(timeDiff / (1000 * 3600 * 24)) + 1
   
   // Create day structure with dynamic labels
   for (let i = 0; i < dayCount; i++) {
