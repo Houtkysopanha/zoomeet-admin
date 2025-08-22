@@ -541,6 +541,14 @@ const actionItems = (eventData) => [
       handleEditEvent(eventData)
     },
   },
+  {
+    label: 'Manage Team',
+    icon: 'pi pi-users',
+    command: () => {
+      router.push('/admin/role/ManageTeam');
+    },
+    visible: true,
+  },
   // Disabled actions - no API support yet
   {
     label: 'Manage Booking',
@@ -552,6 +560,8 @@ const actionItems = (eventData) => [
         detail: 'Booking management is currently under development.',
         life: 3000
       });
+       router.push('/ManageTeam');
+      return;
     },
     visible: false, // Disabled
   },
@@ -565,6 +575,7 @@ const actionItems = (eventData) => [
         detail: 'End event functionality is currently under development.',
         life: 3000
       });
+
     },
     visible: false, // Disabled
   },
