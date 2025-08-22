@@ -39,7 +39,6 @@ export default defineEventHandler(async (event) => {
       
       if (contentType?.includes('multipart/form-data')) {
         // For FormData, we need to handle it properly
-        console.log('📎 Handling FormData request')
         
         // Get the raw body as FormData
         const formData = await readMultipartFormData(event)
@@ -54,7 +53,7 @@ export default defineEventHandler(async (event) => {
               const uint8Array = new Uint8Array(field.data)
               const blob = new Blob([uint8Array], { type: field.type || 'application/octet-stream' })
               newFormData.append(field.name || 'file', blob, field.filename)
-              console.log(`📎 Added file field: ${field.name} = ${field.filename} (${field.data.length} bytes)`)
+
             } else {
               // This is a text field
               const value = field.data.toString()
@@ -62,21 +61,18 @@ export default defineEventHandler(async (event) => {
               
               // Special logging for chair data
               if (field.name && field.name.includes('chairs[')) {
-                console.log(`🪑 Chair field processed: ${field.name} = ${value}`)
+               
               } else {
-                console.log(`📝 Added text field: ${field.name} = ${value}`)
+              
               }
             }
           }
           
           // Log all FormData entries for debugging
-          console.log('📋 Complete FormData being sent to external API:')
           for (const [key, value] of newFormData.entries()) {
             if (typeof value === 'object' && value !== null && 'size' in value) {
               const fileValue = value as any
-              console.log(`  ${key}: [File/Blob] ${fileValue.name || 'unnamed'} (${fileValue.size} bytes)`)
             } else {
-              console.log(`  ${key}: ${value}`)
             }
           }
           
@@ -90,7 +86,6 @@ export default defineEventHandler(async (event) => {
         // For JSON data
         body = await readBody(event)
         headers['Content-Type'] = 'application/json'
-        console.log('📝 Handling JSON request:', body)
       }
     }
 
@@ -100,21 +95,11 @@ export default defineEventHandler(async (event) => {
       ? '?' + new URLSearchParams(query as Record<string, string>).toString()
       : ''
 
-    console.log('📤 Making request to external API:', {
-      url: `${fullUrl}${queryString}`,
-      method,
-      hasBody: !!body,
-      bodyType: body instanceof FormData ? 'FormData' : typeof body,
-      headers: Object.keys(headers)
-    })
-
     const response = await $fetch(`${fullUrl}${queryString}`, {
       method: method as any,
       body: body,
       headers: headers,
     })
-
-    console.log(`✅ Server-side admin API response for ${method} /admin/${path}:`, response)
     return response
   } catch (error: any) {
     const currentMethod = getMethod(event)

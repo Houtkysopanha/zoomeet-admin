@@ -153,25 +153,21 @@ const hasError = ref(false)
 
 // Methods
 const triggerFileInput = (event) => {
-  console.log('🖱️ Triggering file input click', event?.target?.tagName)
   if (event) {
     event.preventDefault()
     event.stopPropagation()
   }
   
   if (fileInput.value) {
-    console.log('📁 File input found, triggering click')
     // Use setTimeout to ensure the click happens after event handling
     setTimeout(() => {
       fileInput.value.click()
     }, 0)
   } else {
-    console.error('❌ File input ref not found')
   }
 }
 
 const handleBrowseClick = (event) => {
-  console.log('🖱️ Browse button clicked')
   event.preventDefault()
   event.stopPropagation()
   triggerFileInput(event)
@@ -186,13 +182,10 @@ const handleDragEnter = (event) => {
 }
 
 const handleFileSelect = (event) => {
-  console.log('📁 File input changed', event.target.files)
   const file = event.target.files[0]
   if (file) {
-    console.log('📎 File selected:', file.name, file.size, file.type)
     validateAndProcessFile(file)
   } else {
-    console.log('❌ No file selected')
   }
 }
 
@@ -205,12 +198,10 @@ const handleDrop = (event) => {
 }
 
 const validateAndProcessFile = (file) => {
-  console.log('🔍 Validating file:', file.name, file.size, file.type)
   hasError.value = false
   
   // Check file size
   if (file.size > props.maxSize) {
-    console.error('❌ File too large:', file.size, 'max:', props.maxSize)
     hasError.value = true
     emit('upload-error', {
       type: 'size',
@@ -222,7 +213,6 @@ const validateAndProcessFile = (file) => {
   
   // Check file type
   if (props.allowedTypes.length > 0 && !props.allowedTypes.includes(file.type)) {
-    console.error('❌ Invalid file type:', file.type, 'allowed:', props.allowedTypes)
     hasError.value = true
     emit('upload-error', {
       type: 'type',
@@ -231,8 +221,7 @@ const validateAndProcessFile = (file) => {
     })
     return
   }
-  
-  console.log('✅ File validation passed, emitting file-selected')
+
   selectedFile.value = file
   emit('file-selected', file)
 }

@@ -96,7 +96,6 @@ const props = defineProps({
 })
 
 const assignTicket = (id) => {
-  console.log(`Assigning ticket with ID: ${id}`)
   // Implement actual ticket assignment logic here (e.g., API call)
 }
 </script>

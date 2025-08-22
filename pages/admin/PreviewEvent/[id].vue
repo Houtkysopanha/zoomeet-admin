@@ -262,17 +262,15 @@ const loadEventData = async () => {
       return
     }
 
-    console.log('Loading event data for ID:', eventId)
     const response = await fetchEventById(eventId)
     
     if (response && response.data && response.data.success) {
       eventData.value = response.data.data
-      console.log('Event data loaded:', eventData.value)
     } else {
       error.value = 'Failed to load event data'
     }
   } catch (err) {
-    console.error('Error loading event:', err)
+
     error.value = err.message || 'Failed to load event'
   } finally {
     loading.value = false

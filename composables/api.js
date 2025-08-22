@@ -482,7 +482,7 @@ if (eventData.chairs && Array.isArray(eventData.chairs)) {
 
     // --- Profile image handling ---
     if (chair.profile_image instanceof File) {
-      console.log(`✅ Adding chair ${index + 1} profile image:`, chair.profile_image.name);
+
       formData.append(`chairs[${index}][profile_image]`, chair.profile_image);
     } else if (chair.profile_image_url) {
       // Preserve existing server URL (so backend doesn’t overwrite with null)
@@ -834,18 +834,13 @@ export async function updateEvent(eventId, eventData) {
             );
           }
 
-          console.log(`✅ Updating chair ${index + 1} with new image:`, file.name);
           formData.append(`chairs[${index}][profile_image]`, file);
         } else if (chair.profile_image_url && chair.profile_image_url.trim() !== '') {
           // ✅ Preserve existing server image URL
-          console.log(`✅ Preserving chair ${index + 1} existing image:`, chair.profile_image_url);
+       
           formData.append(`chairs[${index}][profile_image_url]`, chair.profile_image_url);
         } else if (chair.profile_image) {
-          console.log(
-            `⚠️ Chair ${index + 1} profile_image is not a valid File:`,
-            typeof chair.profile_image,
-            chair.profile_image.constructor?.name
-          );
+
         }
       });
     }
@@ -881,7 +876,6 @@ export async function updateEvent(eventId, eventData) {
 
     // Validate response
     if (!response || typeof response !== 'object') {
-      console.error('❌ Invalid response format:', response)
       return {
         success: false,
         message: 'Invalid response from server',
@@ -1006,14 +1000,6 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
     if (!normalizedData.name) throw new Error('Ticket name is required')
     if (isNaN(normalizedData.price) || normalizedData.price < 0) throw new Error('Price must be 0 or greater')
     if (isNaN(normalizedData.total) || normalizedData.total < 1) throw new Error('Quantity must be at least 1')
-
-    console.log('🎫 Updating ticket via PUT with JSON body:', {
-      eventId,
-      ticketTypeId,
-      endpoint: `/admin/events/${eventId}/ticket-types/${ticketTypeId}`,
-      method: 'PUT',
-      data: normalizedData
-    })
     
     // FIXED: API: PUT /admin/events/:event_id/ticket-types/:ticket_type_id (use admin endpoint for consistency)
     // Body: raw JSON as specified by user
@@ -1021,14 +1007,6 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
       method: 'PUT',
       body: normalizedData,
       headers: createAuthHeaders() // Use JSON Content-Type
-    })
-
-    console.log('✅ Ticket updated successfully:', {
-      eventId,
-      ticketTypeId,
-      ticketName: normalizedData.name,
-      success: response?.success,
-      message: response?.message
     })
 
     return response
@@ -1156,20 +1134,6 @@ export async function getEventTicketTypes(eventId) {
       headers: createAuthHeaders()
     })
 
-    console.log('🎫 Retrieved ticket types:', {
-      eventId,
-      success: response?.success,
-      count: response?.data?.ticket_types?.length || 0,
-      endpoint: `/admin/events/${eventId}/ticket-types`,
-      responseStructure: {
-        hasSuccess: !!response?.success,
-        hasMessage: !!response?.message,
-        hasData: !!response?.data,
-        hasTicketTypes: !!response?.data?.ticket_types,
-        hasOrganizers: !!response?.data?.organizers
-      }
-    })
-
     return response
   } catch (error) {
     console.error('❌ Failed to get ticket types:', error)
@@ -1197,19 +1161,6 @@ export async function getTicketTypeDetails(eventId, ticketTypeId) {
       headers: createAuthHeaders()
     })
 
-    console.log('🎫 Retrieved ticket type details:', {
-      eventId,
-      ticketTypeId,
-      success: response?.success,
-      hasData: !!response?.data,
-      endpoint: `/admin/events/${eventId}/ticket-types/${ticketTypeId}`,
-      ticketData: response?.data ? {
-        id: response.data.id,
-        name: response.data.name,
-        price: response.data.price,
-        inventoryTotal: response.data.inventory?.total
-      } : null
-    })
 
     return response
   } catch (error) {
@@ -1278,14 +1229,6 @@ export async function deleteTicketType(eventId, ticketTypeId) {
       headers: createAuthHeaders()
     })
 
-    console.log('🗑️ Deleted ticket type:', {
-      eventId,
-      ticketTypeId,
-      success: response?.success,
-      message: response?.message,
-      endpoint: `/admin/events/${eventId}/ticket-types/${ticketTypeId}`
-    })
-
     return response
   } catch (error) {
     console.error('❌ Failed to delete ticket type:', error)
@@ -1337,14 +1280,12 @@ export async function updateAgendaItem(eventId, agendaId, agendaData) {
   }
 
   try {
-    console.log('📅 Updating agenda item:', { eventId, agendaId })
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/agendas/${agendaId}`, {
       method: 'PUT',
       body: agendaData,
       headers: createAuthHeaders()
     })
 
-    console.log('✅ Agenda item updated:', response)
     return response
   } catch (error) {
     console.error('❌ Failed to update agenda item:', error)
@@ -1428,7 +1369,6 @@ export async function publishEvent(eventId) {
   }
 
   try {
-    console.log('🚀 Publishing event:', eventId)
     
     // CRITICAL FIX: Get current event data from both API and local state to preserve chair File objects
     const { getEventDetails } = await import('@/composables/api')
@@ -1444,7 +1384,6 @@ export async function publishEvent(eventId) {
         eventStore.currentEvent.chairs.forEach((chair, index) => {
           if (chair.profile_image instanceof File) {
             localChairFiles.set(chair.name, chair.profile_image)
-            console.log(`💾 Preserved File object for chair: ${chair.name}`)
           }
         })
       }
@@ -1458,7 +1397,6 @@ export async function publishEvent(eventId) {
         basicInfoData.chairs.forEach((chair) => {
           if (chair.profile_image instanceof File) {
             localChairFiles.set(chair.name, chair.profile_image)
-            console.log(`💾 Preserved File object from tab store for chair: ${chair.name}`)
           }
         })
       }
@@ -1467,18 +1405,6 @@ export async function publishEvent(eventId) {
     try {
       const eventResponse = await getEventDetails(eventId)
       currentEventData = eventResponse.data
-      console.log('📋 Current event data loaded for publish:', {
-        id: currentEventData?.id,
-        chairsCount: currentEventData?.chairs?.length || 0,
-        chairsWithImages: currentEventData?.chairs?.filter(c => c.profile_image_url).length || 0,
-        localFileObjects: localChairFiles.size,
-        chairsData: currentEventData?.chairs?.map(c => ({
-          name: c.name,
-          hasImageUrl: !!c.profile_image_url,
-          hasLocalFile: localChairFiles.has(c.name),
-          imageUrl: c.profile_image_url
-        })) || []
-      })
     } catch (error) {
       console.warn('Failed to get current event data for publishing:', error)
     }
@@ -1496,7 +1422,6 @@ export async function publishEvent(eventId) {
     
     // FIXED: Preserve chairs data with File objects taking priority
     if (currentEventData?.chairs && Array.isArray(currentEventData.chairs)) {
-      console.log('📋 Processing chairs for publish:', currentEventData.chairs.length)
       
      currentEventData.chairs.forEach((chair, index) => {
   if (chair.name && chair.position && chair.company) {
@@ -1517,39 +1442,21 @@ export async function publishEvent(eventId) {
     if (localChairFiles.has(chair.name)) {
       const fileObject = localChairFiles.get(chair.name)
       formData.append(`chairs[${index}][profile_image]`, fileObject)
-      console.log(`🔥 Using local File object for chair ${index + 1}: ${chair.name} (${fileObject.name})`)
     } else if (chair.profile_image_url && chair.profile_image_url.trim() !== '') {
       formData.append(`chairs[${index}][profile_image_url]`, chair.profile_image_url)
-      console.log(`✅ Preserving existing image URL for chair ${index + 1}: ${chair.profile_image_url}`)
     } else if (chair.profile_image instanceof File) {
       formData.append(`chairs[${index}][profile_image]`, chair.profile_image)
-      console.log(`✅ Using chair File object for chair ${index + 1}: ${chair.profile_image.name}`)
     } else {
-      console.log(`⚪ No image for chair ${index + 1}: ${chair.name}`)
     }
   }
 })
 
     }
     
-    console.log('📤 Sending publish request with preserved chair images and File objects')
-    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}`, {
       method: 'POST',
       body: formData,
       headers: createAuthHeaders(false) // Don't include Content-Type for FormData
-    })
-
-    console.log('✅ Event published successfully')
-    console.log('📥 Publish API response:', {
-      success: !!response,
-      hasData: !!response?.data,
-      chairsInResponse: response?.data?.chairs?.length || response?.chairs?.length || 0,
-      chairsData: (response?.data?.chairs || response?.chairs || []).map(c => ({
-        name: c.name,
-        hasImageUrl: !!c.profile_image_url,
-        imageUrl: c.profile_image_url
-      }))
     })
     
     return response
