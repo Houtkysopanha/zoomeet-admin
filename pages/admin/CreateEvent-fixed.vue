@@ -379,7 +379,6 @@ onMounted(async () => {
       isEditMode.value = true
 
       // Force load fresh data from API
-      console.log('🔄 Force loading fresh event data from API...')
       await eventStore.loadEventById(queryEventId)
 
       if (eventStore.currentEvent && eventStore.currentEvent.id === queryEventId) {

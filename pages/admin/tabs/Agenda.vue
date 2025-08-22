@@ -703,21 +703,9 @@ const createOrUpdateAgenda = async () => {
         throw new Error('No agenda ID found for update operation')
       }
       
-      console.log('📅 Updating agenda item:', {
-        eventId: currentEventId.value,
-        agendaId: editingAgendaId.value,
-        method: 'PUT',
-        data: agendaData
-      })
-      
       response = await updateAgendaItem(currentEventId.value, editingAgendaId.value, agendaData);
     } else {
-      // FIXED: Create new agenda using POST method
-      console.log('📅 Creating new agenda item:', {
-        eventId: currentEventId.value,
-        method: 'POST',
-        data: agendaData
-      })
+
       
       response = await createAgendaItems(currentEventId.value, agendaData);
     }
@@ -732,11 +720,6 @@ const createOrUpdateAgenda = async () => {
     )
 
     if (isSuccess) {
-      console.log('✅ Agenda operation successful:', {
-        isEdit: isEditMode.value,
-        response: response
-      })
-      
       toast.add({
         severity: 'success',
         summary: isEditMode.value ? 'Agenda Updated! 📅' : 'Agenda Created! 📅',
@@ -808,10 +791,8 @@ const loadAgendaItems = async () => {
     
     if (agendaData && Array.isArray(agendaData)) {
       agendaItems.value = agendaData
-      console.log('✅ Loaded agenda items:', agendaData.length)
     } else {
       agendaItems.value = []
-      console.log('📅 No agenda items found or invalid response structure')
     }
     
   } catch (error) {
@@ -866,7 +847,6 @@ const deleteAgendaAction = (event, agendaId) => {
         )
         
         if (isSuccess) {
-          console.log('✅ Agenda deleted successfully')
           
           toast.add({
             severity: 'success',

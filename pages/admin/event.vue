@@ -516,11 +516,6 @@ function validateUUID(uuid) {
 
 // FIXED: Enhanced edit event handler with proper event isolation
 const handleEditEvent = (eventData) => {
-  console.log('🎯 Edit event handler called with:', {
-    eventId: eventData.id,
-    eventName: eventData.name,
-    source: 'action-menu'
-  })
   
   // Use the existing editEvent function which is better implemented
   editEvent(eventData);
@@ -533,11 +528,6 @@ const actionItems = (eventData) => [
     icon: 'pi pi-pencil',
     // CRITICAL FIX: Pass the specific eventData, not the global currentEvent
     command: () => {
-      console.log('🎯 Edit command triggered for event:', {
-        eventId: eventData.id,
-        eventName: eventData.name,
-        actionSource: 'edit-menu-item'
-      })
       handleEditEvent(eventData)
     },
   },
@@ -584,11 +574,6 @@ const actionItems = (eventData) => [
     icon: 'pi pi-trash text-red-500',
     // FIXED: Pass the specific eventData, not the global currentEvent
     command: () => {
-      console.log('🎯 Delete command triggered for event:', {
-        eventId: eventData.id,
-        eventName: eventData.name,
-        actionSource: 'delete-menu-item'
-      })
       removeEvent(eventData)
     },
   },

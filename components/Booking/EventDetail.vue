@@ -272,11 +272,9 @@ const applyVoucher = () => {
   if (voucherCode.value.toLowerCase() === 'v0discount') {
     discountRate.value = 0.10 // 10% discount
     appliedVoucher.value = true
-    console.log('Voucher applied!')
   } else {
     discountRate.value = 0
     appliedVoucher.value = false
-    console.log('Invalid voucher code.')
   }
 }
 
@@ -300,7 +298,6 @@ const handleCompleteBooking = () => {
     paymentMethod: paymentMethod.value,
   }
   emit('complete-booking', bookingDetails)
-  console.log('Booking details:', bookingDetails)
   // Optionally close sidebar after booking
   // visible.value = false;
 }

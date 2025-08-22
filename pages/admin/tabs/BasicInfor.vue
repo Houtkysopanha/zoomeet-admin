@@ -463,11 +463,6 @@ const loadExistingData = async () => {
     const tabData = tabsStore.getTabData(0) // Basic Info tab
     
     if (tabData && Object.keys(tabData).length > 0 && tabData.eventName) {
-      console.log('📋 Loading data from tabs store:', {
-        hasChairs: !!tabData.chairs,
-        chairCount: tabData.chairs?.length || 0,
-        hasFileObjects: !!tabData.chairFileObjects
-      })
       
       // Load data from tabs store
       Object.assign(formData, {
@@ -510,21 +505,15 @@ const loadExistingData = async () => {
         }
       }
 
-      console.log('🗃️ Initialized chairFileObjects Map:', {
-        isMap: chairFileObjects instanceof Map,
-        size: chairFileObjects.size
-      });
-
       // Restore File objects and create avatars
       formData.chairs.forEach(chair => {
         const fileObject = chairFileObjects.get(chair.id);
         if (fileObject instanceof File) {
           chair.profile_image = fileObject;
           chair.avatar = URL.createObjectURL(fileObject);
-          console.log(`🪑 Restored File object for chair ${chair.name} with ID ${chair.id}`);
+  
         } else if (chair.profile_image_url) {
           chair.avatar = chair.profile_image_url;
-          console.log(`🪑 Using profile_image_url for chair ${chair.name}`);
         }
       });
 
@@ -885,10 +874,6 @@ const tabData = tabsStore.getTabData(0);
 const chairFileObjects = tabData?.chairFileObjects instanceof Map ? 
   tabData.chairFileObjects : new Map();
 
-console.log('📝 Preparing chairs for API:', {
-  totalChairs: formData.chairs.length,
-  chairFileObjectsSize: chairFileObjects.size
-});
 
 // Prepare chair data with ID preservation and proper image handling
 eventData.chairs = formData.chairs.map((chair, index) => {
@@ -914,34 +899,15 @@ eventData.chairs = formData.chairs.map((chair, index) => {
   // Handle profile image with explicit checks
   if (chair.profile_image instanceof File) {
     chairData.profile_image = chair.profile_image;
-    console.log(`📤 Chair ${chairData.name}: Using direct File object`, {
-      id: chairId,
-      fileName: chair.profile_image.name
-    });
   } else if (storedFile instanceof File) {
     chairData.profile_image = storedFile;
-    console.log(`📤 Chair ${chairData.name}: Using stored File object`, {
-      id: chairId,
-      fileName: storedFile.name
-    });
   } else if (chair.profile_image_url) {
     chairData.profile_image_url = chair.profile_image_url;
-    console.log(`📤 Chair ${chairData.name}: Using existing URL`, {
-      id: chairId,
-      url: chair.profile_image_url
-    });
   }
-
-  console.log(`📦 Chair data prepared:`, {
-    id: chairId,
-    name: chairData.name,
-    hasImage: !!(chairData.profile_image || chairData.profile_image_url)
-  });
 
   return chairData;
 });
-    
-    console.log('📝 Preparing event data for API...')
+  
 
     // CRITICAL: Enhanced chair data handling with improved file preservation
     if (formData.chairs && Array.isArray(formData.chairs)) {
@@ -960,17 +926,13 @@ eventData.chairs = formData.chairs.map((chair, index) => {
         if (fileObject instanceof File) {
           // Priority 1: File object from chairFileObjects
           profileImage = fileObject
-          console.log(`✅ Using stored File object for chair ${chair.name}:`, fileObject.name)
         } else if (chair.profile_image instanceof File) {
           // Priority 2: Direct File object on chair
           profileImage = chair.profile_image
-          console.log(`✅ Using direct File object for chair ${chair.name}:`, chair.profile_image.name)
         } else if (chair.profile_image_url) {
           // Priority 3: Existing image URL from API
           profileImageUrl = chair.profile_image_url
-          console.log(`✅ Using existing API URL for chair ${chair.name}:`, profileImageUrl)
         } else {
-          console.log(`⚪ No image found for chair ${chair.name}`)
         }
         
         return {
@@ -989,17 +951,7 @@ eventData.chairs = formData.chairs.map((chair, index) => {
       })
     }
     
-    console.log('💾 Preparing event data for save:', {
-      chairsCount: eventData.chairs.length,
-      chairsWithFiles: eventData.chairs.filter(c => c.profile_image instanceof File).length,
-      chairsWithUrls: eventData.chairs.filter(c => c.profile_image_url).length,
-      chairDetails: eventData.chairs.map(c => ({
-        name: c.name,
-        hasFile: c.profile_image instanceof File,
-        hasUrl: !!c.profile_image_url,
-        fileName: c.profile_image instanceof File ? c.profile_image.name : null
-      }))
-    })
+
 
     // Only include event_slug if it's new or has changed (to avoid "already taken" error)
     if (!isEditMode.value || (isEditMode.value && formData.eventSlug && formData.eventSlug !== eventStore.currentEvent?.event_slug)) {
@@ -1341,20 +1293,17 @@ const deleteChair = (index) => {
 // Get chair image source with proper handling - FIXED for profile_image_url
 const getChairImageSrc = (chair) => {
   if (!chair) {
-    console.warn('🖼️ No chair provided to getChairImageSrc');
     return null;
   }
 
   try {
     // Priority 1: File object (newly uploaded)
     if (chair.profile_image instanceof File) {
-      console.log(`🖼️ Chair ${chair.name}: Using profile_image File object`);
       return URL.createObjectURL(chair.profile_image);
     }
 
     // Priority 2: profile_image_url from API
     if (chair.profile_image_url && typeof chair.profile_image_url === 'string' && chair.profile_image_url.trim()) {
-      console.log(`🖼️ Chair ${chair.name}: Using profile_image_url from API: ${chair.profile_image_url}`);
       return chair.profile_image_url.startsWith('http')
         ? chair.profile_image_url
         : `${window.location.origin}${chair.profile_image_url}`;
@@ -1362,22 +1311,17 @@ const getChairImageSrc = (chair) => {
 
     // Priority 3: Avatar URL (existing or generated)
     if (chair.avatar && typeof chair.avatar === 'string' && chair.avatar.trim()) {
-      console.log(`🖼️ Chair ${chair.name}: Using avatar URL`);
       return chair.avatar;
     }
 
     // Priority 4: Legacy photo field
     if (chair.photo && typeof chair.photo === 'string' && chair.photo.trim()) {
-      console.log(`🖼️ Chair ${chair.name}: Using photo URL string`);
       return chair.photo.startsWith('http')
         ? chair.photo
         : `${window.location.origin}${chair.photo}`;
     }
-
-    console.warn(`🖼️ Chair ${chair.name}: No image source found`);
     return null;
   } catch (error) {
-    console.error(`🖼️ Chair ${chair.name}: Error getting image source:`, error);
     return null;
   }
 };

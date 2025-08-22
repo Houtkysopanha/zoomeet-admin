@@ -327,17 +327,9 @@ onMounted(async () => {
   const currentStoredEventId = process.client ? sessionStorage.getItem('currentEventId') : null
   const isSwitchingEvents = isEdit && currentStoredEventId && currentStoredEventId !== queryEventId
 
-  console.log('🔍 Event switching check:', {
-    queryEventId,
-    currentStoredEventId,
-    isSwitchingEvents,
-    isEdit
-  })
-
   // ALWAYS clear state when switching events or starting fresh
   if (isSwitchingEvents || !isEdit) {
-    console.log('🧹 Clearing all state (switching events or new creation)...')
-    eventStore.clearCache()
+
     tabsStore.clearAllTabDataForEventSwitch(queryEventId)
     
     // Notify all components to clear their data
@@ -386,31 +378,22 @@ onMounted(async () => {
     
     // EDIT MODE - Enhanced for any UUID from event list
     try {
-      console.log('📝 EDIT MODE: Loading event data for UUID:', queryEventId)
+
 
       eventId.value = queryEventId
       isEditMode.value = true
 
       // Check if event is already in store (from event list click)
       if (eventStore.currentEvent && eventStore.currentEvent.id === queryEventId) {
-        console.log('✅ Using event data from store (from event list)')
         eventData.value = { ...eventStore.currentEvent }
         isBasicInfoCompleted.value = true
 
         // Load event data into tab persistence system
         tabsStore.loadEventData(eventStore.currentEvent)
 
-        console.log('✅ Event data loaded from store:', {
-          id: eventId.value,
-          name: eventData.value.name,
-          category: eventData.value.category_name,
-          status: eventData.value.status
-        })
-
         // Removed duplicate toast - already shown below
       } else {
         // Load fresh data from API for any UUID
-        console.log('🔄 Loading fresh event data from API for UUID:', queryEventId)
         eventStore.clearCache() // Clear cache before loading
         await eventStore.loadEventById(queryEventId)
 
@@ -420,18 +403,6 @@ onMounted(async () => {
 
           // Load event data into tab persistence system
           tabsStore.loadEventData(eventStore.currentEvent)
-
-          console.log('✅ Event data loaded from API:', {
-            id: eventId.value,
-            name: eventData.value.name,
-            category: eventData.value.category_name,
-            status: eventData.value.status,
-            hasImages: {
-              cover: !!eventData.value.cover_image_url,
-              background: !!eventData.value.event_background_url,
-              card: !!eventData.value.card_background_url
-            }
-          })
 
           toast.add({
             severity: 'success',
@@ -444,7 +415,6 @@ onMounted(async () => {
         }
       }
     } catch (error) {
-      console.error('❌ Failed to load event for editing:', error)
 
       // Provide more specific error messages
       let errorMessage = 'Failed to load event for editing.'
@@ -478,8 +448,6 @@ onMounted(async () => {
       }, 2000)
     }
   } else {
-    // CREATE MODE
-    console.log('🆕 CREATE MODE: Starting fresh event creation')
     
     // Clear any existing state
     eventStore.clearCache()
@@ -517,15 +485,6 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   const eventStore = useEventStore()
 
-  // Log current state before cleanup
-  if (eventStore.currentEvent) {
-    console.log('📝 Current event state:', {
-      id: eventStore.currentEvent.id,
-      name: eventStore.currentEvent.name,
-      isPublished: eventStore.currentEvent.is_published
-    })
-  }
-
   // Clear all state storage
   eventStore.clearCache()
   tabsStore.clearAllTabDataForEventSwitch(null)
@@ -555,8 +514,7 @@ onBeforeUnmount(() => {
       query: {}
     })
   }
-  
-  console.log('✅ State cleanup complete')
+
 })
 
 // Match tab index with component
@@ -597,7 +555,6 @@ provide('eventCreationState', {
   isEditMode,
   tabCompletionStates,
   setBasicInfoCompleted: (completed, id = null, data = null) => {
-    console.log('🔄 Setting basic info completed:', { completed, id })
     const eventStore = useEventStore()
 
     isBasicInfoCompleted.value = completed
@@ -608,7 +565,6 @@ provide('eventCreationState', {
       
       // CRITICAL: Switch to edit mode after event creation
       if (!isEditMode.value) {
-        console.log('🔄 Switching to edit mode after event creation')
         isEditMode.value = true
         
         // Notify all tabs about the mode change
@@ -638,10 +594,6 @@ provide('eventCreationState', {
           id: data.id.toString()
         }
         
-        console.log('📥 Updating store with event:', {
-          id: normalizedData.id,
-          name: normalizedData.name
-        })
         
         // Update the store using setCurrentEvent action
         eventStore.setCurrentEvent(normalizedData)
@@ -663,7 +615,6 @@ provide('eventCreationState', {
   },
   markTabCompleted: (tabIndex) => {
     tabCompletionStates.value[tabIndex] = true
-    console.log(`✅ Tab ${tabIndex} marked as completed`)
   }
 })
 
@@ -674,33 +625,24 @@ const isTabAccessible = (index) => {
   
   // All other tabs require Basic Info to be completed and saved first
   if (!isBasicInfoCompleted.value || !eventId.value) {
-    console.log(`🔒 Tab ${index} locked - Basic Info not completed:`, {
-      isBasicInfoCompleted: isBasicInfoCompleted.value,
-      hasEventId: !!eventId.value
-    })
     return false
   }
   
   // Tab-specific accessibility rules with API availability check
   switch (index) {
     case 1: // Agenda tab - UNLOCKED (Has API support)
-      console.log(`🔓 Tab ${index} (Agenda) unlocked - Basic Info completed & API available`)
       return true
       
     case 2: // Ticket Package tab - UNLOCKED (Has full API support)
-      console.log(`🔓 Tab ${index} (Tickets) unlocked - Basic Info completed & API available`)
       return true
       
     case 3: // Breakout Rooms tab - LOCKED (No API implementation yet)
-      console.log(`🔒 Tab ${index} (Breakout Rooms) locked - API not implemented`)
       return false
       
     case 4: // Settings & Policies tab - LOCKED (No API implementation yet)
-      console.log(`🔒 Tab ${index} (Settings) locked - API not implemented`)
       return false
       
     default:
-      console.log(`🔒 Tab ${index} not recognized`)
       return false
   }
 }
@@ -752,14 +694,14 @@ const changeTab = async (index) => {
     try {
       // Save current tab data before switching
       const currentTabIndex = activeIndex.value
-      console.log(`💾 Saving data for tab ${currentTabIndex} before switching`)
+
       
       // Auto-save current tab data
       await saveCurrentTabData()
       
       // Mark current tab as having unsaved changes if needed
       if (tabsStore.hasUnsavedChanges(currentTabIndex)) {
-        console.log(`📝 Tab ${currentTabIndex} has unsaved changes`)
+
       }
 
       // Use nextTick to ensure DOM is ready
@@ -773,7 +715,6 @@ const changeTab = async (index) => {
       activeIndex.value = index
       tabsStore.setActiveTab(index)
       
-      console.log(`📑 Switched from tab ${previousTab} to tab ${index}:`, items.value[index].label)
       
       // Check if new tab has saved data to restore
       const tabData = tabsStore.getTabData(index)
@@ -823,7 +764,6 @@ const loadTabSpecificData = async (tabIndex) => {
     
     switch (tabIndex) {
       case 2: // Tickets tab
-        console.log('🎫 Loading ticket data for tab switch')
         // Trigger ticket data reload in the TicketPacket component
         window.dispatchEvent(new CustomEvent('loadTicketData', {
           detail: { eventId: eventId.value }
@@ -831,7 +771,6 @@ const loadTabSpecificData = async (tabIndex) => {
         break
         
       case 1: // Agenda tab
-        console.log('📅 Loading agenda data for tab switch')
         // Load agenda data if available
         if (eventStore.currentEvent?.agendas) {
           tabsStore.saveTabData(1, {
@@ -842,12 +781,12 @@ const loadTabSpecificData = async (tabIndex) => {
         break
         
       case 3: // Breakout Rooms tab
-        console.log('🏢 Loading breakout rooms data for tab switch')
+     
         // Load rooms data if available
         break
         
       case 4: // Settings tab
-        console.log('⚙️ Loading settings data for tab switch')
+       
         // Load settings data if available
         break
     }
@@ -872,22 +811,20 @@ const handleSaveDraft = async () => {
     
     // If we're on Basic Info tab and it's not completed yet, trigger basic info save
     if (activeIndex.value === 0 && (!isBasicInfoCompleted.value || !eventId.value)) {
-      console.log('🔄 Triggering Basic Info save to create event')
+  
       window.dispatchEvent(new CustomEvent('saveDraft'))
       // Removed unnecessary toast for basic info save
     } else if (activeIndex.value === 0 && isBasicInfoCompleted.value && eventId.value) {
       // Basic Info tab with existing event - update it
-      console.log(`🔄 ${actionText} existing Basic Info`)
       window.dispatchEvent(new CustomEvent('saveDraft'))
       // Removed unnecessary toast for basic info update
     } else if (activeIndex.value === 1 && isBasicInfoCompleted.value && eventId.value) {
       // Agenda tab - trigger agenda save
-      console.log(`📅 ${actionText} agenda`)
+  
       window.dispatchEvent(new CustomEvent('saveAgenda'))
       // Removed unnecessary toast for agenda save
     } else if (activeIndex.value === 2 && isBasicInfoCompleted.value && eventId.value) {
       // Tickets tab - trigger ticket save
-      console.log(`🎫 ${actionText} tickets`)
       window.dispatchEvent(new CustomEvent('saveTickets'))
       // Removed unnecessary toast for ticket save
     } else if (isBasicInfoCompleted.value && eventId.value) {
@@ -939,7 +876,6 @@ const saveCurrentTabData = async () => {
   
   const eventName = tabEvents[activeIndex.value]
   if (eventName) {
-    console.log(`💾 Saving current tab data for tab ${activeIndex.value}, event: ${eventId.value}`)
     
     // Dispatch event with event ID for proper isolation
     window.dispatchEvent(new CustomEvent(eventName, {
@@ -959,7 +895,6 @@ const saveCurrentTabData = async () => {
       autoSaved: true
     })
     
-    console.log(`✅ Tab ${activeIndex.value} data saved successfully for event ${eventId.value}`)
   }
 }
 
@@ -993,23 +928,19 @@ const handlePublishEvent = async () => {
     // First check current store state
     if (eventStore.currentEvent?.ticket_types?.length > 0) {
       hasValidTickets = true
-      console.log('✅ Found tickets in current event store')
     } else if (eventStore.tickets && eventStore.tickets.length > 0) {
       hasValidTickets = true
-      console.log('✅ Found tickets in event store tickets array')
     } else {
       // Check tab persistence
       const tabsStore = useEventTabsStore()
       const ticketTabData = tabsStore.getTabData(2) // Tickets tab
       if (ticketTabData.ticketTypes && ticketTabData.ticketTypes.length > 0) {
         hasValidTickets = true
-        console.log('✅ Found tickets in tab persistence')
+
       } else {
         // Final check: reload from API
-        console.log('🔄 Reloading event data to check for tickets...')
         await eventStore.loadEventById(eventId.value)
         hasValidTickets = eventStore.currentEvent?.ticket_types?.length > 0
-        console.log('📊 API ticket check result:', hasValidTickets)
       }
     }
   } catch (error) {
@@ -1046,9 +977,7 @@ const handlePublishEvent = async () => {
       life: 4000
     })
   } else if (isAgendaSkipped) {
-    console.log('📅 Agenda was skipped for this event')
   } else {
-    console.log(`📅 Found ${hasAgendaItems} agenda items`)
   }
 
   isSubmitting.value = true
@@ -1057,7 +986,6 @@ const handlePublishEvent = async () => {
     // Import the publishEvent API function
     const { publishEvent } = await import('@/composables/api')
     
-    console.log('🚀 Publishing event:', eventId.value)
     
     // Removed unnecessary publishing progress toast
     
@@ -1071,10 +999,8 @@ const handlePublishEvent = async () => {
         
         // IMPORTANT: Update chairs from API response to sync File objects -> URLs
         if (result.data?.chairs && Array.isArray(result.data.chairs)) {
-          console.log('🔄 Syncing chairs from publish response:', result.data.chairs.length)
           eventData.value.chairs = result.data.chairs
         } else if (result.chairs && Array.isArray(result.chairs)) {
-          console.log('🔄 Syncing chairs from publish response (direct):', result.chairs.length)
           eventData.value.chairs = result.chairs
         }
       }
@@ -1113,7 +1039,6 @@ const handlePublishEvent = async () => {
         life: 5000
       })
       
-      console.log('✅ Event published successfully')
       
       // Redirect to event list after a delay
       setTimeout(() => {
