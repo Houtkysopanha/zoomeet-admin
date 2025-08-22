@@ -121,7 +121,6 @@ export function useAuth() {
 
       // Try cookie as backup
       if (!authData?.token && cookie.value?.token) {
-        console.log('📍 Found auth data in cookie')
         authData = cookie.value
       }
 
@@ -129,7 +128,6 @@ export function useAuth() {
       if (!authData?.token) {
         const sessionStored = sessionStorage.getItem('auth')
         if (sessionStored) {
-          console.log('📍 Found auth data in sessionStorage')
           try {
             authData = JSON.parse(sessionStored)
           } catch (e) {

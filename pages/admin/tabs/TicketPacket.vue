@@ -409,12 +409,6 @@ const deleteTicket = async (ticketTypeId, index) => {
   
   loading.value = true
   try {
-    console.log('🗑️ Deleting ticket:', {
-      eventId: currentEventId.value,
-      ticketTypeId: ticketTypeId,
-      method: 'DELETE'
-    })
-    
     // DELETE request to remove ticket from server
     const { deleteTicketType } = await import('@/composables/api')
     const response = await deleteTicketType(currentEventId.value, ticketTypeId)

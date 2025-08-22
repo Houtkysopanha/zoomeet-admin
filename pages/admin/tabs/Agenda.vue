@@ -759,21 +759,8 @@ const loadAgendaItems = async () => {
   if (!currentEventId.value) return
 
   try {
-    console.log('📅 Loading agenda items:', {
-      eventId: currentEventId.value,
-      method: 'GET',
-      endpoint: `/admin/events/${currentEventId.value}/agendas`
-    })
-    
     const response = await getEventAgenda(currentEventId.value);
-    
-    console.log('📅 Agenda load response:', {
-      hasResponse: !!response,
-      hasSuccess: response?.success,
-      hasData: !!response?.data,
-      dataLength: response?.data?.length || 0,
-      responseStructure: Object.keys(response || {})
-    })
+  
     
     // FIXED: Enhanced response handling for different API response structures
     let agendaData = null
@@ -829,12 +816,7 @@ const deleteAgendaAction = (event, agendaId) => {
     },
     accept: async () => {
       try {
-        console.log('📅 Deleting agenda item:', {
-          eventId: currentEventId.value,
-          agendaId: agendaId,
-          method: 'DELETE',
-          endpoint: `/admin/events/${currentEventId.value}/agendas/${agendaId}`
-        })
+
         
         const response = await deleteAgenda(currentEventId.value, agendaId);
         

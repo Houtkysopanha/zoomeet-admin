@@ -10,10 +10,6 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     // Verify auth state
     const token = getToken();
     if (token) {
-      console.log('✅ Auth initialized with token:', { 
-        tokenLength: token.length,
-        initialized: true 
-      });
     } else {
       console.log('ℹ️ No token found during initialization');
     }
