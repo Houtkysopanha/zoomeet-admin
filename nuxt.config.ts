@@ -75,8 +75,10 @@ export default defineNuxtConfig({
     // Error handling is now done via pages/[...slug].vue
   },
   ssr: true,
-  // Runtime configuration
   runtimeConfig: {
+    // Private keys (only available on server-side)
+    tokenSecret: process.env.TOKEN_SECRET || 'fallback-secret-key',
+    // Public keys (exposed to client-side)
     public: {
       apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL ||
         (process.env.NODE_ENV === 'development'
@@ -91,7 +93,17 @@ export default defineNuxtConfig({
           ? 'eTicketsAsia (Dev)'
           : 'eTicketsAsia'),
       appVersion: process.env.NUXT_PUBLIC_APP_VERSION || '1.0.0',
-      environment: process.env.NODE_ENV || 'production'
+      environment: process.env.NODE_ENV || 'production',
+      // Enhanced token configuration for 24-hour sessions
+      auth: {
+        tokenExpiryWarning: 7200000, // 2 hours in milliseconds (warn 2h before expiry)
+        tokenCheckInterval: 1800000,  // 30 minutes in milliseconds (check every 30min)
+        maxRefreshAttempts: 3,
+        autoRefreshEnabled: true,
+        secureCookies: process.env.NODE_ENV === 'production',
+        cookieDomain: process.env.NODE_ENV === 'production' ? '.etickets.asia' : 'localhost',
+        sessionDuration: 86400000 // 24 hours in milliseconds
+      }
     },
     proxy: {
     '/api/': {

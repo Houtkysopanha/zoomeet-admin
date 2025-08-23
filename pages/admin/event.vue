@@ -537,7 +537,7 @@ const actionItems = (eventData) => [
     command: () => {
       router.push('/admin/role/ManageTeam');
     },
-    visible: true,
+    visible: false,
   },
   // Disabled actions - no API support yet
   {

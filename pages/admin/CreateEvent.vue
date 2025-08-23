@@ -17,7 +17,7 @@
         <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 items-stretch sm:items-center">
 
           <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 items-stretch sm:items-center">
-            <div class="bt-preview">
+            <!-- <div class="bt-preview">
               <Button
                 @click="handlePreview"
                 :disabled="!isBasicInfoCompleted"
@@ -35,7 +35,7 @@
                   <span>Preview</span>
                 </template>
               </Button>
-            </div>
+            </div> -->
             <div class="bt-saveDraft">
               <Button
                 @click="handleSaveDraft"
