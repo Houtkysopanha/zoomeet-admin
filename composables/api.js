@@ -1,11 +1,23 @@
 // Auto-imported by Nuxt: useRuntimeConfig, $fetch
 
-// Get auth token using proper Nuxt 3 pattern
+// Get auth token using proper Nuxt 3 pattern with improved reliability
 const getAuthToken = () => {
   try {
-    // Use the useAuth composable consistently for token management
-    const { getToken, isTokenExpired } = useAuth()
+    // Primary: Use the useAuth composable for token management
+    const { getToken, isTokenExpired, user } = useAuth()
     let token = getToken()
+
+    // If token exists but is expired, clear all storage and return null
+    if (token && isTokenExpired()) {
+      if (process.client) {
+        localStorage.removeItem('auth')
+        sessionStorage.removeItem('auth')
+        // Clear cookie through useAuth
+        const { clearAuth } = useAuth()
+        clearAuth()
+      }
+      return null
+    }
 
     // If no token from composable, try direct storage access as fallback
     if (!token && process.client) {
@@ -16,7 +28,19 @@ const getAuthToken = () => {
         try {
           const authData = JSON.parse(stored)
           token = authData?.token
+          
+          // Validate token format and expiration
+          if (token && authData.expiresAt) {
+            const expiry = new Date(authData.expiresAt)
+            if (expiry <= new Date()) {
+              // Token expired, clear storage
+              localStorage.removeItem('auth')
+              sessionStorage.removeItem('auth')
+              return null
+            }
+          }
         } catch (e) {
+          localStorage.removeItem('auth') // Clear corrupted data
         }
       }
       
@@ -27,21 +51,40 @@ const getAuthToken = () => {
           try {
             const authData = JSON.parse(sessionStored)
             token = authData?.token
+            
+            // Validate token format and expiration
+            if (token && authData.expiresAt) {
+              const expiry = new Date(authData.expiresAt)
+              if (expiry <= new Date()) {
+                // Token expired, clear storage
+                sessionStorage.removeItem('auth')
+                return null
+              }
+            }
           } catch (e) {
+            sessionStorage.removeItem('auth') // Clear corrupted data
           }
         }
       }
     }
 
-    if (!token) {
+    // Final validation - ensure token exists and is properly formatted
+    if (!token || typeof token !== 'string' || token.trim().length === 0) {
       return null
     }
 
+    // Basic JWT format check (should have 3 parts separated by dots)
+    const tokenParts = token.split('.')
+    if (tokenParts.length !== 3) {
+      // Invalid JWT format, clear all storage
+      if (process.client) {
+        localStorage.removeItem('auth')
+        sessionStorage.removeItem('auth')
+      }
+      return null
+    }
 
-
-    // Log token info without sensitive data
-
-    return token
+    return token.trim()
   } catch (error) {
     return null
   }
@@ -131,15 +174,11 @@ export async function login(identifier, password) {
 
 // Fetch events list
 export async function fetchEvents() {
-  const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
-
-  if (!API_ADMIN_BASE_URL) {
-    return { status: 500, data: { success: false, data: [], message: 'API admin base URL is not configured.' } }
-  }
+  
+  // Use server proxy route to avoid CORS issues
+  const eventsUrl = '/api/admin/events'
 
   try {
-    const eventsUrl = normalizeApiUrl(API_ADMIN_BASE_URL, 'events')
     
     // Use consistent token handling
     const token = getAuthToken()
@@ -273,9 +312,6 @@ function validateUUID(uuid) {
 
 // Get event details - Enhanced for any UUID
 export async function getEventDetails(eventId) {
-  const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
-
   if (!eventId) {
     throw new Error('Event ID is required')
   }
@@ -292,8 +328,8 @@ export async function getEventDetails(eventId) {
   }
 
   try {
-    const eventDetailsUrl = normalizeApiUrl(API_ADMIN_BASE_URL, `events/${cleanUUID}`)
-    const response = await $fetch(eventDetailsUrl, {
+    const serverUrl = `/api/admin/events/${cleanUUID}`
+    const response = await $fetch(serverUrl, {
       method: 'GET',
       headers: createAuthHeaders()
     })
@@ -340,15 +376,9 @@ export async function getEventDetails(eventId) {
 // Create event
 export async function createEvent(eventData, isDraft = true) {
   const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
-
-  if (!API_ADMIN_BASE_URL) {
-    return {
-      success: false,
-      message: 'API admin base URL is not configured.',
-      error: new Error('Missing API configuration')
-    }
-  }
+  
+  // Use server proxy route to avoid CORS issues
+  const createEventUrl = '/api/admin/events'
 
   if (!eventData) {
     return {
@@ -482,7 +512,7 @@ if (eventData.chairs && Array.isArray(eventData.chairs)) {
 
     // --- Profile image handling ---
     if (chair.profile_image instanceof File) {
-      console.log(`✅ Adding chair ${index + 1} profile image:`, chair.profile_image.name);
+
       formData.append(`chairs[${index}][profile_image]`, chair.profile_image);
     } else if (chair.profile_image_url) {
       // Preserve existing server URL (so backend doesn’t overwrite with null)
@@ -584,10 +614,8 @@ if (eventData.chairs && Array.isArray(eventData.chairs)) {
       const hasField = formDataEntries.hasOwnProperty(field) && formDataEntries[field] !== null && formDataEntries[field] !== undefined && formDataEntries[field] !== ''
     })
 
-    // Use the correct API endpoint without duplicate admin prefix
-    // Make the actual API call
+    // Use server proxy route to avoid CORS issues
     try {
-      const createEventUrl = normalizeApiUrl(API_ADMIN_BASE_URL, 'events')
       const response = await $fetch(createEventUrl, {
         method: 'POST',
         body: formData,
@@ -718,25 +746,9 @@ if (eventData.chairs && Array.isArray(eventData.chairs)) {
 
 // Update event
 export async function updateEvent(eventId, eventData) {
-  const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
-
-  if (!eventId || !eventData) {
-    return {
-      success: false,
-      message: 'Event ID and data are required',
-      error: new Error('Missing required data')
-    }
-  }
-
-  // Validate UUID format
-  if (!validateUUID(eventId)) {
-    return {
-      success: false,
-      message: 'Invalid event ID format. Expected UUID format.',
-      error: new Error('Invalid UUID')
-    }
-  }
+  
+  // Use server proxy route to avoid CORS issues
+  const updateEventUrl = `/api/admin/events/${eventId}`
 
   try {
     // Prepare FormData for Laravel update with _method approach
@@ -834,18 +846,13 @@ export async function updateEvent(eventId, eventData) {
             );
           }
 
-          console.log(`✅ Updating chair ${index + 1} with new image:`, file.name);
           formData.append(`chairs[${index}][profile_image]`, file);
         } else if (chair.profile_image_url && chair.profile_image_url.trim() !== '') {
           // ✅ Preserve existing server image URL
-          console.log(`✅ Preserving chair ${index + 1} existing image:`, chair.profile_image_url);
+       
           formData.append(`chairs[${index}][profile_image_url]`, chair.profile_image_url);
         } else if (chair.profile_image) {
-          console.log(
-            `⚠️ Chair ${index + 1} profile_image is not a valid File:`,
-            typeof chair.profile_image,
-            chair.profile_image.constructor?.name
-          );
+
         }
       });
     }
@@ -868,9 +875,7 @@ export async function updateEvent(eventId, eventData) {
       }
     }
 
-    const updateEventUrl = normalizeApiUrl(API_ADMIN_BASE_URL, `events/${eventId}`)
-    
-    // Use POST method with _method override for Laravel compatibility
+    // Use server proxy route to avoid CORS issues
     const response = await $fetch(updateEventUrl, {
       method: 'POST',
       body: formData,
@@ -881,7 +886,6 @@ export async function updateEvent(eventId, eventData) {
 
     // Validate response
     if (!response || typeof response !== 'object') {
-      console.error('❌ Invalid response format:', response)
       return {
         success: false,
         message: 'Invalid response from server',
@@ -981,9 +985,6 @@ export async function updateEvent(eventId, eventData) {
 
 // Update ticket type - UPDATED: Match exact API specification
 export async function updateTicketType(eventId, ticketTypeId, ticketData) {
-  const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl // FIXED: Use admin base URL for consistency
-
   if (!eventId || !ticketTypeId) {
     throw new Error('Event ID and Ticket Type ID are required')
   }
@@ -1006,29 +1007,13 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
     if (!normalizedData.name) throw new Error('Ticket name is required')
     if (isNaN(normalizedData.price) || normalizedData.price < 0) throw new Error('Price must be 0 or greater')
     if (isNaN(normalizedData.total) || normalizedData.total < 1) throw new Error('Quantity must be at least 1')
-
-    console.log('🎫 Updating ticket via PUT with JSON body:', {
-      eventId,
-      ticketTypeId,
-      endpoint: `/admin/events/${eventId}/ticket-types/${ticketTypeId}`,
-      method: 'PUT',
-      data: normalizedData
-    })
     
-    // FIXED: API: PUT /admin/events/:event_id/ticket-types/:ticket_type_id (use admin endpoint for consistency)
-    // Body: raw JSON as specified by user
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types/${ticketTypeId}`, {
+    // Use server proxy endpoint for ticket type update
+    const serverUrl = `/api/admin/events/${eventId}/ticket-types/${ticketTypeId}`
+    const response = await $fetch(serverUrl, {
       method: 'PUT',
       body: normalizedData,
       headers: createAuthHeaders() // Use JSON Content-Type
-    })
-
-    console.log('✅ Ticket updated successfully:', {
-      eventId,
-      ticketTypeId,
-      ticketName: normalizedData.name,
-      success: response?.success,
-      message: response?.message
     })
 
     return response
@@ -1048,9 +1033,6 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
 
 // Create ticket types
 export async function createTicketTypes(eventId, ticketTypesData) {
-  const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
-
   if (!eventId || !ticketTypesData) {
     throw new Error('Event ID and ticket types data are required')
   }
@@ -1099,8 +1081,9 @@ export async function createTicketTypes(eventId, ticketTypesData) {
     }
 
 
-    // Send tickets in proper structure to admin endpoint
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types`, {
+    // Send tickets in proper structure to server proxy endpoint
+    const serverUrl = `/api/admin/events/${eventId}/ticket-types`
+    const response = await $fetch(serverUrl, {
       method: 'POST',
       body: requestBody,
       headers: {
@@ -1156,20 +1139,6 @@ export async function getEventTicketTypes(eventId) {
       headers: createAuthHeaders()
     })
 
-    console.log('🎫 Retrieved ticket types:', {
-      eventId,
-      success: response?.success,
-      count: response?.data?.ticket_types?.length || 0,
-      endpoint: `/admin/events/${eventId}/ticket-types`,
-      responseStructure: {
-        hasSuccess: !!response?.success,
-        hasMessage: !!response?.message,
-        hasData: !!response?.data,
-        hasTicketTypes: !!response?.data?.ticket_types,
-        hasOrganizers: !!response?.data?.organizers
-      }
-    })
-
     return response
   } catch (error) {
     console.error('❌ Failed to get ticket types:', error)
@@ -1197,19 +1166,6 @@ export async function getTicketTypeDetails(eventId, ticketTypeId) {
       headers: createAuthHeaders()
     })
 
-    console.log('🎫 Retrieved ticket type details:', {
-      eventId,
-      ticketTypeId,
-      success: response?.success,
-      hasData: !!response?.data,
-      endpoint: `/admin/events/${eventId}/ticket-types/${ticketTypeId}`,
-      ticketData: response?.data ? {
-        id: response.data.id,
-        name: response.data.name,
-        price: response.data.price,
-        inventoryTotal: response.data.inventory?.total
-      } : null
-    })
 
     return response
   } catch (error) {
@@ -1223,9 +1179,6 @@ export async function getTicketTypeDetails(eventId, ticketTypeId) {
 
 // Delete event - ENHANCED WITH CONFIRMATION
 export async function deleteEvent(eventId) {
-  const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
-
   if (!eventId) {
     throw new Error('Event ID is required')
   }
@@ -1236,7 +1189,8 @@ export async function deleteEvent(eventId) {
   }
 
   try {
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}`, {
+    const serverUrl = `/api/admin/events/${eventId}`
+    const response = await $fetch(serverUrl, {
       method: 'DELETE',
       headers: createAuthHeaders()
     })
@@ -1259,9 +1213,6 @@ export async function deleteEvent(eventId) {
 
 // Delete ticket type - UPDATED: Match exact API specification
 export async function deleteTicketType(eventId, ticketTypeId) {
-  const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl // FIXED: Use admin base URL
-
   if (!eventId || !ticketTypeId) {
     throw new Error('Event ID and Ticket Type ID are required')
   }
@@ -1272,18 +1223,11 @@ export async function deleteTicketType(eventId, ticketTypeId) {
   }
 
   try {
-    // FIXED: API: DELETE /admin/events/:event_id/ticket-types/:ticket_type_id (use admin base URL)
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types/${ticketTypeId}`, {
+    // Use server proxy endpoint for ticket type deletion
+    const serverUrl = `/api/admin/events/${eventId}/ticket-types/${ticketTypeId}`
+    const response = await $fetch(serverUrl, {
       method: 'DELETE',
       headers: createAuthHeaders()
-    })
-
-    console.log('🗑️ Deleted ticket type:', {
-      eventId,
-      ticketTypeId,
-      success: response?.success,
-      message: response?.message,
-      endpoint: `/admin/events/${eventId}/ticket-types/${ticketTypeId}`
     })
 
     return response
@@ -1337,14 +1281,12 @@ export async function updateAgendaItem(eventId, agendaId, agendaData) {
   }
 
   try {
-    console.log('📅 Updating agenda item:', { eventId, agendaId })
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/agendas/${agendaId}`, {
       method: 'PUT',
       body: agendaData,
       headers: createAuthHeaders()
     })
 
-    console.log('✅ Agenda item updated:', response)
     return response
   } catch (error) {
     console.error('❌ Failed to update agenda item:', error)
@@ -1428,7 +1370,6 @@ export async function publishEvent(eventId) {
   }
 
   try {
-    console.log('🚀 Publishing event:', eventId)
     
     // CRITICAL FIX: Get current event data from both API and local state to preserve chair File objects
     const { getEventDetails } = await import('@/composables/api')
@@ -1444,7 +1385,6 @@ export async function publishEvent(eventId) {
         eventStore.currentEvent.chairs.forEach((chair, index) => {
           if (chair.profile_image instanceof File) {
             localChairFiles.set(chair.name, chair.profile_image)
-            console.log(`💾 Preserved File object for chair: ${chair.name}`)
           }
         })
       }
@@ -1458,7 +1398,6 @@ export async function publishEvent(eventId) {
         basicInfoData.chairs.forEach((chair) => {
           if (chair.profile_image instanceof File) {
             localChairFiles.set(chair.name, chair.profile_image)
-            console.log(`💾 Preserved File object from tab store for chair: ${chair.name}`)
           }
         })
       }
@@ -1467,18 +1406,6 @@ export async function publishEvent(eventId) {
     try {
       const eventResponse = await getEventDetails(eventId)
       currentEventData = eventResponse.data
-      console.log('📋 Current event data loaded for publish:', {
-        id: currentEventData?.id,
-        chairsCount: currentEventData?.chairs?.length || 0,
-        chairsWithImages: currentEventData?.chairs?.filter(c => c.profile_image_url).length || 0,
-        localFileObjects: localChairFiles.size,
-        chairsData: currentEventData?.chairs?.map(c => ({
-          name: c.name,
-          hasImageUrl: !!c.profile_image_url,
-          hasLocalFile: localChairFiles.has(c.name),
-          imageUrl: c.profile_image_url
-        })) || []
-      })
     } catch (error) {
       console.warn('Failed to get current event data for publishing:', error)
     }
@@ -1496,7 +1423,6 @@ export async function publishEvent(eventId) {
     
     // FIXED: Preserve chairs data with File objects taking priority
     if (currentEventData?.chairs && Array.isArray(currentEventData.chairs)) {
-      console.log('📋 Processing chairs for publish:', currentEventData.chairs.length)
       
      currentEventData.chairs.forEach((chair, index) => {
   if (chair.name && chair.position && chair.company) {
@@ -1517,39 +1443,21 @@ export async function publishEvent(eventId) {
     if (localChairFiles.has(chair.name)) {
       const fileObject = localChairFiles.get(chair.name)
       formData.append(`chairs[${index}][profile_image]`, fileObject)
-      console.log(`🔥 Using local File object for chair ${index + 1}: ${chair.name} (${fileObject.name})`)
     } else if (chair.profile_image_url && chair.profile_image_url.trim() !== '') {
       formData.append(`chairs[${index}][profile_image_url]`, chair.profile_image_url)
-      console.log(`✅ Preserving existing image URL for chair ${index + 1}: ${chair.profile_image_url}`)
     } else if (chair.profile_image instanceof File) {
       formData.append(`chairs[${index}][profile_image]`, chair.profile_image)
-      console.log(`✅ Using chair File object for chair ${index + 1}: ${chair.profile_image.name}`)
     } else {
-      console.log(`⚪ No image for chair ${index + 1}: ${chair.name}`)
     }
   }
 })
 
     }
     
-    console.log('📤 Sending publish request with preserved chair images and File objects')
-    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}`, {
       method: 'POST',
       body: formData,
       headers: createAuthHeaders(false) // Don't include Content-Type for FormData
-    })
-
-    console.log('✅ Event published successfully')
-    console.log('📥 Publish API response:', {
-      success: !!response,
-      hasData: !!response?.data,
-      chairsInResponse: response?.data?.chairs?.length || response?.chairs?.length || 0,
-      chairsData: (response?.data?.chairs || response?.chairs || []).map(c => ({
-        name: c.name,
-        hasImageUrl: !!c.profile_image_url,
-        imageUrl: c.profile_image_url
-      }))
     })
     
     return response

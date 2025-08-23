@@ -157,7 +157,7 @@ const localTicketDescription = ref('')
 watch(() => props.modelValue?.isValidating, (newValidating) => {
   if (newValidating) {
     isValidating.value = true
-    console.log('🔍 Ticket Form Validation triggered for:', props.modelValue?.name || `Ticket ${props.ticketIndex + 1}`)
+
   }
 }, { immediate: true })
 
@@ -180,21 +180,6 @@ watch(() => props.modelValue, (newVal) => {
     }
     
     // Enhanced logging for debugging
-    console.log('🔍 Enhanced Ticket Form Validation:', {
-      ticketIndex: props.ticketIndex,
-      ticketName: newVal.name || `Ticket ${props.ticketIndex + 1}`,
-      hasEmptyName,
-      hasEmptyDescription,
-      hasInvalidPrice,
-      hasInvalidQuantity,
-      isValidating: isValidating.value,
-      rawData: {
-        name: newVal.name,
-        description: newVal.description,
-        price: newVal.price,
-        quantity: newVal.quantity
-      }
-    })
   }
 }, { deep: true })
 
@@ -211,31 +196,13 @@ const ticketData = computed({
       quantity: modelValue.quantity !== null && modelValue.quantity !== undefined ? parseInt(modelValue.quantity) || 1 : 1
     }
     
-    console.log('📝 TicketForm computed get:', {
-      ticketIndex: props.ticketIndex,
-      original: modelValue,
-      computed: data
-    })
-    
     return data
   },
-  set: (value) => {
-    console.log('📝 TicketForm computed set:', {
-      ticketIndex: props.ticketIndex,
-      value
-    })
-    emit('update:modelValue', value)
-  }
 })
 
 // Handle price updates
 const updatePrice = (value) => {
   const parsedPrice = value !== null && value !== undefined ? parseFloat(value) : 0
-  console.log('💰 Updating price:', {
-    ticketIndex: props.ticketIndex,
-    raw: value,
-    parsed: parsedPrice
-  })
   
   emit('update:modelValue', {
     ...props.modelValue,
@@ -246,11 +213,6 @@ const updatePrice = (value) => {
 // Handle quantity updates
 const updateQuantity = (value) => {
   const parsedQuantity = value !== null && value !== undefined ? parseInt(value) : 1
-  console.log('🔢 Updating quantity:', {
-    ticketIndex: props.ticketIndex,
-    raw: value,
-    parsed: parsedQuantity
-  })
   
   const newValue = !isNaN(parsedQuantity) ? Math.max(1, parsedQuantity) : 1
   
@@ -277,12 +239,6 @@ const handleNameInput = (event) => {
   const value = event.target.value
   localTicketName.value = value
   
-  console.log('📝 Updating name (enhanced):', {
-    ticketIndex: props.ticketIndex,
-    value,
-    localValue: localTicketName.value
-  })
-  
   emit('update:modelValue', {
     ...props.modelValue,
     name: value
@@ -294,11 +250,6 @@ const handleDescriptionInput = (event) => {
   const value = event.target.value
   localTicketDescription.value = value
   
-  console.log('📝 Updating description (enhanced):', {
-    ticketIndex: props.ticketIndex,
-    value,
-    localValue: localTicketDescription.value
-  })
   
   emit('update:modelValue', {
     ...props.modelValue,

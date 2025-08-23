@@ -34,7 +34,6 @@ export default defineEventHandler(async (event) => {
             'Content-Type': 'application/json',
           },
         })
-        console.log(`✅ Login successful with endpoint: ${endpoint}`)
         break
       } catch (error: any) {
         console.log(`❌ Failed with endpoint ${endpoint}:`, error.statusCode || error.status)

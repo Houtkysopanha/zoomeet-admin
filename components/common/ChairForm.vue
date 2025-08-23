@@ -232,7 +232,6 @@ const saveChair = async () => {
     // Validate profile_image is a File object before trying to use it
     if (chairData.value.profile_image) {
       if (!(chairData.value.profile_image instanceof File)) {
-        console.warn('Profile image is not a File object:', chairData.value.profile_image)
         // Clear invalid profile image
         chairData.value.profile_image = null
       }
@@ -422,7 +421,6 @@ onBeforeUnmount(() => {
 
 // Handle image load errors
 const handleImageError = (event) => {
-  console.warn('Image failed to load:', event.target.src)
   event.target.style.display = 'none'
 }
 

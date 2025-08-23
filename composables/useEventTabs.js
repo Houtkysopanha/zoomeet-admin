@@ -219,19 +219,16 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
           // If there's a new profile_image File, store it
           if (chair.profile_image instanceof File) {
             tabData[tabKey].chairFileObjects.set(chair.id, chair.profile_image)
-            console.log(`💾 Storing new file for chair ${chair.name}:`, chair.profile_image.name)
           }
           // Preserve existing file if no new file provided
           else if (!tabData[tabKey].chairFileObjects.has(chair.id) && chair.profile_image_url) {
             // Keep the existing profile_image_url
             chair.profile_image = chair.profile_image_url
-            console.log(`🔄 Preserving existing image URL for chair ${chair.name}:`, chair.profile_image_url)
           }
           // Get file from existing chairFileObjects if available
           else if (tabData[tabKey].chairFileObjects.has(chair.id)) {
             const existingFile = tabData[tabKey].chairFileObjects.get(chair.id)
             if (existingFile instanceof File) {
-              console.log(`♻️ Using existing file for chair ${chair.name}:`, existingFile.name)
             }
           }
         })
@@ -264,14 +261,6 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
           tabData[tabKey].location
         )
       }
-      
-      console.log(`💾 Tab ${tabIndex} (${tabKey}) data saved:`, {
-        dataKeys: Object.keys(data),
-        isComplete: tabData[tabKey].isComplete,
-        lastSaved: tabData[tabKey].lastSaved,
-        chairCount: tabKey === 'basicInfo' ? tabData[tabKey].chairs?.length : 0,
-        chairFilesCount: tabKey === 'basicInfo' ? tabData[tabKey].chairFileObjects?.size : 0
-      })
     }
   }
 
@@ -294,13 +283,12 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
             if (storedFile instanceof File) {
               chairCopy.profile_image = storedFile
               chairCopy.profile_image_local = URL.createObjectURL(storedFile)
-              console.log(`✅ Restored file for chair ${chair.name}:`, storedFile.name)
             }
           }
           // Priority 2: Keep existing profile_image_url if no new file
           else if (chair.profile_image_url) {
             chairCopy.profile_image = chair.profile_image_url
-            console.log(`✅ Using existing image URL for chair ${chair.name}:`, chair.profile_image_url)
+
           }
           
           return chairCopy
@@ -393,22 +381,12 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       tabData.basicInfo.chairFileObjects : new Map();
     
     // Clear all existing tab data first to prevent data mixing
-    console.log('🧹 Clearing existing tab data before loading new event data')
     resetTabs()
     
     // Restore chair file objects
     if (existingChairFileObjects.size > 0) {
       tabData.basicInfo.chairFileObjects = existingChairFileObjects;
     }
-    
-    console.log('📥 Loading event data into tabs with CRUD support:', {
-      id: eventData.id,
-      name: eventData.name,
-      hasTickets: !!eventData.ticket_types?.length,
-      hasAgendas: !!eventData.agendas?.length,
-      isPublished: eventData.is_published,
-      status: eventData.status
-    })
     
     const loadTimestamp = new Date().toISOString()
     
@@ -560,15 +538,7 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
     Object.keys(tabModified.value).forEach(key => {
       tabModified.value[key] = false
     })
-    
-    console.log('✅ Event data loaded into tab persistence with CRUD support:', {
-      completedTabs: Array.from(completedTabs.value),
-      basicInfoComplete: tabData.basicInfo.isComplete,
-      ticketsCount: tabData.tickets.ticketTypes.length,
-      agendasCount: tabData.agenda.sessions.length,
-      eventId: eventData.id,
-      isPublished: tabData.basicInfo.isPublished
-    })
+  
   }
 
   // Enhanced function to get event data for API operations
@@ -594,22 +564,10 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       const fileObject = basicInfo.chairFileObjects?.get(chairId)
       if (fileObject instanceof File) {
         chairWithFiles.profile_image = fileObject
-        console.log(`📎 Using stored file for chair ${chair.name}:`, {
-          id: chairId,
-          fileName: fileObject.name
-        })
       } else if (chair.profile_image instanceof File) {
         chairWithFiles.profile_image = chair.profile_image
-        console.log(`📎 Using direct file for chair ${chair.name}:`, {
-          id: chairId,
-          fileName: chair.profile_image.name
-        })
       } else if (chair.profile_image_url) {
         chairWithFiles.profile_image_url = chair.profile_image_url
-        console.log(`📎 Using existing URL for chair ${chair.name}:`, {
-          id: chairId,
-          url: chair.profile_image_url
-        })
       }
       
       return chairWithFiles
@@ -669,8 +627,6 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
     const tabKey = tabKeys[tabIndex]
     
     if (tabKey && tabData[tabKey]) {
-      console.log(`🧹 Clearing tab ${tabIndex} (${tabKey}) data${eventId ? ` for event ${eventId}` : ''}`)
-      
       // Reset tab data based on tab type
       switch (tabIndex) {
         case 0: // Basic Info
@@ -751,14 +707,11 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       // Remove from completed tabs
       completedTabs.value.delete(tabIndex)
       
-      console.log(`✅ Tab ${tabIndex} (${tabKey}) data cleared${eventId ? ` for event ${eventId}` : ''}`)
     }
   }
 
   // Function to clear all tab data for event switching
   function clearAllTabDataForEventSwitch(newEventId = null) {
-    console.log(`🧹 Clearing all tab data for event switch${newEventId ? ` to event ${newEventId}` : ''}`)
-    
     // Clear all tabs
     for (let i = 0; i < 5; i++) {
       clearTabData(i, newEventId)
@@ -767,7 +720,6 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
     // Reset active tab to basic info
     activeTab.value = 0
     
-    console.log(`✅ All tab data cleared for event switch`)
   }
 
   // Function to validate event context for data operations
