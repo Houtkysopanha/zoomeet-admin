@@ -1,5 +1,5 @@
 // Auto-imported by Nuxt: useRuntimeConfig, $fetch
-
+import axios from 'axios'
 // Get auth token using proper Nuxt 3 pattern with improved reliability
 const getAuthToken = () => {
   try {
@@ -1582,5 +1582,123 @@ export async function checkSlugAvailability(slug, currentEventId = null) {
       isAvailable: false,
       message: error.message || 'Failed to check slug availability'
     }
+  }
+}
+// Fetch List organizer
+export async function fetchEventOrganizers(eventId) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  try {
+    // Build API URL using env base
+      const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/organizer`, {
+
+      method: 'GET',
+      headers: createAuthHeaders()
+    })
+
+    if (response && response.success && Array.isArray(response.data)) {
+      return {
+        status: 200,
+        data: {
+          success: true,
+          data: response.data,
+          message: response.message || 'Organizers retrieved successfully'
+        }
+      }
+    } else {
+      return {
+        status: 200,
+        data: {
+          success: false,
+          data: [],
+          message: 'Unexpected API response format'
+        }
+      }
+    }
+  } catch (error) {
+    console.error('❌ Failed to fetch event organizers:', error)
+
+    if (error.status === 401) {
+      const { clearAuth } = useAuth()
+      clearAuth()
+      handleAuthRedirect()
+      return {
+        status: 401,
+        data: { success: false, data: [], message: 'Session expired. Please login again.' }
+      }
+    }
+
+    if (error.status === 404) {
+      return {
+        status: 404,
+        data: { success: false, data: [], message: 'Event not found or no organizers assigned' }
+      }
+    }
+
+    if (error.status === 403) {
+      return {
+        status: 403,
+        data: { success: false, data: [], message: 'Access denied. Please check your permissions.' }
+      }
+    }
+
+    return {
+      status: error?.status || 500,
+      data: { success: false, data: [], message: 'Failed to load team members. Please try again.' }
+    }
+  }
+}
+
+//fetch role permission from api
+export const fetchOrganizerPermissions = async () => {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+  try {
+   const response = await axios.get(`${API_ADMIN_BASE_URL}/events/permission/organizer`, {
+      method: 'GET',
+      headers: createAuthHeaders()
+})
+    return { status: response.status, data: response.data }
+  } catch (error) {
+    console.error('❌ API Error (fetchOrganizerPermissions):', error)
+    return {
+      status: error.response?.status || 500,
+      data: error.response?.data || { success: false, message: error.message }
+    }
+  }
+}
+
+// composables/api.js
+//seearch user
+export const searchUsers = async (keyword) => {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+  const token = localStorage.getItem("token")
+
+  if (!keyword || keyword.length < 1) {
+    return []
+  }
+
+  try {
+    const response = await axios.get(
+      `${API_ADMIN_BASE_URL}/users/search`,
+      {
+        params: { keyword },
+         method: 'GET',
+        headers: createAuthHeaders()
+      }
+    )
+
+    if (response.status === 200 && response.data.success) {
+      return response.data.data
+    }
+    return []
+  } catch (error) {
+    console.error("❌ Failed to search users:", error)
+    return []
   }
 }

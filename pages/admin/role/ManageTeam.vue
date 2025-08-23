@@ -11,7 +11,16 @@
             class="mb-2"
           />
         </div>
-        <IconnButton label="Invite new user" icon="mingcute:user-add-2-fill" @click="inviteUser()" />
+        <div class="flex space-x-3">
+          <Button
+            icon="pi pi-refresh"
+            class="p-button-outlined p-button-sm"
+            @click="loadOrganizers"
+            :loading="loading"
+            title="Refresh team members"
+          />
+          <IconnButton label="Invite new user" icon="mingcute:user-add-2-fill" @click="inviteUser()" />
+        </div>
       </div>
     </div>
 
@@ -27,78 +36,86 @@
       />
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <CardCommon
-          v-for="(stat, index) in eventStats"
+          v-for="(stat, index) in updatedTeamStats"
           :key="index"
           :title="stat.title"
           :count="stat.count"
           :icon="stat.icon"
           :weekChange="stat.weekChange"
-            :style="index !== 0 ? { visibility: 'hidden' } : {}"
+          :style="index !== 0 ? { visibility: 'hidden' } : {}"
         />
       </div>
     </div>
 
     <!-- Filters and Search -->
-     <div class="mb-6 flex items-center justify-between mt-10  rounded-lg">
-     <div class="flex items-center space-x-4">
-  <div class="relative w-full">
-    <div class="border border-gray-300 rounded-full overflow-hidden flex">
-      <div class="relative flex-1">
-        <Icon name="i-heroicons-magnifying-glass" class="absolute w-8 h-8 left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Search"
-          class="w-full pl-14  border-0 focus:ring-0 focus:outline-none bg-transparent p-3 rounded-full"
-        />
+    <div class="mb-6 flex items-center justify-between mt-10 rounded-lg">
+      <div class="flex items-center space-x-4">
+        <div class="relative w-full">
+          <div class="border border-gray-300 rounded-full overflow-hidden flex">
+            <div class="relative flex-1">
+              <Icon name="i-heroicons-magnifying-glass" class="absolute w-8 h-8 left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
+              <input
+                v-model="searchQuery"
+                type="text"
+                placeholder="Search"
+                class="w-full pl-14 border-0 focus:ring-0 focus:outline-none bg-transparent p-3 rounded-full"
+              />
+            </div>
+            <div class="relative space-x-5">
+              <Icon name="mynaui:filter" class="absolute w-8 h-8 left-3 top-1/2 bg-gradient-to-t from-blue-900 to-purple-800 transform -translate-y-1/2 text-grad" />
+              <Button
+                label="Filters"
+                class="p-button-outlined px-5 text-purple-600 border-purple-600 w-full h-full rounded-none p-3"
+                @click="toggleFilters"
+              />
+            </div>
+          </div>
+        </div>
       </div>
-      <div class=" relative space-x-5">
-     <Icon name="mynaui:filter" class="absolute w-8 h-8 left-3 top-1/2 bg-gradient-to-t from-blue-900 to-purple-800 transform -translate-y-1/2 text-grad" />
-       <Button
-          label="Filters"
-          class="p-button-outlined px-5  text-purple-600 border-purple-600 w-full h-full rounded-none p-3"
-          @click="toggleFilters"
-        />
-      </div>
-    </div>
-  </div>
-</div>
 
-    <div class="flex items-center space-x-4">
-  <div class="relative">
-    <!-- <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 font-medium">Sort</span> -->
-    <Dropdown
-      v-model="sortOption"
-      :options="sortOptions"
-      optionLabel="label"
-      optionValue="value"
-      class="w-30 p-dropdown-sm border bg-transparent border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg"
-      @change="applySort"
-    >
-      <template #value="slotProps">
-       <!-- <i class="pi pi-sort-amount-up mr-2 text-black"></i> -->
-        <span v-if="slotProps.value" class="">{{ slotProps.value }}</span>
-        <span v-else class="ml-14 text-black"></span>
-      </template>
-    </Dropdown>
-    <span class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"></span>
-  </div>
-    <p class="text-xl font-normal text-gray-700">Show</p>
-  <Dropdown
-    v-model="itemsPerPage"
-    :options="pageOptions"
-    optionLabel="label"
-    optionValue="value"
-    placeholder=""
-    class=" border border-gray-300 bg-transparent rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-    @change="applyPageChange"
-  />
-  <span class="text-lg text-gray-700  border-l pl-2 border-gray-500"> Show {{ currentPage * itemsPerPage - (itemsPerPage - 1) }} to {{ Math.min(currentPage * itemsPerPage, totalItems) }} of {{ totalItems }}</span>
-</div>
+      <div class="flex items-center space-x-4">
+        <div class="relative">
+          <Dropdown
+            v-model="sortOption"
+            :options="sortOptions"
+            optionLabel="label"
+            optionValue="value"
+            class="w-30 p-dropdown-sm border bg-transparent border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg"
+            @change="applySort"
+          >
+            <template #value="slotProps">
+              <span v-if="slotProps.value" class="">{{ slotProps.value }}</span>
+              <span v-else class="ml-14 text-black"></span>
+            </template>
+          </Dropdown>
+          <span class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"></span>
+        </div>
+        <p class="text-xl font-normal text-gray-700">Show</p>
+        <Dropdown
+          v-model="itemsPerPage"
+          :options="pageOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder=""
+          class="border border-gray-300 bg-transparent rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          @change="applyPageChange"
+        />
+        <span class="text-lg text-gray-700 border-l pl-2 border-gray-500"> 
+          Show {{ currentPage * itemsPerPage - (itemsPerPage - 1) }} to {{ Math.min(currentPage * itemsPerPage, totalItems) }} of {{ totalItems }}
+        </span>
+      </div>
     </div>
 
     <!-- Datatable -->
     <div class="bg-white rounded-lg shadow overflow-hidden">
+      <!-- Loading state -->
+      <div v-if="loading" class="p-8 text-center">
+        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+        <p class="mt-2 text-gray-600">Loading team members...</p>
+      </div>
+      
+      <!-- Data table -->
+      <div v-else-if="users.length > 0">
         <DataTable
           :value="users"
           :paginator="true"
@@ -109,71 +126,73 @@
           scrollable
           responsiveLayout="scroll"
         >
-        <Column field="user" header="User" sortable class="text-[14px] border-b border-gray-300 ">
-          <template #body="{ data }">
-            <div class="flex items-center gap-2 ">
-              <img :src="data.avatar" alt="User Avatar" class="w-8 h-8 rounded-full" />
-              <div>
-                 <span>{{ data.user }}</span>
-            <p class="text-[12px] text-gray-600 text-justify pr-6">
-              <span>{{ data.email }}</span>
-            </p>
+          <Column field="user" header="User" sortable class="text-[14px] border-b border-gray-300">
+            <template #body="{ data }">
+              <div class="flex items-center gap-2">
+                <img :src="data.avatar" alt="User Avatar" class="w-8 h-8 rounded-full" />
+                <div>
+                  <span>{{ data.user }}</span>
+                  <p class="text-[12px] text-gray-600 text-justify pr-6">
+                    <span>{{ data.email }}</span>
+                  </p>
+                </div>
               </div>
-            </div>
-          </template>
-        </Column>
-        <Column field="phoneNumber" header="Phone Number" sortable class="text-[14px] border-b border-gray-300 "></Column>
-        <Column field="optionalNote" header="Optional Note" class="text-[14px] border-b border-gray-300 "></Column>
-        <Column field="permissions" header="Permissions" class="text-[14px] border-b border-gray-300 ">
-          <template #body="{ data }">
-            <span v-for="(perm, index) in data.permissions" :key="index" class="inline-block bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full mr-1">
-              {{ perm }}
-            </span>
-          </template>
-        </Column>
-        <Column field="status" header="Status" class="text-[14px] border-b border-gray-300 ">
-          <template #body="{ data }">
-            <span :class="['px-2 py-1 rounded-full text-xs font-medium', {
-              'bg-green-100 text-green-800': data.status === 'Active',
-              'bg-red-100 text-red-800': data.status === 'Inactive'
-            }]">
-              {{ data.status }}
-            </span>
-          </template>
-        </Column>
-        <Column header="Actions" class="text-[14px] border-b border-gray-300 ">
-          <template #body="{ data }">
-            <Button
-              icon="pi pi-ellipsis-v"
-              class="p-button-text p-button-sm text-gray-500"
-              @click="toggleMenu($event, data)"
-            />
-            <Menu ref="menu" :model="menuItems" :popup="true" />
-          </template>
-        </Column>
-      </DataTable>
+            </template>
+          </Column>
+          <Column field="phoneNumber" header="Phone Number" sortable class="text-[14px] border-b border-gray-300"></Column>
+          <Column field="optionalNote" header="Optional Note" class="text-[14px] border-b border-gray-300"></Column>
+          <Column field="permissions" header="Permissions" class="text-[14px] border-b border-gray-300">
+            <template #body="{ data }">
+              <div v-if="data.permissions && data.permissions.length > 0" class="flex flex-wrap gap-1">
+                <span 
+                  v-for="(perm, index) in data.permissions" 
+                  :key="index" 
+                  class="inline-block bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full"
+                >
+                  {{ perm }}
+                </span>
+              </div>
+              <span v-else class="text-gray-400 text-xs">No permissions assigned</span>
+            </template>
+          </Column>
+          <Column field="status" header="Status" class="text-[14px] border-b border-gray-300">
+            <template #body="{ data }">
+              <span :class="['px-2 py-1 rounded-full text-xs font-medium', {
+                'bg-green-100 text-green-800': data.status === 'Active',
+                'bg-red-100 text-red-800': data.status === 'Inactive'
+              }]">
+                {{ data.status }}
+              </span>
+            </template>
+          </Column>
+          <Column header="Actions" class="text-[14px] border-b border-gray-300">
+            <template #body="{ data }">
+              <Button
+                icon="pi pi-ellipsis-v"
+                class="p-button-text p-button-sm text-gray-500"
+                @click="toggleMenu($event, data)"
+              />
+              <Menu ref="menu" :model="menuItems" :popup="true" />
+            </template>
+          </Column>
+        </DataTable>
+      </div>
+
+      <!-- Empty state when no team members -->
+      <div v-else class="text-center py-12">
+        <div class="mb-4">
+          <Icon name="heroicons:users" class="w-16 h-16 text-gray-300 mx-auto" />
+        </div>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">No team members yet</h3>
+      </div>
     </div>
-    <!-- Invite User Dialog -->
-    <Dialog v-model:visible="showInviteDialog" header="Invite New User" :modal="true" class="w-full md:w-1/2">
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-700">Email</label>
-        <InputText v-model="newUser.email" class="mt-1 w-full rounded-md" />
-      </div>
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-700">Role</label>
-        <Dropdown v-model="newUser.role" :options="roles" optionLabel="name" class="w-full mt-1 rounded-md" />
-      </div>
-      <div class="flex justify-end gap-2">
-        <Button label="Cancel" class="p-button-text" @click="showInviteDialog = false" />
-        <Button label="Invite" class="p-button-purple rounded-full" @click="inviteUser" />
-      </div>
-    </Dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { navigateTo } from '#app' // Nuxt 3 navigation helper
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useToast } from 'primevue/usetoast'
 import IconnButton from '~/components/ui/IconnButton.vue'
 import Breadcrumb from '~/components/common/Breadcrumb.vue'
 import EventCard from '~/components/common/EventCard.vue'
@@ -182,176 +201,209 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Dropdown from 'primevue/dropdown'
 import Menu from 'primevue/menu'
-import Button from 'primevue/button' // Import PrimeVue Button
-import { useToast } from 'primevue/usetoast'
-import { useRouter } from 'vue-router'
+import Button from 'primevue/button'
+import { fetchEventOrganizers } from '@/composables/api'
 import poster from '@/assets/image/poster-manage-booking.png'
 
 const router = useRouter()
+const route = useRoute()
 const toast = useToast()
 
-// const goToManageTicket = () => {
-//   router.push('/InviteNewUser')
-// }
-const teamStats = [
-  { title: 'Total Members', count: '23', icon: 'material-symbols-light:people', weekChange: '2' },
-  { title: 'Active Users', count: '10', icon: 'mdi:account-check', weekChange: '1' },
-];
+// Get event ID
+const eventId = ref(route.query.eventId)
 
-const users = ref([
-  { id: 1, user: 'Olivia Ryhe', email: 'test@gmail.com', avatar: poster, phoneNumber: '0123456789', optionalNote: 'Help manage event booking', permissions: ['Check-in Service', 'Booking Service'], status: 'Active' },
-  { id: 2, user: 'Phoenix Baker', email: 'test@gmail.com', avatar: poster, phoneNumber: '0123456789', optionalNote: 'Help manage event booking', permissions: ['Event Management', 'Booking Service'], status: 'Active' },
-  { id: 3, user: 'Lana Steiner', email: 'test@gmail.com', avatar: poster, phoneNumber: '0123456789', optionalNote: 'Help manage event booking', permissions: ['Check-in Service', 'Booking Service'], status: 'Inactive' },
-  { id: 4, user: 'Candice Wu', email: 'test@gmail.com', avatar: poster, phoneNumber: '0123456789', optionalNote: 'Help manage event booking', permissions: ['Check-in Service'], status: 'Active' },
-  { id: 5, user: 'Natali Craig', email: 'test@gmail.com', avatar: poster, phoneNumber: '0123456789', optionalNote: 'Help manage event booking', permissions: ['Check-in Service'], status: 'Inactive' },
-  { id: 6, user: 'Drew Cano', email: 'test@gmail.com', avatar: poster, phoneNumber: '0123456789', optionalNote: 'Help manage event booking', permissions: ['Report', 'Event Service'], status: 'Inactive' },
-]);
+if (!eventId.value) {
+  toast.add({
+    severity: 'error',
+    summary: 'Error',
+    detail: 'No event selected. Please select an event.',
+    life: 5000
+  })
+  router.push('/admin/event')
+}
 
-const roles = ref([
-  { name: 'Admin', id: 1 },
-  { name: 'Editor', id: 2 },
-  { name: 'Viewer', id: 3 },
-]);
+// State
+const allUsers = ref([]) // store full dataset
+const users = ref([])    // store paginated + sorted
+const loading = ref(false)
+const totalMembers = ref(0)
+const activeMembers = ref(0)
 
-const eventStats = [
-  { title: 'Team', count: '28', icon: 'fluent:people-team-24-filled', weekChange: '2' },
-  { title: 'Total Booking', count: '23', icon: 'material-symbols-light:order-approve', weekChange: '2', },
-  { title: 'Total Refund', count: '5', icon: 'mdi:recurring-payment', weekChange: '2' },
-  { title: 'Fail Payment', count: '24', icon: 'icon-park-outline:database-fail', weekChange: '2' },
-]
-
+// Filters & sorting
 const searchQuery = ref('')
+const sortOption = ref(null)
 const itemsPerPage = ref(10)
-
 const currentPage = ref(1)
-const totalItems = ref(206) // Example total, replace with actual count from API
 
-
-const sortOption = ref('Sort') // Initialize to null or a default value
-const sortOptions = ref([
-  { label: 'Booking Name (Asc)', value: 'bookingName-asc' },
-  { label: 'Booking Name (Desc)', value: 'bookingName-desc' },
-  { label: 'Purchase Date (Asc)', value: 'purchaseDate-asc' },
-  { label: 'Purchase Date (Desc)', value: 'purchaseDate-desc' },
-])
-
-const pageOptions = ref([
+// Options
+const sortOptions = [
+  { label: 'Sort by Name', value: 'name' },
+  { label: 'Sort by Email', value: 'email' },
+  { label: 'Sort by Status', value: 'status' }
+]
+const pageOptions = [
   { label: '10', value: 10 },
   { label: '20', value: 20 },
-  { label: '50', value: 50 },
+  { label: '50', value: 50 }
+]
+
+// Stats
+const updatedTeamStats = computed(() => [
+  {
+    title: 'Team',
+    count: totalMembers.value,
+    icon: 'fluent:people-team-24-filled',
+    weekChange: '0'
+  }
 ])
 
-const filteredBookings = computed(() => {
-  let result = [...bookings.value]
+// Menu state
+const menu = ref()
+const selectedUserForMenu = ref(null)
+const menuItems = [
+  {
+    label: 'Edit Permission',
+    icon: 'pi pi-pencil',
+    command: () => editPermission(selectedUserForMenu.value)
+  },
+  {
+    label: 'Disable',
+    icon: 'pi pi-times',
+    command: () =>
+      toast.add({ severity: 'warn', summary: 'Disable', detail: 'User disabled', life: 3000 })
+  },
+  {
+    label: 'Remove',
+    icon: 'pi pi-trash',
+    command: () =>
+      toast.add({ severity: 'warn', summary: 'Remove', detail: 'User removed', life: 3000 })
+  }
+]
 
-  // Apply search filter
+// Pagination & sorting pipeline
+const paginatedUsers = computed(() => {
+  let filtered = [...allUsers.value]
+
+  // Search
   if (searchQuery.value) {
-    const lowerCaseQuery = searchQuery.value.toLowerCase()
-    result = result.filter(booking =>
-      Object.values(booking).some(value =>
-        String(value).toLowerCase().includes(lowerCaseQuery)
-      )
+    const q = searchQuery.value.toLowerCase()
+    filtered = filtered.filter(
+      u =>
+        u.user.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q) ||
+        u.phoneNumber.toLowerCase().includes(q)
     )
   }
 
-  // Apply client-side sorting based on sortOption
-  if (sortOption.value) {
-    const [field, order] = sortOption.value.split('-')
-    result = result.sort((a, b) => {
-      let valueA = a[field] || ''
-      let valueB = b[field] || ''
-
-      // Handle date comparison if the field is a date
-      if (field === 'purchaseDate') {
-        valueA = new Date(valueA).getTime()
-        valueB = new Date(valueB).getTime()
-      }
-
-      if (typeof valueA === 'string' && typeof valueB === 'string') {
-        return order === 'asc' ? valueA.localeCompare(valueB) : -valueA.localeCompare(valueB)
-      } else {
-        return order === 'asc' ? valueA - valueB : valueB - valueA
-      }
-    })
+  // Sort
+  if (sortOption.value === 'name') {
+    filtered.sort((a, b) => a.user.localeCompare(b.user))
+  } else if (sortOption.value === 'email') {
+    filtered.sort((a, b) => a.email.localeCompare(b.email))
+  } else if (sortOption.value === 'status') {
+    filtered.sort((a, b) => a.status.localeCompare(b.status))
   }
 
-  return result
-})
-
-const paginatedBookings = computed(() => {
+  // Pagination
+  totalMembers.value = filtered.length
   const start = (currentPage.value - 1) * itemsPerPage.value
   const end = start + itemsPerPage.value
-  return filteredBookings.value.slice(start, end)
+  return filtered.slice(start, end)
 })
 
-const applySort = () => {
-  currentPage.value = 1; // Reset to first page on sort change
-  // Sorting is handled by the computed property `filteredBookings`
-}
+// Watch computed result
+watch(paginatedUsers, newVal => {
+  users.value = newVal
+})
 
-const applyPageChange = (event) => {
-  itemsPerPage.value = event.value
-  currentPage.value = 1 // Reset to first page on items per page change
-}
+// Methods
+const loadOrganizers = async () => {
+  if (!eventId.value) return
 
-const filteredUsers = computed(() => {
-  let result = [...users.value];
-  if (searchQuery.value) {
-    const lowerCaseQuery = searchQuery.value.toLowerCase();
-    result = result.filter(user =>
-      Object.values(user).some(value =>
-        String(value).toLowerCase().includes(lowerCaseQuery)
-      )
-    );
+  loading.value = true
+  try {
+    const { status, data } = await fetchEventOrganizers(eventId.value)
+
+    if (status === 200 && data.success && Array.isArray(data.data)) {
+      allUsers.value = data.data.map(o => ({
+        id: o.id,
+        user_id: o.user_id,
+        user: o.name,
+        email: o.email,
+        avatar: poster,
+        phoneNumber: o.phone_number || 'N/A',
+        optionalNote: 'Team member',
+        permissions: o.roles || [],
+        status: o.status || 'Active', // map from API if available
+        created_at: o.created_at
+      }))
+
+      activeMembers.value = allUsers.value.filter(u => u.status === 'Active').length
+
+      if (allUsers.value.length === 0) {
+        toast.add({
+          severity: 'info',
+          summary: 'No Team Members',
+          detail: 'No team members found for this event.',
+          life: 4000
+        })
+      }
+    } else {
+      toast.add({
+        severity: 'error',
+        summary: 'API Error',
+        detail: data.message || 'Failed to fetch team members',
+        life: 4000
+      })
+    }
+  } catch (err) {
+    console.error('❌ Error loading organizers:', err)
+    toast.add({
+      severity: 'error',
+      summary: 'Fetch Error',
+      detail: err.message || 'Failed to load team members',
+      life: 4000
+    })
+  } finally {
+    loading.value = false
   }
-  if (sortOption.value) {
-    const [field, order] = sortOption.value.split('-');
-    result.sort((a, b) => {
-      let valueA = a[field];
-      let valueB = b[field];
-      return order === 'asc' ? valueA.localeCompare(valueB) : -valueA.localeCompare(valueB);
-    });
-  }
-  return result;
-});
-
-const toggleFilters = () => {
-  // Implement filter modal/sidebar logic here
-  toast.add({ severity: 'info', summary: 'Filters', detail: 'Filter functionality to be implemented', life: 3000 })
 }
 
-const menu = ref()
-const selectedUserForMenu = ref(null)
-
-const editPermission = (userData) => {
-  // Route to Edit Permission page with user data
+const inviteUser = () => {
+  router.push({
+    path: '/admin/role/InviteNewUser',
+    query: { eventId: eventId.value }
+  })
+}
+const editPermission = userData => {
   router.push({
     path: '/admin/role/EditPermission',
     query: {
+      eventId: eventId.value,
       userId: userData.id,
       userName: userData.user
     }
   })
 }
+const toggleFilters = () =>
+  toast.add({ severity: 'info', summary: 'Filters', detail: 'Filter TBD', life: 3000 })
 
-const menuItems = ref([
-  { label: 'Edit Permission', icon: 'pi pi-pencil', command: () => editPermission(selectedUserForMenu.value) },
-  { label: 'Disable', icon: 'pi pi-times', command: () => toast.add({ severity: 'warn', summary: 'Disable', detail: 'User disabled', life: 3000 }) },
-  { label: 'Remove', icon: 'pi pi-trash', command: () => toast.add({ severity: 'warn', summary: 'Remove', detail: 'User removed', life: 3000 }) },
-]);
-
+const applySort = () => {
+  currentPage.value = 1
+}
+const applyPageChange = e => {
+  itemsPerPage.value = e.value
+  currentPage.value = 1
+}
 const toggleMenu = (event, data) => {
-  selectedUserForMenu.value = data;
-  menu.value.toggle(event);
-};
+  selectedUserForMenu.value = data
+  menu.value.toggle(event)
+}
 
-const inviteUser = () => {
-  // Route to the Invite New User page (static route for now)
-  router.push('/admin/role/InviteNewUser');
-};
-definePageMeta({
-  layout: "admin",
-})
+// Load on mount
+onMounted(loadOrganizers)
+
+definePageMeta({ layout: 'admin' })
 </script>
 
 <style scoped>
