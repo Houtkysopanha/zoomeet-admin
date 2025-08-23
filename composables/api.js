@@ -1745,3 +1745,28 @@ export const inviteUserAPI = async ({ eventId, selectedUsers, permissions, token
     throw error
   }
 }
+
+
+export const fetchUserRoles = async ({ eventId, userId, token }) => {
+  try {
+    const config = useRuntimeConfig()
+    const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+    const response = await axios.get(
+      `${API_ADMIN_BASE_URL}/events/${eventId}/organizer/${userId}/detail`,
+      {
+      method: 'GET',
+      headers: createAuthHeaders()
+      }
+    )
+
+    if (response.status === 200 && response.data.success) {
+      return response.data.data
+    } else {
+      throw new Error(response.data.message || 'Failed to fetch user roles')
+    }
+  } catch (error) {
+    console.error('❌ Fetch User Roles Error:', error)
+    throw error
+  }
+}

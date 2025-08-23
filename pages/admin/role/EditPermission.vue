@@ -37,17 +37,22 @@
           </div>
           <h2 class="text-xl font-semibold text-gray-900 my-4">{{ userInfo.name }}</h2>
           <div class="flex space-x-4 text-sm">
-            <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full">{{ userInfo.services[0] }}</span>
-            <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full">{{ userInfo.services[1] }}</span>
+            <span 
+              v-for="(service, idx) in userInfo.services" 
+              :key="idx"
+              class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full"
+            >
+              {{ service }}
+            </span>
           </div>
         </div>
         <div class="border border-1 border-gray-200 my-10"></div>
 
         <!-- User Details -->
-        <div class="space-y-4 ">
+        <div class="space-y-4">
           <div class="flex items-center space-x-3 border border-1 border-gray-300 rounded-2xl p-4">
             <div class="bg-purple-100 p-4 w-16 h-16 rounded-full">
-              <Icon name="mdi:email" class="w-8 h-8 text-purple-600  " />
+              <Icon name="mdi:email" class="w-8 h-8 text-purple-600" />
             </div>
             <div>
               <p class="text-sm text-gray-500">Email</p>
@@ -55,76 +60,75 @@
             </div>
           </div>
 
-         <div class="flex items-center space-x-3 border border-1 border-gray-300 rounded-2xl p-4">
+          <div class="flex items-center space-x-3 border border-1 border-gray-300 rounded-2xl p-4">
             <div class="bg-purple-100 p-4 w-16 h-16 rounded-full">
-              <Icon name="ic:baseline-phone" class="w-8 h-8 text-purple-600  " />
+              <Icon name="ic:baseline-phone" class="w-8 h-8 text-purple-600" />
             </div>
             <div>
               <p class="text-sm text-gray-500">Phone Number</p>
-              <p class="text-gray-900">{{ userInfo.email }}</p>
+              <p class="text-gray-900">{{ userInfo.phone }}</p>
             </div>
           </div>
 
-           <div class="flex items-center space-x-3 border border-1 border-gray-300 rounded-2xl p-4">
+          <div class="flex items-center space-x-3 border border-1 border-gray-300 rounded-2xl p-4">
             <div class="bg-purple-100 p-4 w-16 h-16 rounded-full">
-              <Icon name="uil:calender" class="w-8 h-8 text-purple-600  " />
+              <Icon name="uil:calender" class="w-8 h-8 text-purple-600" />
             </div>
             <div>
               <p class="text-sm text-gray-500">Invite Date</p>
-              <p class="text-gray-900">{{ userInfo.email }}</p>
+              <p class="text-gray-900">{{ formatDate(userInfo.inviteDate) }}</p>
             </div>
           </div>
 
- <div class="flex items-center space-x-3 border border-1 border-gray-300 rounded-2xl p-4">
+          <div class="flex items-center space-x-3 border border-1 border-gray-300 rounded-2xl p-4">
             <div class="bg-purple-100 p-4 w-16 h-16 rounded-full">
-              <Icon name="uil:calender" class="w-8 h-8 text-purple-600  " />
+              <Icon name="uil:calender" class="w-8 h-8 text-purple-600" />
             </div>
             <div>
               <p class="text-sm text-gray-500">Update Date</p>
-              <p class="text-gray-900">{{ userInfo.email }}</p>
+            <p class="text-gray-900">{{ formatDate(userInfo.updateDate) }}</p>
             </div>
           </div>
-
-
         </div>
       </div>
 
       <!-- Right Column - Role Assignment -->
-       <div class="bg-white rounded-2xl p-10">
+      <div class="bg-white rounded-2xl p-10">
         <h2 class="text-xl font-semibold mb-2">Role Assignment</h2>
         <p class="text-sm text-gray-500 mb-6">Pick a permission for the team to access the team coordinator.</p>
 
-        <!-- Loading state for permissions -->
         <div v-if="permissionsLoading" class="flex justify-center items-center py-8">
           <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
           <span class="ml-2 text-gray-600">Loading permissions...</span>
         </div>
 
-        <!-- Dynamic permission categories -->
         <div v-else class="space-y-4">
-          <div 
-            v-for="(categoryPermissions, category) in availablePermissions" 
-            :key="category"
-            class="bg-white shadow-xl p-4 rounded-2xl"
-          >
-            <div class="flex items-center justify-between">
-              <span class="text-sm font-semibold text-gray-800">{{ formatCategoryName(category) }}</span>
-              <InputSwitch v-model="permissions[category].enabled" />
-            </div>
-            <div class="border border-1 border-gray-200 my-5"></div>
-            <p class="text-sm font-semibold text-gray-800">Permissions</p>
-            <div class="flex flex-wrap gap-2 mt-3 ml-1">
-              <span 
-                v-for="permission in categoryPermissions" 
-                :key="permission"
-                class="text-xs font-medium text-blue-900 bg-gray-100 px-3 py-1 rounded-full"
-              >
-                {{ formatPermissionName(permission) }}
-              </span>
-            </div>
-          </div>
+         <template v-if="Object.keys(permissions).length">
+  <div 
+    v-for="(categoryPermissions, category) in availablePermissions" 
+    :key="category"
+  >
+    <div class="bg-white shadow-xl p-4 rounded-2xl">
+      <div class="flex items-center justify-between">
+        <span class="text-sm font-semibold text-gray-800">{{ formatCategoryName(category) }}</span>
+        <InputSwitch v-model="permissions[category].enabled" />
+      </div>
+      <div class="border border-1 border-gray-200 my-5"></div>
+      <p class="text-sm font-semibold text-gray-800">Permissions</p>
+      <div class="flex flex-wrap gap-2 mt-3 ml-1">
+        <span 
+          v-for="permission in categoryPermissions" 
+          :key="permission"
+          class="text-xs font-medium text-blue-900 bg-gray-100 px-3 py-1 rounded-full"
+        >
+          {{ formatPermissionName(permission) }}
+        </span>
+      </div>
+    </div>
+  </div>
+</template>
 
-          <!-- Empty state when no permissions loaded -->
+
           <div v-if="Object.keys(availablePermissions).length === 0" class="text-center py-8">
             <p class="text-gray-500">No permissions available</p>
           </div>
@@ -140,20 +144,20 @@ import { useRouter, useRoute } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import IconnButton from '~/components/ui/IconnButton.vue'
 import Breadcrumb from '~/components/common/Breadcrumb.vue'
-import InputSwitch from 'primevue/inputswitch';
+import InputSwitch from 'primevue/inputswitch'
 import { fetchOrganizerPermissions } from '@/composables/api'
+import { fetchUserRoles } from '@/composables/api'
 import img1 from '@/assets/image/poster-manage-booking.png'
+import axios from 'axios'
 
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
 
-// Get data from route query
 const eventId = ref(route.query.eventId)
 const userId = ref(route.query.userId)
 const userName = ref(route.query.userName)
 
-// Redirect if missing required data
 if (!eventId.value || !userId.value) {
   toast.add({
     severity: 'error',
@@ -167,157 +171,120 @@ if (!eventId.value || !userId.value) {
 const loading = ref(false)
 const permissionsLoading = ref(false)
 
-// User information (this would typically come from API based on userId)
 const userInfo = ref({
-  name: userName.value || 'Kate Morrison',
+  name: userName.value || '',
   avatar: img1,
-  email: 'katemorrison@gmail.com',
-  phone: '012485674',
-  inviteDate: '22-10-2024',
-  updateDate: '22-10-2024',
-  services: ['Check-in Service', 'Booking Service']
+  email: '',
+  phone: '',
+  inviteDate: '',
+  updateDate: '',
+  services: []
 })
 
-// Dynamic permissions structure from API
 const availablePermissions = ref({})
 const permissions = ref({})
 
-// Load permissions from API
 const loadPermissions = async () => {
   permissionsLoading.value = true
   try {
     const { status, data } = await fetchOrganizerPermissions()
-    
     if (status === 200 && data.success && data.data) {
       availablePermissions.value = data.data
-      
-      // Initialize permissions structure based on API response
+
+      // Initialize permission structure
       permissions.value = {}
-      Object.keys(data.data).forEach(category => {
-        permissions.value[category] = {
-          enabled: false, // TODO: Load user's current permissions from API
-          items: data.data[category] || []
-        }
-      })
-      
-      // TODO: Load user's actual current permissions and set enabled states
-      // For now, setting some default values for demo
-      if (permissions.value.booking) {
-        permissions.value.booking.enabled = true
-      }
-      if (permissions.value['check-in']) {
-        permissions.value['check-in'].enabled = true
-      }
-      
-      console.log('Loaded permissions:', availablePermissions.value)
+     Object.keys(availablePermissions.value).forEach(category => {
+  permissions.value[category] = { enabled: false, items: availablePermissions.value[category] || [] }
+})
+
     } else {
-      console.error('API Error Response:', data)
-      toast.add({
-        severity: 'error',
-        summary: 'API Error',
-        detail: data.message || 'Failed to fetch permissions',
-        life: 4000
-      })
+      throw new Error(data.message || 'Failed to fetch permissions')
     }
   } catch (error) {
-    console.error('❌ Error loading permissions:', error)
-    toast.add({
-      severity: 'error',
-      summary: 'Fetch Error',
-      detail: error.message || 'Failed to load permissions',
-      life: 4000
-    })
+    toast.add({ severity: 'error', summary: 'Error', detail: error.message, life: 4000 })
   } finally {
     permissionsLoading.value = false
   }
 }
 
-// Save permissions function
-const savePermissions = () => {
+const loadUserData = async () => {
+  const token = localStorage.getItem('token')
+  try {
+    const userData = await fetchUserRoles({ eventId: eventId.value, userId: userId.value, token })
+
+    userInfo.value = {
+      name: userData.name,
+      avatar: img1,
+      email: userData.email,
+      phone: userData.phone_number,
+      inviteDate: userData.created_at,
+      updateDate: userData.updated_at,
+      services: userData.roles.map(formatCategoryName)
+    }
+
+    // Enable permissions based on user roles
+    Object.keys(permissions.value).forEach(category => {
+      permissions.value[category].enabled = userData.roles.includes(category)
+    })
+  } catch (error) {
+    toast.add({ severity: 'error', summary: 'Error', detail: error.message, life: 4000 })
+  }
+}
+
+const savePermissions = async () => {
   loading.value = true
-  
-  // TODO: Here you would typically send the permissions to an API
-  console.log('Saving permissions for:', {
-    eventId: eventId.value,
-    userId: userId.value,
-    permissions: permissions.value
-  })
-  
-  // Simulate API call delay
-  setTimeout(() => {
+  const token = localStorage.getItem('token')
+
+  const enabledRoles = Object.entries(permissions.value)
+    .filter(([_, perm]) => perm.enabled)
+    .map(([category, perm]) => ({ role_name: category, permissions: perm.items }))
+
+  try {
+    const response = await axios.put(
+      `${useRuntimeConfig().public.apiAdminBaseUrl}/events/${eventId.value}/organizer/${userId.value}/update`,
+      { roles: enabledRoles },
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+
+    if (response.status === 200 && response.data.success) {
+      toast.add({ severity: 'success', summary: 'Success', detail: 'Permissions updated successfully', life: 3000 })
+      router.push({ path: '/admin/role/ManageTeam', query: { eventId: eventId.value } })
+    } else {
+      throw new Error(response.data.message || 'Failed to update permissions')
+    }
+  } catch (error) {
+    toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.message || error.message, life: 4000 })
+  } finally {
     loading.value = false
-    
-    toast.add({
-      severity: 'success',
-      summary: 'Success',
-      detail: 'Permissions updated successfully',
-      life: 3000
-    })
-    
-    // Navigate back to manage team page with eventId
-    router.push({
-      path: '/admin/role/ManageTeam',
-      query: { eventId: eventId.value }
-    })
-  }, 1000)
-}
-
-// Load permissions when component mounts
-onMounted(() => {
-  loadPermissions()
-  
-  if (userId.value) {
-    // TODO: Load actual user data and permissions from API
-    console.log('Loading user data for ID:', userId.value, 'in event:', eventId.value)
   }
-})
-
-// Helper function to format permission names
-const formatPermissionName = (permission) => {
-  return permission.split('-').map(word => 
-    word.charAt(0).toUpperCase() + word.slice(1)
-  ).join(' ')
 }
 
-// Helper function to format category names
+const formatPermissionName = (permission) =>
+  permission.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+
 const formatCategoryName = (category) => {
-  const categoryMap = {
-    'event': 'Event Management',
-    'booking': 'Booking',
-    'check-in': 'Check-In',
-    'report': 'Report'
-  }
-  return categoryMap[category] || category.charAt(0).toUpperCase() + category.slice(1)
+  const map = { event: 'Event Management', booking: 'Booking', 'check-in': 'Check-In', report: 'Report' }
+  return map[category] || category.charAt(0).toUpperCase() + category.slice(1)
 }
 
-definePageMeta({
-  layout: 'admin'
+const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleDateString('en-GB') : '-'
+
+onMounted(async () => {
+  await loadPermissions()
+  await loadUserData()
 })
+definePageMeta({ layout: 'admin' })
 </script>
 
 <style scoped>
-/* Custom toggle switch styling */
 :deep(.p-toggleswitch.p-toggleswitch-checked .p-toggleswitch-slider) {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
-
-:deep(.p-toggleswitch .p-toggleswitch-slider) {
-  background: #e5e7eb;
-}
-
+:deep(.p-toggleswitch .p-toggleswitch-slider) { background: #e5e7eb; }
 :deep(.p-toggleswitch .p-toggleswitch-slider:before) {
   background: white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
-
-/* Custom card hover effects */
-.border:hover {
-  border-color: #8b5cf6;
-  transition: border-color 0.2s ease;
-}
-
-/* Smooth transitions for toggles */
-.p-toggleswitch {
-  transition: all 0.2s ease;
-}
+.border:hover { border-color: #8b5cf6; transition: border-color 0.2s ease; }
+.p-toggleswitch { transition: all 0.2s ease; }
 </style>

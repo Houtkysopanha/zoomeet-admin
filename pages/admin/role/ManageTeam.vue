@@ -12,13 +12,13 @@
           />
         </div>
         <div class="flex space-x-3">
-          <Button
+          <!-- <Button
             icon="pi pi-refresh"
             class="p-button-outlined p-button-sm"
             @click="loadOrganizers"
             :loading="loading"
             title="Refresh team members"
-          />
+          /> -->
           <IconnButton label="Invite new user" icon="mingcute:user-add-2-fill" @click="inviteUser()" />
         </div>
       </div>
@@ -42,7 +42,7 @@
           :count="stat.count"
           :icon="stat.icon"
           :weekChange="stat.weekChange"
-          :style="index !== 0 ? { visibility: 'hidden' } : {}"
+            :style="index !== 0 ? { visibility: 'hidden' } : {}"
         />
       </div>
     </div>
@@ -84,9 +84,9 @@
             @change="applySort"
           >
             <template #value="slotProps">
-              <span v-if="slotProps.value" class="">{{ slotProps.value }}</span>
-              <span v-else class="ml-14 text-black"></span>
-            </template>
+  <span>{{ slotProps.value || 'Select' }}</span>
+</template>
+
           </Dropdown>
           <span class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"></span>
         </div>
@@ -117,10 +117,10 @@
       <!-- Data table -->
       <div v-else-if="users.length > 0">
         <DataTable
-          :value="users"
+          :value="paginatedUsers"
           :paginator="true"
           :rows="itemsPerPage"
-          :totalRecords="users.length"
+          :totalRecords="paginatedUsers.length"
           dataKey="id"
           class="p-datatable-gridlines"
           scrollable
@@ -167,12 +167,13 @@
           </Column>
           <Column header="Actions" class="text-[14px] border-b border-gray-300">
             <template #body="{ data }">
-              <Button
-                icon="pi pi-ellipsis-v"
-                class="p-button-text p-button-sm text-gray-500"
-                @click="toggleMenu($event, data)"
-              />
-              <Menu ref="menu" :model="menuItems" :popup="true" />
+             <Button
+  icon="pi pi-ellipsis-v"
+  class="p-button-text p-button-sm text-gray-500"
+  @click="toggleMenu($event, data)"
+/>
+<Menu ref="menu" :model="menuItems" :popup="true" />
+
             </template>
           </Column>
         </DataTable>
@@ -206,11 +207,14 @@ import { fetchEventOrganizers } from '@/composables/api'
 import poster from '@/assets/image/poster-manage-booking.png'
 
 const router = useRouter()
-const route = useRoute()
 const toast = useToast()
 
-// Get event ID
+const route = useRoute()
 const eventId = ref(route.query.eventId)
+const userId = ref(route.query.userId)
+const userName = ref(route.query.userName)
+
+// Get event ID
 
 if (!eventId.value) {
   toast.add({
@@ -250,6 +254,24 @@ const pageOptions = [
 // Stats
 const updatedTeamStats = computed(() => [
   {
+    title: 'Team',
+    count: totalMembers.value,
+    icon: 'fluent:people-team-24-filled',
+    weekChange: '0'
+  },
+    {
+    title: 'Team',
+    count: totalMembers.value,
+    icon: 'fluent:people-team-24-filled',
+    weekChange: '0'
+  },
+    {
+    title: 'Team',
+    count: totalMembers.value,
+    icon: 'fluent:people-team-24-filled',
+    weekChange: '0'
+  },
+    {
     title: 'Team',
     count: totalMembers.value,
     icon: 'fluent:people-team-24-filled',
@@ -368,6 +390,10 @@ const loadOrganizers = async () => {
     loading.value = false
   }
 }
+const toggleMenu = (event, data) => {
+  selectedUserForMenu.value = data
+  menu.value.toggle(event)
+}
 
 const inviteUser = () => {
   router.push({
@@ -375,16 +401,19 @@ const inviteUser = () => {
     query: { eventId: eventId.value }
   })
 }
-const editPermission = userData => {
+const editPermission = (userData) => {
   router.push({
     path: '/admin/role/EditPermission',
     query: {
       eventId: eventId.value,
-      userId: userData.id,
+      userId: userData.user_id,
       userName: userData.user
     }
   })
 }
+watch(paginatedUsers, newVal => {
+  users.value = newVal
+})
 const toggleFilters = () =>
   toast.add({ severity: 'info', summary: 'Filters', detail: 'Filter TBD', life: 3000 })
 
@@ -395,10 +424,7 @@ const applyPageChange = e => {
   itemsPerPage.value = e.value
   currentPage.value = 1
 }
-const toggleMenu = (event, data) => {
-  selectedUserForMenu.value = data
-  menu.value.toggle(event)
-}
+
 
 // Load on mount
 onMounted(loadOrganizers)
