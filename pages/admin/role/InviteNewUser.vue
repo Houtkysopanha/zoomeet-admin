@@ -12,7 +12,12 @@
             class="mb-2"
           />
         </div>
-        <IconnButton label="Send Invitation" icon="lets-icons:send-fill" @click="inviteUser()" />
+        <IconnButton 
+          :disabled="inviting" 
+          :label="inviting ? 'Sending...' : 'Send Invitation'" 
+          icon="lets-icons:send-fill" 
+          @click="inviteUser()" 
+        />
       </div>
     </div>
 
@@ -162,8 +167,7 @@ import { useToast } from 'primevue/usetoast'
 import InputSwitch from 'primevue/inputswitch';
 import Breadcrumb from '~/components/common/Breadcrumb.vue'
 import IconnButton from '~/components/ui/IconnButton.vue'
-import { fetchOrganizerPermissions } from '@/composables/api'
-import { searchUsers } from '@/composables/api'
+import { fetchOrganizerPermissions, searchUsers, inviteUserAPI } from '@/composables/api'
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
@@ -226,6 +230,7 @@ const newUser = ref({ contact: '', note: '' });
 const contactError = ref(false);
 const users = ref([]);
 const loading = ref(false);
+const inviting = ref(false);
 const permissionsLoading = ref(false);
 
 // Dynamic permissions structure from API
@@ -282,7 +287,11 @@ const validateContact = () => {
   contactError.value = newUser.value.contact.length > 0 && newUser.value.contact.length < 3;
 };
 
-const inviteUser = () => {
+const inviteUser = async () => {
+  // Prevent multiple submissions
+  if (inviting.value) return
+
+  // Validation: Check if users are selected
   if (selectedUsers.value.length === 0) {
     toast.add({
       severity: 'error',
@@ -293,6 +302,7 @@ const inviteUser = () => {
     return
   }
 
+  // Validation: Check if permissions are selected
   const hasPermissions = Object.values(permissions.value).some(perm => perm.enabled)
   if (!hasPermissions) {
     toast.add({
@@ -304,20 +314,48 @@ const inviteUser = () => {
     return
   }
 
-  console.log('Inviting users:', {
-    eventId: eventId.value,
-    users: selectedUsers.value,
-    note: newUser.value.note,
-    permissions: permissions.value
-  })
+  inviting.value = true
+  try {
+    const token = localStorage.getItem('token')
+    const data = await inviteUserAPI({
+      eventId: eventId.value,
+      selectedUsers: selectedUsers.value,
+      permissions: permissions.value,
+      token
+    })
 
-  toast.add({
-    severity: 'success',
-    summary: 'Invitation Sent',
-    detail: `Invitation sent to ${selectedUsers.value.map(u => u.name).join(', ')}`,
-    life: 4000
-  })
+    if (data.success) {
+      toast.add({
+        severity: 'success',
+        summary: 'Invitation Sent',
+        detail: `Invitation sent to ${selectedUsers.value.map(u => u.name).join(', ')}`,
+        life: 4000
+      })
+      // Reset selection
+      selectedUsers.value = []
+      newUser.value.contact = ''
+      Object.keys(permissions.value).forEach(cat => permissions.value[cat].enabled = false)
+    } else {
+      toast.add({
+        severity: 'error',
+        summary: 'Failed to Invite',
+        detail: data.message || 'Something went wrong',
+        life: 4000
+      })
+    }
+  } catch (error) {
+    console.error('❌ Error inviting users:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'API Error',
+      detail: error.response?.data?.message || error.message,
+      life: 4000
+    })
+  } finally {
+    inviting.value = false
+  }
 }
+
 const handleSearch = () => {
   clearTimeout(searchTimeout)
   searchTimeout = setTimeout(async () => {
@@ -347,6 +385,8 @@ const formatCategoryName = (category) => {
   }
   return categoryMap[category] || category.charAt(0).toUpperCase() + category.slice(1)
 }
+
+
   // Navigate back to Manage Team
 //   router.push({
 //   path: '/admin/role/ManageTeam',

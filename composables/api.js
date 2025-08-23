@@ -1702,3 +1702,46 @@ export const searchUsers = async (keyword) => {
     return []
   }
 }
+
+
+export const inviteUserAPI = async ({ eventId, selectedUsers, permissions, token }) => {
+  if (!selectedUsers || selectedUsers.length === 0) {
+    throw new Error('Please select at least one user')
+  }
+
+  const enabledRoles = Object.entries(permissions)
+    .filter(([category, perm]) => perm.enabled)
+    .map(([category, perm]) => ({
+      role_name: category,
+      permissions: perm.items
+    }))
+
+  if (enabledRoles.length === 0) {
+    throw new Error('Please select at least one permission for the user')
+  }
+
+  const userIds = selectedUsers.map(u => u.id)
+  const payload = {
+    user_ids: userIds,
+    roles: enabledRoles
+  }
+
+  try {
+    const config = useRuntimeConfig()
+    const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+    const response = await axios.post(
+      `${API_ADMIN_BASE_URL}/events/${eventId}/organizer/invite/user`,
+      payload,
+      {
+      method: 'POST',
+      headers: createAuthHeaders()
+      }
+    )
+
+    return response.data
+  } catch (error) {
+    console.error('❌ Invite API Error:', error)
+    throw error
+  }
+}
