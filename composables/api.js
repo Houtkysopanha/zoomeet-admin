@@ -1770,3 +1770,23 @@ export const fetchUserRoles = async ({ eventId, userId, token }) => {
     throw error
   }
 }
+
+
+
+export const updateOrganizerPermissions = async ({ eventId, userId, roles, token }) => {
+  const url = `${useRuntimeConfig().public.apiAdminBaseUrl}/events/${eventId}/organizer/update`
+
+  const { data, status } = await axios.post(
+    url,
+    {
+      user_id: userId,
+      roles
+    },
+    {
+      method: 'POST',
+      headers: createAuthHeaders()
+    }
+  )
+
+  return { data, status }
+}

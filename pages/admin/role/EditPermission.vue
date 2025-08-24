@@ -147,6 +147,7 @@ import Breadcrumb from '~/components/common/Breadcrumb.vue'
 import InputSwitch from 'primevue/inputswitch'
 import { fetchOrganizerPermissions } from '@/composables/api'
 import { fetchUserRoles } from '@/composables/api'
+import { updateOrganizerPermissions } from '@/composables/api'
 import img1 from '@/assets/image/poster-manage-booking.png'
 import axios from 'axios'
 
@@ -240,24 +241,36 @@ const savePermissions = async () => {
     .map(([category, perm]) => ({ role_name: category, permissions: perm.items }))
 
   try {
-    const response = await axios.put(
-      `${useRuntimeConfig().public.apiAdminBaseUrl}/events/${eventId.value}/organizer/${userId.value}/update`,
-      { roles: enabledRoles },
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
+    const { status, data } = await updateOrganizerPermissions({
+      eventId: eventId.value,
+      userId: userId.value,
+      roles: enabledRoles,
+      token
+    })
 
-    if (response.status === 200 && response.data.success) {
-      toast.add({ severity: 'success', summary: 'Success', detail: 'Permissions updated successfully', life: 3000 })
+    if (status === 200 && data.success) {
+      toast.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: 'Permissions updated successfully',
+        life: 3000
+      })
       router.push({ path: '/admin/role/ManageTeam', query: { eventId: eventId.value } })
     } else {
-      throw new Error(response.data.message || 'Failed to update permissions')
+      throw new Error(data.message || 'Failed to update permissions')
     }
   } catch (error) {
-    toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.message || error.message, life: 4000 })
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.response?.data?.message || error.message,
+      life: 4000
+    })
   } finally {
     loading.value = false
   }
 }
+
 
 const formatPermissionName = (permission) =>
   permission.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
