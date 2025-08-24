@@ -33,7 +33,10 @@
               :alt="userInfo.name"
               class="w-24 h-24 rounded-full object-cover"
             />
-            <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 border-white"></div>
+           <div 
+  class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white" 
+  :class="userInfo.isActive ? 'bg-green-500' : 'bg-red-500'"
+></div>
           </div>
           <h2 class="text-xl font-semibold text-gray-900 my-4">{{ userInfo.name }}</h2>
           <div class="flex space-x-4 text-sm">
@@ -220,7 +223,8 @@ const loadUserData = async () => {
       phone: userData.phone_number,
       inviteDate: userData.created_at,
       updateDate: userData.updated_at,
-      services: userData.roles.map(formatCategoryName)
+      services: userData.roles.map(formatCategoryName),
+      isActive: userData.is_active == 1  // <-- convert 0/1 to boolean
     }
 
     // Enable permissions based on user roles

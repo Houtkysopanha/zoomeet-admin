@@ -25,15 +25,24 @@
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 mb-6">
-      <EventCard
-        :image-src="poster"
-        alt-text="Cybersecurity Event 2025"
-        event-title="Cybersecurity Summit 2025"
-        owner="John Doe"
-        location="Sokha Hotel, Phnom Penh"
-        date="20-22 August, 2025"
-        time="9:00 AM GMT+7"
-      />
+      <div v-if="eventCardData">
+  <EventCard
+    :image-src="eventCardData.imageSrc"
+    :alt-text="eventCardData.altText"
+    :event-title="eventCardData.title"
+    :owner="eventCardData.owner"
+    :location="eventCardData.location"
+    :date="eventCardData.date"
+    :time="eventCardData.time"
+  />
+</div>
+      <div v-else class="flex items-center justify-center p-8 bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="text-center">
+          <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mb-2"></div>
+          <p class="text-gray-600">Loading event details...</p>
+        </div>
+      </div>
+
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <CardCommon
           v-for="(stat, index) in updatedTeamStats"
@@ -101,7 +110,7 @@
           @change="applyPageChange"
         />
         <span class="text-lg text-gray-700 border-l pl-2 border-gray-500"> 
-          Show {{ currentPage * itemsPerPage - (itemsPerPage - 1) }} to {{ Math.min(currentPage * itemsPerPage, totalItems) }} of {{ totalItems }}
+          Show {{ currentPage * itemsPerPage - (itemsPerPage - 1) }} to {{ Math.min(currentPage * itemsPerPage, totalItems.value) }} of {{ totalItems.value }}
         </span>
       </div>
     </div>
@@ -115,12 +124,12 @@
       </div>
       
       <!-- Data table -->
-      <div v-else-if="users.length > 0">
+      <div v-else-if="paginatedUsers.length > 0">
         <DataTable
           :value="paginatedUsers"
           :paginator="true"
           :rows="itemsPerPage"
-          :totalRecords="paginatedUsers.length"
+          :totalRecords="totalItems"
           dataKey="id"
           class="p-datatable-gridlines"
           scrollable
@@ -142,24 +151,22 @@
           <Column field="phoneNumber" header="Phone Number" sortable class="text-[14px] border-b border-gray-300"></Column>
           <Column field="optionalNote" header="Optional Note" class="text-[14px] border-b border-gray-300"></Column>
           <Column field="permissions" header="Permissions" class="text-[14px] border-b border-gray-300">
-            <template #body="{ data }">
-              <div v-if="data.permissions && data.permissions.length > 0" class="flex flex-wrap gap-1">
-                <span 
-                  v-for="(perm, index) in data.permissions" 
-                  :key="index" 
-                  class="inline-block bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full"
-                >
-                  {{ perm }}
-                </span>
-              </div>
-              <span v-else class="text-gray-400 text-xs">No permissions assigned</span>
-            </template>
-          </Column>
+  <template #body="{ data }">
+    <div v-if="data.permissions && data.permissions.length > 0" class="flex flex-wrap gap-1">
+      <span v-for="perm in data.permissions" :key="perm"
+            :class="['px-2 py-1 rounded-full text-xs font-medium', colorByPermission(perm)]">
+        {{ perm }}
+      </span>
+    </div>
+    <span v-else class="text-gray-400 text-xs">No permissions assigned</span>
+  </template>
+</Column>
+
           <Column field="status" header="Status" class="text-[14px] border-b border-gray-300">
             <template #body="{ data }">
               <span :class="['px-2 py-1 rounded-full text-xs font-medium', {
-                'bg-green-100 text-green-800': data.status === 'Active',
-                'bg-red-100 text-red-800': data.status === 'Inactive'
+                'bg-green-100 text-green-700': data.status === 'Active',
+                'bg-gray-100 text-gray-800': data.status === 'Inactive'
               }]">
                 {{ data.status }}
               </span>
@@ -172,7 +179,7 @@
   class="p-button-text p-button-sm text-gray-500"
   @click="toggleMenu($event, data)"
 />
-<Menu ref="menu" :model="menuItems" :popup="true" />
+<Menu ref="menu" class="rounded-xl" :model="menuItems" :popup="true" />
 
             </template>
           </Column>
@@ -191,7 +198,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import IconnButton from '~/components/ui/IconnButton.vue'
@@ -203,32 +210,74 @@ import Column from 'primevue/column'
 import Dropdown from 'primevue/dropdown'
 import Menu from 'primevue/menu'
 import Button from 'primevue/button'
-import { fetchEventOrganizers } from '@/composables/api'
 import poster from '@/assets/image/poster-manage-booking.png'
 
+import { fetchEventOrganizers, disableEventOrganizer, removeOrganizer, } from '@/composables/api'
+
+const eventCardData = ref(null)
+
 const router = useRouter()
+const route = useRoute()
 const toast = useToast()
 
-const route = useRoute()
+// ✅ dynamic from query params
 const eventId = ref(route.query.eventId)
 const userId = ref(route.query.userId)
 const userName = ref(route.query.userName)
 
-// Get event ID
+const loadEventCard = async () => {
+  if (!eventId.value) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'No event selected. Please select an event.',
+      life: 5000
+    })
+    router.push('/admin/event')
+    return
+  }
 
-if (!eventId.value) {
-  toast.add({
-    severity: 'error',
-    summary: 'Error',
-    detail: 'No event selected. Please select an event.',
-    life: 5000
-  })
-  router.push('/admin/event')
+  try {
+    const event = await getEventDetail(eventId.value) // ✅ already the event object
+
+    eventCardData.value = {
+      imageSrc: event.cover_image_url || '',
+      altText: event.name || 'Event',
+      title: event.name || 'Untitled Event',
+      owner: event.organizer || 'Unknown Organizer',
+      location: event.location || 'No location specified',
+      date: event.start_date
+        ? new Date(event.start_date).toLocaleDateString()
+        : 'No date specified',
+      time: event.start_date
+        ? new Date(event.start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : 'No time specified'
+    }
+  } catch (err) {
+    console.error("❌ Failed to fetch event details:", err)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to load event details. Please try again.',
+      life: 5000
+    })
+
+    eventCardData.value = {
+      imageSrc: '',
+      altText: 'Event',
+      title: 'Unable to load event details',
+      owner: 'Unknown',
+      location: 'Unknown',
+      date: 'Unknown',
+      time: 'Unknown'
+    }
+  }
 }
 
-// State
-const allUsers = ref([]) // store full dataset
-const users = ref([])    // store paginated + sorted
+
+// 📌 Team Members
+const allUsers = ref([])
+const users = ref([])
 const loading = ref(false)
 const totalMembers = ref(0)
 const activeMembers = ref(0)
@@ -251,6 +300,18 @@ const pageOptions = [
   { label: '50', value: 50 }
 ]
 
+const colorByPermission = (perm) => {
+  if (!perm) return 'bg-gray-100 text-gray-800'
+
+  const p = perm.toLowerCase()
+  if (p.includes('event')) return 'bg-purple-50 text-purple-800'
+  if (p.includes('booking')) return 'bg-blue-50 text-blue-700'
+  if (p.includes('check-in')) return 'bg-blue-50 text-blue-800'
+  if (p.includes('report')) return 'bg-pink-50 text-pink-800'
+
+  return 'bg-gray-100 text-gray-800'
+}
+
 // Stats
 const updatedTeamStats = computed(() => [
   {
@@ -259,19 +320,18 @@ const updatedTeamStats = computed(() => [
     icon: 'fluent:people-team-24-filled',
     weekChange: '0'
   },
-    {
+  {
     title: 'Team',
     count: totalMembers.value,
     icon: 'fluent:people-team-24-filled',
     weekChange: '0'
   },
-    {
+  {
     title: 'Team',
     count: totalMembers.value,
     icon: 'fluent:people-team-24-filled',
     weekChange: '0'
-  },
-    {
+  },{
     title: 'Team',
     count: totalMembers.value,
     icon: 'fluent:people-team-24-filled',
@@ -291,19 +351,17 @@ const menuItems = [
   {
     label: 'Disable',
     icon: 'pi pi-times',
-    command: () =>
-      toast.add({ severity: 'warn', summary: 'Disable', detail: 'User disabled', life: 3000 })
+    command: () => disableUser(selectedUserForMenu.value)
   },
   {
     label: 'Remove',
-    icon: 'pi pi-trash',
-    command: () =>
-      toast.add({ severity: 'warn', summary: 'Remove', detail: 'User removed', life: 3000 })
+    icon: 'pi pi-trash text-red-500',
+    command: () => removeUser(selectedUserForMenu.value)
   }
 ]
 
 // Pagination & sorting pipeline
-const paginatedUsers = computed(() => {
+const filteredUsers = computed(() => {
   let filtered = [...allUsers.value]
 
   // Search
@@ -326,17 +384,19 @@ const paginatedUsers = computed(() => {
     filtered.sort((a, b) => a.status.localeCompare(b.status))
   }
 
-  // Pagination
+  return filtered
+})
+
+const paginatedUsers = computed(() => {
+  const filtered = filteredUsers.value
   totalMembers.value = filtered.length
+
   const start = (currentPage.value - 1) * itemsPerPage.value
   const end = start + itemsPerPage.value
   return filtered.slice(start, end)
 })
 
-// Watch computed result
-watch(paginatedUsers, newVal => {
-  users.value = newVal
-})
+const totalItems = computed(() => filteredUsers.value.length)
 
 // Methods
 const loadOrganizers = async () => {
@@ -354,42 +414,21 @@ const loadOrganizers = async () => {
         email: o.email,
         avatar: poster,
         phoneNumber: o.phone_number || 'N/A',
-        optionalNote: 'Team member',
-        permissions: o.roles || [],
-        status: o.status || 'Active', // map from API if available
+        optionalNote: o.note || 'Team member',
+        permissions: (o.roles || []).map(r => typeof r === 'string' ? r : r.name),
+        status: o.is_active == 1 || o.is_active === true ? 'Active' : 'Inactive',
         created_at: o.created_at
       }))
 
       activeMembers.value = allUsers.value.filter(u => u.status === 'Active').length
-
-      if (allUsers.value.length === 0) {
-        toast.add({
-          severity: 'info',
-          summary: 'No Team Members',
-          detail: 'No team members found for this event.',
-          life: 4000
-        })
-      }
-    } else {
-      toast.add({
-        severity: 'error',
-        summary: 'API Error',
-        detail: data.message || 'Failed to fetch team members',
-        life: 4000
-      })
     }
   } catch (err) {
     console.error('❌ Error loading organizers:', err)
-    toast.add({
-      severity: 'error',
-      summary: 'Fetch Error',
-      detail: err.message || 'Failed to load team members',
-      life: 4000
-    })
   } finally {
     loading.value = false
   }
 }
+
 const toggleMenu = (event, data) => {
   selectedUserForMenu.value = data
   menu.value.toggle(event)
@@ -401,6 +440,7 @@ const inviteUser = () => {
     query: { eventId: eventId.value }
   })
 }
+
 const editPermission = (userData) => {
   router.push({
     path: '/admin/role/EditPermission',
@@ -411,26 +451,47 @@ const editPermission = (userData) => {
     }
   })
 }
-watch(paginatedUsers, newVal => {
-  users.value = newVal
-})
-const toggleFilters = () =>
-  toast.add({ severity: 'info', summary: 'Filters', detail: 'Filter TBD', life: 3000 })
 
-const applySort = () => {
-  currentPage.value = 1
+const disableUser = async (userData) => {
+  try {
+    const { status, data } = await disableEventOrganizer(eventId.value, userData.user_id)
+
+    if (status === 200 && data.success) {
+      const userIndex = allUsers.value.findIndex(u => u.user_id === userData.user_id)
+      if (userIndex !== -1) allUsers.value[userIndex].status = 'Inactive'
+
+      toast.add({ severity: 'success', summary: 'Disabled', detail: `${userData.user} disabled.`, life: 3000 })
+    }
+  } catch (err) {
+    toast.add({ severity: 'error', summary: 'Error', detail: err.message, life: 4000 })
+  }
 }
-const applyPageChange = e => {
-  itemsPerPage.value = e.value
-  currentPage.value = 1
+
+const removeUser = async (userData) => {
+  try {
+    const token = localStorage.getItem('token')
+    const { status, data } = await removeOrganizer({ eventId: eventId.value, userId: userData.user_id, token })
+
+    if (status === 200 && data.success) {
+      allUsers.value = allUsers.value.filter(u => u.user_id !== userData.user_id)
+      toast.add({ severity: 'success', summary: 'Removed', detail: `${userData.user} removed.`, life: 3000 })
+    }
+  } catch (error) {
+    toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.message || error.message, life: 4000 })
+  }
 }
 
+const toggleFilters = () => toast.add({ severity: 'info', summary: 'Filters', detail: 'Filter TBD', life: 3000 })
+const applySort = () => { currentPage.value = 1 }
+const applyPageChange = e => { itemsPerPage.value = e.value; currentPage.value = 1 }
 
-// Load on mount
+// ✅ Load data on mount
 onMounted(loadOrganizers)
+onMounted(loadEventCard)
 
 definePageMeta({ layout: 'admin' })
 </script>
+
 
 <style scoped>
 /* Existing styles */
@@ -582,4 +643,6 @@ definePageMeta({ layout: 'admin' })
 .p-button-purple:hover {
   background: linear-gradient(to top, #3A0090, #6A39B9); /* Darker hover state */
 }
+
+
 </style>

@@ -8,6 +8,45 @@ export default defineNuxtConfig({
     'primevue/resources/primevue.min.css',
     'primeicons/primeicons.css',
   ],
+  // Alternative font loading using head configuration
+  app: {
+    head: {
+      title: 'eTicketsAsia',
+      meta: [
+        { charset: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { name: 'description', content: 'eTicketsAsia - Event Management System' }
+      ],
+      link: [
+        // Google Fonts - replace @nuxt/fonts functionality
+        {
+          rel: 'preconnect',
+          href: 'https://fonts.googleapis.com'
+        },
+        {
+          rel: 'preconnect', 
+          href: 'https://fonts.gstatic.com',
+          crossorigin: ''
+        },
+        {
+          rel: 'stylesheet',
+          href: 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap'
+        }
+      ]
+    },
+    // Global page transitions
+    pageTransition: {
+      name: 'page',
+      mode: 'out-in',
+      duration: 300
+    },
+    // Layout transitions
+    layoutTransition: {
+      name: 'layout',
+      mode: 'out-in',
+      duration: 300
+    }
+  },
   postcss: {
     plugins: {
       tailwindcss: {},
@@ -19,7 +58,7 @@ export default defineNuxtConfig({
   },
   modules: [
     'nuxt-primevue',
-    '@nuxt/fonts',
+    // '@nuxt/fonts', // Disabled due to dependency issues - using CSS imports instead
     '@nuxt/icon',
     '@pinia/nuxt'
   ],
@@ -46,30 +85,7 @@ export default defineNuxtConfig({
       sizeLimitKb: 256
     }
   },
-  // Enhanced app configuration
-  app: {
-    // Global page transitions
-    pageTransition: {
-      name: 'page',
-      mode: 'out-in',
-      duration: 300
-    },
-    // Layout transitions
-    layoutTransition: {
-      name: 'layout',
-      mode: 'out-in',
-      duration: 300
-    },
-    // Global head configuration
-    head: {
-      title: 'eTicketsAsia',
-      meta: [
-        { charset: 'utf-8' },
-        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'description', content: 'eTicketsAsia - Event Management System' }
-      ]
-    }
-  },
+  // ...existing code...
   // Enhanced error handling with 404 catch-all
   nitro: {
     // Error handling is now done via pages/[...slug].vue

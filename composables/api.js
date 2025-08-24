@@ -1790,3 +1790,47 @@ export const updateOrganizerPermissions = async ({ eventId, userId, roles, token
 
   return { data, status }
 }
+
+
+export const disableEventOrganizer = async (eventId, userId, token) => {
+  const config = useRuntimeConfig()
+  return await axios.post(
+    `${config.public.apiAdminBaseUrl}/events/${eventId}/organizer/disable`,
+    { user_id: userId },
+    {  method: 'POST',
+       headers: createAuthHeaders()
+     }
+  )
+}
+
+export const removeOrganizer = async ({ eventId, userId, token }) => {
+const config = useRuntimeConfig()
+  return await axios.post(
+    `${config.public.apiAdminBaseUrl}/events/${eventId}/organizer/remove`,
+    { user_id: userId },
+    {  method: 'POST',
+       headers: createAuthHeaders()
+     }
+  )
+}
+
+export const getEventDetail = async (eventId) => {
+  try {
+    const config = useRuntimeConfig()
+    const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+    const response = await axios.get(
+      `${API_ADMIN_BASE_URL}/events/${eventId}`,
+      { headers: createAuthHeaders() }
+    )
+
+    if (response.status === 200 && response.data.success) {
+      return response.data.data
+    } else {
+      throw new Error(response.data.message || 'Failed to fetch event details')
+    }
+  } catch (error) {
+    console.error('❌ Fetch Event Detail Error:', error)
+    throw error
+  }
+}
