@@ -28,6 +28,7 @@ export default defineEventHandler(async (event) => {
         'Authorization': authHeader,
       },
     })
+    
 
     console.log('Server-side user info response:', response)
     return response
