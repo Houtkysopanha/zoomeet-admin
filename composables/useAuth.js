@@ -1,14 +1,17 @@
-
 const AUTH_COOKIE = 'auth'
 
 export function useAuth() {
+  const config = useRuntimeConfig()
+  
   const cookie = useCookie(AUTH_COOKIE, {
     default: () => null,
     serialize: JSON.stringify,
     deserialize: JSON.parse,
     httpOnly: false,
-    secure: process.env.NODE_ENV === 'production' && !process.dev,
-    sameSite: 'strict'
+    secure: config.public.auth?.secureCookies ?? (process.env.NODE_ENV === 'production'),
+    sameSite: 'strict',
+    domain: config.public.auth?.cookieDomain,
+    maxAge: 60 * 60 * 24 * 7 // 7 days
   })
 
   // Reactive user state
@@ -19,45 +22,93 @@ export function useAuth() {
     return !!(user.value?.token)
   })
 
-    // Set authentication data
-    function setAuth(authData) {
+  // Set authentication data with enhanced production reliability
+  function setAuth(authData) {
+    try {
+      // Validate required token
+      if (!authData?.token) {
+        throw new Error('Token is required for authentication')
+      }
+
+      // Enhanced token validation for production
+      const tokenParts = authData.token.split('.')
+      if (tokenParts.length !== 3) {
+        throw new Error('Invalid JWT token format')
+      }
+
+      // Parse and validate token expiration
+      let tokenExpiry = null
       try {
-        // Validate required token
-        if (!authData?.token) {
-          throw new Error('Token is required for authentication')
-        }
-
-        // Add timestamp and expiration if not present
-        const enhancedAuthData = {
-          ...authData,
-          loginTime: authData.loginTime || new Date().toISOString(),
-          expiresAt: authData.expiresAt || getTokenExpiration(authData.token)
-        }
-
-        // Store in all available storage mechanisms
-        if (process.client) {
-          // First, clear any existing auth data
-          localStorage.removeItem('auth')
-          sessionStorage.removeItem('auth')
-          cookie.value = null
-          user.value = null
-
-          // Then set new auth data in all storages
-          const authString = JSON.stringify(enhancedAuthData)
-          localStorage.setItem('auth', authString)
-          sessionStorage.setItem('auth', authString)
-          cookie.value = enhancedAuthData
-          user.value = enhancedAuthData
-
-          // Verify storage
-          const stored = localStorage.getItem('auth')
-          const parsed = stored ? JSON.parse(stored) : null
-          if (!parsed?.token) {
-            throw new Error('Failed to verify token storage')
+        const payload = JSON.parse(atob(tokenParts[1]))
+        if (payload.exp) {
+          tokenExpiry = new Date(payload.exp * 1000)
+          // Check if token is already expired
+          if (tokenExpiry <= new Date()) {
+            throw new Error('Token is already expired')
           }
-
-        
         }
+      } catch (e) {
+        console.warn('⚠️ Could not parse token expiration, using default')
+      }
+
+      // Add timestamp and expiration with proper fallback - FORCE 24 HOUR SESSIONS
+      const enhancedAuthData = {
+        ...authData,
+        loginTime: authData.loginTime || new Date().toISOString(),
+        // FORCE 24-hour expiration regardless of what server sends
+        expiresAt: authData.expiresAt || getTokenExpiration(authData.token, true), // Force 24h
+        // Add production-specific metadata
+        environment: process.env.NODE_ENV || 'development',
+        userAgent: process.client ? navigator.userAgent : 'server',
+        timestamp: Date.now()
+      }
+
+      // Store in all available storage mechanisms with error handling
+      if (process.client) {
+        // First, clear any existing auth data
+        localStorage.removeItem('auth')
+        sessionStorage.removeItem('auth')
+        cookie.value = null
+        user.value = null
+
+        // Then set new auth data in all storages with validation
+        const authString = JSON.stringify(enhancedAuthData)
+        
+        try {
+          localStorage.setItem('auth', authString)
+          
+          // Verify localStorage write was successful
+          const verification = localStorage.getItem('auth')
+          if (!verification) {
+            throw new Error('localStorage write verification failed')
+          }
+        } catch (e) {
+          console.warn('⚠️ localStorage unavailable, using alternatives:', e.message)
+        }
+
+        try {
+          sessionStorage.setItem('auth', authString)
+        } catch (e) {
+          console.warn('⚠️ sessionStorage unavailable:', e.message)
+        }
+
+        // Set cookie and reactive state
+        cookie.value = enhancedAuthData
+        user.value = enhancedAuthData
+
+        // Final verification
+        if (!user.value?.token) {
+          throw new Error('Failed to set authentication state')
+        }
+
+        console.log('✅ Authentication set successfully', {
+          hasToken: !!enhancedAuthData.token,
+          expiresAt: enhancedAuthData.expiresAt,
+          environment: enhancedAuthData.environment,
+          sessionDuration: '24 hours',
+          nextCheck: 'in 30 minutes'
+        })
+      }
         
     } catch (e) {
       console.error('❌ Failed to set auth data:', e)
@@ -159,34 +210,40 @@ export function useAuth() {
     }
   }
 
-  
-
-  // Check if token is expired
+  // Check if token is expired with enhanced production reliability
   function isTokenExpired() {
     if (!user.value?.token) return true
     
-    // If we have expiresAt, use it
+    const currentTime = new Date()
+    
+    // Primary check: Use stored expiresAt if available
     if (user.value.expiresAt) {
-      const now = new Date()
       const expiry = new Date(user.value.expiresAt)
-      const isExpired = now >= expiry
+      const isExpired = currentTime >= expiry
       
       if (isExpired) {
-        console.warn('⚠️ Token expired:', {
-          now: now.toISOString(),
+        console.warn('⚠️ Token expired (stored expiry):', {
+          now: currentTime.toISOString(),
           expiry: expiry.toISOString(),
           expired: isExpired
         })
+        // Auto-cleanup expired token
+        clearAuth()
+        return true
       }
       
-      return isExpired
+      return false
     }
     
-    // Fallback: parse JWT token directly
+    // Fallback: Parse JWT token directly for expiration
     try {
       const token = user.value.token
       const parts = token.split('.')
-      if (parts.length !== 3) return true
+      if (parts.length !== 3) {
+        console.warn('⚠️ Invalid JWT format, considering expired')
+        clearAuth()
+        return true
+      }
       
       const payload = JSON.parse(atob(parts[1]))
       if (payload.exp) {
@@ -194,26 +251,61 @@ export function useAuth() {
         const isExpired = now >= payload.exp
         
         if (isExpired) {
-          console.warn('⚠️ JWT token expired:', {
+          console.warn('⚠️ JWT token expired (payload check):', {
             now: now,
             exp: payload.exp,
-            expired: isExpired
+            expired: isExpired,
+            timeUntilExpiry: payload.exp - now
+          })
+          // Auto-cleanup expired token
+          clearAuth()
+          return true
+        }
+        
+        // If expiry is very soon (less than 5 minutes), consider refreshing
+        const timeUntilExpiry = payload.exp - now
+        if (timeUntilExpiry < 300) { // 5 minutes
+          console.warn('⚠️ Token expires soon:', {
+            secondsUntilExpiry: timeUntilExpiry,
+            shouldRefresh: timeUntilExpiry < 300
           })
         }
         
-        return isExpired
+        return false
       }
     } catch (e) {
       console.error('❌ Failed to parse JWT token for expiration check:', e)
+      clearAuth()
       return true
     }
     
-    return false
+    // If no expiration info found, consider token suspicious
+    console.warn('⚠️ No expiration info found in token, considering expired')
+    return true
   }
 
-  // Get time until token expires
+  // Get time until token expires with enhanced accuracy
   function getTimeUntilExpiry() {
-    if (!user.value?.expiresAt) return null
+    if (!user.value?.expiresAt) {
+      // Try to get from JWT token directly
+      if (user.value?.token) {
+        try {
+          const parts = user.value.token.split('.')
+          if (parts.length === 3) {
+            const payload = JSON.parse(atob(parts[1]))
+            if (payload.exp) {
+              const expiryTime = new Date(payload.exp * 1000)
+              const now = new Date()
+              return Math.max(0, expiryTime.getTime() - now.getTime())
+            }
+          }
+        } catch (e) {
+          console.error('Failed to parse token for expiry calculation:', e)
+        }
+      }
+      return null
+    }
+    
     const expiryTime = new Date(user.value.expiresAt)
     const now = new Date()
     return Math.max(0, expiryTime.getTime() - now.getTime())
@@ -233,7 +325,7 @@ export function useAuth() {
 }
 
 // Helper function to extract expiration from JWT token
-function getTokenExpiration(token) {
+function getTokenExpiration(token, force24Hours = false) {
   if (!token) return null
 
   try {
@@ -241,8 +333,28 @@ function getTokenExpiration(token) {
     if (parts.length !== 3) return null
 
     const payload = JSON.parse(atob(parts[1]))
+    
+    // If force24Hours is true, ignore server expiration and set 24 hours
+    if (force24Hours) {
+      const twentyFourHoursFromNow = new Date()
+      twentyFourHoursFromNow.setHours(twentyFourHoursFromNow.getHours() + 24)
+      console.log('🔒 Forcing 24-hour token expiration:', twentyFourHoursFromNow.toISOString())
+      return twentyFourHoursFromNow.toISOString()
+    }
+    
+    // Check server expiration but ensure minimum 24 hours
     if (payload.exp) {
-      return new Date(payload.exp * 1000).toISOString()
+      const serverExpiry = new Date(payload.exp * 1000)
+      const twentyFourHoursFromNow = new Date()
+      twentyFourHoursFromNow.setHours(twentyFourHoursFromNow.getHours() + 24)
+      
+      // Use whichever is longer: server expiry or 24 hours
+      const finalExpiry = serverExpiry > twentyFourHoursFromNow ? serverExpiry : twentyFourHoursFromNow
+      
+      console.log('🔒 Token expiration set to:', finalExpiry.toISOString(), 
+                  `(Server: ${serverExpiry.toISOString()}, 24h: ${twentyFourHoursFromNow.toISOString()})`)
+      
+      return finalExpiry.toISOString()
     }
   } catch (e) {
     console.error('Failed to parse token expiration:', e)
@@ -251,5 +363,6 @@ function getTokenExpiration(token) {
   // Default to 24 hours if no expiration found
   const defaultExpiry = new Date()
   defaultExpiry.setHours(defaultExpiry.getHours() + 24)
+  console.log('🔒 Using default 24-hour expiration:', defaultExpiry.toISOString())
   return defaultExpiry.toISOString()
 }

@@ -535,7 +535,10 @@ const actionItems = (eventData) => [
     label: 'Manage Team',
     icon: 'pi pi-users',
     command: () => {
-      router.push('/admin/role/ManageTeam');
+      router.push({
+        path: '/admin/role/ManageTeam',
+        query: { eventId: eventData.id }
+      });
     },
     visible: true,
   },
