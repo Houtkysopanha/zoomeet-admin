@@ -1,18 +1,26 @@
 // Auto-imported by Nuxt: useRuntimeConfig, $fetch
 import axios from 'axios'
-// Get auth token using proper Nuxt 3 pattern with improved reliability
-const getAuthToken = () => {
+// Get auth token using proper Nuxt 3 pattern with automatic refresh
+const getAuthToken = async (autoRefresh = true) => {
   try {
-    // Primary: Use the useAuth composable for token management
-    const { getToken, isTokenExpired, user } = useAuth()
+    const { getToken, isTokenExpired, shouldRefreshToken, ensureValidToken } = useAuth()
+    
+    // If auto-refresh is enabled, ensure we have a valid token
+    if (autoRefresh) {
+      const isValid = await ensureValidToken()
+      if (!isValid) {
+        console.warn('⚠️ Failed to ensure valid token')
+        return null
+      }
+    }
+    
     let token = getToken()
 
-    // If token exists but is expired, clear all storage and return null
+    // Double-check: If token exists but is expired and auto-refresh failed
     if (token && isTokenExpired()) {
       if (process.client) {
         localStorage.removeItem('auth')
         sessionStorage.removeItem('auth')
-        // Clear cookie through useAuth
         const { clearAuth } = useAuth()
         clearAuth()
       }
@@ -90,15 +98,15 @@ const getAuthToken = () => {
   }
 }
 
-// Create authenticated fetch headers
-const createAuthHeaders = (includeContentType = true) => {
+// Create authenticated fetch headers with automatic token refresh
+const createAuthHeaders = async (includeContentType = true, autoRefresh = true) => {
   const headers = {}
 
   if (includeContentType) {
     headers['Content-Type'] = 'application/json'
   }
 
-  const token = getAuthToken()
+  const token = await getAuthToken(autoRefresh)
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
   } else {
@@ -131,6 +139,55 @@ const normalizeApiUrl = (baseUrl, endpoint) => {
 }
 
 // Login API
+// Refresh token endpoint - dedicated refresh function
+export async function refreshToken(refreshToken) {
+  try {
+    const config = useRuntimeConfig()
+    
+    // Try form data format first (as suggested by curl --form)
+    const formData = new FormData()
+    formData.append('refreshToken', refreshToken)
+    
+    const response = await $fetch('/refresh-token', {
+      method: 'POST',
+      body: formData,
+      baseURL: config.public.apiBaseUrl
+    })
+    
+    return {
+      success: true,
+      data: response
+    }
+  } catch (error) {
+    console.error('Token refresh failed:', error)
+    
+    // If form data fails, try JSON format as fallback
+    try {
+      console.log('Retrying with JSON format...')
+      const config = useRuntimeConfig()
+      const response = await $fetch('/refresh-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: { refreshToken },
+        baseURL: config.public.apiBaseUrl
+      })
+      
+      return {
+        success: true,
+        data: response
+      }
+    } catch (jsonError) {
+      console.error('JSON format also failed:', jsonError)
+      return {
+        success: false,
+        error: jsonError.response?.data || jsonError.message
+      }
+    }
+  }
+}
+
 export async function login(identifier, password) {
   const config = useRuntimeConfig()
   const API_BASE_URL = config.public.apiBaseUrl
@@ -180,19 +237,11 @@ export async function fetchEvents() {
 
   try {
     
-    // Use consistent token handling
-    const token = getAuthToken()
-    if (!token) {
+    // Create headers with authenticated token using async refresh
+    const headers = await createAuthHeaders()
+    if (!headers) {
       return { status: 401, data: { success: false, data: [], message: 'Authentication required' } }
     }
-
-    // Create headers with the token
-    const headers = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      'Accept': 'application/json'
-    }
-    
 
     const response = await $fetch(eventsUrl, {
       method: 'GET',
@@ -284,9 +333,11 @@ export async function fetchUserInfo() {
 
   try {
     const userInfoUrl = normalizeApiUrl(API_BASE_URL, 'info')
+    const headers = await createAuthHeaders()
+    
     const response = await $fetch(userInfoUrl, {
       method: 'GET',
-      headers: createAuthHeaders(),
+      headers,
     })
 
     return response
@@ -329,9 +380,14 @@ export async function getEventDetails(eventId) {
 
   try {
     const serverUrl = `/api/admin/events/${cleanUUID}`
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(serverUrl, {
       method: 'GET',
-      headers: createAuthHeaders()
+      headers
     })
 
     if (!response) {
@@ -616,11 +672,12 @@ if (eventData.chairs && Array.isArray(eventData.chairs)) {
 
     // Use server proxy route to avoid CORS issues
     try {
+      const headers = await createAuthHeaders(false) // Don't include Content-Type for FormData
       const response = await $fetch(createEventUrl, {
         method: 'POST',
         body: formData,
         headers: {
-          ...createAuthHeaders(false), // Don't include Content-Type for FormData
+          ...headers,
         },
       })
 
@@ -876,12 +933,15 @@ export async function updateEvent(eventId, eventData) {
     }
 
     // Use server proxy route to avoid CORS issues
+    const headers = await createAuthHeaders(false) // Don't include Content-Type for FormData
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(updateEventUrl, {
       method: 'POST',
       body: formData,
-      headers: {
-        ...createAuthHeaders(false), // Don't include Content-Type for FormData
-      },
+      headers,
     })
 
     // Validate response
@@ -1010,10 +1070,15 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
     
     // Use server proxy endpoint for ticket type update
     const serverUrl = `/api/admin/events/${eventId}/ticket-types/${ticketTypeId}`
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(serverUrl, {
       method: 'PUT',
       body: normalizedData,
-      headers: createAuthHeaders() // Use JSON Content-Type
+      headers // Use JSON Content-Type
     })
 
     return response
@@ -1083,11 +1148,12 @@ export async function createTicketTypes(eventId, ticketTypesData) {
 
     // Send tickets in proper structure to server proxy endpoint
     const serverUrl = `/api/admin/events/${eventId}/ticket-types`
+    const headers = await createAuthHeaders()
     const response = await $fetch(serverUrl, {
       method: 'POST',
       body: requestBody,
       headers: {
-        ...createAuthHeaders(),
+        ...headers,
         'Accept': 'application/json'
       }
     })
@@ -1134,9 +1200,14 @@ export async function getEventTicketTypes(eventId) {
 
   try {
     // API: GET /admin/events/:event_id/ticket-types
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types`, {
       method: 'GET',
-      headers: createAuthHeaders()
+      headers
     })
 
     return response
@@ -1161,9 +1232,14 @@ export async function getTicketTypeDetails(eventId, ticketTypeId) {
 
   try {
     // API: GET /admin/events/:event_id/ticket-types/:ticket_type_id
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types/${ticketTypeId}`, {
       method: 'GET',
-      headers: createAuthHeaders()
+      headers
     })
 
 
@@ -1190,9 +1266,14 @@ export async function deleteEvent(eventId) {
 
   try {
     const serverUrl = `/api/admin/events/${eventId}`
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(serverUrl, {
       method: 'DELETE',
-      headers: createAuthHeaders()
+      headers
     })
 
     return response
@@ -1225,9 +1306,14 @@ export async function deleteTicketType(eventId, ticketTypeId) {
   try {
     // Use server proxy endpoint for ticket type deletion
     const serverUrl = `/api/admin/events/${eventId}/ticket-types/${ticketTypeId}`
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(serverUrl, {
       method: 'DELETE',
-      headers: createAuthHeaders()
+      headers
     })
 
     return response
@@ -1259,10 +1345,15 @@ export async function createAgendaItems(eventId, agendaData) {
   }
 
   try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/agendas`, {
       method: 'POST',
       body: agendaData,
-      headers: createAuthHeaders()
+      headers
     })
 
     return response
@@ -1281,10 +1372,15 @@ export async function updateAgendaItem(eventId, agendaId, agendaData) {
   }
 
   try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/agendas/${agendaId}`, {
       method: 'PUT',
       body: agendaData,
-      headers: createAuthHeaders()
+      headers
     })
 
     return response
@@ -1304,9 +1400,14 @@ export async function getEventAgenda(eventId) {
   }
 
   try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/agendas`, {
       method: 'GET',
-      headers: createAuthHeaders()
+      headers
     })
 
     return response
@@ -1334,9 +1435,14 @@ export async function deleteAgenda(eventId, agendaId) {
   }
 
   try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/agendas/${agendaId}`, {
       method: 'DELETE',
-      headers: createAuthHeaders()
+      headers
     })
 
     return response
@@ -1454,10 +1560,15 @@ export async function publishEvent(eventId) {
 
     }
     
+    const headers = await createAuthHeaders(false) // Don't include Content-Type for FormData
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}`, {
       method: 'POST',
       body: formData,
-      headers: createAuthHeaders(false) // Don't include Content-Type for FormData
+      headers
     })
     
     return response
@@ -1483,9 +1594,14 @@ export async function unpublishEvent(eventId) {
   }
 
   try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/unpublish`, {
       method: 'POST',
-      headers: createAuthHeaders()
+      headers
     })
 
     return response
@@ -1506,19 +1622,15 @@ export async function fetchCategories() {
   try {
     const categoriesUrl = normalizeApiUrl(API_BASE_URL, 'events/categories')
     
-    // Use the same authentication pattern as other admin API calls
-    const token = getAuthToken()
-    if (!token) {
+    // Use async headers with token refresh
+    const headers = await createAuthHeaders()
+    if (!headers) {
       throw new Error('Authentication required')
     }
 
     const response = await $fetch(categoriesUrl, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers,
     })
 
     return response
@@ -1563,9 +1675,14 @@ export async function checkSlugAvailability(slug, currentEventId = null) {
     }
     queryParams.append('slug', normalizedSlug)
 
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/check-slug?${queryParams}`, {
       method: 'GET',
-      headers: createAuthHeaders()
+      headers
     })
 
     return {
@@ -1594,10 +1711,14 @@ export async function fetchEventOrganizers(eventId) {
 
   try {
     // Build API URL using env base
-      const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/organizer`, {
-
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/organizer`, {
       method: 'GET',
-      headers: createAuthHeaders()
+      headers
     })
 
     if (response && response.success && Array.isArray(response.data)) {
@@ -1658,10 +1779,15 @@ export const fetchOrganizerPermissions = async () => {
   const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
   try {
-   const response = await axios.get(`${API_ADMIN_BASE_URL}/events/permission/organizer`, {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
+    const response = await axios.get(`${API_ADMIN_BASE_URL}/events/permission/organizer`, {
       method: 'GET',
-      headers: createAuthHeaders()
-})
+      headers
+    })
     return { status: response.status, data: response.data }
   } catch (error) {
     console.error('❌ API Error (fetchOrganizerPermissions):', error)
@@ -1677,19 +1803,23 @@ export const fetchOrganizerPermissions = async () => {
 export const searchUsers = async (keyword) => {
   const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
-  const token = localStorage.getItem("token")
 
   if (!keyword || keyword.length < 1) {
     return []
   }
 
   try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await axios.get(
       `${API_ADMIN_BASE_URL}/users/search`,
       {
         params: { keyword },
-         method: 'GET',
-        headers: createAuthHeaders()
+        method: 'GET',
+        headers
       }
     )
 
@@ -1731,13 +1861,18 @@ export const inviteUserAPI = async ({ eventId, selectedUsers, permissions, token
   try {
     const config = useRuntimeConfig()
     const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+    
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
 
     const response = await axios.post(
       `${API_ADMIN_BASE_URL}/events/${eventId}/organizer/invite/user`,
       payload,
       {
-      method: 'POST',
-      headers: createAuthHeaders()
+        method: 'POST',
+        headers
       }
     )
 
@@ -1753,12 +1888,17 @@ export const fetchUserRoles = async ({ eventId, userId, token }) => {
   try {
     const config = useRuntimeConfig()
     const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+    
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
 
     const response = await axios.get(
       `${API_ADMIN_BASE_URL}/events/${eventId}/organizer/${userId}/detail`,
       {
-      method: 'GET',
-      headers: createAuthHeaders()
+        method: 'GET',
+        headers
       }
     )
 
@@ -1777,6 +1917,11 @@ export const fetchUserRoles = async ({ eventId, userId, token }) => {
 
 export const updateOrganizerPermissions = async ({ eventId, userId, roles, token }) => {
   const url = `${useRuntimeConfig().public.apiAdminBaseUrl}/events/${eventId}/organizer/update`
+  
+  const headers = await createAuthHeaders()
+  if (!headers) {
+    throw new Error('Authentication required')
+  }
 
   const { data, status } = await axios.post(
     url,
@@ -1786,7 +1931,7 @@ export const updateOrganizerPermissions = async ({ eventId, userId, roles, token
     },
     {
       method: 'POST',
-      headers: createAuthHeaders()
+      headers
     }
   )
 
@@ -1796,23 +1941,37 @@ export const updateOrganizerPermissions = async ({ eventId, userId, roles, token
 
 export const disableEventOrganizer = async (eventId, userId, token) => {
   const config = useRuntimeConfig()
+  
+  const headers = await createAuthHeaders()
+  if (!headers) {
+    throw new Error('Authentication required')
+  }
+  
   return await axios.post(
     `${config.public.apiAdminBaseUrl}/events/${eventId}/organizer/disable`,
     { user_id: userId },
-    {  method: 'POST',
-       headers: createAuthHeaders()
-     }
+    {
+      method: 'POST',
+      headers
+    }
   )
 }
 
 export const removeOrganizer = async ({ eventId, userId, token }) => {
-const config = useRuntimeConfig()
+  const config = useRuntimeConfig()
+  
+  const headers = await createAuthHeaders()
+  if (!headers) {
+    throw new Error('Authentication required')
+  }
+  
   return await axios.post(
     `${config.public.apiAdminBaseUrl}/events/${eventId}/organizer/remove`,
     { user_id: userId },
-    {  method: 'POST',
-       headers: createAuthHeaders()
-     }
+    {
+      method: 'POST',
+      headers
+    }
   )
 }
 
@@ -1820,10 +1979,15 @@ export const getEventDetail = async (eventId) => {
   try {
     const config = useRuntimeConfig()
     const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+    
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
 
     const response = await axios.get(
       `${API_ADMIN_BASE_URL}/events/${eventId}`,
-      { headers: createAuthHeaders() }
+      { headers }
     )
 
     if (response.status === 200 && response.data.success) {

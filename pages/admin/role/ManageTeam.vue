@@ -488,7 +488,7 @@ const loadOrganizers = async () => {
         email: o.email,
         avatar: o.avatar_url || o.avatar || '', // Handle different possible avatar field names
         phoneNumber: o.phone_number || 'N/A',
-        optionalNote: o.note || 'Team member',
+        optionalNote: o.note || 'Admin',
         permissions: (o.roles || []).map(r => typeof r === 'string' ? r : r.name),
         status: o.is_active == 1 || o.is_active === true ? 'Active' : 'Inactive',
         created_at: o.created_at
