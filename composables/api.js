@@ -1723,7 +1723,9 @@ export const inviteUserAPI = async ({ eventId, selectedUsers, permissions, token
   const userIds = selectedUsers.map(u => u.id)
   const payload = {
     user_ids: userIds,
-    roles: enabledRoles
+    roles: enabledRoles,
+    note: selectedUsers[0]?.note || null
+
   }
 
   try {

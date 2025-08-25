@@ -317,12 +317,16 @@ const inviteUser = async () => {
   inviting.value = true
   try {
     const token = localStorage.getItem('token')
-    const data = await inviteUserAPI({
-      eventId: eventId.value,
-      selectedUsers: selectedUsers.value,
-      permissions: permissions.value,
-      token
-    })
+   const data = await inviteUserAPI({
+  eventId: eventId.value,
+  selectedUsers: selectedUsers.value.map(u => ({
+    ...u,
+    note: newUser.value.note || null
+  })),
+  permissions: permissions.value,
+  token
+})
+
 
     if (data.success) {
       toast.add({

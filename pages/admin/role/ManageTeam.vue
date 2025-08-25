@@ -294,12 +294,13 @@ const sortOptions = [
   { label: 'Sort by Email', value: 'email' },
   { label: 'Sort by Status', value: 'status' }
 ]
-const pageOptions = [
-  { label: '10', value: 10 },
-  { label: '20', value: 20 },
-  { label: '50', value: 50 }
-]
 
+const pageOptions = ref([
+  { label: '5', value: 5 },
+  { label: '10', value: 10 },
+  { label: '25', value: 25 },
+  { label: '50', value: 50 },
+])
 const colorByPermission = (perm) => {
   if (!perm) return 'bg-gray-100 text-gray-800'
 
@@ -484,6 +485,9 @@ const removeUser = async (userData) => {
 const toggleFilters = () => toast.add({ severity: 'info', summary: 'Filters', detail: 'Filter TBD', life: 3000 })
 const applySort = () => { currentPage.value = 1 }
 const applyPageChange = e => { itemsPerPage.value = e.value; currentPage.value = 1 }
+const onPage = (event) => {
+  currentPage.value = event.page + 1
+}
 
 // ✅ Load data on mount
 onMounted(loadOrganizers)
