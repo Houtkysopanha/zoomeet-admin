@@ -7,7 +7,7 @@
           <Breadcrumb
             :items="[
               { text: 'Event', to: '/admin/event' },
-              { text: 'Manage Team', to: '/admin/role/ManageTeam' },
+              { text: 'Manage Team', to: `/admin/role/ManageTeam?eventId=${eventId}` },
               { text: 'Edit Permission' }
             ]"
             class="mb-2"
@@ -17,6 +17,7 @@
           label="Save Edit" 
           icon="mdi:content-save" 
           @click="savePermissions"
+          :loading="loading"
         />
       </div>
     </div>
@@ -27,26 +28,41 @@
         <!-- User Profile -->
         <div class="flex flex-col items-center mb-6">
           <div class="relative mb-4">
-            <img 
-              :src="userInfo.avatar" 
-              :alt="userInfo.name"
-              class="w-24 h-24 rounded-full object-cover"
-            />
-            <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 border-white"></div>
+            <!-- Avatar image if available, otherwise show initials -->
+            <div v-if="userInfo.avatar && userInfo.avatar !== ''" class="relative">
+              <img 
+                :src="userInfo.avatar" 
+                :alt="userInfo.name"
+                class="w-24 h-24 rounded-full object-cover"
+                @error="handleImageError"
+              />
+            </div>
+            <div v-else :class="['w-24 h-24 rounded-full bg-gradient-to-r flex items-center justify-center shadow-lg border-2 border-white', getAvatarGradient(userInfo.name)]">
+              <span class="text-white text-2xl font-bold tracking-wide">{{ getInitials(userInfo.name) }}</span>
+            </div>
+            <div 
+              class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white" 
+              :class="userInfo.isActive ? 'bg-green-500' : 'bg-gray-500'"
+            ></div>
           </div>
           <h2 class="text-xl font-semibold text-gray-900 my-4">{{ userInfo.name }}</h2>
           <div class="flex space-x-4 text-sm">
-            <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full">{{ userInfo.services[0] }}</span>
-            <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full">{{ userInfo.services[1] }}</span>
+            <span 
+              v-for="(service, idx) in userInfo.services" 
+              :key="idx"
+              class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full"
+            >
+              {{ service }}
+            </span>
           </div>
         </div>
         <div class="border border-1 border-gray-200 my-10"></div>
 
         <!-- User Details -->
-        <div class="space-y-4 ">
+        <div class="space-y-4">
           <div class="flex items-center space-x-3 border border-1 border-gray-300 rounded-2xl p-4">
             <div class="bg-purple-100 p-4 w-16 h-16 rounded-full">
-              <Icon name="mdi:email" class="w-8 h-8 text-purple-600  " />
+              <Icon name="mdi:email" class="w-8 h-8 text-purple-600" />
             </div>
             <div>
               <p class="text-sm text-gray-500">Email</p>
@@ -54,98 +70,77 @@
             </div>
           </div>
 
-         <div class="flex items-center space-x-3 border border-1 border-gray-300 rounded-2xl p-4">
+          <div class="flex items-center space-x-3 border border-1 border-gray-300 rounded-2xl p-4">
             <div class="bg-purple-100 p-4 w-16 h-16 rounded-full">
-              <Icon name="ic:baseline-phone" class="w-8 h-8 text-purple-600  " />
+              <Icon name="ic:baseline-phone" class="w-8 h-8 text-purple-600" />
             </div>
             <div>
               <p class="text-sm text-gray-500">Phone Number</p>
-              <p class="text-gray-900">{{ userInfo.email }}</p>
+              <p class="text-gray-900">{{ userInfo.phone }}</p>
             </div>
           </div>
 
-           <div class="flex items-center space-x-3 border border-1 border-gray-300 rounded-2xl p-4">
+          <div class="flex items-center space-x-3 border border-1 border-gray-300 rounded-2xl p-4">
             <div class="bg-purple-100 p-4 w-16 h-16 rounded-full">
-              <Icon name="uil:calender" class="w-8 h-8 text-purple-600  " />
+              <Icon name="uil:calender" class="w-8 h-8 text-purple-600" />
             </div>
             <div>
               <p class="text-sm text-gray-500">Invite Date</p>
-              <p class="text-gray-900">{{ userInfo.email }}</p>
+              <p class="text-gray-900">{{ formatDate(userInfo.inviteDate) }}</p>
             </div>
           </div>
 
- <div class="flex items-center space-x-3 border border-1 border-gray-300 rounded-2xl p-4">
+          <div class="flex items-center space-x-3 border border-1 border-gray-300 rounded-2xl p-4">
             <div class="bg-purple-100 p-4 w-16 h-16 rounded-full">
-              <Icon name="uil:calender" class="w-8 h-8 text-purple-600  " />
+              <Icon name="uil:calender" class="w-8 h-8 text-purple-600" />
             </div>
             <div>
               <p class="text-sm text-gray-500">Update Date</p>
-              <p class="text-gray-900">{{ userInfo.email }}</p>
+            <p class="text-gray-900">{{ formatDate(userInfo.updateDate) }}</p>
             </div>
           </div>
-
-
         </div>
       </div>
 
       <!-- Right Column - Role Assignment -->
-       <div class="bg-white rounded-2xl p-10">
+      <div class="bg-white rounded-2xl p-10">
         <h2 class="text-xl font-semibold mb-2">Role Assignment</h2>
         <p class="text-sm text-gray-500 mb-6">Pick a permission for the team to access the team coordinator.</p>
 
-        <div class="space-y-4">
-          <div class="bg-white shadow-xl p-4 rounded-2xl ">
-            <div class="flex items-center justify-between">
-              <span class="text-sm font-semibold text-gray-800">Event Management</span>
-              <InputSwitch v-model="permissions.eventManagement.enabled" />
-            </div>
-            <div class="border border-1 border-gray-200 my-5"></div>
-             <p class="text-sm font-semibold text-gray-800">Permission</p>
-            <div  class="flex flex-wrap gap-2 mt-3 ml-1">
-              <span class="text-xs font-medium text-blue-900 bg-gray-100 px-3 py-1 rounded-full">Manage Event</span>
-              <span class="text-xs font-medium text-blue-900 bg-gray-100 px-3 py-1 rounded-full">Manage Ticket</span>
-              <span class="text-xs font-medium text-blue-900 bg-gray-100 px-3 py-1 rounded-full">Refund</span>
-            </div>
-          </div>
+        <div v-if="permissionsLoading" class="flex justify-center items-center py-8">
+          <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+          <span class="ml-2 text-gray-600">Loading permissions...</span>
+        </div>
 
-         <div class="bg-white shadow-xl p-4 rounded-2xl ">
-            <div class="flex items-center justify-between">
-              <span class="text-sm font-semibold text-gray-800">Booking</span>
-              <InputSwitch v-model="permissions.booking.enabled" />
-            </div>
-            <div class="border border-1 border-gray-200 my-5"></div>
-             <p class="text-sm font-semibold text-gray-800">Permission</p>
-            <div  class="flex flex-wrap gap-2 mt-3 ml-1">
-              <span class="text-xs font-medium text-blue-900 bg-gray-100 px-3 py-1 rounded-full">Staff Support Booking</span>
-              <span class="text-xs font-medium text-blue-900 bg-gray-100 px-3 py-1 rounded-full">Cash Payment</span>
-            
-            </div>
-          </div>
+        <div v-else class="space-y-4">
+         <template v-if="Object.keys(permissions).length">
+  <div 
+    v-for="(categoryPermissions, category) in availablePermissions" 
+    :key="category"
+  >
+    <div class="bg-white shadow-xl p-4 rounded-2xl">
+      <div class="flex items-center justify-between">
+        <span class="text-sm font-semibold text-gray-800">{{ formatCategoryName(category) }}</span>
+        <InputSwitch v-model="permissions[category].enabled" />
+      </div>
+      <div class="border border-1 border-gray-200 my-5"></div>
+      <p class="text-sm font-semibold text-gray-800">Permissions</p>
+      <div class="flex flex-wrap gap-2 mt-3 ml-1">
+        <span 
+          v-for="permission in categoryPermissions" 
+          :key="permission"
+          class="text-xs font-medium text-blue-900 bg-gray-100 px-3 py-1 rounded-full"
+        >
+          {{ formatPermissionName(permission) }}
+        </span>
+      </div>
+    </div>
+  </div>
+</template>
 
-        <div class="bg-white shadow-xl p-4 rounded-2xl ">
-            <div class="flex items-center justify-between">
-              <span class="text-sm font-semibold text-gray-800">Check-In</span>
-              <InputSwitch v-model="permissions.checkIn.enabled" />
-            </div>
-            <div class="border border-1 border-gray-200 my-5"></div>
-             <p class="text-sm font-semibold text-gray-800">Permission</p>
-            <div  class="flex flex-wrap gap-2 mt-3 ml-1">
-              <span class="text-xs font-medium text-blue-900 bg-gray-100 px-3 py-1 rounded-full">Check-In Service</span>
-            </div>
-          </div>
 
-          <div class="bg-white shadow-xl p-4 rounded-2xl ">
-            <div class="flex items-center justify-between">
-              <span class="text-sm font-semibold text-gray-800">Report</span>
-              <InputSwitch v-model="permissions.report.enabled" />
-            </div>
-            <div class="border border-1 border-gray-200 my-5"></div>
-             <p class="text-sm font-semibold text-gray-800">Permission</p>
-            <div  class="flex flex-wrap gap-2 mt-3 ml-1">
-              <span class="text-xs font-medium text-blue-900 bg-gray-100 px-3 py-1 rounded-full">Financial Report</span>
-              <span class="text-xs font-medium text-blue-900 bg-gray-100 px-3 py-1 rounded-full">Business Insight</span>
-              <span class="text-xs font-medium text-blue-900 bg-gray-100 px-3 py-1 rounded-full">Audit Log</span>
-            </div>
+          <div v-if="Object.keys(availablePermissions).length === 0" class="text-center py-8">
+            <p class="text-gray-500">No permissions available</p>
           </div>
         </div>
       </div>
@@ -154,101 +149,217 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import IconnButton from '~/components/ui/IconnButton.vue'
 import Breadcrumb from '~/components/common/Breadcrumb.vue'
-import InputSwitch from 'primevue/inputswitch';
+import InputSwitch from 'primevue/inputswitch'
+import { fetchOrganizerPermissions } from '@/composables/api'
+import { fetchUserRoles } from '@/composables/api'
+import { updateOrganizerPermissions } from '@/composables/api'
+import axios from 'axios'
+
 const router = useRouter()
+const route = useRoute()
 const toast = useToast()
-import img1 from '@/assets/image/poster-manage-booking.png'
 
-// User information (this would typically come from route params or API)
-const userInfo = ref({
-  name: 'Kate Morrison',
-  avatar: img1,
-  email: 'katemorrison@gmail.com',
-  phone: '012485674',
-  inviteDate: '22-10-2024',
-  updateDate: '22-10-2024',
-  services: ['Check-in Service', 'Booking Service']
-})
+const eventId = ref(route.query.eventId)
+const userId = ref(route.query.userId)
+const userName = ref(route.query.userName)
 
-// Permissions state
-const permissions = ref({
-  eventManagement: {
-    enabled: false,
-    items: ['Manage Event', 'Manage Ticket', 'Refund']
-  },
-  booking: {
-    enabled: true,
-    items: ['Staff Support Booking', 'Cash Payment']
-  },
-  checkIn: {
-    enabled: true,
-    items: ['Check-In Service']
-  },
-  report: {
-    enabled: false,
-    items: ['Financial Report', 'Business Insight', 'Audit Log']
-  }
-})
-
-// Save permissions function
-const savePermissions = () => {
-  // Here you would typically send the permissions to an API
-  console.log('Saving permissions:', permissions.value)
-  
+if (!eventId.value || !userId.value) {
   toast.add({
-    severity: 'success',
-    summary: 'Success',
-    detail: 'Permissions updated successfully',
-    life: 3000
+    severity: 'error',
+    summary: 'Error',
+    detail: 'Missing required information. Please go back to Manage Team.',
+    life: 5000
   })
-  
-  // Navigate back to manage team page
-  router.push('/admin/role/ManageTeam')
+  router.push('/admin/event')
 }
 
-// Get user data from route query or params if available
-onMounted(() => {
-  const route = useRoute()
-  if (route.query.userId) {
-    // Load user data based on userId
-    // This is where you'd fetch actual user data from API
-    console.log('Loading user data for ID:', route.query.userId)
-  }
+const loading = ref(false)
+const permissionsLoading = ref(false)
+
+const userInfo = ref({
+  name: userName.value || '',
+  avatar: '', // No default image, will show initials
+  email: '',
+  phone: '',
+  inviteDate: '',
+  updateDate: '',
+  services: []
 })
 
-definePageMeta({
-  layout: 'admin'
+const availablePermissions = ref({})
+const permissions = ref({})
+
+const loadPermissions = async () => {
+  permissionsLoading.value = true
+  try {
+    const { status, data } = await fetchOrganizerPermissions()
+    if (status === 200 && data.success && data.data) {
+      availablePermissions.value = data.data
+
+      // Initialize permission structure
+      permissions.value = {}
+     Object.keys(availablePermissions.value).forEach(category => {
+  permissions.value[category] = { enabled: false, items: availablePermissions.value[category] || [] }
 })
+
+    } else {
+      throw new Error(data.message || 'Failed to fetch permissions')
+    }
+  } catch (error) {
+    toast.add({ severity: 'error', summary: 'Error', detail: error.message, life: 4000 })
+  } finally {
+    permissionsLoading.value = false
+  }
+}
+
+const loadUserData = async () => {
+  const token = localStorage.getItem('token')
+  try {
+    const userData = await fetchUserRoles({ eventId: eventId.value, userId: userId.value, token })
+
+    userInfo.value = {
+      name: userData.name,
+      avatar: userData.avatar_url || userData.avatar || '', // Handle different possible avatar field names
+      email: userData.email,
+      phone: userData.phone_number,
+      inviteDate: userData.created_at,
+      updateDate: userData.updated_at,
+      services: userData.roles.map(formatCategoryName),
+      isActive: userData.is_active == 1  // <-- convert 0/1 to boolean
+    }
+
+    // Enable permissions based on user roles
+    Object.keys(permissions.value).forEach(category => {
+      permissions.value[category].enabled = userData.roles.includes(category)
+    })
+  } catch (error) {
+    toast.add({ severity: 'error', summary: 'Error', detail: error.message, life: 4000 })
+  }
+}
+
+const savePermissions = async () => {
+  loading.value = true
+  const token = localStorage.getItem('token')
+
+  const enabledRoles = Object.entries(permissions.value)
+    .filter(([_, perm]) => perm.enabled)
+    .map(([category, perm]) => ({ role_name: category, permissions: perm.items }))
+
+  try {
+    const { status, data } = await updateOrganizerPermissions({
+      eventId: eventId.value,
+      userId: userId.value,
+      roles: enabledRoles,
+      token
+    })
+
+    if (status === 200 && data.success) {
+      toast.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: 'Permissions updated successfully',
+        life: 3000
+      })
+      router.push({ path: '/admin/role/ManageTeam', query: { eventId: eventId.value } })
+    } else {
+      throw new Error(data.message || 'Failed to update permissions')
+    }
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.response?.data?.message || error.message,
+      life: 4000
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+
+const formatPermissionName = (permission) =>
+  permission.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+
+const formatCategoryName = (category) => {
+  const map = { event: 'Event Management', booking: 'Booking', 'check-in': 'Check-In', report: 'Report' }
+  return map[category] || category.charAt(0).toUpperCase() + category.slice(1)
+}
+
+const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleDateString('en-GB') : '-'
+
+// Helper function to get initials from name
+const getInitials = (name) => {
+  if (!name || name.trim() === '') return '??'
+  
+  const words = name.trim().split(' ').filter(word => word.length > 0)
+  if (words.length === 0) return '??'
+  
+  if (words.length === 1) {
+    // If single word, take first 2 characters
+    return words[0].slice(0, 2).toUpperCase()
+  }
+  
+  // If multiple words, take first character of first two words
+  return (words[0].charAt(0) + words[1].charAt(0)).toUpperCase()
+}
+
+// Get gradient color based on name
+const getAvatarGradient = (name) => {
+  if (!name) return 'from-blue-500 to-purple-600'
+  
+  const gradients = [
+    'from-blue-500 to-purple-600',
+    'from-green-500 to-blue-600', 
+    'from-purple-500 to-pink-600',
+    'from-orange-500 to-red-600',
+    'from-teal-500 to-cyan-600',
+    'from-indigo-500 to-purple-600'
+  ]
+  
+  // Simple hash based on name length and first character
+  const hash = name.length + name.charCodeAt(0)
+  return gradients[hash % gradients.length]
+}
+
+// Handle image loading errors
+const handleImageError = () => {
+  userInfo.value.avatar = '' // Clear the avatar to show initials
+}
+
+onMounted(async () => {
+  await loadPermissions()
+  await loadUserData()
+})
+definePageMeta({ layout: 'admin' })
 </script>
 
 <style scoped>
-/* Custom toggle switch styling */
 :deep(.p-toggleswitch.p-toggleswitch-checked .p-toggleswitch-slider) {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
-
-:deep(.p-toggleswitch .p-toggleswitch-slider) {
-  background: #e5e7eb;
-}
-
+:deep(.p-toggleswitch .p-toggleswitch-slider) { background: #e5e7eb; }
 :deep(.p-toggleswitch .p-toggleswitch-slider:before) {
   background: white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.border:hover { border-color: #8b5cf6; transition: border-color 0.2s ease; }
+.p-toggleswitch { transition: all 0.2s ease; }
+
+/* Avatar animations */
+img, .rounded-full {
+  transition: all 0.3s ease;
+}
+img:hover, .rounded-full:hover {
+  transform: scale(1.05);
 }
 
-/* Custom card hover effects */
-.border:hover {
-  border-color: #8b5cf6;
-  transition: border-color 0.2s ease;
-}
-
-/* Smooth transitions for toggles */
-.p-toggleswitch {
-  transition: all 0.2s ease;
+/* Gradient variations for different users */
+.bg-gradient-to-r {
+  background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
 }
 </style>

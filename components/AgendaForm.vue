@@ -224,6 +224,7 @@ const removeSpeakerField = (index) => {
 
 // Placeholder function for adding agenda item
 const addAgenda = () => {
+  console.log('Adding Agenda:', eventForm.value);
   const toast = useToast();
   toast.success('Agenda item added (simulated)!', {
     position: 'top-right',

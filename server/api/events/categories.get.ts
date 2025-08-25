@@ -7,8 +7,8 @@ export default defineEventHandler(async (event) => {
 
     // Use the actual external API URL, not the proxy URL
     const externalApiUrl = process.env.NODE_ENV === 'development' 
-      ? 'https://dev-gateway.prestigealliance.co/api/v1'
-      : 'https://gateway.etickets.asia/api/v1'
+      ? 'https://dev-gateway.prestigealliance.co/api/v1/admin'
+      : 'https://gateway.etickets.asia/api/v1/admin'
 
     console.log('Server-side API URL:', externalApiUrl)
 

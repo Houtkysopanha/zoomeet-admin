@@ -11,18 +11,23 @@ export function useAuth() {
     secure: config.public.auth?.secureCookies ?? (process.env.NODE_ENV === 'production'),
     sameSite: 'strict',
     domain: config.public.auth?.cookieDomain,
-    maxAge: 60 * 60 * 24 * 7 // 7 days
+    maxAge: 60 * 60 * 24 * 30 // 30 days for refresh token
   })
 
   // Reactive user state
   const user = ref(cookie.value)
+
+  // Track refresh attempts to prevent infinite loops
+  const refreshAttempts = ref(0)
+  const maxRefreshAttempts = 3
+  const isRefreshing = ref(false)
 
   // Check if user is authenticated
   const isAuthenticated = computed(() => {
     return !!(user.value?.token)
   })
 
-  // Set authentication data with enhanced production reliability
+  // Set authentication data with enhanced production reliability and refresh token support
   function setAuth(authData) {
     try {
       // Validate required token
@@ -51,16 +56,20 @@ export function useAuth() {
         console.warn('⚠️ Could not parse token expiration, using default')
       }
 
-      // Add timestamp and expiration with proper fallback - FORCE 24 HOUR SESSIONS
+      // Add timestamp and expiration with refresh token support
       const enhancedAuthData = {
         ...authData,
         loginTime: authData.loginTime || new Date().toISOString(),
-        // FORCE 24-hour expiration regardless of what server sends
-        expiresAt: authData.expiresAt || getTokenExpiration(authData.token, true), // Force 24h
+        // Use server expiration or default to reasonable time (2-4 hours for access token)
+        expiresAt: authData.expiresAt || getTokenExpiration(authData.token, false),
+        // Store refresh token if provided
+        refreshToken: authData.refreshToken || authData.refresh_token,
         // Add production-specific metadata
         environment: process.env.NODE_ENV || 'development',
         userAgent: process.client ? navigator.userAgent : 'server',
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        // Reset refresh attempts on successful auth
+        refreshAttempts: 0
       }
 
       // Store in all available storage mechanisms with error handling
@@ -311,6 +320,107 @@ export function useAuth() {
     return Math.max(0, expiryTime.getTime() - now.getTime())
   }
 
+  // Refresh access token using refresh token
+  async function refreshToken() {
+    if (isRefreshing.value) {
+      console.log('🔄 Refresh already in progress, waiting...')
+      return false
+    }
+
+    if (refreshAttempts.value >= maxRefreshAttempts) {
+      console.error('❌ Max refresh attempts reached, forcing logout')
+      clearAuth()
+      return false
+    }
+
+    const currentRefreshToken = user.value?.refreshToken
+    if (!currentRefreshToken) {
+      console.warn('⚠️ No refresh token available')
+      clearAuth()
+      return false
+    }
+
+    isRefreshing.value = true
+    refreshAttempts.value++
+
+    try {
+      console.log('🔄 Attempting to refresh token...', {
+        attempt: refreshAttempts.value,
+        maxAttempts: maxRefreshAttempts
+      })
+
+      // Import the refresh API function
+      const { refreshToken: refreshTokenAPI } = await import('~/composables/api.js')
+      
+      const result = await refreshTokenAPI(currentRefreshToken)
+
+      if (result.success && result.data?.access_token) {
+        const { access_token, refresh_token, expires_in, user: userData } = result.data
+        const newRefreshToken = refresh_token || currentRefreshToken
+
+        // Update auth data with new tokens
+        const updatedAuthData = {
+          ...user.value,
+          token: access_token,
+          refreshToken: newRefreshToken,
+          loginTime: user.value.loginTime, // Keep original login time
+          expiresAt: getTokenExpiration(access_token, false),
+          timestamp: Date.now(),
+          refreshAttempts: 0 // Reset on successful refresh
+        }
+
+        setAuth(updatedAuthData)
+        
+        console.log('✅ Token refreshed successfully')
+        return true
+      } else {
+        throw new Error(`Token refresh failed: ${result.error || 'Invalid response format'}`)
+      }
+
+    } catch (error) {
+      console.error('❌ Token refresh failed:', error)
+      
+      // If refresh fails and we've exhausted attempts, clear auth
+      if (refreshAttempts.value >= maxRefreshAttempts) {
+        console.error('❌ Max refresh attempts exhausted, clearing auth')
+        clearAuth()
+        
+        // Redirect to login in production
+        if (process.client) {
+          window.location.href = '/login?session_expired=true&reason=refresh_failed'
+        }
+      }
+      
+      return false
+    } finally {
+      isRefreshing.value = false
+    }
+  }
+
+  // Check if token needs refresh (within 10 minutes of expiry)
+  function shouldRefreshToken() {
+    const timeUntilExpiry = getTimeUntilExpiry()
+    if (!timeUntilExpiry) return false
+    
+    // Refresh if token expires in less than 10 minutes (600000 ms)
+    return timeUntilExpiry < 600000
+  }
+
+  // Auto-refresh token if needed
+  async function ensureValidToken() {
+    if (isTokenExpired()) {
+      console.log('🔄 Token expired, attempting refresh...')
+      return await refreshToken()
+    }
+    
+    if (shouldRefreshToken()) {
+      console.log('🔄 Token expires soon, refreshing preemptively...')
+      return await refreshToken()
+    }
+    
+    return true
+  }
+
   return {
     user: readonly(user),
     isAuthenticated,
@@ -320,7 +430,11 @@ export function useAuth() {
     getUser,
     initAuth,
     isTokenExpired,
-    getTimeUntilExpiry
+    getTimeUntilExpiry,
+    refreshToken,
+    shouldRefreshToken,
+    ensureValidToken,
+    isRefreshing: readonly(isRefreshing)
   }
 }
 
@@ -334,7 +448,7 @@ function getTokenExpiration(token, force24Hours = false) {
 
     const payload = JSON.parse(atob(parts[1]))
     
-    // If force24Hours is true, ignore server expiration and set 24 hours
+    // If force24Hours is true (for special cases), ignore server expiration
     if (force24Hours) {
       const twentyFourHoursFromNow = new Date()
       twentyFourHoursFromNow.setHours(twentyFourHoursFromNow.getHours() + 24)
@@ -342,27 +456,19 @@ function getTokenExpiration(token, force24Hours = false) {
       return twentyFourHoursFromNow.toISOString()
     }
     
-    // Check server expiration but ensure minimum 24 hours
+    // Use server expiration if available
     if (payload.exp) {
       const serverExpiry = new Date(payload.exp * 1000)
-      const twentyFourHoursFromNow = new Date()
-      twentyFourHoursFromNow.setHours(twentyFourHoursFromNow.getHours() + 24)
-      
-      // Use whichever is longer: server expiry or 24 hours
-      const finalExpiry = serverExpiry > twentyFourHoursFromNow ? serverExpiry : twentyFourHoursFromNow
-      
-      console.log('🔒 Token expiration set to:', finalExpiry.toISOString(), 
-                  `(Server: ${serverExpiry.toISOString()}, 24h: ${twentyFourHoursFromNow.toISOString()})`)
-      
-      return finalExpiry.toISOString()
+      console.log('🔒 Using server token expiration:', serverExpiry.toISOString())
+      return serverExpiry.toISOString()
     }
   } catch (e) {
     console.error('Failed to parse token expiration:', e)
   }
 
-  // Default to 24 hours if no expiration found
+  // Default to 2 hours if no expiration found (reasonable for access tokens)
   const defaultExpiry = new Date()
-  defaultExpiry.setHours(defaultExpiry.getHours() + 24)
-  console.log('🔒 Using default 24-hour expiration:', defaultExpiry.toISOString())
+  defaultExpiry.setHours(defaultExpiry.getHours() + 2)
+  console.log('🔒 Using default 2-hour expiration:', defaultExpiry.toISOString())
   return defaultExpiry.toISOString()
 }

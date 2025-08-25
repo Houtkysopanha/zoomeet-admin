@@ -23,18 +23,18 @@
       <div class="flex flex-col  p-1">
         <h2 class="text-lg md:text-xl font-semibold text-gray-800 mb-5 leading-tight">{{ eventTitle }}</h2>
         <div class="flex items-center text-gray-600 mb-5">
-          <i class="pi pi-user text-base mr-1"></i>
-          <span class="text-sm md:text-base">Owner: {{ owner }}</span>
+          <i class="pi pi-user text-blue-950 font-medium text-base mr-1"></i>
+          <span class="text-sm text-blue-950 font-medium md:text-base">Owner: {{ owner }}</span>
         </div>
         <div class="flex items-center text-gray-600">
-          <i class="pi pi-map-marker text-base mr-1"></i>
-          <span class="text-sm md:text-base">{{ location }}</span>
+          <i class="pi pi-map-marker text-blue-950 font-medium text-base mr-1"></i>
+          <span class="text-sm text-blue-950 font-medium md:text-base">{{ location }}</span>
         </div>
       </div>
     </div>
 
     <!-- Bottom section: Date and Time -->
-    <div class="flex flex-col sm:flex-row justify-around items-center bg-white p-6 h-30 rounded-xl shadow-md">
+    <div class="flex flex-col sm:flex-row justify-around items-center bg-[#F8F8FF] border border-white p-6 h-30 rounded-xl shadow-md">
       <div class="flex flex-col items-center text-center mb-2 sm:mb-0">
         <p class="text-gray-500 text-xs font-medium">Date</p>
         <p class="text-gray-800 text-base md:text-lg font-semibold">{{ date }}</p>

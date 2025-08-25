@@ -11,23 +11,41 @@
             class="mb-2"
           />
         </div>
-        <IconnButton label="Invite new user" icon="mingcute:user-add-2-fill" @click="inviteUser()" />
+        <div class="flex space-x-3">
+          <!-- <Button
+            icon="pi pi-refresh"
+            class="p-button-outlined p-button-sm"
+            @click="loadOrganizers"
+            :loading="loading"
+            title="Refresh team members"
+          /> -->
+          <IconnButton label="Invite new user" icon="mingcute:user-add-2-fill" @click="inviteUser()" />
+        </div>
       </div>
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 mb-6">
-      <EventCard
-        :image-src="poster"
-        alt-text="Cybersecurity Event 2025"
-        event-title="Cybersecurity Summit 2025"
-        owner="John Doe"
-        location="Sokha Hotel, Phnom Penh"
-        date="20-22 August, 2025"
-        time="9:00 AM GMT+7"
-      />
+      <div v-if="eventCardData">
+  <EventCard
+    :image-src="eventCardData.imageSrc"
+    :alt-text="eventCardData.altText"
+    :event-title="eventCardData.title"
+    :owner="eventCardData.owner"
+    :location="eventCardData.location"
+    :date="eventCardData.date"
+    :time="eventCardData.time"
+  />
+</div>
+      <div v-else class="flex items-center justify-center p-8 bg-white rounded-lg shadow-sm border border-gray-200">
+        <div class="text-center">
+          <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mb-2"></div>
+          <p class="text-gray-600">Loading event details...</p>
+        </div>
+      </div>
+
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <CardCommon
-          v-for="(stat, index) in eventStats"
+          v-for="(stat, index) in updatedTeamStats"
           :key="index"
           :title="stat.title"
           :count="stat.count"
@@ -39,141 +57,171 @@
     </div>
 
     <!-- Filters and Search -->
-     <div class="mb-6 flex items-center justify-between mt-10  rounded-lg">
-     <div class="flex items-center space-x-4">
-  <div class="relative w-full">
-    <div class="border border-gray-300 rounded-full overflow-hidden flex">
-      <div class="relative flex-1">
-        <Icon name="i-heroicons-magnifying-glass" class="absolute w-8 h-8 left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Search"
-          class="w-full pl-14  border-0 focus:ring-0 focus:outline-none bg-transparent p-3 rounded-full"
-        />
+    <div class="mb-6 flex items-center justify-between mt-10 rounded-lg">
+      <div class="flex items-center space-x-4">
+        <div class="relative w-full">
+          <div class="border border-gray-300 rounded-full overflow-hidden flex">
+            <div class="relative flex-1">
+              <Icon name="i-heroicons-magnifying-glass" class="absolute w-8 h-8 left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
+              <input
+                v-model="searchQuery"
+                type="text"
+                placeholder="Search"
+                class="w-full pl-14 border-0 focus:ring-0 focus:outline-none bg-transparent p-3 rounded-full"
+              />
+            </div>
+            <div class="relative space-x-5">
+              <Icon name="mynaui:filter" class="absolute w-8 h-8 left-3 top-1/2 bg-gradient-to-t from-blue-900 to-purple-800 transform -translate-y-1/2 text-grad" />
+              <Button
+                label="Filters"
+                class="p-button-outlined px-5 text-purple-600 border-purple-600 w-full h-full rounded-none p-3"
+                @click="toggleFilters"
+              />
+            </div>
+          </div>
+        </div>
       </div>
-      <div class=" relative space-x-5">
-     <Icon name="mynaui:filter" class="absolute w-8 h-8 left-3 top-1/2 bg-gradient-to-t from-blue-900 to-purple-800 transform -translate-y-1/2 text-grad" />
-       <Button
-          label="Filters"
-          class="p-button-outlined px-5  text-purple-600 border-purple-600 w-full h-full rounded-none p-3"
-          @click="toggleFilters"
-        />
-      </div>
-    </div>
-  </div>
-</div>
 
-    <div class="flex items-center space-x-4">
-  <div class="relative">
-    <!-- <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 font-medium">Sort</span> -->
-    <Dropdown
-      v-model="sortOption"
-      :options="sortOptions"
-      optionLabel="label"
-      optionValue="value"
-      class="w-30 p-dropdown-sm border bg-transparent border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg"
-      @change="applySort"
-    >
-      <template #value="slotProps">
-       <!-- <i class="pi pi-sort-amount-up mr-2 text-black"></i> -->
-        <span v-if="slotProps.value" class="">{{ slotProps.value }}</span>
-        <span v-else class="ml-14 text-black"></span>
-      </template>
-    </Dropdown>
-    <span class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"></span>
-  </div>
-    <p class="text-xl font-normal text-gray-700">Show</p>
-  <Dropdown
-    v-model="itemsPerPage"
-    :options="pageOptions"
-    optionLabel="label"
-    optionValue="value"
-    placeholder=""
-    class=" border border-gray-300 bg-transparent rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-    @change="applyPageChange"
-  />
-  <span class="text-lg text-gray-700  border-l pl-2 border-gray-500"> Show {{ currentPage * itemsPerPage - (itemsPerPage - 1) }} to {{ Math.min(currentPage * itemsPerPage, totalItems) }} of {{ totalItems }}</span>
-</div>
+      <div class="flex items-center space-x-4">
+        <div class="relative">
+          <Dropdown
+            v-model="sortOption"
+            :options="sortOptions"
+            optionLabel="label"
+            optionValue="value"
+            class="w-30 p-dropdown-sm border bg-transparent border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg"
+            @change="applySort"
+          >
+            <template #value="slotProps">
+  <span>{{ slotProps.value || 'Sort' }}</span>
+</template>
+
+          </Dropdown>
+          <span class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"></span>
+        </div>
+        <p class="text-xl font-normal text-gray-700">Show</p>
+        <Dropdown
+          v-model="itemsPerPage"
+          :options="pageOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder=""
+          class="border border-gray-300 bg-transparent rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          @change="applyPageChange"
+        />
+        <span class="text-lg text-gray-700 border-l pl-2 border-gray-500"> 
+          {{ paginationDisplay }}
+        </span>
+      </div>
     </div>
 
     <!-- Datatable -->
-    <div class="bg-white rounded-lg shadow overflow-hidden">
+    <div class="bg-white overflow-hidden">
+      <!-- Loading state -->
+      <div v-if="loading" class="p-8 text-center">
+        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+        <p class="mt-2 text-gray-600">Loading team members...</p>
+      </div>
+      
+      <!-- Data table -->
+      <div v-else-if="filteredUsers.length > 0">
         <DataTable
-          :value="users"
-          :paginator="true"
-          :rows="itemsPerPage"
-          :totalRecords="users.length"
-          dataKey="id"
-          class="p-datatable-gridlines"
-          scrollable
-          responsiveLayout="scroll"
-        >
-        <Column field="user" header="User" sortable class="text-[14px] border-b border-gray-300 ">
-          <template #body="{ data }">
-            <div class="flex items-center gap-2 ">
-              <img :src="data.avatar" alt="User Avatar" class="w-8 h-8 rounded-full" />
-              <div>
-                 <span>{{ data.user }}</span>
-            <p class="text-[12px] text-gray-600 text-justify pr-6">
-              <span>{{ data.email }}</span>
-            </p>
+  :value="filteredUsers"
+  :paginator="true"
+  :rows="itemsPerPage"
+  :first="(currentPage - 1) * itemsPerPage"
+  :totalRecords="totalFilteredCount"
+  @page="onPageChange"
+  dataKey="id"
+  class="p-datatable-gridlines"
+  scrollable
+  responsiveLayout="scroll">
+
+          <Column field="user" header="User" sortable class="text-[14px] border-b border-gray-300">
+            <template #body="{ data }">
+              <div class="flex items-center gap-2">
+                <!-- Avatar image if available, otherwise show initials -->
+                <div v-if="data.avatar && data.avatar !== ''" class="relative">
+                  <img 
+                    :src="data.avatar" 
+                    :alt="data.user"
+                    class="w-8 h-8 rounded-full object-cover"
+                    @error="handleImageError(data)"
+                  />
+                </div>
+                <div v-else :class="['w-8 h-8 rounded-full bg-gradient-to-r flex items-center justify-center text-xs font-bold text-white', getAvatarGradient(data.user)]">
+                  {{ getInitials(data.user) }}
+                </div>
+                <div>
+                  <span class="font-medium">{{ data.user }}</span>
+                  <p class="text-[12px] text-gray-600 text-justify pr-6">
+                    <span>{{ data.email }}</span>
+                  </p>
+                </div>
               </div>
-            </div>
-          </template>
-        </Column>
-        <Column field="phoneNumber" header="Phone Number" sortable class="text-[14px] border-b border-gray-300 "></Column>
-        <Column field="optionalNote" header="Optional Note" class="text-[14px] border-b border-gray-300 "></Column>
-        <Column field="permissions" header="Permissions" class="text-[14px] border-b border-gray-300 ">
-          <template #body="{ data }">
-            <span v-for="(perm, index) in data.permissions" :key="index" class="inline-block bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full mr-1">
-              {{ perm }}
-            </span>
-          </template>
-        </Column>
-        <Column field="status" header="Status" class="text-[14px] border-b border-gray-300 ">
-          <template #body="{ data }">
-            <span :class="['px-2 py-1 rounded-full text-xs font-medium', {
-              'bg-green-100 text-green-800': data.status === 'Active',
-              'bg-red-100 text-red-800': data.status === 'Inactive'
-            }]">
-              {{ data.status }}
-            </span>
-          </template>
-        </Column>
-        <Column header="Actions" class="text-[14px] border-b border-gray-300 ">
-          <template #body="{ data }">
-            <Button
-              icon="pi pi-ellipsis-v"
-              class="p-button-text p-button-sm text-gray-500"
-              @click="toggleMenu($event, data)"
-            />
-            <Menu ref="menu" :model="menuItems" :popup="true" />
-          </template>
-        </Column>
-      </DataTable>
+            </template>
+          </Column>
+          <Column field="phoneNumber" header="Phone Number" sortable class="text-[14px] border-b border-gray-300"></Column>
+          <Column field="optionalNote" header="Optional Note" class="text-[14px] border-b border-gray-300"></Column>
+          <Column field="permissions" header="Permissions" class="text-[14px] border-b border-gray-300">
+  <template #body="{ data }">
+    <div v-if="data.permissions && data.permissions.length > 0" class="flex flex-wrap gap-1">
+      <span v-for="perm in data.permissions" :key="perm"
+            :class="['px-2 py-1 rounded-full text-xs font-medium', colorByPermission(perm)]">
+        {{ perm }}
+      </span>
     </div>
-    <!-- Invite User Dialog -->
-    <Dialog v-model:visible="showInviteDialog" header="Invite New User" :modal="true" class="w-full md:w-1/2">
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-700">Email</label>
-        <InputText v-model="newUser.email" class="mt-1 w-full rounded-md" />
+    <span v-else class="text-gray-400 text-xs">No permissions assigned</span>
+  </template>
+</Column>
+
+          <Column field="status" header="Status" class="text-[14px] border-b border-gray-300">
+            <template #body="{ data }">
+              <span :class="['px-2 py-1 rounded-full text-xs font-medium', {
+                'bg-green-100 text-green-700': data.status === 'Active',
+                'bg-gray-100 text-gray-800': data.status === 'Inactive'
+              }]">
+                {{ data.status }}
+              </span>
+            </template>
+          </Column>
+          <Column header="Actions" class="text-[14px] border-b border-gray-300">
+            <template #body="{ data }">
+             <Button
+  icon="pi pi-ellipsis-v"
+  class="p-button-text p-button-sm text-gray-500"
+  @click="toggleMenu($event, data)"
+/>
+<Menu ref="menu" class="rounded-xl" :model="menuItems" :popup="true" />
+
+            </template>
+          </Column>
+        </DataTable>
       </div>
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-700">Role</label>
-        <Dropdown v-model="newUser.role" :options="roles" optionLabel="name" class="w-full mt-1 rounded-md" />
+
+      <!-- Empty state when no team members -->
+      <div v-else class="text-center py-12">
+        <div class="mb-4">
+          <Icon name="heroicons:users" class="w-16 h-16 text-gray-300 mx-auto" />
+        </div>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">No team members yet</h3>
+        <p class="text-gray-500 mb-4">
+          Invite team members to start collaborating on this event.
+        </p>
+        <IconnButton 
+          label="Invite new user" 
+          icon="mingcute:user-add-2-fill" 
+          @click="inviteUser()" 
+        />
       </div>
-      <div class="flex justify-end gap-2">
-        <Button label="Cancel" class="p-button-text" @click="showInviteDialog = false" />
-        <Button label="Invite" class="p-button-purple rounded-full" @click="inviteUser" />
-      </div>
-    </Dialog>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { navigateTo } from '#app' // Nuxt 3 navigation helper
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useToast } from 'primevue/usetoast'
 import IconnButton from '~/components/ui/IconnButton.vue'
 import Breadcrumb from '~/components/common/Breadcrumb.vue'
 import EventCard from '~/components/common/EventCard.vue'
@@ -182,177 +230,360 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Dropdown from 'primevue/dropdown'
 import Menu from 'primevue/menu'
-import Button from 'primevue/button' // Import PrimeVue Button
-import { useToast } from 'primevue/usetoast'
-import { useRouter } from 'vue-router'
+import Button from 'primevue/button'
 import poster from '@/assets/image/poster-manage-booking.png'
 
+import { fetchEventOrganizers, disableEventOrganizer, removeOrganizer, getEventDetails } from '@/composables/api'
+
+const eventCardData = ref(null)
+
 const router = useRouter()
+const route = useRoute()
 const toast = useToast()
 
-// const goToManageTicket = () => {
-//   router.push('/InviteNewUser')
-// }
-const teamStats = [
-  { title: 'Total Members', count: '23', icon: 'material-symbols-light:people', weekChange: '2' },
-  { title: 'Active Users', count: '10', icon: 'mdi:account-check', weekChange: '1' },
-];
+// ✅ dynamic from query params
+const eventId = ref(route.query.eventId)
+const userId = ref(route.query.userId)
+const userName = ref(route.query.userName)
 
-const users = ref([
-  { id: 1, user: 'Olivia Ryhe', email: 'test@gmail.com', avatar: poster, phoneNumber: '0123456789', optionalNote: 'Help manage event booking', permissions: ['Check-in Service', 'Booking Service'], status: 'Active' },
-  { id: 2, user: 'Phoenix Baker', email: 'test@gmail.com', avatar: poster, phoneNumber: '0123456789', optionalNote: 'Help manage event booking', permissions: ['Event Management', 'Booking Service'], status: 'Active' },
-  { id: 3, user: 'Lana Steiner', email: 'test@gmail.com', avatar: poster, phoneNumber: '0123456789', optionalNote: 'Help manage event booking', permissions: ['Check-in Service', 'Booking Service'], status: 'Inactive' },
-  { id: 4, user: 'Candice Wu', email: 'test@gmail.com', avatar: poster, phoneNumber: '0123456789', optionalNote: 'Help manage event booking', permissions: ['Check-in Service'], status: 'Active' },
-  { id: 5, user: 'Natali Craig', email: 'test@gmail.com', avatar: poster, phoneNumber: '0123456789', optionalNote: 'Help manage event booking', permissions: ['Check-in Service'], status: 'Inactive' },
-  { id: 6, user: 'Drew Cano', email: 'test@gmail.com', avatar: poster, phoneNumber: '0123456789', optionalNote: 'Help manage event booking', permissions: ['Report', 'Event Service'], status: 'Inactive' },
-]);
+const loadEventCard = async () => {
+  if (!eventId.value) {
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'No event selected. Please select an event.',
+      life: 5000
+    })
+    router.push('/admin/event')
+    return
+  }
 
-const roles = ref([
-  { name: 'Admin', id: 1 },
-  { name: 'Editor', id: 2 },
-  { name: 'Viewer', id: 3 },
-]);
+  try {
+    const eventResponse = await getEventDetails(eventId.value)
+    const event = eventResponse.data
 
-const eventStats = [
-  { title: 'Team', count: '28', icon: 'fluent:people-team-24-filled', weekChange: '2' },
-  { title: 'Total Booking', count: '23', icon: 'material-symbols-light:order-approve', weekChange: '2', },
-  { title: 'Total Refund', count: '5', icon: 'mdi:recurring-payment', weekChange: '2' },
-  { title: 'Fail Payment', count: '24', icon: 'icon-park-outline:database-fail', weekChange: '2' },
+    eventCardData.value = {
+      imageSrc: event.cover_image_url || '',
+      altText: event.name || 'Event',
+      title: event.name || 'Untitled Event',
+      owner: event.organizer || 'Unknown Organizer',
+      location: event.location || 'No location specified',
+      date: event.start_date
+        ? new Date(event.start_date).toLocaleDateString()
+        : 'No date specified',
+      time: event.start_date
+        ? new Date(event.start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : 'No time specified'
+    }
+  } catch (err) {
+    console.error("❌ Failed to fetch event details:", err)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to load event details. Please try again.',
+      life: 5000
+    })
+
+    eventCardData.value = {
+      imageSrc: '',
+      altText: 'Event',
+      title: 'Unable to load event details',
+      owner: 'Unknown',
+      location: 'Unknown',
+      date: 'Unknown',
+      time: 'Unknown'
+    }
+  }
+}
+
+
+// 📌 Team Members
+const allUsers = ref([])
+const users = ref([])
+const loading = ref(false)
+const totalMembers = ref(0)
+const activeMembers = ref(0)
+
+// Filters & sorting
+const searchQuery = ref('')
+const sortOption = ref(null)
+const itemsPerPage = ref(10)
+const currentPage = ref(1)
+
+// Options
+const sortOptions = [
+  { label: 'Sort by Name', value: 'name' },
+  { label: 'Sort by Email', value: 'email' },
+  { label: 'Sort by Status', value: 'status' }
 ]
 
-const searchQuery = ref('')
-const itemsPerPage = ref(10)
-
-const currentPage = ref(1)
-const totalItems = ref(206) // Example total, replace with actual count from API
-
-
-const sortOption = ref('Sort') // Initialize to null or a default value
-const sortOptions = ref([
-  { label: 'Booking Name (Asc)', value: 'bookingName-asc' },
-  { label: 'Booking Name (Desc)', value: 'bookingName-desc' },
-  { label: 'Purchase Date (Asc)', value: 'purchaseDate-asc' },
-  { label: 'Purchase Date (Desc)', value: 'purchaseDate-desc' },
-])
-
 const pageOptions = ref([
+  { label: '5', value: 5 },
   { label: '10', value: 10 },
   { label: '20', value: 20 },
-  { label: '50', value: 50 },
+  { label: '25', value: 25 },
+])
+const colorByPermission = (perm) => {
+  if (!perm) return 'bg-gray-100 text-gray-800'
+
+  const p = perm.toLowerCase()
+  if (p.includes('event')) return 'bg-purple-50 text-purple-800'
+  if (p.includes('booking')) return 'bg-blue-50 text-blue-700'
+  if (p.includes('check-in')) return 'bg-blue-50 text-blue-800'
+  if (p.includes('report')) return 'bg-pink-50 text-pink-800'
+
+  return 'bg-gray-100 text-gray-800'
+}
+
+// Helper function to get initials from name
+const getInitials = (name) => {
+  if (!name || name.trim() === '') return '??'
+  
+  const words = name.trim().split(' ').filter(word => word.length > 0)
+  if (words.length === 0) return '??'
+  
+  if (words.length === 1) {
+    // If single word, take first 2 characters
+    return words[0].slice(0, 2).toUpperCase()
+  }
+  
+  // If multiple words, take first character of first two words
+  return (words[0].charAt(0) + words[1].charAt(0)).toUpperCase()
+}
+
+// Get gradient color based on name
+const getAvatarGradient = (name) => {
+  if (!name) return 'from-blue-500 to-purple-600'
+  
+  const gradients = [
+    'from-blue-500 to-purple-600',
+    'from-green-500 to-blue-600', 
+    'from-purple-500 to-pink-600',
+    'from-orange-500 to-red-600',
+    'from-teal-500 to-cyan-600',
+    'from-indigo-500 to-purple-600'
+  ]
+  
+  // Simple hash based on name length and first character
+  const hash = name.length + name.charCodeAt(0)
+  return gradients[hash % gradients.length]
+}
+
+// Handle image loading errors
+const handleImageError = (userData) => {
+  userData.avatar = '' // Clear the avatar to show initials
+}
+
+// Stats
+const updatedTeamStats = computed(() => [
+  {
+    title: 'Team Members',
+    count: allUsers.value.length, // Total team members (not filtered)
+    icon: 'fluent:people-team-24-filled',
+    weekChange: '0'
+  },
+  {
+    title: 'Team Members',
+    count: allUsers.value.length, // Total team members (not filtered)
+    icon: 'fluent:people-team-24-filled',
+    weekChange: '0'
+  }
+  ,
+  {
+    title: 'Team Members',
+    count: allUsers.value.length, // Total team members (not filtered)
+    icon: 'fluent:people-team-24-filled',
+    weekChange: '0'
+  },
+  {
+    title: 'Team Members',
+    count: allUsers.value.length, // Total team members (not filtered)
+    icon: 'fluent:people-team-24-filled',
+    weekChange: '0'
+  }
 ])
 
-const filteredBookings = computed(() => {
-  let result = [...bookings.value]
+// Menu state
+const menu = ref()
+const selectedUserForMenu = ref(null)
+const menuItems = [
+  {
+    label: 'Edit Permission',
+    icon: 'pi pi-pencil',
+    command: () => editPermission(selectedUserForMenu.value)
+  },
+  {
+    label: 'Disable',
+    icon: 'pi pi-times',
+    command: () => disableUser(selectedUserForMenu.value)
+  },
+  {
+    label: 'Remove',
+    icon: 'pi pi-trash text-red-500',
+    command: () => removeUser(selectedUserForMenu.value)
+  }
+]
 
-  // Apply search filter
+// Pagination & sorting pipeline
+const filteredUsers = computed(() => {
+  let filtered = [...allUsers.value]
+
+  // Search
   if (searchQuery.value) {
-    const lowerCaseQuery = searchQuery.value.toLowerCase()
-    result = result.filter(booking =>
-      Object.values(booking).some(value =>
-        String(value).toLowerCase().includes(lowerCaseQuery)
-      )
+    const q = searchQuery.value.toLowerCase()
+    filtered = filtered.filter(
+      u =>
+        u.user.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q) ||
+        u.phoneNumber.toLowerCase().includes(q)
     )
   }
 
-  // Apply client-side sorting based on sortOption
-  if (sortOption.value) {
-    const [field, order] = sortOption.value.split('-')
-    result = result.sort((a, b) => {
-      let valueA = a[field] || ''
-      let valueB = b[field] || ''
-
-      // Handle date comparison if the field is a date
-      if (field === 'purchaseDate') {
-        valueA = new Date(valueA).getTime()
-        valueB = new Date(valueB).getTime()
-      }
-
-      if (typeof valueA === 'string' && typeof valueB === 'string') {
-        return order === 'asc' ? valueA.localeCompare(valueB) : -valueA.localeCompare(valueB)
-      } else {
-        return order === 'asc' ? valueA - valueB : valueB - valueA
-      }
-    })
+  // Sort
+  if (sortOption.value === 'name') {
+    filtered.sort((a, b) => a.user.localeCompare(b.user))
+  } else if (sortOption.value === 'email') {
+    filtered.sort((a, b) => a.email.localeCompare(b.email))
+  } else if (sortOption.value === 'status') {
+    filtered.sort((a, b) => a.status.localeCompare(b.status))
   }
 
-  return result
+  return filtered
 })
 
-const paginatedBookings = computed(() => {
+const paginatedUsers = computed(() => {
+  const filtered = filteredUsers.value
   const start = (currentPage.value - 1) * itemsPerPage.value
   const end = start + itemsPerPage.value
-  return filteredBookings.value.slice(start, end)
+  return filtered.slice(start, end)
 })
 
-const applySort = () => {
-  currentPage.value = 1; // Reset to first page on sort change
-  // Sorting is handled by the computed property `filteredBookings`
-}
+// Total filtered count for pagination display
+const totalFilteredCount = computed(() => filteredUsers.value.length)
 
-const applyPageChange = (event) => {
-  itemsPerPage.value = event.value
-  currentPage.value = 1 // Reset to first page on items per page change
-}
+// Pagination display
+const paginationDisplay = computed(() => {
+  const total = totalFilteredCount.value
+  if (total === 0) return 'No results'
+  
+  const start = (currentPage.value - 1) * itemsPerPage.value + 1
+  const end = Math.min(currentPage.value * itemsPerPage.value, total)
+  
+  return `Show ${start} to ${end} of ${total}`
+})
 
-const filteredUsers = computed(() => {
-  let result = [...users.value];
-  if (searchQuery.value) {
-    const lowerCaseQuery = searchQuery.value.toLowerCase();
-    result = result.filter(user =>
-      Object.values(user).some(value =>
-        String(value).toLowerCase().includes(lowerCaseQuery)
-      )
-    );
+// Methods
+const loadOrganizers = async () => {
+  if (!eventId.value) return
+
+  loading.value = true
+  try {
+    const { status, data } = await fetchEventOrganizers(eventId.value)
+
+    if (status === 200 && data.success && Array.isArray(data.data)) {
+      allUsers.value = data.data.map(o => ({
+        id: o.id,
+        user_id: o.user_id,
+        user: o.name,
+        email: o.email,
+        avatar: o.avatar_url || o.avatar || '', // Handle different possible avatar field names
+        phoneNumber: o.phone_number || 'N/A',
+        optionalNote: o.note || 'Admin',
+        permissions: (o.roles || []).map(r => typeof r === 'string' ? r : r.name),
+        status: o.is_active == 1 || o.is_active === true ? 'Active' : 'Inactive',
+        created_at: o.created_at
+      }))
+
+      totalMembers.value = allUsers.value.length
+      activeMembers.value = allUsers.value.filter(u => u.status === 'Active').length
+    }
+  } catch (err) {
+    console.error('❌ Error loading organizers:', err)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to load team members. Please try again.',
+      life: 4000
+    })
+  } finally {
+    loading.value = false
   }
-  if (sortOption.value) {
-    const [field, order] = sortOption.value.split('-');
-    result.sort((a, b) => {
-      let valueA = a[field];
-      let valueB = b[field];
-      return order === 'asc' ? valueA.localeCompare(valueB) : -valueA.localeCompare(valueB);
-    });
-  }
-  return result;
-});
-
-const toggleFilters = () => {
-  // Implement filter modal/sidebar logic here
-  toast.add({ severity: 'info', summary: 'Filters', detail: 'Filter functionality to be implemented', life: 3000 })
 }
 
-const menu = ref()
-const selectedUserForMenu = ref(null)
+const toggleMenu = (event, data) => {
+  selectedUserForMenu.value = data
+  menu.value.toggle(event)
+}
+
+const inviteUser = () => {
+  router.push({
+    path: '/admin/role/InviteNewUser',
+    query: { eventId: eventId.value }
+  })
+}
 
 const editPermission = (userData) => {
-  // Route to Edit Permission page with user data
   router.push({
     path: '/admin/role/EditPermission',
     query: {
-      userId: userData.id,
+      eventId: eventId.value,
+      userId: userData.user_id,
       userName: userData.user
     }
   })
 }
 
-const menuItems = ref([
-  { label: 'Edit Permission', icon: 'pi pi-pencil', command: () => editPermission(selectedUserForMenu.value) },
-  { label: 'Disable', icon: 'pi pi-times', command: () => toast.add({ severity: 'warn', summary: 'Disable', detail: 'User disabled', life: 3000 }) },
-  { label: 'Remove', icon: 'pi pi-trash', command: () => toast.add({ severity: 'warn', summary: 'Remove', detail: 'User removed', life: 3000 }) },
-]);
+const disableUser = async (userData) => {
+  try {
+    const { status, data } = await disableEventOrganizer(eventId.value, userData.user_id)
 
-const toggleMenu = (event, data) => {
-  selectedUserForMenu.value = data;
-  menu.value.toggle(event);
-};
+    if (status === 200 && data.success) {
+      const userIndex = allUsers.value.findIndex(u => u.user_id === userData.user_id)
+      if (userIndex !== -1) allUsers.value[userIndex].status = 'Inactive'
 
-const inviteUser = () => {
-  // Route to the Invite New User page (static route for now)
-  router.push('/admin/role/InviteNewUser');
-};
-definePageMeta({
-  layout: "admin",
+      toast.add({ severity: 'success', summary: 'Disabled', detail: `${userData.user} disabled.`, life: 3000 })
+    }
+  } catch (err) {
+    toast.add({ severity: 'error', summary: 'Error', detail: err.message, life: 4000 })
+  }
+}
+
+const removeUser = async (userData) => {
+  try {
+    const token = localStorage.getItem('token')
+    const { status, data } = await removeOrganizer({ eventId: eventId.value, userId: userData.user_id, token })
+
+    if (status === 200 && data.success) {
+      allUsers.value = allUsers.value.filter(u => u.user_id !== userData.user_id)
+      totalMembers.value = allUsers.value.length
+      activeMembers.value = allUsers.value.filter(u => u.status === 'Active').length
+      
+      toast.add({ severity: 'success', summary: 'Removed', detail: `${userData.user} removed.`, life: 3000 })
+    }
+  } catch (error) {
+    toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.message || error.message, life: 4000 })
+  }
+}
+
+const toggleFilters = () => toast.add({ severity: 'info', summary: 'Filters', detail: 'Filter TBD', life: 3000 })
+const applySort = () => { currentPage.value = 1 }
+const applyPageChange = e => { itemsPerPage.value = e.value; currentPage.value = 1 }
+const onPageChange = (event) => {
+  currentPage.value = event.page + 1
+}
+
+// Watch for search changes to reset pagination
+watch(searchQuery, () => {
+  currentPage.value = 1
 })
+
+// ✅ Load data on mount
+onMounted(loadOrganizers)
+onMounted(loadEventCard)
+
+definePageMeta({ layout: 'admin' })
 </script>
+
 
 <style scoped>
 /* Existing styles */
@@ -504,4 +735,26 @@ definePageMeta({
 .p-button-purple:hover {
   background: linear-gradient(to top, #3A0090, #6A39B9); /* Darker hover state */
 }
+
+/* Avatar styling */
+img.rounded-full, .rounded-full {
+  transition: all 0.3s ease;
+}
+
+img.rounded-full:hover, .rounded-full:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Gradient variations for different users */
+.bg-gradient-to-r {
+  transition: all 0.3s ease;
+}
+
+.bg-gradient-to-r:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+
 </style>
