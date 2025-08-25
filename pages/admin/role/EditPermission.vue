@@ -28,15 +28,22 @@
         <!-- User Profile -->
         <div class="flex flex-col items-center mb-6">
           <div class="relative mb-4">
-            <img 
-              :src="userInfo.avatar" 
-              :alt="userInfo.name"
-              class="w-24 h-24 rounded-full object-cover"
-            />
-           <div 
-  class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white" 
-  :class="userInfo.isActive ? 'bg-green-500' : 'bg-red-500'"
-></div>
+            <!-- Avatar image if available, otherwise show initials -->
+            <div v-if="userInfo.avatar && userInfo.avatar !== ''" class="relative">
+              <img 
+                :src="userInfo.avatar" 
+                :alt="userInfo.name"
+                class="w-24 h-24 rounded-full object-cover"
+                @error="handleImageError"
+              />
+            </div>
+            <div v-else :class="['w-24 h-24 rounded-full bg-gradient-to-r flex items-center justify-center shadow-lg border-2 border-white', getAvatarGradient(userInfo.name)]">
+              <span class="text-white text-2xl font-bold tracking-wide">{{ getInitials(userInfo.name) }}</span>
+            </div>
+            <div 
+              class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white" 
+              :class="userInfo.isActive ? 'bg-green-500' : 'bg-gray-500'"
+            ></div>
           </div>
           <h2 class="text-xl font-semibold text-gray-900 my-4">{{ userInfo.name }}</h2>
           <div class="flex space-x-4 text-sm">
@@ -151,7 +158,6 @@ import InputSwitch from 'primevue/inputswitch'
 import { fetchOrganizerPermissions } from '@/composables/api'
 import { fetchUserRoles } from '@/composables/api'
 import { updateOrganizerPermissions } from '@/composables/api'
-import img1 from '@/assets/image/poster-manage-booking.png'
 import axios from 'axios'
 
 const router = useRouter()
@@ -177,7 +183,7 @@ const permissionsLoading = ref(false)
 
 const userInfo = ref({
   name: userName.value || '',
-  avatar: img1,
+  avatar: '', // No default image, will show initials
   email: '',
   phone: '',
   inviteDate: '',
@@ -218,7 +224,7 @@ const loadUserData = async () => {
 
     userInfo.value = {
       name: userData.name,
-      avatar: img1,
+      avatar: userData.avatar_url || userData.avatar || '', // Handle different possible avatar field names
       email: userData.email,
       phone: userData.phone_number,
       inviteDate: userData.created_at,
@@ -286,6 +292,45 @@ const formatCategoryName = (category) => {
 
 const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleDateString('en-GB') : '-'
 
+// Helper function to get initials from name
+const getInitials = (name) => {
+  if (!name || name.trim() === '') return '??'
+  
+  const words = name.trim().split(' ').filter(word => word.length > 0)
+  if (words.length === 0) return '??'
+  
+  if (words.length === 1) {
+    // If single word, take first 2 characters
+    return words[0].slice(0, 2).toUpperCase()
+  }
+  
+  // If multiple words, take first character of first two words
+  return (words[0].charAt(0) + words[1].charAt(0)).toUpperCase()
+}
+
+// Get gradient color based on name
+const getAvatarGradient = (name) => {
+  if (!name) return 'from-blue-500 to-purple-600'
+  
+  const gradients = [
+    'from-blue-500 to-purple-600',
+    'from-green-500 to-blue-600', 
+    'from-purple-500 to-pink-600',
+    'from-orange-500 to-red-600',
+    'from-teal-500 to-cyan-600',
+    'from-indigo-500 to-purple-600'
+  ]
+  
+  // Simple hash based on name length and first character
+  const hash = name.length + name.charCodeAt(0)
+  return gradients[hash % gradients.length]
+}
+
+// Handle image loading errors
+const handleImageError = () => {
+  userInfo.value.avatar = '' // Clear the avatar to show initials
+}
+
 onMounted(async () => {
   await loadPermissions()
   await loadUserData()
@@ -304,4 +349,17 @@ definePageMeta({ layout: 'admin' })
 }
 .border:hover { border-color: #8b5cf6; transition: border-color 0.2s ease; }
 .p-toggleswitch { transition: all 0.2s ease; }
+
+/* Avatar animations */
+img, .rounded-full {
+  transition: all 0.3s ease;
+}
+img:hover, .rounded-full:hover {
+  transform: scale(1.05);
+}
+
+/* Gradient variations for different users */
+.bg-gradient-to-r {
+  background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+}
 </style>

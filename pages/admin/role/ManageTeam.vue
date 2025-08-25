@@ -93,7 +93,7 @@
             @change="applySort"
           >
             <template #value="slotProps">
-  <span>{{ slotProps.value || 'Select' }}</span>
+  <span>{{ slotProps.value || 'Sort' }}</span>
 </template>
 
           </Dropdown>
@@ -110,13 +110,13 @@
           @change="applyPageChange"
         />
         <span class="text-lg text-gray-700 border-l pl-2 border-gray-500"> 
-          Show {{ currentPage * itemsPerPage - (itemsPerPage - 1) }} to {{ Math.min(currentPage * itemsPerPage, totalItems.value) }} of {{ totalItems.value }}
+          {{ paginationDisplay }}
         </span>
       </div>
     </div>
 
     <!-- Datatable -->
-    <div class="bg-white rounded-lg shadow overflow-hidden">
+    <div class="bg-white overflow-hidden">
       <!-- Loading state -->
       <div v-if="loading" class="p-8 text-center">
         <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
@@ -124,23 +124,36 @@
       </div>
       
       <!-- Data table -->
-      <div v-else-if="paginatedUsers.length > 0">
+      <div v-else-if="filteredUsers.length > 0">
         <DataTable
-          :value="paginatedUsers"
-          :paginator="true"
-          :rows="itemsPerPage"
-          :totalRecords="totalItems"
-          dataKey="id"
-          class="p-datatable-gridlines"
-          scrollable
-          responsiveLayout="scroll"
-        >
+  :value="filteredUsers"
+  :paginator="true"
+  :rows="itemsPerPage"
+  :first="(currentPage - 1) * itemsPerPage"
+  :totalRecords="totalFilteredCount"
+  @page="onPageChange"
+  dataKey="id"
+  class="p-datatable-gridlines"
+  scrollable
+  responsiveLayout="scroll">
+
           <Column field="user" header="User" sortable class="text-[14px] border-b border-gray-300">
             <template #body="{ data }">
               <div class="flex items-center gap-2">
-                <img :src="data.avatar" alt="User Avatar" class="w-8 h-8 rounded-full" />
+                <!-- Avatar image if available, otherwise show initials -->
+                <div v-if="data.avatar && data.avatar !== ''" class="relative">
+                  <img 
+                    :src="data.avatar" 
+                    :alt="data.user"
+                    class="w-8 h-8 rounded-full object-cover"
+                    @error="handleImageError(data)"
+                  />
+                </div>
+                <div v-else :class="['w-8 h-8 rounded-full bg-gradient-to-r flex items-center justify-center text-xs font-bold text-white', getAvatarGradient(data.user)]">
+                  {{ getInitials(data.user) }}
+                </div>
                 <div>
-                  <span>{{ data.user }}</span>
+                  <span class="font-medium">{{ data.user }}</span>
                   <p class="text-[12px] text-gray-600 text-justify pr-6">
                     <span>{{ data.email }}</span>
                   </p>
@@ -192,6 +205,14 @@
           <Icon name="heroicons:users" class="w-16 h-16 text-gray-300 mx-auto" />
         </div>
         <h3 class="text-lg font-medium text-gray-900 mb-2">No team members yet</h3>
+        <p class="text-gray-500 mb-4">
+          Invite team members to start collaborating on this event.
+        </p>
+        <IconnButton 
+          label="Invite new user" 
+          icon="mingcute:user-add-2-fill" 
+          @click="inviteUser()" 
+        />
       </div>
     </div>
   </div>
@@ -212,7 +233,7 @@ import Menu from 'primevue/menu'
 import Button from 'primevue/button'
 import poster from '@/assets/image/poster-manage-booking.png'
 
-import { fetchEventOrganizers, disableEventOrganizer, removeOrganizer, } from '@/composables/api'
+import { fetchEventOrganizers, disableEventOrganizer, removeOrganizer, getEventDetails } from '@/composables/api'
 
 const eventCardData = ref(null)
 
@@ -238,7 +259,8 @@ const loadEventCard = async () => {
   }
 
   try {
-    const event = await getEventDetail(eventId.value) // ✅ already the event object
+    const eventResponse = await getEventDetails(eventId.value)
+    const event = eventResponse.data
 
     eventCardData.value = {
       imageSrc: event.cover_image_url || '',
@@ -298,8 +320,8 @@ const sortOptions = [
 const pageOptions = ref([
   { label: '5', value: 5 },
   { label: '10', value: 10 },
+  { label: '20', value: 20 },
   { label: '25', value: 25 },
-  { label: '50', value: 50 },
 ])
 const colorByPermission = (perm) => {
   if (!perm) return 'bg-gray-100 text-gray-800'
@@ -313,28 +335,69 @@ const colorByPermission = (perm) => {
   return 'bg-gray-100 text-gray-800'
 }
 
+// Helper function to get initials from name
+const getInitials = (name) => {
+  if (!name || name.trim() === '') return '??'
+  
+  const words = name.trim().split(' ').filter(word => word.length > 0)
+  if (words.length === 0) return '??'
+  
+  if (words.length === 1) {
+    // If single word, take first 2 characters
+    return words[0].slice(0, 2).toUpperCase()
+  }
+  
+  // If multiple words, take first character of first two words
+  return (words[0].charAt(0) + words[1].charAt(0)).toUpperCase()
+}
+
+// Get gradient color based on name
+const getAvatarGradient = (name) => {
+  if (!name) return 'from-blue-500 to-purple-600'
+  
+  const gradients = [
+    'from-blue-500 to-purple-600',
+    'from-green-500 to-blue-600', 
+    'from-purple-500 to-pink-600',
+    'from-orange-500 to-red-600',
+    'from-teal-500 to-cyan-600',
+    'from-indigo-500 to-purple-600'
+  ]
+  
+  // Simple hash based on name length and first character
+  const hash = name.length + name.charCodeAt(0)
+  return gradients[hash % gradients.length]
+}
+
+// Handle image loading errors
+const handleImageError = (userData) => {
+  userData.avatar = '' // Clear the avatar to show initials
+}
+
 // Stats
 const updatedTeamStats = computed(() => [
   {
-    title: 'Team',
-    count: totalMembers.value,
+    title: 'Team Members',
+    count: allUsers.value.length, // Total team members (not filtered)
     icon: 'fluent:people-team-24-filled',
     weekChange: '0'
   },
   {
-    title: 'Team',
-    count: totalMembers.value,
+    title: 'Team Members',
+    count: allUsers.value.length, // Total team members (not filtered)
+    icon: 'fluent:people-team-24-filled',
+    weekChange: '0'
+  }
+  ,
+  {
+    title: 'Team Members',
+    count: allUsers.value.length, // Total team members (not filtered)
     icon: 'fluent:people-team-24-filled',
     weekChange: '0'
   },
   {
-    title: 'Team',
-    count: totalMembers.value,
-    icon: 'fluent:people-team-24-filled',
-    weekChange: '0'
-  },{
-    title: 'Team',
-    count: totalMembers.value,
+    title: 'Team Members',
+    count: allUsers.value.length, // Total team members (not filtered)
     icon: 'fluent:people-team-24-filled',
     weekChange: '0'
   }
@@ -390,14 +453,24 @@ const filteredUsers = computed(() => {
 
 const paginatedUsers = computed(() => {
   const filtered = filteredUsers.value
-  totalMembers.value = filtered.length
-
   const start = (currentPage.value - 1) * itemsPerPage.value
   const end = start + itemsPerPage.value
   return filtered.slice(start, end)
 })
 
-const totalItems = computed(() => filteredUsers.value.length)
+// Total filtered count for pagination display
+const totalFilteredCount = computed(() => filteredUsers.value.length)
+
+// Pagination display
+const paginationDisplay = computed(() => {
+  const total = totalFilteredCount.value
+  if (total === 0) return 'No results'
+  
+  const start = (currentPage.value - 1) * itemsPerPage.value + 1
+  const end = Math.min(currentPage.value * itemsPerPage.value, total)
+  
+  return `Show ${start} to ${end} of ${total}`
+})
 
 // Methods
 const loadOrganizers = async () => {
@@ -413,7 +486,7 @@ const loadOrganizers = async () => {
         user_id: o.user_id,
         user: o.name,
         email: o.email,
-        avatar: poster,
+        avatar: o.avatar_url || o.avatar || '', // Handle different possible avatar field names
         phoneNumber: o.phone_number || 'N/A',
         optionalNote: o.note || 'Team member',
         permissions: (o.roles || []).map(r => typeof r === 'string' ? r : r.name),
@@ -421,10 +494,17 @@ const loadOrganizers = async () => {
         created_at: o.created_at
       }))
 
+      totalMembers.value = allUsers.value.length
       activeMembers.value = allUsers.value.filter(u => u.status === 'Active').length
     }
   } catch (err) {
     console.error('❌ Error loading organizers:', err)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to load team members. Please try again.',
+      life: 4000
+    })
   } finally {
     loading.value = false
   }
@@ -475,6 +555,9 @@ const removeUser = async (userData) => {
 
     if (status === 200 && data.success) {
       allUsers.value = allUsers.value.filter(u => u.user_id !== userData.user_id)
+      totalMembers.value = allUsers.value.length
+      activeMembers.value = allUsers.value.filter(u => u.status === 'Active').length
+      
       toast.add({ severity: 'success', summary: 'Removed', detail: `${userData.user} removed.`, life: 3000 })
     }
   } catch (error) {
@@ -485,9 +568,14 @@ const removeUser = async (userData) => {
 const toggleFilters = () => toast.add({ severity: 'info', summary: 'Filters', detail: 'Filter TBD', life: 3000 })
 const applySort = () => { currentPage.value = 1 }
 const applyPageChange = e => { itemsPerPage.value = e.value; currentPage.value = 1 }
-const onPage = (event) => {
+const onPageChange = (event) => {
   currentPage.value = event.page + 1
 }
+
+// Watch for search changes to reset pagination
+watch(searchQuery, () => {
+  currentPage.value = 1
+})
 
 // ✅ Load data on mount
 onMounted(loadOrganizers)
@@ -646,6 +734,26 @@ definePageMeta({ layout: 'admin' })
 
 .p-button-purple:hover {
   background: linear-gradient(to top, #3A0090, #6A39B9); /* Darker hover state */
+}
+
+/* Avatar styling */
+img.rounded-full, .rounded-full {
+  transition: all 0.3s ease;
+}
+
+img.rounded-full:hover, .rounded-full:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Gradient variations for different users */
+.bg-gradient-to-r {
+  transition: all 0.3s ease;
+}
+
+.bg-gradient-to-r:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 

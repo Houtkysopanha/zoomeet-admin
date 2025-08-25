@@ -34,10 +34,16 @@
               id="contact"
               v-model="newUser.contact"
               placeholder="Enter phone number or email to search users..."
-              class="w-full px-4 py-3 bg-gray-100 border-none rounded-xl text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all"
+              class="w-full px-4 py-3 bg-gray-100 border-none rounded-xl text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-300 ease-in-out transform focus:scale-[1.02]"
               @input="handleSearch"
             />
-            <p v-if="contactError" class="text-xs text-red-500 mt-2">Type at least 3 characters</p>
+            <p v-if="contactError" class="text-xs text-red-500 mt-2 animate-fade-in">Type at least 3 characters</p>
+            
+            <!-- Search loading indicator -->
+            <div v-if="searching" class="flex items-center mt-2 text-purple-600">
+              <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600 mr-2"></div>
+              <span class="text-sm">Searching organizers...</span>
+            </div>
           </div>
 
           <div>
@@ -54,14 +60,14 @@
 
         <!-- Search results counter -->
         <div class="border border-1 border-gray-200 my-3"></div>
-        <div v-if="users.length > 0" class="mt-4 mb-2">
+        <div v-if="users.length > 0" class="mt-4 mb-2 animate-fade-in">
           <p class="text-sm text-gray-600">
-            Found {{ users.length }} result{{ users.length !== 1 ? 's' : '' }}
+            Found {{ users.length }} organizer{{ users.length !== 1 ? 's' : '' }}
           </p>
         </div>
 
         <!-- Selected users display -->
-        <div v-if="selectedUsers.length > 0" class="mt-4 mb-4 p-4 bg-purple-50 rounded-xl border border-purple-200">
+        <div v-if="selectedUsers.length > 0" class="mt-4 mb-4 p-4 bg-purple-50 rounded-xl border border-purple-200 animate-fade-in">
           <p class="text-sm font-medium text-purple-800 mb-2">
             Selected ({{ selectedUsers.length }}):
           </p>
@@ -69,12 +75,12 @@
             <span 
               v-for="user in selectedUsers" 
               :key="user.id"
-              class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-300"
+              class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-300 transform transition-all duration-200 hover:scale-105"
             >
               {{ user.name }}
               <button 
                 @click.stop="selectUser(user)"
-                class="ml-2 text-purple-600 hover:text-purple-800"
+                class="ml-2 text-purple-600 hover:text-purple-800 transition-colors duration-200"
                 title="Remove user"
               >
                 ×
@@ -85,24 +91,25 @@
 
 <ul v-if="users.length" class="mt-6 space-y-3">
   <li
-    v-for="u in users"
+    v-for="(u, index) in users"
     :key="u.id"
     @click="selectUser(u)"
-    class="flex items-center justify-between p-4 rounded-2xl cursor-pointer transition border"
-    :class="selectedUsers.some(su => su.id === u.id) ? 'border-purple-500 bg-purple-50 hover:bg-purple-100' : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'"
-    :title="selectedUsers.some(su => su.id === u.id) ? 'Click to unselect this user' : 'Click to select this user'"
+    class="flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all duration-300 border transform hover:scale-[1.02] animate-slide-in"
+    :class="selectedUsers.some(su => su.id === u.id) ? 'border-purple-500 bg-purple-50 hover:bg-purple-100 shadow-lg' : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50 hover:shadow-md'"
+    :title="selectedUsers.some(su => su.id === u.id) ? 'Click to unselect this organizer' : 'Click to select this organizer'"
+    :style="{ animationDelay: `${index * 100}ms` }"
   >
     <div class="flex items-center space-x-3">
-      <div class="w-10 h-10 flex items-center justify-center rounded-full bg-blue-100 text-blue-600 font-semibold">
+      <div class="w-10 h-10 flex items-center justify-center rounded-full bg-gradient-to-r from-blue-100 to-blue-200 text-blue-600 font-semibold transition-all duration-300 hover:scale-110">
         {{ getInitials(u.name) }}
       </div>
       <div>
-        <p class="font-medium text-gray-800">{{ u.name }}</p>
-        <p class="text-sm text-gray-500">{{ u.email || u.phone_number }}</p>
+        <p class="font-medium text-gray-800 transition-colors duration-200">{{ u.name }}</p>
+        <p class="text-sm text-gray-500 transition-colors duration-200">{{ u.email || u.phone_number }}</p>
       </div>
     </div>
-    <div v-if="selectedUsers.some(su => su.id === u.id)" class="text-purple-600">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="currentColor" viewBox="0 0 20 20">
+    <div v-if="selectedUsers.some(su => su.id === u.id)" class="text-purple-600 transform transition-all duration-300 scale-110">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 animate-bounce-once" fill="currentColor" viewBox="0 0 20 20">
         <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414L8.414 15l-4.121-4.121a1 1 0 111.414-1.414L8.414 12.172l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
       </svg>
     </div>
@@ -110,9 +117,16 @@
 </ul>
 
 
-        <div v-if="!newUser.contact && !users.length" class="flex flex-col items-center justify-center mt-12 mb-4">
-          <img src="../../../assets/image//not-found.png" alt="Not have user yet" class="w-32 h-32 opacity-70" />
-          <p class="text-sm text-gray-400 mt-4">Not have user yet</p>
+        <!-- No users found states -->
+        <div v-if="newUser.contact.length >= 3 && !searching && users.length === 0" class="flex flex-col items-center justify-center mt-12 mb-4 animate-fade-in">
+          <img src="../../../assets/image/not-found.png" alt="Organizer not found" class="w-32 h-32 opacity-70 transition-all duration-300 hover:opacity-90" />
+          <p class="text-sm text-gray-500 mt-4 font-medium">Organizer not found</p>
+          <p class="text-xs text-gray-400 mt-1">Try different search terms</p>
+        </div>
+
+        <div v-else-if="!newUser.contact && !users.length && !searching" class="flex flex-col items-center justify-center mt-12 mb-4 animate-fade-in">
+          <img src="../../../assets/image/not-found.png" alt="Search for organizers" class="w-32 h-32 opacity-70 transition-all duration-300 hover:opacity-90" />
+          <p class="text-sm text-gray-400 mt-4">Start typing to search for organizers</p>
         </div>
       </div>
 
@@ -230,6 +244,7 @@ const newUser = ref({ contact: '', note: '' });
 const contactError = ref(false);
 const users = ref([]);
 const loading = ref(false);
+const searching = ref(false);
 const inviting = ref(false);
 const permissionsLoading = ref(false);
 
@@ -365,9 +380,18 @@ const handleSearch = () => {
   searchTimeout = setTimeout(async () => {
     validateContact()
     if (newUser.value.contact.length >= 3) {
-      users.value = await searchUsers(newUser.value.contact)
+      searching.value = true
+      try {
+        users.value = await searchUsers(newUser.value.contact)
+      } catch (error) {
+        console.error('Search error:', error)
+        users.value = []
+      } finally {
+        searching.value = false
+      }
     } else {
       users.value = []
+      searching.value = false
     }
   }, 400)
 }
@@ -415,13 +439,80 @@ definePageMeta({
   background: white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
+
 :deep(.toggle-purple.p-inputswitch.p-inputswitch-checked .p-inputswitch-slider) {
   background: #7a49c9; /* purple */
 }
-textarea:focus {
-  outline: none;
-  border: 2px solid #7a49c9; /* purple */
-  background-color: #f5f3ff; /* light purple */
-  transition: all 0.2s;
+
+/* Custom animations for smooth UI */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes bounce-once {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-3px);
+  }
+  60% {
+    transform: translateY(-1px);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out;
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out forwards;
+  opacity: 0;
+}
+
+.animate-bounce-once {
+  animation: bounce-once 0.6s ease-in-out;
+}
+
+/* Smooth hover effects */
+.transition-all {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Focus states */
+input:focus, textarea:focus {
+  box-shadow: 0 0 0 3px rgba(124, 73, 201, 0.1);
+}
+
+/* Loading spinner improvements */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>
