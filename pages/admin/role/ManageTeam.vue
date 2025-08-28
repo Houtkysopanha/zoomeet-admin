@@ -208,11 +208,6 @@
         <p class="text-gray-500 mb-4">
           Invite team members to start collaborating on this event.
         </p>
-        <IconnButton 
-          label="Invite new user" 
-          icon="mingcute:user-add-2-fill" 
-          @click="inviteUser()" 
-        />
       </div>
     </div>
   </div>

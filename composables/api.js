@@ -2000,3 +2000,488 @@ export const getEventDetail = async (eventId) => {
     throw error
   }
 }
+
+// Create promotion (Buy X Get Y)
+export async function createPromotion(eventId, promotionData) {
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  if (!promotionData) {
+    throw new Error('Promotion data is required')
+  }
+
+  // Validate UUID format
+  if (!validateUUID(eventId)) {
+    throw new Error('Invalid event ID format. Expected UUID format.')
+  }
+
+  try {
+    const config = useRuntimeConfig()
+    const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+    // Validate required fields
+    const requiredFields = ['ticket_type_id', 'free_ticket_type_id', 'name', 'description', 'buy_quantity', 'free_quantity']
+    const missingFields = requiredFields.filter(field => {
+      const value = promotionData[field]
+      return value === null || value === undefined || value === '' || 
+             (typeof value === 'string' && value.trim() === '')
+    })
+    
+    if (missingFields.length > 0) {
+      throw new Error(`Missing required fields: ${missingFields.join(', ')}`)
+    }
+
+    // 📅 IMPORTANT: Ensure dates are in correct YYYY-MM-DD format for server  
+    const formatDateForServer = (dateInput) => {
+      if (!dateInput) return new Date().toISOString().split('T')[0]
+      
+      // If it's already a string in YYYY-MM-DD format, return as-is
+      if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+        return dateInput
+      }
+      
+      // Convert Date object or other formats to YYYY-MM-DD
+      const date = new Date(dateInput)
+      if (isNaN(date.getTime())) {
+        console.warn('⚠️ Invalid date in create API, using today:', dateInput)
+        return new Date().toISOString().split('T')[0]
+      }
+      
+      return date.toISOString().split('T')[0]
+    }
+
+    // Prepare promotion data according to API specification
+    const requestData = {
+      event_id: eventId,
+      ticket_type_id: promotionData.ticket_type_id,
+      free_ticket_type_id: promotionData.free_ticket_type_id,
+      name: promotionData.name.trim(),
+      description: promotionData.description.trim(),
+      buy_quantity: parseInt(promotionData.buy_quantity),
+      free_quantity: parseInt(promotionData.free_quantity),
+      is_active: promotionData.is_active !== undefined ? promotionData.is_active : true,
+      start_date: formatDateForServer(promotionData.start_date),
+      end_date: formatDateForServer(promotionData.end_date)
+    }
+
+    // 📅 Validate dates
+    const startDateObj = new Date(requestData.start_date)
+    const endDateObj = new Date(requestData.end_date)
+    
+    if (endDateObj <= startDateObj) {
+      throw new Error('End date must be after start date')
+    }
+
+    // Validate quantities
+    if (isNaN(requestData.buy_quantity) || requestData.buy_quantity < 1) {
+      throw new Error('Buy quantity must be at least 1')
+    }
+    if (isNaN(requestData.free_quantity) || requestData.free_quantity < 1) {
+      throw new Error('Free quantity must be at least 1')
+    }
+    
+    console.log('📅 Create - Formatted dates - Start:', requestData.start_date, 'End:', requestData.end_date)
+
+    console.log('🎯 Creating promotion:', requestData)
+
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/promotions/events/${eventId}`, {
+      method: 'POST',
+      body: requestData,
+      headers
+    })
+
+    console.log('✅ Promotion created successfully:', response)
+
+    return {
+      success: true,
+      message: 'Promotion created successfully',
+      data: response.data || response
+    }
+  } catch (error) {
+    console.error('❌ Failed to create promotion:', error)
+    
+    // Handle specific error cases
+    if (error.status === 422) {
+      let detailedMessage = 'Validation failed:'
+      if (error.data?.errors) {
+        const errorMessages = []
+        Object.entries(error.data.errors).forEach(([field, messages]) => {
+          if (Array.isArray(messages)) {
+            errorMessages.push(`${field}: ${messages.join(', ')}`)
+          } else {
+            errorMessages.push(`${field}: ${messages}`)
+          }
+        })
+        detailedMessage = `Validation failed:\n${errorMessages.join('\n')}`
+      } else if (error.data?.message) {
+        detailedMessage = error.data.message
+      }
+      
+      throw new Error(detailedMessage)
+    }
+    
+    if (error.status === 404) {
+      throw new Error('Event or ticket type not found')
+    }
+    
+    if (error.status === 403) {
+      throw new Error('You do not have permission to create promotions for this event')
+    }
+    
+    throw new Error(error.message || 'Failed to create promotion')
+  }
+}
+
+// Get promotions for an event
+export async function getEventPromotions(eventId) {
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  // Validate UUID format
+  if (!validateUUID(eventId)) {
+    throw new Error('Invalid event ID format. Expected UUID format.')
+  }
+
+  try {
+    const config = useRuntimeConfig()
+    const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/promotions/events/${eventId}`, {
+      method: 'GET',
+      headers
+    })
+
+    return {
+      success: true,
+      data: response.data || response
+    }
+  } catch (error) {
+    console.error('❌ Failed to fetch promotions:', error)
+    
+    if (error.status === 404) {
+      return {
+        success: true,
+        data: []
+      }
+    }
+    
+    throw new Error(error.message || 'Failed to fetch promotions')
+  }
+}
+
+// Update promotion
+export async function updatePromotion(eventId, promotionId, promotionData) {
+  if (!eventId || !promotionId) {
+    throw new Error('Event ID and Promotion ID are required')
+  }
+
+  if (!validateUUID(eventId)) {
+    throw new Error('Invalid event ID format. Expected UUID format.')
+  }
+  if (!validateUUID(promotionId)) {
+    throw new Error('Invalid promotion ID format. Expected UUID format.')
+  }
+
+  try {
+    const config = useRuntimeConfig()
+    const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+    const headers = await createAuthHeaders()
+    if (!headers) throw new Error('Authentication required')
+
+    // 🔑 Build requestData same as in createPromotion
+    const requestData = {
+      ticket_type_id: promotionData.ticket_type_id,
+      free_ticket_type_id: promotionData.free_ticket_type_id,
+      name: promotionData.name?.trim(),
+      description: promotionData.description?.trim(),
+      buy_quantity: parseInt(promotionData.buy_quantity),
+      free_quantity: parseInt(promotionData.free_quantity),
+      is_active: promotionData.is_active !== undefined ? promotionData.is_active : true,
+      start_date: promotionData.start_date,
+      end_date: promotionData.end_date
+    }
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/promotions/events/${eventId}/${promotionId}`, {
+      method: 'PUT',
+      headers,
+      body: requestData
+    })
+
+    return {
+      success: true,
+      message: 'Promotion updated successfully',
+      data: response.data || response
+    }
+  } catch (error) {
+    console.error('❌ Failed to update promotion:', error)
+    if (error.status === 404) {
+      throw new Error('Promotion not found')
+    }
+    if (error.status === 403) {
+      throw new Error('You do not have permission to update this promotion')
+    }
+    throw new Error(error.message || 'Failed to update promotion')
+  }
+}
+
+export async function deletePromotion(eventId, promotionId) {
+  if (!eventId || !promotionId) {
+    throw new Error('Event ID and Promotion ID are required')
+  }
+
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+  const headers = await createAuthHeaders()
+  if (!headers) throw new Error('Authentication required')
+
+  // Try multiple endpoint patterns for delete
+  const attempts = [
+    // Try 1: DELETE to current endpoint
+    {
+      method: 'DELETE',
+      url: `${API_ADMIN_BASE_URL}/promotions/events/${eventId}/${promotionId}`,
+      description: 'DELETE to /promotions/events/{eventId}/{promotionId}'
+    },
+    // Try 2: DELETE to alternative pattern
+    {
+      method: 'DELETE',
+      url: `${API_ADMIN_BASE_URL}/events/${eventId}/promotions/${promotionId}`,
+      description: 'DELETE to /events/{eventId}/promotions/{promotionId}'
+    },
+    // Try 3: POST with _method=DELETE
+    {
+      method: 'POST',
+      url: `${API_ADMIN_BASE_URL}/promotions/events/${eventId}/${promotionId}`,
+      description: 'POST with _method=DELETE to /promotions/events/{eventId}/{promotionId}',
+      body: { _method: 'DELETE' }
+    }
+  ]
+
+  let lastError = null
+  
+  for (const attempt of attempts) {
+    try {
+      console.log(`🗑️ Trying: ${attempt.description}`)
+      
+      const response = await $fetch(attempt.url, {
+        method: attempt.method,
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json'
+        },
+        ...(attempt.body && { body: attempt.body })
+      })
+      
+      console.log(`✅ Delete success with: ${attempt.description}`)
+      return {
+        success: true,
+        message: `Promotion deleted successfully using ${attempt.description}`,
+        data: response.data || response
+      }
+      
+    } catch (error) {
+      console.log(`❌ Delete failed: ${attempt.description} - ${error.status} ${error.message}`)
+      lastError = error
+      
+      // Continue trying other patterns
+      continue
+    }
+  }
+  
+  // If all attempts failed
+  console.error('❌ All delete attempts failed')
+  throw new Error(`Delete failed. Last error: ${lastError?.message || 'Unknown error'}`)
+}
+
+// ============= VOUCHER/COUPON API FUNCTIONS =============
+
+// Create voucher/coupon
+export async function createCoupon(eventId, couponData) {
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  if (!couponData) {
+    throw new Error('Coupon data is required')
+  }
+
+  // Validate UUID format
+  if (!validateUUID(eventId)) {
+    throw new Error('Invalid event ID format')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+
+    console.log('🎫 Creating coupon with data:', couponData)
+
+    // Use server proxy route to avoid CORS issues
+    const response = await $fetch('/api/admin/coupons/', {
+      method: 'POST',
+      headers,
+      body: couponData
+    })
+
+    console.log('✅ Coupon created successfully:', response)
+
+    return {
+      success: true,
+      data: response,
+      message: 'Coupon created successfully'
+    }
+  } catch (error) {
+    console.error('❌ Failed to create coupon:', error)
+    
+    let userMessage = 'Failed to create coupon. Please try again.'
+    if (error.status === 400) {
+      userMessage = 'Invalid coupon data. Please check your inputs.'
+    } else if (error.status === 401) {
+      userMessage = 'Authentication required. Please log in again.'
+    } else if (error.status === 403) {
+      userMessage = 'You don\'t have permission to create coupons.'
+    } else if (error.status === 422) {
+      // Handle validation errors
+      if (error.data?.errors) {
+        const errorMessages = []
+        Object.entries(error.data.errors).forEach(([field, messages]) => {
+          if (Array.isArray(messages)) {
+            errorMessages.push(`${field}: ${messages.join(', ')}`)
+          } else {
+            errorMessages.push(`${field}: ${messages}`)
+          }
+        })
+        userMessage = `Validation failed:\n${errorMessages.join('\n')}`
+      } else if (error.data?.message) {
+        userMessage = error.data.message
+      }
+    }
+
+    throw new Error(userMessage)
+  }
+}
+
+// Get coupons list for an event
+export async function getCoupons(eventId) {
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  // Validate UUID format
+  if (!validateUUID(eventId)) {
+    throw new Error('Invalid event ID format')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+
+    console.log('🎫 Fetching coupons for event:', eventId)
+
+    // Try multiple endpoint patterns to find the working one
+    const attempts = [
+      // Pattern 1: Query parameter approach
+      {
+        url: '/api/admin/coupons/',
+        query: { event_id: eventId },
+        description: 'GET /coupons/ with event_id query'
+      },
+      // Pattern 2: Path parameter approach
+      {
+        url: `/api/admin/coupons/event/${eventId}`,
+        query: {},
+        description: 'GET /coupons/event/{eventId}'
+      },
+      // Pattern 3: Events nested approach
+      {
+        url: `/api/admin/events/${eventId}/coupons`,
+        query: {},
+        description: 'GET /events/{eventId}/coupons'
+      },
+      // Pattern 4: Alternative query format
+      {
+        url: '/api/admin/coupons',
+        query: { event_id: eventId },
+        description: 'GET /coupons with event_id query (no trailing slash)'
+      }
+    ]
+
+    let lastError = null
+
+    for (const attempt of attempts) {
+      try {
+        console.log(`🔄 Trying: ${attempt.description}`)
+        
+        const response = await $fetch(attempt.url, {
+          method: 'GET',
+          headers,
+          query: attempt.query
+        })
+
+        console.log(`✅ Success with: ${attempt.description}`, response)
+
+        return {
+          success: true,
+          data: response.data || response,
+          message: 'Coupons loaded successfully'
+        }
+      } catch (error) {
+        console.warn(`❌ Failed: ${attempt.description} - ${error.status} ${error.message}`)
+        lastError = error
+        continue
+      }
+    }
+
+    // If all attempts failed, check if it's a 404 (no coupons)
+    if (lastError?.status === 404) {
+      console.log('ℹ️ No coupons found (404), returning empty array')
+      return {
+        success: true,
+        data: [],
+        message: 'No coupons found for this event.'
+      }
+    }
+
+    // If we get here, all attempts failed with non-404 errors
+    throw lastError || new Error('All endpoint attempts failed')
+
+  } catch (error) {
+    console.error('❌ Failed to fetch coupons after all attempts:', error)
+    
+    let userMessage = 'Failed to load coupons. Please try again.'
+    if (error.status === 401) {
+      userMessage = 'Authentication required. Please log in again.'
+    } else if (error.status === 403) {
+      userMessage = 'You don\'t have permission to view coupons.'
+    } else if (error.status === 404) {
+      // Return empty array for 404 (no coupons found)
+      return {
+        success: true,
+        data: [],
+        message: 'No coupons found for this event.'
+      }
+    }
+
+    return {
+      success: false,
+      data: [],
+      message: userMessage
+    }
+  }
+}
