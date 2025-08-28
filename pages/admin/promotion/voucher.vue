@@ -7,14 +7,14 @@
         <div class="mb-3">
       <Breadcrumb :items="breadcrumbItems" />
     </div>
-      <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+      <div class="flex bg-white rounded-full border-2 border-gray-200 p-1 flex-col sm:flex-row space-y- sm:space-y-0 sm:space-x-1">
         <button 
           @click="activeTab = 'voucher'"
           :class="[
             'w-full sm:w-auto px-6 py-2 rounded-full font-medium transition-colors',
             activeTab === 'voucher' 
               ? 'bg-gradient-to-r from-blue-700 to-purple-600 text-white hover:bg-purple-700' 
-              : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+              : 'text-gray-700 hover:bg-gray-50'
           ]"
         >
           Voucher Code
@@ -25,14 +25,13 @@
             'w-full sm:w-auto px-6 py-2 rounded-full font-medium transition-colors',
             activeTab === 'buyxgety' 
               ? 'bg-gradient-to-r from-blue-700 to-purple-600 text-white hover:bg-purple-700' 
-              : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+              : ' text-gray-700 hover:bg-gray-50'
           ]"
         >
           Buy X Get Y
         </button>
-      </div>
     </div>
-
+     </div>
     <!-- Main Content Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
       <!-- Left Side - Event Card & Form -->
@@ -389,27 +388,8 @@
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 h-fit">
           <div class="flex items-center justify-between mb-2">
             <h3 class="text-xl font-semibold text-gray-800">
-              {{ activeTab === 'voucher' ? 'Voucher Rules' : 'Promotion Rules' }}
+              {{ activeTab === 'voucher' ? 'Voucher Rules' : 'Active Promotion Rules' }}
             </h3>
-            <button
-              v-if="activeTab === 'voucher'"
-              @click="fetchCoupons(true)"
-              :disabled="isLoadingCoupons"
-              class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-50 mr-2"
-              title="Refresh vouchers list"
-            >
-              <i class="pi pi-refresh" :class="{ 'animate-spin': isLoadingCoupons }"></i>
-              Refresh
-            </button>
-            <button
-              v-if="activeTab === 'voucher'"
-              @click="debugEventIsolation"
-              class="px-3 py-1 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors"
-              title="Test event isolation"
-            >
-              <i class="pi pi-info-circle"></i>
-              Debug
-            </button>
           </div>
           <p class="text-gray-600 text-sm mb-6">
             {{ activeTab === 'voucher' 
@@ -628,7 +608,7 @@
                     <span class="text-sm text-gray-600 font-medium">
                       Get {{ promotion.getQuantity }}
                     </span>
-                    <span class="text-xs bg-green-50 text-green-700 px-3 py-1 border border-green-200 rounded-full">
+                    <span class="text-xs bg-purple-50 text-purple-700 px-3 py-1 border border-purple-200 rounded-full">
                       {{ promotion.freeTicketType }}
                     </span>
                   </div>
@@ -644,7 +624,7 @@
                   <button
                     @click="startEditPromotion(promotion)"
                     :class="[
-                      'p-2 rounded-lg border transition-colors',
+                      'p-2 transition-colors',
                       editingPromotion?.id === promotion.id
                         ? 'bg-blue-50 text-blue-600 border-blue-200'
                         : 'text-gray-600 border-gray-300 hover:bg-gray-50 hover:text-gray-800'
@@ -738,7 +718,7 @@
         </div>
       </div>
     </Transition>
-  </div>
+     </div>
 </template>
 
 <script setup>
