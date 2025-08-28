@@ -532,6 +532,17 @@ const actionItems = (eventData) => [
     },
   },
   {
+    label: 'Promotion Rules',
+    icon: 'pi pi-ticket',
+    command: () => {
+      router.push({
+        path: '/admin/promotion/voucher',
+        query: { eventId: eventData.id }
+      });
+    },
+    visible: true,
+  },
+  {
     label: 'Manage Team',
     icon: 'pi pi-users',
     command: () => {
