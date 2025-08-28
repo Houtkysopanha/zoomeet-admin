@@ -56,7 +56,7 @@
             <h3 class="text-xl font-semibold text-gray-800 mb-4">Vouchers & Discounts</h3>
             <p class="text-gray-600 text-sm mb-6">Create discount vouchers for your event</p>
 
-            <form @submit.prevent="generateVoucher" class="space-y-5">
+            <form @submit.prevent="editingPromotion ? updatePromotionData() : generateBuyXGetY()"  class="space-y-5">
               <!-- Voucher Name -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Voucher Name</label>
@@ -359,36 +359,6 @@
               <i class="pi pi-refresh" :class="{ 'animate-spin': isLoadingPromotions }"></i>
               Refresh
             </button>
-            
-            <!-- Debug Test Buttons -->
-            <div v-if="activeTab === 'buyxgety'" class="flex gap-2 ml-4">
-              <button
-                @click="testEndpoints"
-                :disabled="isLoadingPromotions"
-                class="px-3 py-1 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors disabled:opacity-50"
-                title="Test API endpoints"
-              >
-                🔍 Test API
-              </button>
-              <button
-                v-if="promotions.length > 0"
-                @click="updatePromotionSimpleTest(promotions[0])"
-                :disabled="isLoadingPromotions"
-                class="px-3 py-1 text-sm bg-green-100 hover:bg-green-200 text-green-700 rounded-lg transition-colors disabled:opacity-50"
-                title="Test simple update"
-              >
-                🔄 Test Update
-              </button>
-              <button
-                v-if="promotions.length > 1"
-                @click="deletePromotionSimpleTest(promotions[promotions.length - 1])"
-                :disabled="isLoadingPromotions"
-                class="px-3 py-1 text-sm bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors disabled:opacity-50"
-                title="Test simple delete (last promotion)"
-              >
-                🗑️ Test Delete
-              </button>
-            </div>
           </div>
           <p class="text-gray-600 text-sm mb-6">
             {{ activeTab === 'voucher' 
@@ -678,8 +648,7 @@ import { ref, computed, onMounted } from 'vue'
 import EventCard from '~/components/common/EventCard.vue'
 import Breadcrumb from '~/components/common/Breadcrumb.vue'
 import Calendar from 'primevue/calendar'
-import IconnButton from '~/components/ui/IconnButton.vue'
-import { getEventDetails, getEventTicketTypes, createPromotion, getEventPromotions, deletePromotion, updatePromotion, updatePromotionSimple, deletePromotionSimple, testPromotionEndpoints, getSinglePromotion } from '~/composables/api'
+import { getEventDetails, getEventTicketTypes, createPromotion, getEventPromotions, updatePromotion, deletePromotion} from '~/composables/api'
 
 // Layout
 definePageMeta({
@@ -806,17 +775,13 @@ const voucherTypes = ref([
 
 // Promotion types for filter
 const promotionTypes = ref([])
-
 // Sample vouchers data
 const vouchers = ref([])
-
 // Sample promotions data
 const promotions = ref([])
-
 // Computed properties
 const filteredVouchers = computed(() => {
   let filtered = vouchers.value
-
   // Filter by search query
   if (searchQuery.value) {
     filtered = filtered.filter(voucher =>
@@ -824,12 +789,10 @@ const filteredVouchers = computed(() => {
       voucher.code.toLowerCase().includes(searchQuery.value.toLowerCase())
     )
   }
-
   // Filter by voucher type
   if (selectedVoucherType.value !== 'all') {
     filtered = filtered.filter(voucher => voucher.type === selectedVoucherType.value)
   }
-
   return filtered
 })
 
@@ -942,17 +905,9 @@ const showError = (message) => {
 
 // Edit promotion functionality
 const startEditPromotion = (promotion) => {
-  console.log('📝 Starting to edit promotion:', promotion)
-  console.log('📝 Promotion ID being used:', promotion.id)
-  console.log('📝 Backend ID for comparison:', promotion.backendId)
-  
   // Find the original ticket types to get their IDs
   const buyTicketType = ticketTypes.value.find(t => t.name === promotion.ticketType)
   const freeTicketType = ticketTypes.value.find(t => t.name === promotion.freeTicketType)
-  
-  console.log('🎫 Found buy ticket type:', buyTicketType)
-  console.log('🎫 Found free ticket type:', freeTicketType)
-  
   if (!buyTicketType || !freeTicketType) {
     showError('Could not find the ticket types for this promotion. Please refresh the page and try again.')
     return
@@ -997,96 +952,44 @@ const cancelEditPromotion = () => {
 }
 
 const updatePromotionData = async () => {
-  if (!editingPromotion.value || !eventId.value) {
-    console.error('❌ No promotion being edited or no event ID')
-    return
-  }
-
-  // Validate required fields
-  if (!buyXGetYForm.value.ticketTypeId || !buyXGetYForm.value.freeTicketTypeId || 
-      !buyXGetYForm.value.buyQuantity || !buyXGetYForm.value.getQuantity) {
-    showError('Please fill in all required fields')
-    return
-  }
-
+  if (!eventId.value || !editingPromotion.value) return
   isUpdatingPromotion.value = true
-
   try {
-    const buyTicketType = ticketTypes.value.find(t => t.id === buyXGetYForm.value.ticketTypeId)
-    const freeTicketType = ticketTypes.value.find(t => t.id === buyXGetYForm.value.freeTicketTypeId)
-
-    if (!buyTicketType || !freeTicketType) {
-      throw new Error('Selected ticket types not found')
-    }
-
-    const promotionName = buyXGetYForm.value.name || 
-      `Buy ${buyXGetYForm.value.buyQuantity} ${buyTicketType.name} Get ${buyXGetYForm.value.getQuantity} ${freeTicketType.name} Free`
-
-    const promotionDescription = buyXGetYForm.value.description || 
-      `Buy ${buyXGetYForm.value.buyQuantity} ${buyTicketType.name} tickets, get ${buyXGetYForm.value.getQuantity} ${freeTicketType.name} free`
-
-    // Fix: format dates to ISO8601 with time
-    // 📅 IMPORTANT: Format dates correctly for the server (YYYY-MM-DD format)
-    const formatDateForServer = (dateInput) => {
-      if (!dateInput) return new Date().toISOString().split('T')[0]
-      
-      // If it's already a string in YYYY-MM-DD format, return as-is
-      if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
-        return dateInput
-      }
-      
-      // Convert Date object or other formats to YYYY-MM-DD
-      const date = new Date(dateInput)
-      if (isNaN(date.getTime())) {
-        console.warn('⚠️ Invalid date provided, using today:', dateInput)
-        return new Date().toISOString().split('T')[0]
-      }
-      
-      return date.toISOString().split('T')[0]
-    }
-    
-    const startDate = formatDateForServer(buyXGetYForm.value.startDate)
-    const endDate = formatDateForServer(buyXGetYForm.value.endDate) || 
-                   new Date(new Date().getTime() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    
-    // Validate date logic
-    if (new Date(endDate) <= new Date(startDate)) {
-      showToast('⚠️ End date must be after start date', 'warn')
+    // Validate form data before sending
+    if (!buyXGetYForm.value.ticketTypeId || !buyXGetYForm.value.freeTicketTypeId || 
+        !buyXGetYForm.value.buyQuantity || !buyXGetYForm.value.getQuantity || 
+        !buyXGetYForm.value.name) {
+      showError('Please fill in all required fields')
       return
     }
 
-    const promotionData = {
+    const response = await updatePromotion(eventId.value, editingPromotion.value.id, {
       ticket_type_id: buyXGetYForm.value.ticketTypeId,
       free_ticket_type_id: buyXGetYForm.value.freeTicketTypeId,
-      name: promotionName,
-      description: promotionDescription,
-      buy_quantity: parseInt(buyXGetYForm.value.buyQuantity, 10),
-      free_quantity: parseInt(buyXGetYForm.value.getQuantity, 10),
-      is_active: true,
-      start_date: startDate,
-      end_date: endDate
-    }
-
-    console.log('🎯 Sending update payload:', promotionData)
-    console.log('📅 Date formats - Start:', startDate, 'End:', endDate)
-
-    const promoId = editingPromotion.value.backendId || editingPromotion.value.id
-    const response = await updatePromotion(eventId.value, promoId, promotionData)
+      buy_quantity: parseInt(buyXGetYForm.value.buyQuantity),
+      free_quantity: parseInt(buyXGetYForm.value.getQuantity),
+      name: buyXGetYForm.value.name,
+      description: buyXGetYForm.value.description || '',
+      start_date: buyXGetYForm.value.startDate,
+      end_date: buyXGetYForm.value.endDate,
+      is_active: true
+    })
 
     if (response.success) {
-      await fetchPromotions()
-      cancelEditPromotion()
       showSuccess('Promotion updated successfully!')
+      await fetchPromotions(true)
+      cancelEditPromotion()
     } else {
-      throw new Error(response.message || 'Failed to update promotion')
+      showError(response.message || 'Failed to update promotion')
     }
-  } catch (error) {
-    console.error('❌ Failed to update promotion:', error)
-    showError(`Failed to update promotion: ${error.message}`)
+  } catch (err) {
+    console.error('❌ Update failed:', err)
+    showError(`Update failed: ${err.message}`)
   } finally {
     isUpdatingPromotion.value = false
   }
 }
+
 
 
 // Helper function to convert display date (DD/MM/YYYY) to ISO date (YYYY-MM-DD)
@@ -1129,123 +1032,8 @@ const updateTicketTypeName = (type) => {
     }
   }
 }
-
-// Fetch promotions from backend
-// Test endpoints to debug API issues
-const testEndpoints = async () => {
-  if (!selectedEventId.value || !promotions.value.length) {
-    showToast('Please select an event and ensure promotions exist', 'warn')
-    return
-  }
-  
-  const testPromotion = promotions.value[0]
-  const promotionId = testPromotion.id || testPromotion.backendId || testPromotion.promotionId
-  
-  if (!promotionId) {
-    showToast('No valid promotion ID found for testing', 'error')
-    return
-  }
-  
-  try {
-    isLoadingPromotions.value = true
-    showToast('🔍 Testing API endpoints...', 'info')
-    
-    const results = await testPromotionEndpoints(selectedEventId.value, promotionId)
-    console.log('🧪 Endpoint test results:', results)
-    
-    // Try to get single promotion
-    try {
-      const singlePromotion = await getSinglePromotion(selectedEventId.value, promotionId)
-      console.log('✅ Single promotion fetch:', singlePromotion)
-      showToast('Endpoint testing complete - check console for details', 'success')
-    } catch (error) {
-      console.log('❌ Single promotion fetch failed:', error)
-      showToast('Endpoint testing complete - check console for details', 'warn')
-    }
-    
-  } catch (error) {
-    console.error('❌ Endpoint testing failed:', error)
-    showToast('Endpoint testing failed', 'error')
-  } finally {
-    isLoadingPromotions.value = false
-  }
-}
-
 // Simple update method for testing
-const updatePromotionSimpleTest = async (promotion) => {
-  if (!selectedEventId.value) {
-    showToast('Please select an event first', 'warn')
-    return
-  }
-  
-  const promotionId = promotion.id || promotion.backendId || promotion.promotionId
-  if (!promotionId) {
-    showToast('❌ No valid promotion ID found', 'error')
-    return
-  }
-  
-  try {
-    isLoadingPromotions.value = true
-    showToast('🔄 Testing simple update...', 'info')
-    
-    // Use the same data structure as create
-    const updateData = {
-      name: promotion.name,
-      description: promotion.description || '',
-      type: promotion.type,
-      status: promotion.status || 'active',
-      start_date: promotion.start_date,
-      end_date: promotion.end_date,
-      rules: promotion.rules
-    }
-    
-    const result = await updatePromotionSimple(selectedEventId.value, promotionId, updateData)
-    console.log('✅ Simple update result:', result)
-    showToast('✅ Simple update successful!', 'success')
-    
-    // Refresh promotions
-    await fetchPromotions(true)
-    
-  } catch (error) {
-    console.error('❌ Simple update failed:', error)
-    showToast(`❌ Simple update failed: ${error.message}`, 'error')
-  } finally {
-    isLoadingPromotions.value = false
-  }
-}
-
 // Simple delete method for testing
-const deletePromotionSimpleTest = async (promotion) => {
-  if (!selectedEventId.value) {
-    showToast('Please select an event first', 'warn')
-    return
-  }
-  
-  const promotionId = promotion.id || promotion.backendId || promotion.promotionId
-  if (!promotionId) {
-    showToast('❌ No valid promotion ID found', 'error')
-    return
-  }
-  
-  try {
-    isLoadingPromotions.value = true
-    showToast('🗑️ Testing simple delete...', 'info')
-    
-    const result = await deletePromotionSimple(selectedEventId.value, promotionId)
-    console.log('✅ Simple delete result:', result)
-    showToast('✅ Simple delete successful!', 'success')
-    
-    // Refresh promotions
-    await fetchPromotions(true)
-    
-  } catch (error) {
-    console.error('❌ Simple delete failed:', error)
-    showToast(`❌ Simple delete failed: ${error.message}`, 'error')
-  } finally {
-    isLoadingPromotions.value = false
-  }
-}
-
 const fetchPromotions = async (forceRefresh = false) => {
   if (!eventId.value) {
     console.warn('No event ID available for fetching promotions')
@@ -1433,53 +1221,31 @@ const selectAll = () => {
 }
 
 const deleteSelected = async () => {
-  if (activeTab.value === 'voucher') {
-    vouchers.value = vouchers.value.filter(voucher => !voucher.selected)
-  } else {
-    // Handle promotion deletion with backend API
-    const selectedPromotions = promotions.value.filter(promotion => promotion.selected)
+  if (!eventId.value) return
+  const selectedPromotions = promotions.value.filter(p => p.selected)
+
+  if (selectedPromotions.length === 0) {
+    showError('No promotions selected for deletion')
+    return
+  }
+
+  try {
+    console.log('🗑️ Deleting promotions:', selectedPromotions.map(p => ({ id: p.id, name: p.name })))
     
-    if (selectedPromotions.length === 0) {
-      return
+    for (const promo of selectedPromotions) {
+      console.log(`🗑️ Deleting promotion: ${promo.id} (${promo.name})`)
+      await deletePromotion(eventId.value, promo.id)
+      console.log(`✅ Successfully deleted promotion: ${promo.id}`)
     }
-
-    const confirmDelete = confirm(`Are you sure you want to delete ${selectedPromotions.length} promotion(s)?`)
-    if (!confirmDelete) {
-      return
-    }
-
-    try {
-      // Delete promotions from backend
-      console.log('🗑️ Selected promotions to delete:', selectedPromotions)
-      console.log('🗑️ Event ID:', eventId.value)
-      
-      // Validate that all selected promotions have valid IDs
-      const invalidPromotions = selectedPromotions.filter(p => !p.id || p.id === 'undefined')
-      if (invalidPromotions.length > 0) {
-        throw new Error(`Some promotions have invalid IDs. Please refresh the page and try again.`)
-      }
-      
-      const deletePromises = selectedPromotions.map(promotion => {
-        console.log(`🗑️ Deleting promotion: ${promotion.id} (${promotion.name})`)
-        console.log(`🗑️ Backend ID: ${promotion.backendId || 'not available'}`)
-        return deletePromotion(eventId.value, promotion.id)
-      })
-      
-      await Promise.all(deletePromises)
-      
-      // Refresh promotions list
-      await fetchPromotions()
-      
-      console.log('✅ Selected promotions deleted successfully')
-      showSuccess(`${selectedPromotions.length} promotion(s) deleted successfully`)
-    } catch (error) {
-      console.error('❌ Failed to delete promotions:', error)
-      showError(`Failed to delete promotions: ${error.message}`)
-    }
+    
+    showSuccess('Selected promotions deleted successfully!')
+    await fetchPromotions(true)
+  } catch (err) {
+    console.error('❌ Delete failed:', err)
+    showError(`Failed to delete: ${err.message}`)
   }
 }
 
-// Lifecycle
 onMounted(async () => {
   // Set default dates for voucher form as Date objects for Calendar component
   const today = new Date()
@@ -1516,11 +1282,9 @@ onMounted(async () => {
 
   // Fetch ticket types if we have an event ID
   if (eventId.value) {
-    console.log('🎫 Fetching ticket types for event:', eventId.value)
     fetchTicketTypes()
     
     // Also fetch existing promotions
-    console.log('🎯 Fetching promotions for event:', eventId.value)
     fetchPromotions()
   } else {
     console.warn('⚠️ No event ID found for fetching ticket types and promotions')

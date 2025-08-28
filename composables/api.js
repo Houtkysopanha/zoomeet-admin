@@ -2181,173 +2181,12 @@ export async function getEventPromotions(eventId) {
   }
 }
 
-// Test promotion endpoints to debug which methods are supported
-export async function testPromotionEndpoints(eventId, promotionId) {
-  const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
-  
-  console.log('🔍 Testing promotion endpoints...')
-  console.log('🎯 Event ID:', eventId)
-  console.log('🎯 Promotion ID:', promotionId)
-  
-  const headers = await createAuthHeaders()
-  const testResults = {}
-  
-  // Test different endpoint patterns
-  const endpointPatterns = [
-    `${API_ADMIN_BASE_URL}/promotions/${promotionId}`, // Direct promotion ID
-    `${API_ADMIN_BASE_URL}/promotions/events/${eventId}/${promotionId}`, // Current pattern
-    `${API_ADMIN_BASE_URL}/events/${eventId}/promotions/${promotionId}`, // Alternative pattern
-    `${API_ADMIN_BASE_URL}/admin/promotions/${promotionId}`, // With admin prefix
-    `${API_ADMIN_BASE_URL}/admin/events/${eventId}/promotions/${promotionId}` // Full admin pattern
-  ]
-  
-  for (const [index, endpoint] of endpointPatterns.entries()) {
-    console.log(`🧪 Testing endpoint ${index + 1}: ${endpoint}`)
-    
-    // Test GET first (should work if endpoint exists)
-    try {
-      const response = await $fetch(endpoint, {
-        method: 'GET',
-        headers
-      })
-      testResults[`pattern_${index + 1}_GET`] = { success: true, status: 'OK' }
-      console.log(`✅ GET works for pattern ${index + 1}`)
-    } catch (error) {
-      testResults[`pattern_${index + 1}_GET`] = { 
-        success: false, 
-        status: error.status || 'ERROR',
-        message: error.message
-      }
-      console.log(`❌ GET failed for pattern ${index + 1}:`, error.status)
-    }
-  }
-  
-  return testResults
-}
-
-// Get single promotion details (for testing)
-export async function getSinglePromotion(eventId, promotionId) {
-  const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
-  
-  const headers = await createAuthHeaders()
-  if (!headers) {
-    throw new Error('Authentication required')
-  }
-  
-  try {
-    // Try the same pattern as create
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/promotions/events/${eventId}/${promotionId}`, {
-      method: 'GET',
-      headers
-    })
-    
-    return {
-      success: true,
-      data: response.data || response
-    }
-  } catch (error) {
-    console.error('❌ Failed to get single promotion:', error)
-    throw error
-  }
-}
-
-// Simple update promotion (using same pattern as create)
-export async function updatePromotionSimple(eventId, promotionId, updateData) {
-  const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
-  
-  console.log('🔄 Simple update promotion...')
-  console.log('🎯 Event ID:', eventId)
-  console.log('🎯 Promotion ID:', promotionId)
-  console.log('📦 Update data:', updateData)
-  
-  const headers = await createAuthHeaders()
-  if (!headers) {
-    throw new Error('Authentication required')
-  }
-  
-  try {
-    // Try PUT to the same base endpoint as create, but with promotion ID
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/promotions/events/${eventId}/${promotionId}`, {
-      method: 'PUT',
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json'
-      },
-      body: updateData
-    })
-    
-    console.log('✅ Simple update success:', response)
-    return {
-      success: true,
-      data: response.data || response
-    }
-  } catch (error) {
-    console.error('❌ Simple update failed:', error)
-    
-    // If PUT fails, maybe the API expects POST to update?
-    try {
-      console.log('🔄 Trying POST for update...')
-      const response = await $fetch(`${API_ADMIN_BASE_URL}/promotions/events/${eventId}/${promotionId}`, {
-        method: 'POST',
-        headers: {
-          ...headers,
-          'Content-Type': 'application/json'
-        },
-        body: updateData
-      })
-      
-      console.log('✅ POST update success:', response)
-      return {
-        success: true,
-        data: response.data || response
-      }
-    } catch (postError) {
-      console.error('❌ POST update also failed:', postError)
-      throw new Error(`Update failed: ${error.message}`)
-    }
-  }
-}
-
-// Simple delete promotion
-export async function deletePromotionSimple(eventId, promotionId) {
-  const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
-  
-  console.log('🗑️ Simple delete promotion...')
-  console.log('🎯 Event ID:', eventId)
-  console.log('🎯 Promotion ID:', promotionId)
-  
-  const headers = await createAuthHeaders()
-  if (!headers) {
-    throw new Error('Authentication required')
-  }
-  
-  try {
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/promotions/events/${eventId}/${promotionId}`, {
-      method: 'DELETE',
-      headers
-    })
-    
-    console.log('✅ Simple delete success:', response)
-    return {
-      success: true,
-      data: response.data || response
-    }
-  } catch (error) {
-    console.error('❌ Simple delete failed:', error)
-    throw new Error(`Delete failed: ${error.message}`)
-  }
-}
-
+// Update promotion
 export async function updatePromotion(eventId, promotionId, promotionData) {
   if (!eventId || !promotionId) {
     throw new Error('Event ID and Promotion ID are required')
   }
-  
-  // Validate UUID formats
+
   if (!validateUUID(eventId)) {
     throw new Error('Invalid event ID format. Expected UUID format.')
   }
@@ -2355,154 +2194,46 @@ export async function updatePromotion(eventId, promotionId, promotionData) {
     throw new Error('Invalid promotion ID format. Expected UUID format.')
   }
 
-  const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
-  const headers = await createAuthHeaders()
-  if (!headers) throw new Error('Authentication required')
+  try {
+    const config = useRuntimeConfig()
+    const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+    const headers = await createAuthHeaders()
+    if (!headers) throw new Error('Authentication required')
 
-  // Validate required fields (same as create)
-  const requiredFields = ['ticket_type_id', 'free_ticket_type_id', 'name', 'description', 'buy_quantity', 'free_quantity']
-  const missingFields = requiredFields.filter(field => {
-    const value = promotionData[field]
-    return value === null || value === undefined || value === '' || 
-           (typeof value === 'string' && value.trim() === '')
-  })
-  
-  if (missingFields.length > 0) {
-    throw new Error(`Missing required fields: ${missingFields.join(', ')}`)
-  }
-
-  // 📅 IMPORTANT: Ensure dates are in correct YYYY-MM-DD format for server
-  const formatDateForServer = (dateInput) => {
-    if (!dateInput) return new Date().toISOString().split('T')[0]
-    
-    // If it's already a string in YYYY-MM-DD format, return as-is
-    if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
-      return dateInput
+    // 🔑 Build requestData same as in createPromotion
+    const requestData = {
+      ticket_type_id: promotionData.ticket_type_id,
+      free_ticket_type_id: promotionData.free_ticket_type_id,
+      name: promotionData.name?.trim(),
+      description: promotionData.description?.trim(),
+      buy_quantity: parseInt(promotionData.buy_quantity),
+      free_quantity: parseInt(promotionData.free_quantity),
+      is_active: promotionData.is_active !== undefined ? promotionData.is_active : true,
+      start_date: promotionData.start_date,
+      end_date: promotionData.end_date
     }
-    
-    // Convert Date object or other formats to YYYY-MM-DD
-    const date = new Date(dateInput)
-    if (isNaN(date.getTime())) {
-      console.warn('⚠️ Invalid date in API, using today:', dateInput)
-      return new Date().toISOString().split('T')[0]
-    }
-    
-    return date.toISOString().split('T')[0]
-  }
 
-  const updateData = {
-    event_id: eventId,
-    ticket_type_id: promotionData.ticket_type_id,
-    free_ticket_type_id: promotionData.free_ticket_type_id,
-    name: promotionData.name.trim(),
-    description: promotionData.description.trim(),
-    buy_quantity: parseInt(promotionData.buy_quantity),
-    free_quantity: parseInt(promotionData.free_quantity),
-    is_active: promotionData.is_active !== undefined ? promotionData.is_active : true,
-    start_date: formatDateForServer(promotionData.start_date),
-    end_date: formatDateForServer(promotionData.end_date)
-  }
-  
-  // 📅 Validate dates
-  const startDateObj = new Date(updateData.start_date)
-  const endDateObj = new Date(updateData.end_date)
-  
-  if (endDateObj <= startDateObj) {
-    throw new Error('End date must be after start date')
-  }
-  
-  console.log('📅 Formatted dates - Start:', updateData.start_date, 'End:', updateData.end_date)
-
-  console.log('🔄 Update payload being sent:', updateData)
-  
-  // Validate quantities (same as create)
-  if (isNaN(updateData.buy_quantity) || updateData.buy_quantity < 1) {
-    throw new Error('Buy quantity must be at least 1')
-  }
-  if (isNaN(updateData.free_quantity) || updateData.free_quantity < 1) {
-    throw new Error('Free quantity must be at least 1')
-  }
-
-  // Try multiple HTTP methods and endpoint patterns for update
-  const attempts = [
-    // Try 1: PUT to current endpoint (without Content-Type like create)
-    {
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/promotions/events/${eventId}/${promotionId}`, {
       method: 'PUT',
-      url: `${API_ADMIN_BASE_URL}/promotions/events/${eventId}/${promotionId}`,
-      description: 'PUT to /promotions/events/{eventId}/{promotionId}'
-    },
-    // Try 2: POST to CREATE endpoint pattern (maybe backend handles updates this way)
-    {
-      method: 'POST',
-      url: `${API_ADMIN_BASE_URL}/promotions/events/${eventId}`,
-      description: 'POST to /promotions/events/{eventId} (like create)',
-      body: { ...updateData, promotion_id: promotionId }  // Include promotion_id in body
-    },
-    // Try 3: POST to current endpoint (some APIs use POST for updates)
-    {
-      method: 'POST',
-      url: `${API_ADMIN_BASE_URL}/promotions/events/${eventId}/${promotionId}`,
-      description: 'POST to /promotions/events/{eventId}/{promotionId}'
-    },
-    // Try 4: PUT to alternative pattern
-    {
-      method: 'PUT',
-      url: `${API_ADMIN_BASE_URL}/events/${eventId}/promotions/${promotionId}`,
-      description: 'PUT to /events/{eventId}/promotions/{promotionId}'
-    },
-    // Try 5: PATCH method
-    {
-      method: 'PATCH',
-      url: `${API_ADMIN_BASE_URL}/promotions/events/${eventId}/${promotionId}`,
-      description: 'PATCH to /promotions/events/{eventId}/{promotionId}'
-    }
-  ]
+      headers,
+      body: requestData
+    })
 
-  let lastError = null
-  
-  for (const attempt of attempts) {
-    try {
-      console.log(`🔄 Trying: ${attempt.description}`)
-      
-      const requestBody = attempt.body || updateData
-      
-      const response = await $fetch(attempt.url, {
-        method: attempt.method,
-        headers: headers,  // Remove Content-Type header like create function
-        body: requestBody
-      })
-      
-      console.log(`✅ Success with: ${attempt.description}`)
-      return {
-        success: true,
-        message: `Promotion updated successfully using ${attempt.description}`,
-        data: response.data || response
-      }
-      
-    } catch (error) {
-      console.log(`❌ Failed: ${attempt.description} - ${error.status} ${error.message}`)
-      lastError = error
-      
-      // If we get a 404, try the next endpoint pattern
-      // If we get a 405 (Method Not Allowed), try the next method
-      if (error.status === 404 || error.status === 405) {
-        continue
-      }
-      
-      // If we get a different error (like 500), it might be worth trying other methods
-      if (error.status === 500) {
-        continue
-      }
-      
-      // For other errors, continue trying
-      continue
+    return {
+      success: true,
+      message: 'Promotion updated successfully',
+      data: response.data || response
     }
+  } catch (error) {
+    console.error('❌ Failed to update promotion:', error)
+    if (error.status === 404) {
+      throw new Error('Promotion not found')
+    }
+    if (error.status === 403) {
+      throw new Error('You do not have permission to update this promotion')
+    }
+    throw new Error(error.message || 'Failed to update promotion')
   }
-  
-  // If all attempts failed
-  console.error('❌ All update attempts failed')
-  throw new Error(`Update failed. Last error: ${lastError?.message || 'Unknown error'}`)
 }
 
 export async function deletePromotion(eventId, promotionId) {
