@@ -2304,3 +2304,184 @@ export async function deletePromotion(eventId, promotionId) {
   console.error('❌ All delete attempts failed')
   throw new Error(`Delete failed. Last error: ${lastError?.message || 'Unknown error'}`)
 }
+
+// ============= VOUCHER/COUPON API FUNCTIONS =============
+
+// Create voucher/coupon
+export async function createCoupon(eventId, couponData) {
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  if (!couponData) {
+    throw new Error('Coupon data is required')
+  }
+
+  // Validate UUID format
+  if (!validateUUID(eventId)) {
+    throw new Error('Invalid event ID format')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+
+    console.log('🎫 Creating coupon with data:', couponData)
+
+    // Use server proxy route to avoid CORS issues
+    const response = await $fetch('/api/admin/coupons/', {
+      method: 'POST',
+      headers,
+      body: couponData
+    })
+
+    console.log('✅ Coupon created successfully:', response)
+
+    return {
+      success: true,
+      data: response,
+      message: 'Coupon created successfully'
+    }
+  } catch (error) {
+    console.error('❌ Failed to create coupon:', error)
+    
+    let userMessage = 'Failed to create coupon. Please try again.'
+    if (error.status === 400) {
+      userMessage = 'Invalid coupon data. Please check your inputs.'
+    } else if (error.status === 401) {
+      userMessage = 'Authentication required. Please log in again.'
+    } else if (error.status === 403) {
+      userMessage = 'You don\'t have permission to create coupons.'
+    } else if (error.status === 422) {
+      // Handle validation errors
+      if (error.data?.errors) {
+        const errorMessages = []
+        Object.entries(error.data.errors).forEach(([field, messages]) => {
+          if (Array.isArray(messages)) {
+            errorMessages.push(`${field}: ${messages.join(', ')}`)
+          } else {
+            errorMessages.push(`${field}: ${messages}`)
+          }
+        })
+        userMessage = `Validation failed:\n${errorMessages.join('\n')}`
+      } else if (error.data?.message) {
+        userMessage = error.data.message
+      }
+    }
+
+    throw new Error(userMessage)
+  }
+}
+
+// Get coupons list for an event
+export async function getCoupons(eventId) {
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  // Validate UUID format
+  if (!validateUUID(eventId)) {
+    throw new Error('Invalid event ID format')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+
+    console.log('🎫 Fetching coupons for event:', eventId)
+
+    // Try multiple endpoint patterns to find the working one
+    const attempts = [
+      // Pattern 1: Query parameter approach
+      {
+        url: '/api/admin/coupons/',
+        query: { event_id: eventId },
+        description: 'GET /coupons/ with event_id query'
+      },
+      // Pattern 2: Path parameter approach
+      {
+        url: `/api/admin/coupons/event/${eventId}`,
+        query: {},
+        description: 'GET /coupons/event/{eventId}'
+      },
+      // Pattern 3: Events nested approach
+      {
+        url: `/api/admin/events/${eventId}/coupons`,
+        query: {},
+        description: 'GET /events/{eventId}/coupons'
+      },
+      // Pattern 4: Alternative query format
+      {
+        url: '/api/admin/coupons',
+        query: { event_id: eventId },
+        description: 'GET /coupons with event_id query (no trailing slash)'
+      }
+    ]
+
+    let lastError = null
+
+    for (const attempt of attempts) {
+      try {
+        console.log(`🔄 Trying: ${attempt.description}`)
+        
+        const response = await $fetch(attempt.url, {
+          method: 'GET',
+          headers,
+          query: attempt.query
+        })
+
+        console.log(`✅ Success with: ${attempt.description}`, response)
+
+        return {
+          success: true,
+          data: response.data || response,
+          message: 'Coupons loaded successfully'
+        }
+      } catch (error) {
+        console.warn(`❌ Failed: ${attempt.description} - ${error.status} ${error.message}`)
+        lastError = error
+        continue
+      }
+    }
+
+    // If all attempts failed, check if it's a 404 (no coupons)
+    if (lastError?.status === 404) {
+      console.log('ℹ️ No coupons found (404), returning empty array')
+      return {
+        success: true,
+        data: [],
+        message: 'No coupons found for this event.'
+      }
+    }
+
+    // If we get here, all attempts failed with non-404 errors
+    throw lastError || new Error('All endpoint attempts failed')
+
+  } catch (error) {
+    console.error('❌ Failed to fetch coupons after all attempts:', error)
+    
+    let userMessage = 'Failed to load coupons. Please try again.'
+    if (error.status === 401) {
+      userMessage = 'Authentication required. Please log in again.'
+    } else if (error.status === 403) {
+      userMessage = 'You don\'t have permission to view coupons.'
+    } else if (error.status === 404) {
+      // Return empty array for 404 (no coupons found)
+      return {
+        success: true,
+        data: [],
+        message: 'No coupons found for this event.'
+      }
+    }
+
+    return {
+      success: false,
+      data: [],
+      message: userMessage
+    }
+  }
+}

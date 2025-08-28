@@ -56,83 +56,125 @@
             <h3 class="text-xl font-semibold text-gray-800 mb-4">Vouchers & Discounts</h3>
             <p class="text-gray-600 text-sm mb-6">Create discount vouchers for your event</p>
 
-            <form @submit.prevent="editingPromotion ? updatePromotionData() : generateBuyXGetY()"  class="space-y-5">
-              <!-- Voucher Name -->
+            <form @submit.prevent="generateVoucher()" class="space-y-5">
+              <!-- Voucher Code -->
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Voucher Name</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Voucher Code <span class="text-red-500">*</span></label>
                 <input
-                  v-model="voucherForm.name"
+                  v-model="voucherForm.code"
                   type="text"
-                  placeholder="Enter"
+                  placeholder="SAVE10"
                   class="w-full px-4 py-3 bg-gray-100 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  maxlength="20"
+                  required
+                  @input="voucherForm.code = voucherForm.code.toUpperCase()"
                 />
+                <p class="text-xs text-gray-500 mt-1">Letters and numbers only, no spaces (will be converted to uppercase)</p>
               </div>
 
               <!-- Discount Type -->
-             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Discount Type</label>
-                <input
-                  v-model="voucherForm.discountType"
-                  type="text"
-                  placeholder="Enter"
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Discount Type <span class="text-red-500">*</span></label>
+                <select
+                  v-model="voucherForm.type"
                   class="w-full px-4 py-3 bg-gray-100 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
+                  required
+                >
+                  <option value="fixed">Fixed Amount ($)</option>
+                  <option value="percent">Percentage (%)</option>
+                </select>
               </div>
 
               <!-- Discount Value -->
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Discount Value</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                  Value <span class="text-red-500">*</span>
+                  <span class="text-sm text-gray-500">
+                    {{ voucherForm.type === 'percent' ? '(%)' : '($)' }}
+                  </span>
+                </label>
                 <input
-                  v-model="voucherForm.discountValue"
+                  v-model="voucherForm.value"
                   type="number"
-                  placeholder="Enter"
+                  step="0.01"
+                  min="0.01"
+                  :max="voucherForm.type === 'percent' ? '100' : '10000'"
+                  placeholder="10"
                   class="w-full px-4 py-3 bg-gray-100 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  required
                 />
+                <p class="text-xs text-gray-500 mt-1">
+                  {{ voucherForm.type === 'percent' ? 'Enter percentage (1-100)' : 'Enter dollar amount' }}
+                </p>
               </div>
 
-              <!-- Number of Vouchers -->
+              <!-- Usage Limit -->
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">Number of Vouchers</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Usage Limit <span class="text-red-500">*</span></label>
                 <input
-                  v-model="voucherForm.numberOfVouchers"
+                  v-model="voucherForm.usage_limit"
                   type="number"
-                  placeholder="Enter"
+                  min="1"
+                  placeholder="10"
                   class="w-full px-4 py-3 bg-gray-100 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  required
                 />
+                <p class="text-xs text-gray-500 mt-1">Number of times this voucher can be used</p>
               </div>
 
-              <!-- Date Inputs Grid -->
+              <!-- Date Fields Grid -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <!-- Valid From -->
-                <div class="mb-2">
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Valid from</label>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Valid from <span class="text-red-500">*</span></label>
                   <Calendar
-                    v-model="voucherForm.validFrom"
-                    placeholder="Select date"
+                    v-model="voucherForm.valid_from"
+                    placeholder="Select start date"
                     dateFormat="dd/mm/yy"
+                    :minDate="new Date()"
                     class="w-full"
                     inputClass="w-full px-4 py-3 bg-gray-100 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    required
                   />
                 </div>
 
-                <!-- Valid Until -->
-                <div class="mb-2">
-                  <label class="block text-sm font-medium text-gray-700 mb-2">Valid until</label>
+                <!-- Valid Until / Expires At -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Valid until <span class="text-red-500">*</span></label>
                   <Calendar
-                    v-model="voucherForm.validUntil"
-                    placeholder="Select date"
+                    v-model="voucherForm.expires_at"
+                    placeholder="Select expiration date"
                     dateFormat="dd/mm/yy"
+                    :minDate="voucherForm.valid_from || new Date()"
                     class="w-full"
                     inputClass="w-full px-4 py-3 bg-gray-100 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    required
                   />
                 </div>
+              </div>
+
+              <!-- Active Status -->
+              <div class="flex items-center space-x-3">
+                <input
+                  v-model="voucherForm.is_active"
+                  type="checkbox"
+                  id="voucherActive"
+                  class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                />
+                <label for="voucherActive" class="text-sm font-medium text-gray-700">
+                  Active (voucher can be used immediately)
+                </label>
+              </div>
 
               <!-- Generate Button -->
               <button
                 type="submit"
-                class="w-full py-3 bg-gradient-to-r from-blue-700 to-purple-600 text-white rounded-2xl font-semibold hover:bg-purple-700 transition-colors flex items-center justify-center space-x-2 mt-6"
+                :disabled="isCreatingCoupon"
+                class="w-full py-3 bg-gradient-to-r from-blue-700 to-purple-600 text-white rounded-2xl font-semibold hover:bg-purple-700 transition-colors flex items-center justify-center space-x-2 mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <i class="pi pi-gift"></i>
-                <span>Generate Voucher</span>
+                <i v-if="isCreatingCoupon" class="pi pi-spin pi-spinner"></i>
+                <i v-else class="pi pi-gift"></i>
+                <span>{{ isCreatingCoupon ? 'Creating...' : 'Generate Voucher' }}</span>
               </button>
             </form>
           </div>
@@ -350,14 +392,23 @@
               {{ activeTab === 'voucher' ? 'Voucher Rules' : 'Promotion Rules' }}
             </h3>
             <button
-              v-if="activeTab === 'buyxgety'"
-              @click="fetchPromotions(true)"
-              :disabled="isLoadingPromotions"
-              class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-50"
-              title="Refresh promotions list"
+              v-if="activeTab === 'voucher'"
+              @click="fetchCoupons(true)"
+              :disabled="isLoadingCoupons"
+              class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors disabled:opacity-50 mr-2"
+              title="Refresh vouchers list"
             >
-              <i class="pi pi-refresh" :class="{ 'animate-spin': isLoadingPromotions }"></i>
+              <i class="pi pi-refresh" :class="{ 'animate-spin': isLoadingCoupons }"></i>
               Refresh
+            </button>
+            <button
+              v-if="activeTab === 'voucher'"
+              @click="debugEventIsolation"
+              class="px-3 py-1 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors"
+              title="Test event isolation"
+            >
+              <i class="pi pi-info-circle"></i>
+              Debug
             </button>
           </div>
           <p class="text-gray-600 text-sm mb-6">
@@ -423,7 +474,48 @@
 
           <!-- Voucher List -->
           <div v-if="activeTab === 'voucher'" class="space-y-4 h-[520px] overflow-y-auto">
+            <!-- Loading State -->
+            <div v-if="isLoadingCoupons" class="flex items-center justify-center py-12">
+              <div class="text-center">
+                <i class="pi pi-spin pi-spinner text-2xl text-purple-600 mb-2"></i>
+                <p class="text-gray-600">Loading vouchers...</p>
+              </div>
+            </div>
+
+            <!-- Error State -->
+            <div v-else-if="couponsError" class="flex items-center justify-center py-12">
+              <div class="text-center">
+                <i class="pi pi-exclamation-triangle text-2xl text-red-500 mb-2"></i>
+                <p class="text-red-600 mb-3">{{ couponsError }}</p>
+                <div class="space-x-2">
+                  <button
+                    @click="fetchCoupons(true)"
+                    class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                  >
+                    Retry
+                  </button>
+                  <button
+                    @click="debugCoupons()"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Debug
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Empty State -->
+            <div v-else-if="!filteredVouchers.length" class="flex items-center justify-center py-12">
+              <div class="text-center">
+                <i class="pi pi-gift text-3xl text-gray-400 mb-3"></i>
+                <p class="text-gray-600 mb-2">No vouchers created yet</p>
+                <p class="text-sm text-gray-500">Create your first voucher using the form above</p>
+              </div>
+            </div>
+
+            <!-- Voucher Items -->
             <div
+              v-else
               v-for="voucher in filteredVouchers"
               :key="voucher.id"
               class="p-6 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors bg-white"
@@ -431,13 +523,16 @@
               <div class="flex items-start justify-between">
                 <div class="flex-1 space-y-3">
                   <div class="flex items-center space-x-3">
-                    <span class="font-semibold text-gray-800 text-lg">Voucher name: {{ voucher.name }}</span>
+                    <span class="font-semibold text-gray-800 text-lg">
+                      {{ voucher.coupon_type === 'percent' ? voucher.discount + '%' : '$' + voucher.discount }} Voucher
+                    </span>
                     <span
                       :class="[
                         'px-3 py-1 rounded-full text-xs font-medium',
-                        voucher.status === 'Used' ? 'bg-red-100 text-red-700' :
+                        voucher.status === 'Used' || voucher.usage_limit <= 0 ? 'bg-red-100 text-red-700' :
                         voucher.status === 'Unused' ? 'bg-green-100 text-green-700' :
-                        'bg-gray-100 text-gray-700'
+                        voucher.status === 'Inactive' || !voucher.is_active ? 'bg-gray-100 text-gray-700' :
+                        'bg-green-100 text-green-700'
                       ]"
                     >
                       {{ voucher.status }}
@@ -447,7 +542,10 @@
                   <div class="flex items-center space-x-4">
                     <span class="text-sm text-gray-600 font-medium">Voucher code: {{ voucher.code }}</span>
                     <span class="text-xs bg-gray-50 text-gray-700 px-3 py-1 border border-gray-200 rounded-full">
-                      Discount {{ voucher.discount }}%
+                      Discount {{ voucher.coupon_type === 'percent' ? voucher.discount + '%' : '$' + voucher.discount }}
+                    </span>
+                    <span class="text-xs bg-blue-50 text-blue-700 px-3 py-1 border border-blue-200 rounded-full">
+                      {{ voucher.usage_limit }} uses left
                     </span>
                   </div>
                   
@@ -644,11 +742,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import EventCard from '~/components/common/EventCard.vue'
 import Breadcrumb from '~/components/common/Breadcrumb.vue'
 import Calendar from 'primevue/calendar'
-import { getEventDetails, getEventTicketTypes, createPromotion, getEventPromotions, updatePromotion, deletePromotion} from '~/composables/api'
+import { getEventDetails, getEventTicketTypes, createPromotion, getEventPromotions, updatePromotion, deletePromotion, createCoupon, getCoupons } from '~/composables/api'
 
 // Layout
 definePageMeta({
@@ -685,6 +783,11 @@ const showErrorToast = ref(false)
 const toastMessage = ref('')
 const editingPromotion = ref(null)
 const isUpdatingPromotion = ref(false)
+
+// Voucher-specific reactive data
+const isCreatingCoupon = ref(false)
+const isLoadingCoupons = ref(false)
+const couponsError = ref(null)
 
 const loadEventCard = async () => {
   if (!eventId.value) {
@@ -737,14 +840,16 @@ const loadEventCard = async () => {
 
 
 
-// Voucher form
+// Voucher form - Updated to match API fields
 const voucherForm = ref({
-  name: '',
-  discountType: '',
-  discountValue: '',
-  numberOfVouchers: '',
-  validFrom: '',
-  validUntil: ''
+  event_id: '',
+  code: '',
+  type: 'fixed', // fixed or percent
+  value: '',
+  usage_limit: '',
+  valid_from: '',
+  expires_at: '',
+  is_active: true
 })
 
 // Buy X Get Y form
@@ -761,16 +866,9 @@ const buyXGetYForm = ref({
   endDate: ''
 })
 
-// Voucher types for filter
+// Voucher types for filter - will be populated dynamically from actual voucher data
 const voucherTypes = ref([
-  { label: '10% Voucher', value: '10', count: 'Used 10' },
-  { label: '30% Voucher', value: '30', count: 'Used 10' },
-  { label: '50% Voucher', value: '50', count: 'Unused' },
-  { label: '20% Voucher', value: '20', count: 'Used 5' },
-  { label: '15% Voucher', value: '15', count: 'Unused' },
-  { label: '25% Voucher', value: '25', count: 'Used 8' },
-  { label: '40% Voucher', value: '40', count: 'Unused' },
-  { label: '60% Voucher', value: '60', count: 'Used 3' }
+  { label: 'All Vouchers', value: 'all', count: 'View All' }
 ])
 
 // Promotion types for filter
@@ -884,6 +982,108 @@ const fetchTicketTypes = async (retryCount = 0) => {
 
 const retryFetchTicketTypes = () => {
   fetchTicketTypes(0)
+}
+
+// Fetch coupons for the event
+const fetchCoupons = async (forceRefresh = false) => {
+  if (!eventId.value) {
+    console.warn('No event ID available for fetching coupons')
+    return
+  }
+
+  if (forceRefresh) {
+    console.log('🔄 Force refreshing coupons for event:', eventId.value)
+  }
+
+  isLoadingCoupons.value = true
+  couponsError.value = null
+
+  try {
+    const response = await getCoupons(eventId.value)
+    
+    if (response.success && response.data) {
+      // Handle both array and object responses
+      let couponsArray = []
+      
+      if (Array.isArray(response.data)) {
+        couponsArray = response.data
+      } else if (response.data.data && Array.isArray(response.data.data)) {
+        couponsArray = response.data.data
+      } else if (response.data.coupons && Array.isArray(response.data.coupons)) {
+        couponsArray = response.data.coupons
+      } else {
+        console.log('⚠️ Unexpected response format:', response.data)
+        couponsArray = []
+      }
+
+      // IMPORTANT: Filter coupons by current event ID to ensure isolation
+      const currentEventCoupons = couponsArray.filter(coupon => {
+        const couponEventId = coupon.event_id
+        const matches = couponEventId === eventId.value
+        console.log(`🔍 Coupon ${coupon.code}: event_id=${couponEventId}, current=${eventId.value}, matches=${matches}`)
+        return matches
+      })
+
+      console.log(`📊 Total coupons from API: ${couponsArray.length}, Filtered for current event: ${currentEventCoupons.length}`)
+
+      // Transform API data to match UI expectations
+      vouchers.value = currentEventCoupons.map(coupon => ({
+        id: coupon.id,
+        name: `${coupon.type === 'percent' ? coupon.value + '%' : '$' + coupon.value} Voucher`,
+        code: coupon.code,
+        discount: parseFloat(coupon.value), // Parse as number since API returns string
+        status: coupon.is_active ? (coupon.usage_limit > coupon.used ? 'Unused' : 'Used') : 'Inactive',
+        validFrom: formatDateForDisplay(coupon.valid_from || coupon.created_at),
+        validUntil: formatDateForDisplay(coupon.expires_at),
+        selected: false,
+        type: coupon.value.toString(),
+        usage_limit: coupon.usage_limit,
+        used: coupon.used || 0,
+        is_active: coupon.is_active,
+        expires_at: coupon.expires_at,
+        valid_from: coupon.valid_from,
+        coupon_type: coupon.type,
+        event_id: coupon.event_id // Store event_id for reference
+      }))
+      
+      console.log('✅ Coupons fetched and filtered for current event:', vouchers.value)
+      
+      // Update voucher types for filtering
+      updateVoucherTypes()
+    } else {
+      vouchers.value = []
+      console.log('ℹ️ No coupons found for this event')
+      
+      // Reset voucher types to default
+      voucherTypes.value = [
+        { label: 'All Vouchers', value: 'all', count: 'View All' }
+      ]
+    }
+  } catch (error) {
+    console.error('❌ Failed to fetch coupons:', error)
+    couponsError.value = error.message || 'Failed to load coupons'
+    vouchers.value = []
+  } finally {
+    isLoadingCoupons.value = false
+  }
+}
+
+// Helper function to format date for display
+const formatDateForDisplay = (dateString) => {
+  if (!dateString) return '14/08/2025'
+  try {
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return '14/08/2025'
+    
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const year = date.getFullYear()
+    
+    return `${day}/${month}/${year}`
+  } catch (error) {
+    console.warn('Failed to format date:', dateString)
+    return '14/08/2025'
+  }
 }
 
 // Toast notification helpers
@@ -1097,43 +1297,245 @@ const fetchPromotions = async (forceRefresh = false) => {
   }
 }
 
-const generateVoucher = () => {
-  // Generate voucher logic
-  console.log('Generating voucher:', voucherForm.value)
+const generateVoucher = async () => {
+  if (!eventId.value) {
+    console.error('❌ No event ID available for creating voucher')
+    showError('Event ID is required to create voucher')
+    return
+  }
+
+  // Validate form data
+  if (!voucherForm.value.code || !voucherForm.value.value || !voucherForm.value.usage_limit) {
+    showError('Please fill in all required fields: Code, Value, and Usage Limit')
+    return
+  }
+
+  // Validate voucher code format (alphanumeric, no spaces, allow common formats)
+  const codePattern = /^[A-Za-z0-9]+$/
+  if (!codePattern.test(voucherForm.value.code)) {
+    showError('Voucher code must contain only letters and numbers, no spaces or special characters')
+    return
+  }
+
+  // Validate value (must be positive number)
+  const value = parseFloat(voucherForm.value.value)
+  if (isNaN(value) || value <= 0) {
+    showError('Value must be a positive number')
+    return
+  }
+
+  // Validate usage limit (must be positive integer)
+  const usageLimit = parseInt(voucherForm.value.usage_limit)
+  if (isNaN(usageLimit) || usageLimit <= 0) {
+    showError('Usage limit must be a positive number')
+    return
+  }
+
+  // Validate date fields
+  if (!voucherForm.value.valid_from) {
+    showError('Valid from date is required')
+    return
+  }
+
+  if (!voucherForm.value.expires_at) {
+    showError('Valid until date is required')
+    return
+  }
+
+  // Validate that expires_at is after valid_from
+  const validFromDate = new Date(formatDateForAPI(voucherForm.value.valid_from))
+  const expiresAtDate = new Date(formatDateForAPI(voucherForm.value.expires_at))
   
-  // Format dates for display
-  const formatDate = (date) => {
-    if (!date) return '14/08/2025'
-    if (date instanceof Date) {
-      return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  if (expiresAtDate <= validFromDate) {
+    showError('Valid until date must be after valid from date')
+    return
+  }
+
+  isCreatingCoupon.value = true
+
+  try {
+    // Prepare voucher data according to API specification
+    const couponData = {
+      event_id: eventId.value,
+      code: voucherForm.value.code.toUpperCase().trim(),
+      type: voucherForm.value.type, // 'fixed' or 'percent'
+      value: value,
+      usage_limit: usageLimit,
+      valid_from: formatDateForAPI(voucherForm.value.valid_from),
+      expires_at: formatDateForAPI(voucherForm.value.expires_at),
+      is_active: voucherForm.value.is_active !== undefined ? voucherForm.value.is_active : true
     }
-    return date
+
+    console.log('🎫 Creating voucher with data:', couponData)
+
+    const response = await createCoupon(eventId.value, couponData)
+
+    if (response.success) {
+      showSuccess('Voucher created successfully!')
+      
+      // If the response contains the created voucher data, add it to our local list immediately
+      if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        const newVoucher = response.data.data[0] // Get the first (and likely only) voucher
+        if (newVoucher) {
+          // Transform and add to local vouchers list immediately
+          const transformedVoucher = {
+            id: newVoucher.id,
+            name: `${newVoucher.type === 'percent' ? newVoucher.value + '%' : '$' + newVoucher.value} Voucher`,
+            code: newVoucher.code,
+            discount: parseFloat(newVoucher.value),
+            status: newVoucher.is_active ? (newVoucher.usage_limit > (newVoucher.used || 0) ? 'Unused' : 'Used') : 'Inactive',
+            validFrom: formatDateForDisplay(newVoucher.valid_from || newVoucher.created_at),
+            validUntil: formatDateForDisplay(newVoucher.expires_at),
+            selected: false,
+            type: newVoucher.value.toString(),
+            usage_limit: newVoucher.usage_limit,
+            used: newVoucher.used || 0,
+            is_active: newVoucher.is_active,
+            expires_at: newVoucher.expires_at,
+            valid_from: newVoucher.valid_from,
+            coupon_type: newVoucher.type,
+            event_id: newVoucher.event_id || eventId.value // Ensure event_id is preserved for filtering
+          }
+          
+          // Add to the beginning of the vouchers array
+          vouchers.value.unshift(transformedVoucher)
+          
+          // Update filter types
+          updateVoucherTypes()
+          
+          console.log('✅ Added new voucher to local list:', transformedVoucher)
+        }
+      }
+      
+      // Reset form
+      voucherForm.value = {
+        event_id: eventId.value,
+        code: '',
+        type: 'fixed',
+        value: '',
+        usage_limit: '',
+        valid_from: new Date(), // Today
+        expires_at: new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+        is_active: true
+      }
+
+      // Still try to refresh from server, but don't rely on it
+      try {
+        await fetchCoupons(true)
+      } catch (fetchError) {
+        console.warn('⚠️ Failed to fetch updated coupons list, but voucher was created:', fetchError)
+        // Don't show error since we already have the voucher in the list
+      }
+    } else {
+      throw new Error(response.message || 'Failed to create voucher')
+    }
+  } catch (error) {
+    console.error('❌ Failed to create voucher:', error)
+    showError(`Failed to create voucher: ${error.message}`)
+  } finally {
+    isCreatingCoupon.value = false
+  }
+}
+
+// Helper function to format date for API (YYYY-MM-DD format)
+const formatDateForAPI = (dateInput) => {
+  if (!dateInput) return new Date().toISOString().split('T')[0]
+  
+  // If it's a Date object from Calendar component
+  if (dateInput instanceof Date) {
+    return dateInput.toISOString().split('T')[0]
   }
   
-  // Add new voucher to the list
-  const newVoucher = {
-    id: vouchers.value.length + 1,
-    name: voucherForm.value.name || 'Student Voucher',
-    code: `EVENT${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-    discount: parseInt(voucherForm.value.discountValue) || 10,
-    status: 'Unused',
-    validFrom: formatDate(voucherForm.value.validFrom),
-    validUntil: formatDate(voucherForm.value.validUntil),
-    selected: false,
-    type: voucherForm.value.discountValue || '10'
+  // If it's already a string in YYYY-MM-DD format, return as-is
+  if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+    return dateInput
   }
   
-  vouchers.value.unshift(newVoucher)
-  
-  // Reset form
-  voucherForm.value = {
-    name: '',
-    discountType: 'percentage',
-    discountValue: '',
-    numberOfVouchers: '',
-    validFrom: new Date(),
-    validUntil: new Date(new Date().getTime() + 30 * 24 * 60 * 60 * 1000)
+  // Try to parse and convert
+  try {
+    const date = new Date(dateInput)
+    if (isNaN(date.getTime())) {
+      console.warn('⚠️ Invalid date, using today:', dateInput)
+      return new Date().toISOString().split('T')[0]
+    }
+    return date.toISOString().split('T')[0]
+  } catch (error) {
+    console.warn('⚠️ Date parsing failed, using today:', dateInput)
+    return new Date().toISOString().split('T')[0]
   }
+}
+
+// Update voucher types for filtering based on actual data
+const updateVoucherTypes = () => {
+  const typeMap = new Map()
+  
+  // Count vouchers by type
+  vouchers.value.forEach(voucher => {
+    const key = voucher.type
+    const label = voucher.coupon_type === 'percent' ? `${voucher.discount}% Voucher` : `$${voucher.discount} Voucher`
+    
+    if (typeMap.has(key)) {
+      typeMap.get(key).count++
+    } else {
+      typeMap.set(key, {
+        label: label,
+        value: key,
+        count: 1
+      })
+    }
+  })
+  
+  // Convert to array and add 'All' option
+  const types = [
+    { label: 'All Vouchers', value: 'all', count: `${vouchers.value.length} Total` }
+  ]
+  
+  // Add individual types
+  typeMap.forEach(type => {
+    types.push({
+      label: type.label,
+      value: type.value,
+      count: `${type.count} Created`
+    })
+  })
+  
+  voucherTypes.value = types
+}
+
+// Debug function to help troubleshoot coupon fetching
+const debugCoupons = async () => {
+  if (!eventId.value) {
+    console.log('❌ No event ID for debugging')
+    return
+  }
+  
+  console.log('🔍 DEBUGGING COUPON ENDPOINTS')
+  console.log('Event ID:', eventId.value)
+  
+  // Test direct API calls to understand the issue
+  const headers = await createAuthHeaders()
+  
+  const testEndpoints = [
+    `/api/admin/coupons?event_id=${eventId.value}`,
+    `/api/admin/coupons/?event_id=${eventId.value}`,
+    `/api/admin/events/${eventId.value}/coupons`,
+    `/api/admin/coupons/event/${eventId.value}`,
+  ]
+  
+  for (const endpoint of testEndpoints) {
+    try {
+      console.log(`🔍 Testing: ${endpoint}`)
+      const response = await $fetch(endpoint, {
+        method: 'GET',
+        headers
+      })
+      console.log(`✅ SUCCESS: ${endpoint}`, response)
+    } catch (error) {
+      console.log(`❌ FAILED: ${endpoint}`, error.status, error.message)
+    }
+  }
+  
+  showError('Check the console for debug information')
 }
 
 const generateBuyXGetY = async () => {
@@ -1222,6 +1624,21 @@ const selectAll = () => {
 
 const deleteSelected = async () => {
   if (!eventId.value) return
+  
+  if (activeTab.value === 'voucher') {
+    const selectedVouchers = vouchers.value.filter(v => v.selected)
+    
+    if (selectedVouchers.length === 0) {
+      showError('No vouchers selected for deletion')
+      return
+    }
+    
+    // For now, show message that voucher deletion is not available
+    showError('Voucher deletion is not available yet. Please contact support to delete vouchers.')
+    return
+  }
+  
+  // Handle promotion deletion (existing code)
   const selectedPromotions = promotions.value.filter(p => p.selected)
 
   if (selectedPromotions.length === 0) {
@@ -1246,15 +1663,65 @@ const deleteSelected = async () => {
   }
 }
 
+// Debug function to test event isolation
+const debugEventIsolation = async () => {
+  console.log('🔍 DEBUGGING EVENT ISOLATION')
+  console.log('Current Event ID:', eventId.value)
+  console.log('Route params:', route.params)
+  console.log('Route query:', route.query)
+  
+  // Show current vouchers in memory
+  console.log('📊 Current vouchers in memory:', vouchers.value.length)
+  vouchers.value.forEach((voucher, index) => {
+    console.log(`  ${index + 1}. ${voucher.code} (event_id: ${voucher.event_id}) - Matches current: ${voucher.event_id === eventId.value}`)
+  })
+  
+  // Fetch fresh data and check what comes from API
+  try {
+    console.log('🔄 Fetching fresh data from API...')
+    const response = await getCoupons(eventId.value)
+    
+    if (response.success && response.data) {
+      let rawCoupons = []
+      
+      if (Array.isArray(response.data)) {
+        rawCoupons = response.data
+      } else if (response.data.data) {
+        rawCoupons = response.data.data
+      }
+      
+      console.log('📡 Raw API response contains:', rawCoupons.length, 'coupons')
+      
+      // Check event IDs in raw response
+      const eventGroups = {}
+      rawCoupons.forEach(coupon => {
+        const eventId = coupon.event_id
+        if (!eventGroups[eventId]) {
+          eventGroups[eventId] = []
+        }
+        eventGroups[eventId].push(coupon.code)
+      })
+      
+      console.log('📊 Coupons grouped by event_id:')
+      Object.keys(eventGroups).forEach(eid => {
+        const isCurrentEvent = eid === eventId.value
+        console.log(`  Event ${eid} ${isCurrentEvent ? '(CURRENT)' : ''}: ${eventGroups[eid].length} coupons - [${eventGroups[eid].join(', ')}]`)
+      })
+      
+      alert(`Debug complete! Check console for details.\n\nCurrent Event: ${eventId.value}\nTotal API Coupons: ${rawCoupons.length}\nFiltered for Current Event: ${(eventGroups[eventId.value] || []).length}`)
+    }
+  } catch (error) {
+    console.error('❌ Debug API call failed:', error)
+    alert('Debug API call failed. Check console for details.')
+  }
+}
+
 onMounted(async () => {
   // Set default dates for voucher form as Date objects for Calendar component
   const today = new Date()
   const nextMonth = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)
   const threeMonthsFromNow = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000)
   
-  voucherForm.value.validFrom = today
-  voucherForm.value.validUntil = nextMonth
-
   // Set default dates for promotion form as ISO date strings for HTML date inputs
   buyXGetYForm.value.startDate = today.toISOString().split('T')[0]
   buyXGetYForm.value.endDate = threeMonthsFromNow.toISOString().split('T')[0]
@@ -1277,17 +1744,59 @@ onMounted(async () => {
 
   console.log('🎯 Event ID found:', eventId.value)
 
+  // Watch for route changes and refresh data for new events
+  watch(() => route.params.id, async (newEventId, oldEventId) => {
+    if (newEventId && newEventId !== oldEventId) {
+      console.log('🔄 Event changed from', oldEventId, 'to', newEventId)
+      eventId.value = newEventId
+      
+      // Clear existing data
+      vouchers.value = []
+      promotions.value = []
+      
+      // Store new event ID
+      if (process.client) {
+        localStorage.setItem('currentEventId', newEventId)
+      }
+      
+      // Refresh data for new event
+      await Promise.all([
+        fetchEventInfo(),
+        fetchTicketTypes(),
+        fetchCoupons(true),
+        fetchPromotions(true)
+      ])
+    }
+  }, { immediate: false })
+
+  // Initialize voucher form with event ID and default values
+  if (eventId.value) {
+    voucherForm.value = {
+      event_id: eventId.value,
+      code: '',
+      type: 'fixed',
+      value: '',
+      usage_limit: '',
+      valid_from: today, // Date object for Calendar component
+      expires_at: nextMonth, // Date object for Calendar component
+      is_active: true
+    }
+  }
+
   // Load event card data
   await loadEventCard()
 
-  // Fetch ticket types if we have an event ID
+  // Fetch data if we have an event ID
   if (eventId.value) {
     fetchTicketTypes()
     
-    // Also fetch existing promotions
+    // Fetch existing promotions for Buy X Get Y tab
     fetchPromotions()
+    
+    // Fetch existing coupons for Voucher tab
+    fetchCoupons()
   } else {
-    console.warn('⚠️ No event ID found for fetching ticket types and promotions')
+    console.warn('⚠️ No event ID found for fetching data')
   }
 })
 </script>
