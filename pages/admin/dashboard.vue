@@ -26,7 +26,8 @@
             :showIcon="true"
             :showButtonBar="true"
             :dateFormat="'dd MM, yy'"
-            class="w-full sm:max-w-xs p-inputtext-lg rounded-xl border border-gray-200 p-2 lg:p-3 text-center text-blue-950 font-medium text-sm lg:text-lg focus:ring-0 focus:outline-none"
+            class="w-full sm:max-w-xs"
+            inputClass="input-standard text-center text-blue-950 font-medium text-sm lg:text-lg"
             placeholder="Select Date Range"
             @date-select="updateDisplay"
           />
@@ -84,14 +85,14 @@
       </div>
 
       <div class="border border-gray-200 mt-4 lg:mt-5 mb-6 lg:mb-10"></div>
-       <div class="mb-6 p-6 bg-yellow-50 border border-yellow-200 rounded-2xl">
+       <div class="mb-6 p-6 bg-[#E6F2FF] border border-purple-600 rounded-2xl">
       <div class="flex items-center">
         <Icon name="heroicons:exclamation-triangle" class="w-8 h-8 text-yellow-600 mr-4" />
         <div>
-          <h3 class="text-lg font-semibold text-yellow-800 mb-2">Dashboard Temporarily Unavailable</h3>
-          <p class="text-yellow-700">The dashboard feature is currently under development and will be available soon. Please use other sections of the admin panel.</p>
+          <h3 class="text-lg font-semibold text-purple-600 mb-2">Dashboard Temporarily Unavailable</h3>
+          <p class="text-purple-600">The dashboard feature is currently under development and will be available soon. Please use other sections of the admin panel.</p>
           <div class="mt-4">
-            <NuxtLink to="/admin/event" class="inline-flex items-center px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors">
+            <NuxtLink to="/admin/event" class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
               <Icon name="heroicons:calendar" class="w-4 h-4 mr-2" />
               Go to Events
             </NuxtLink>

@@ -161,7 +161,37 @@ function handleClickOutside(event) {
 }
 
 function isActive(path) {
-  return route.path === path
+  if (!path) return false
+  
+  // Exact match for dashboard and other simple routes
+  if (route.path === path) {
+    return true
+  }
+  
+  // For Event menu item, check if current route is event-related
+  if (path === '/admin/event') {
+    return route.path.startsWith('/admin/event') || 
+           route.path.includes('/admin/CreateEvent') ||
+           route.path.includes('/admin/RecentEvent') ||
+           route.path.includes('/admin/ComingEvent') ||
+           route.path.includes('/admin/manage-booking') ||
+           route.path.includes('/admin/manage-tickets') ||
+           route.path.includes('/admin/promotion') ||
+           route.path.includes('/admin/role')
+  }
+  
+  // For Booking menu item, check if current route is booking-related
+  if (path === '/admin/booking') {
+    return route.path.startsWith('/admin/booking')
+  }
+  
+  // For Check-in menu item, check if current route is check-in related
+  if (path === '/admin/checkIn') {
+    return route.path.startsWith('/admin/checkIn')
+  }
+  
+  // Default: check if current path starts with the menu path
+  return route.path.startsWith(path)
 }
 
 onMounted(() => {

@@ -66,6 +66,68 @@ html {
   @apply focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2;
 }
 
+/* Standardized Form Input Styles */
+@layer components {
+  /* Standard input field - purple-100 focus ring */
+  .input-standard {
+    @apply w-full px-4 py-3 bg-gray-100 rounded-2xl border border-gray-200 
+           focus:ring-2 focus:ring-purple-100 focus:border-purple-300 focus:outline-none
+           transition-all duration-300 ease-in-out
+           hover:bg-gray-50 hover:border-gray-300
+           placeholder:text-gray-500 text-gray-900;
+  }
+
+  /* Standard select/dropdown field */
+  .select-standard {
+    @apply w-full px-4 py-3 bg-gray-100 rounded-2xl border border-gray-200 
+           focus:ring-2 focus:ring-purple-100 focus:border-purple-300 focus:outline-none
+           transition-all duration-300 ease-in-out
+           hover:bg-gray-50 hover:border-gray-300
+           text-gray-900 cursor-pointer;
+  }
+
+  /* Standard textarea field */
+  .textarea-standard {
+    @apply w-full px-4 py-3 bg-gray-100 rounded-2xl border border-gray-200 
+           focus:ring-2 focus:ring-purple-100 focus:border-purple-300 focus:outline-none
+           transition-all duration-300 ease-in-out
+           hover:bg-gray-50 hover:border-gray-300
+           placeholder:text-gray-500 text-gray-900 resize-none;
+  }
+
+  /* Standard checkbox */
+  .checkbox-standard {
+    @apply h-4 w-4 text-purple-600 border-gray-300 rounded 
+           focus:ring-2 focus:ring-purple-100 focus:ring-offset-0
+           transition-all duration-200;
+  }
+
+  /* Standard radio button */
+  .radio-standard {
+    @apply h-4 w-4 text-purple-600 border-gray-300 
+           focus:ring-2 focus:ring-purple-100 focus:ring-offset-0
+           transition-all duration-200;
+  }
+
+  /* Search input variant */
+  .input-search {
+    @apply w-full pl-10 pr-4 py-3 bg-white rounded-full border border-gray-300 
+           focus:ring-2 focus:ring-purple-100 focus:border-purple-300 focus:outline-none
+           transition-all duration-300 ease-in-out
+           hover:border-gray-400
+           placeholder:text-gray-500 text-gray-900;
+  }
+
+  /* Compact input variant */
+  .input-compact {
+    @apply w-full px-3 py-2 bg-gray-100 rounded-lg border border-gray-200 
+           focus:ring-2 focus:ring-purple-100 focus:border-purple-300 focus:outline-none
+           transition-all duration-300 ease-in-out
+           hover:bg-gray-50 hover:border-gray-300
+           placeholder:text-gray-500 text-gray-900 text-sm;
+  }
+}
+
 /* Button loading state */
 .btn-loading {
   @apply relative text-transparent pointer-events-none;

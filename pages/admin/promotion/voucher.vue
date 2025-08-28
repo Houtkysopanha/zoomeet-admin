@@ -63,7 +63,7 @@
                   v-model="voucherForm.code"
                   type="text"
                   placeholder="SAVE10"
-                  class="w-full px-4 py-3 bg-gray-100 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  class="input-standard"
                   maxlength="20"
                   required
                   @input="voucherForm.code = voucherForm.code.toUpperCase()"
@@ -76,7 +76,7 @@
                 <label class="block text-sm font-medium text-gray-700 mb-2">Discount Type <span class="text-red-500">*</span></label>
                 <select
                   v-model="voucherForm.type"
-                  class="w-full px-4 py-3 bg-gray-100 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  class="select-standard"
                   required
                 >
                   <option value="fixed">Fixed Amount ($)</option>
@@ -99,7 +99,7 @@
                   min="0.01"
                   :max="voucherForm.type === 'percent' ? '100' : '10000'"
                   placeholder="10"
-                  class="w-full px-4 py-3 bg-gray-100 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  class="input-standard"
                   required
                 />
                 <p class="text-xs text-gray-500 mt-1">
@@ -115,7 +115,7 @@
                   type="number"
                   min="1"
                   placeholder="10"
-                  class="w-full px-4 py-3 bg-gray-100 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  class="input-standard"
                   required
                 />
                 <p class="text-xs text-gray-500 mt-1">Number of times this voucher can be used</p>
@@ -132,7 +132,7 @@
                     dateFormat="dd/mm/yy"
                     :minDate="new Date()"
                     class="w-full"
-                    inputClass="w-full px-4 py-3 bg-gray-100 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    inputClass="input-standard"
                     required
                   />
                 </div>
@@ -146,7 +146,7 @@
                     dateFormat="dd/mm/yy"
                     :minDate="voucherForm.valid_from || new Date()"
                     class="w-full"
-                    inputClass="w-full px-4 py-3 bg-gray-100 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    inputClass="input-standard"
                     required
                   />
                 </div>
@@ -158,7 +158,7 @@
                   v-model="voucherForm.is_active"
                   type="checkbox"
                   id="voucherActive"
-                  class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                  class="checkbox-standard"
                 />
                 <label for="voucherActive" class="text-sm font-medium text-gray-700">
                   Active (voucher can be used immediately)
@@ -402,7 +402,7 @@
                 v-model="searchQuery"
                 type="text"
                 placeholder="Search"
-                class="pl-10 w-full rounded-full pr-4 py-3 border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                class="input-search"
               />
               <i class="pi pi-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
             </div>
@@ -536,7 +536,7 @@
                 <input 
                   type="checkbox" 
                   v-model="voucher.selected" 
-                  class="mt-2 w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                  class="checkbox-standard mt-2 w-5 h-5"
                 >
               </div>
             </div>
