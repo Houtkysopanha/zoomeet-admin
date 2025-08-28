@@ -48,7 +48,7 @@
           v-model="searchQuery"
           type="text"
           placeholder="Search"
-          class="w-full pl-14  border-0 focus:ring-0 focus:outline-none bg-transparent p-3 rounded-full"
+          class="input-search"
         />
       </div>
       <div class=" relative space-x-5">
@@ -71,7 +71,7 @@
       :options="sortOptions"
       optionLabel="label"
       optionValue="value"
-      class="w-30 p-dropdown-sm border bg-transparent border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg"
+      class="select-standard w-30 p-dropdown-sm"
       @change="applySort"
     >
       <template #value="slotProps">
@@ -89,7 +89,7 @@
     optionLabel="label"
     optionValue="value"
     placeholder=""
-    class=" border border-gray-300 bg-transparent rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+    class="select-standard"
     @change="applyPageChange"
   />
   <span class="text-lg text-gray-700  border-l pl-2 border-gray-500"> Show {{ currentPage * itemsPerPage - (itemsPerPage - 1) }} to {{ Math.min(currentPage * itemsPerPage, totalItems) }} of {{ totalItems }}</span>

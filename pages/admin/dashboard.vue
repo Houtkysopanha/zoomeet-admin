@@ -26,7 +26,8 @@
             :showIcon="true"
             :showButtonBar="true"
             :dateFormat="'dd MM, yy'"
-            class="w-full sm:max-w-xs p-inputtext-lg rounded-xl border border-gray-200 p-2 lg:p-3 text-center text-blue-950 font-medium text-sm lg:text-lg focus:ring-0 focus:outline-none"
+            class="w-full sm:max-w-xs"
+            inputClass="input-standard text-center text-blue-950 font-medium text-sm lg:text-lg"
             placeholder="Select Date Range"
             @date-select="updateDisplay"
           />
