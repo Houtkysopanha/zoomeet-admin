@@ -102,7 +102,7 @@ export default defineNuxtConfig({
           : 'https://gateway.etickets.asia/api/v1'),
       apiAdminBaseUrl: process.env.NUXT_PUBLIC_API_ADMIN_BASE_URL ||
         (process.env.NODE_ENV === 'development'
-          ? 'https://dev-apiticket.prestigealliance.co/api/v1/admin'
+          ? 'https://dev-business.prestigealliance.co/api/v1/admin'
           : 'https://api-ticket.etickets.asia/api/v1/admin'),
       appName: process.env.NUXT_PUBLIC_APP_NAME ||
         (process.env.NODE_ENV === 'development'
@@ -117,7 +117,7 @@ export default defineNuxtConfig({
         maxRefreshAttempts: 3,
         autoRefreshEnabled: true,
         secureCookies: process.env.NODE_ENV === 'production',
-        cookieDomain: process.env.NODE_ENV === 'production' ? '.etickets.asia' : 'localhost',
+        cookieDomain: process.env.NODE_ENV === 'production' ? '.etickets.asia' : undefined, // Don't set domain for dev
         sessionDuration: 86400000 // 24 hours in milliseconds
       }
     },

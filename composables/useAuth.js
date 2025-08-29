@@ -9,8 +9,8 @@ export function useAuth() {
     deserialize: JSON.parse,
     httpOnly: false,
     secure: config.public.auth?.secureCookies ?? (process.env.NODE_ENV === 'production'),
-    sameSite: 'strict',
-    domain: config.public.auth?.cookieDomain,
+    sameSite: 'lax', // Changed from 'strict' to 'lax' for better development compatibility
+    domain: config.public.auth?.cookieDomain, // Will be undefined for development
     maxAge: 60 * 60 * 24 * 30 // 30 days for refresh token
   })
 
@@ -236,9 +236,7 @@ export function useAuth() {
           expiry: expiry.toISOString(),
           expired: isExpired
         })
-        // Auto-cleanup expired token
-        clearAuth()
-        return true
+        return true // Don't auto-cleanup here to allow refresh attempt
       }
       
       return false
@@ -250,7 +248,6 @@ export function useAuth() {
       const parts = token.split('.')
       if (parts.length !== 3) {
         console.warn('⚠️ Invalid JWT format, considering expired')
-        clearAuth()
         return true
       }
       
@@ -266,9 +263,7 @@ export function useAuth() {
             expired: isExpired,
             timeUntilExpiry: payload.exp - now
           })
-          // Auto-cleanup expired token
-          clearAuth()
-          return true
+          return true // Don't auto-cleanup here to allow refresh attempt
         }
         
         // If expiry is very soon (less than 5 minutes), consider refreshing
@@ -284,11 +279,10 @@ export function useAuth() {
       }
     } catch (e) {
       console.error('❌ Failed to parse JWT token for expiration check:', e)
-      clearAuth()
       return true
     }
     
-    // If no expiration info found, consider token suspicious
+    // If no expiration info found, consider token suspicious but don't auto-clear
     console.warn('⚠️ No expiration info found in token, considering expired')
     return true
   }
@@ -397,13 +391,13 @@ export function useAuth() {
     }
   }
 
-  // Check if token needs refresh (within 10 minutes of expiry)
+  // Check if token needs refresh (within 30 minutes of expiry for production stability)
   function shouldRefreshToken() {
     const timeUntilExpiry = getTimeUntilExpiry()
     if (!timeUntilExpiry) return false
     
-    // Refresh if token expires in less than 10 minutes (600000 ms)
-    return timeUntilExpiry < 600000
+    // Refresh if token expires in less than 30 minutes (1800000 ms) - more conservative for server deployment
+    return timeUntilExpiry < 1800000
   }
 
   // Auto-refresh token if needed

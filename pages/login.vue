@@ -278,32 +278,54 @@ async function handleLogin() {
     classicLoader.updateProgress(25, 'Authenticating credentials...')
     const data = await login(identifier, password.value)
     classicLoader.updateProgress(60, 'Verifying account...')
+    
+    console.log('🔍 Login response data:', data) // Debug log
+    
     let token = null;
+    let refreshToken = null;
     let userData = {};
+    
+    // Extract tokens from different possible response formats
     if (data?.tokens?.access_token) {
       token = data.tokens.access_token;
+      refreshToken = data.tokens.refresh_token;
       userData = data.user || {};
     } else if (data?.access_token) {
       token = data.access_token;
+      refreshToken = data.refresh_token;
       userData = data.user || {};
     } else if (data?.token) {
       token = data.token;
+      refreshToken = data.refreshToken || data.refresh_token;
       userData = data.user || {};
     } else {
       throw new Error('Invalid server response. Missing access token.')
     }
+    
     const user = {
       username: identifier,
       message: data.message || 'Login successful',
       loginTime: new Date().toISOString(),
       ...userData
     }
+    
     if (!token) {
       throw new Error("Missing access token in login response. Please check your credentials.");
     }
+    
+    console.log('🔍 Extracted tokens:', { hasToken: !!token, hasRefreshToken: !!refreshToken }) // Debug log
+    
     classicLoader.updateProgress(85, 'Loading dashboard...')
     const { setAuth, getToken } = useAuth();
-    setAuth({ token, user });
+    
+    // Store both access token and refresh token
+    const authData = { 
+      token, 
+      user,
+      refreshToken: refreshToken || null // Store refresh token if available
+    };
+    
+    setAuth(authData);
     const savedToken = getToken();
     if (!savedToken) {
       throw new Error('Failed to save authentication token');
