@@ -19,8 +19,12 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Forward the request to the actual API
-    const apiUrl = `${config.public.apiAdminBaseUrl}/events/${eventId}/organizer`
+    // Forward the request to the actual API (use same URL as catch-all proxy)
+    const externalApiUrl = process.env.NODE_ENV === 'development'
+      ? 'https://dev-apiticket.prestigealliance.co/api/v1/admin'
+      : 'https://api-ticket.etickets.asia/api/v1/admin'
+    
+    const apiUrl = `${externalApiUrl}/events/${eventId}/organizer`
     
     const response = await $fetch(apiUrl, {
       method: 'GET',

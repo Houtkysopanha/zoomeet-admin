@@ -27,18 +27,20 @@ export default defineNuxtPlugin(async (nuxtApp) => {
   }
 });
 
-// Enhanced token monitoring with 24-hour sessions
+// Enhanced token monitoring with 24-hour sessions - production optimized
 function startTokenMonitoring() {
   let tokenCheckInterval: NodeJS.Timeout | null = null;
   let userWarned = false;
   
-  // Check token every 30 minutes (much less frequent for 24h tokens)
+  // Check token every 60 minutes for production stability (less aggressive)
+  const checkIntervalMs = process.env.NODE_ENV === 'production' ? 60 * 60 * 1000 : 30 * 60 * 1000;
+  
   tokenCheckInterval = setInterval(() => {
     const { getTimeUntilExpiry, isTokenExpired, clearAuth } = useAuth();
     
     try {
       if (isTokenExpired()) {
-        console.log('🔒 Token expired, redirecting to login...');
+        console.log('🔒 Token expired during monitoring, redirecting to login...');
         clearAuth();
         if (tokenCheckInterval) {
           clearInterval(tokenCheckInterval);
@@ -54,18 +56,20 @@ function startTokenMonitoring() {
         const hoursLeft = Math.floor(timeUntilExpiry / (60 * 60 * 1000));
         const minutesLeft = Math.floor((timeUntilExpiry % (60 * 60 * 1000)) / (60 * 1000));
         
-        // Show warning when 2 hours or less remain (much more reasonable)
-        if (hoursLeft <= 2 && !userWarned) {
+        // Show warning when 3 hours or less remain (more conservative for production)
+        if (hoursLeft <= 3 && !userWarned) {
           userWarned = true;
           console.warn(`⚠️ Token expires in: ${hoursLeft} hours, ${minutesLeft} minutes`);
           
-          // Show user-friendly notification
-          showExpirationWarning(hoursLeft, minutesLeft);
+          // Show user-friendly notification only for very short time remaining
+          if (hoursLeft <= 1) {
+            showExpirationWarning(hoursLeft, minutesLeft);
+          }
         }
         
-        // Force logout when 15 minutes or less remains
-        if (hoursLeft === 0 && minutesLeft <= 15) {
-          console.log('🔒 Token expiring in 15 minutes, forcing logout...');
+        // Force logout when 30 minutes or less remains (more generous)
+        if (hoursLeft === 0 && minutesLeft <= 30) {
+          console.log('🔒 Token expiring in 30 minutes, forcing logout...');
           clearAuth();
           if (tokenCheckInterval) {
             clearInterval(tokenCheckInterval);
@@ -78,8 +82,9 @@ function startTokenMonitoring() {
       
     } catch (error) {
       console.error('❌ Token monitoring error:', error);
+      // Don't clear auth on monitoring errors - could be temporary network issues
     }
-  }, 30 * 60 * 1000); // Check every 30 minutes (instead of 2 minutes)
+  }, checkIntervalMs);
   
   // Cleanup on page unload
   if (typeof window !== 'undefined') {

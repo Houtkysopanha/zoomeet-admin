@@ -193,20 +193,41 @@ const updateDisplay = () => {
 }
 async function fetchUserInfo() {
   try {
-    const { getToken, isTokenExpired, clearAuth } = useAuth()
-    const token = getToken()
+    const { getToken, isTokenExpired, clearAuth, refreshToken } = useAuth()
+    let token = getToken()
     
     if (!token) {
-      router.push('/login')
+      console.log('🔒 No token found, redirecting to login')
+      router.push('/login?redirect=/admin/dashboard')
       return
     }
 
+    // Check if token is expired and try to refresh if needed
     if (isTokenExpired()) {
-      clearAuth()
-      router.push('/login')
-      return
+      console.log('🔄 Token expired, attempting refresh before API call')
+      try {
+        const refreshSuccess = await refreshToken()
+        if (refreshSuccess) {
+          token = getToken() // Get refreshed token
+          console.log('✅ Token refreshed successfully')
+        } else {
+          throw new Error('Token refresh failed')
+        }
+      } catch (refreshError) {
+        console.warn('❌ Token refresh failed:', refreshError)
+        clearAuth()
+        toast.add({
+          severity: 'warn',
+          summary: 'Session Expired',
+          detail: 'Please login again',
+          life: 3000,
+        })
+        router.push('/login?session_expired=true&redirect=/admin/dashboard')
+        return
+      }
     }
 
+    // Make API call with better error handling
     const res = await fetch(`${config.public.apiBaseUrl}/info`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -215,8 +236,10 @@ async function fetchUserInfo() {
       },
     })
 
+    console.log('📡 User info API response status:', res.status)
     
     if (res.status === 401) {
+      console.log('🔒 API returned 401, clearing auth and redirecting')
       clearAuth()
       toast.add({
         severity: 'warn',
@@ -224,31 +247,42 @@ async function fetchUserInfo() {
         detail: 'Please login again',
         life: 3000,
       })
-      router.push('/login')
+      router.push('/login?session_expired=true&redirect=/admin/dashboard')
       return
     }
     
     if (!res.ok) {
       const errorText = await res.text()
+      console.error(`❌ API Error ${res.status}:`, errorText)
       throw new Error(`HTTP ${res.status}: Failed to fetch user info`)
     }
 
     const data = await res.json()
-    userName.value = data.name || data.preferred_username || 'No Name'
-    userRole.value = data.role || 'No Role'
+    console.log('✅ User info retrieved successfully:', data)
+    userName.value = data.name || data.preferred_username || data.email || 'No Name'
+    userRole.value = data.role || 'Admin'
   } catch (error) {
+    console.error('❌ fetchUserInfo error:', error)
     
-    // Don't show error toast for auth issues (already handled above)
-    if (!error.message.includes('401')) {
+    // More specific error handling
+    if (error.message.includes('fetch')) {
+      toast.add({
+        severity: 'error',
+        summary: 'Connection Error',
+        detail: 'Unable to connect to server. Please check your internet connection.',
+        life: 5000,
+      })
+    } else if (!error.message.includes('401')) {
       toast.add({
         severity: 'error',
         summary: 'Error',
-        detail: 'Unable to fetch user info',
-        life: 3000,
+        detail: 'Unable to fetch user info. Some features may not work properly.',
+        life: 5000,
       })
     }
     
     userName.value = 'Unknown User'
+    userRole.value = 'User'
   }
 }
 
