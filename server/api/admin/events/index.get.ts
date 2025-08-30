@@ -3,10 +3,10 @@ export default defineEventHandler(async (event) => {
   try {
     const config = useRuntimeConfig()
 
-    // Get the external API URL based on environment
+    // Get the external API URL based on environment - FIXED: Remove /admin suffix to avoid duplication
     const externalApiUrl = process.env.NODE_ENV === 'development'
-      ? 'https://dev-apiticket.prestigealliance.co/api/v1/admin'
-      : 'https://api-ticket.etickets.asia/api/v1/admin'
+      ? 'https://dev-apiticket.prestigealliance.co/api/v1'
+      : 'https://api-ticket.etickets.asia/api/v1'
 
     // Get auth token from headers
     const authHeader = getHeader(event, 'authorization')
@@ -17,8 +17,8 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Forward the request to external API
-    const response = await $fetch(`${externalApiUrl}/events`, {
+    // Forward the request to external API - FIXED: Include /admin in the path
+    const response = await $fetch(`${externalApiUrl}/admin/events`, {
       method: 'GET',
       headers: {
         'Authorization': authHeader,

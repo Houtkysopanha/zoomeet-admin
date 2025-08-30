@@ -20,5 +20,10 @@ logs
 
 # Local env files
 .env
-.env.*
-.env.example
+.env.local
+.env.*.local
+
+# Keep these environment files in version control:
+# .env.example (template for team)
+# .env.development (shared dev config)
+# .env.production (production template)

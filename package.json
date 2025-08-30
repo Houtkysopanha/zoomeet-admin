@@ -6,10 +6,13 @@
     "build": "nuxt build",
     "build:prod": "NODE_ENV=production nuxt build",
     "dev": "nuxt dev",
+    "dev:prod": "NODE_ENV=production nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "start": "node .output/server/index.mjs",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "env:validate": "./scripts/validate-env.sh",
+    "env:validate:prod": "NODE_ENV=production ./scripts/validate-env.sh"
   },
   "dependencies": {
     "@iconify-json/ep": "^1.2.3",
