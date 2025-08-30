@@ -5,10 +5,10 @@ export default defineEventHandler(async (event) => {
   try {
     console.log('Server-side categories request')
 
-    // Use the actual external API URL, not the proxy URL
+    // Use the actual external API URL, not the proxy URL - FIXED: Remove /admin for categories
     const externalApiUrl = process.env.NODE_ENV === 'development' 
-      ? 'https://dev-gateway.prestigealliance.co/api/v1/admin'
-      : 'https://gateway.etickets.asia/api/v1/admin'
+      ? 'https://dev-gateway.prestigealliance.co/api/v1'
+      : 'https://gateway.etickets.asia/api/v1'
 
     console.log('Server-side API URL:', externalApiUrl)
 

@@ -9,12 +9,12 @@ export default defineEventHandler(async (event) => {
     
     console.log(`Server-side admin API request: ${method} /admin/${path}`)
 
-    // Use the actual external admin API URL
+    // Use the actual external admin API URL - FIXED: Remove /admin suffix to avoid duplication
     const externalApiUrl = process.env.NODE_ENV === 'development'
-      ? 'https://dev-apiticket.prestigealliance.co/api/v1/admin'
-      : 'https://api-ticket.etickets.asia/api/v1/admin'
+      ? 'https://dev-apiticket.prestigealliance.co/api/v1'
+      : 'https://api-ticket.etickets.asia/api/v1'
 
-    const fullUrl = `${externalApiUrl}/${path}`
+    const fullUrl = `${externalApiUrl}/admin/${path}`
     console.log('Server-side admin API URL:', fullUrl)
 
     // Get authorization header from the request

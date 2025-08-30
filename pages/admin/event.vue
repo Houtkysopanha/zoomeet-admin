@@ -173,7 +173,7 @@
       </Column>
       <Column
          field="bookings"
-        header="Number of Booking"
+        header="Tickets"
         class="text-[12px] text-start border-b border-gray-300"
       >
       <template #body="slotProps">
