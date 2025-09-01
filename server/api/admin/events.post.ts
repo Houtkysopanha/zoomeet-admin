@@ -4,12 +4,11 @@ export default defineEventHandler(async (event) => {
     const formData = await readFormData(event)
     const config = useRuntimeConfig()
 
-    // Get the external API URL based on environment - FIXED: Remove /admin suffix to avoid duplication
-    const externalApiUrl = process.env.NODE_ENV === 'development'
-      ? 'https://dev-apiticket.prestigealliance.co/api/v1'
-      : 'https://api-ticket.etickets.asia/api/v1'
+    // Use runtime config instead of hardcoded URLs
+    const externalApiUrl = config.public.apiAdminBaseUrl.replace('/admin', '')
 
     console.log('🚀 Creating event via server proxy:', externalApiUrl)
+    console.log('🔗 Environment:', config.public.environment)
 
     // Get auth token from headers
     const authHeader = getHeader(event, 'authorization')

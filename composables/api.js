@@ -1,29 +1,14 @@
 // Auto-imported by Nuxt: useRuntimeConfig, $fetch
 import axios from 'axios'
 // Get auth token using proper Nuxt 3 pattern with automatic refresh
-const getAuthToken = async (autoRefresh = true) => {
-  try {
-    const { getToken, isTokenExpired, shouldRefreshToken, ensureValidToken } = useAuth()
-    
-    // First, get the current token
-    let token = getToken()
+// Auto-imported by Nuxt: useRuntimeConfig, $fetch
 
-    // If auto-refresh is enabled and we have a token, ensure it's valid
-    if (autoRefresh && token) {
-      try {
-        const isValid = await ensureValidToken()
-        if (!isValid) {
-          console.warn('⚠️ Failed to ensure valid token, but continuing with existing token for compatibility')
-          // Don't return null immediately - let the API call fail if token is actually invalid
-        }
-      } catch (refreshError) {
-        console.warn('⚠️ Token refresh failed, continuing with existing token:', refreshError.message)
-        // Continue with existing token - server will return 401 if truly invalid
-      }
-    }
-    
-    // Re-get token after potential refresh
-    token = getToken()
+// Get auth token using proper Nuxt 3 pattern
+const getAuthToken = () => {
+  try {
+    // Use the useAuth composable consistently for token management
+    const { getToken, isTokenExpired } = useAuth()
+    let token = getToken()
 
     // If no token from composable, try direct storage access as fallback
     if (!token && process.client) {
@@ -34,21 +19,7 @@ const getAuthToken = async (autoRefresh = true) => {
         try {
           const authData = JSON.parse(stored)
           token = authData?.token
-          
-          // Only validate expiration if explicitly set - some tokens don't have expiry
-          if (token && authData.expiresAt) {
-            const expiry = new Date(authData.expiresAt)
-            if (expiry <= new Date()) {
-              // Token expired, clear storage
-              console.log('🔒 Local token expired, clearing storage')
-              localStorage.removeItem('auth')
-              sessionStorage.removeItem('auth')
-              return null
-            }
-          }
         } catch (e) {
-          console.warn('Failed to parse localStorage auth:', e)
-          localStorage.removeItem('auth') // Clear corrupted data
         }
       }
       
@@ -59,62 +30,41 @@ const getAuthToken = async (autoRefresh = true) => {
           try {
             const authData = JSON.parse(sessionStored)
             token = authData?.token
-            
-            // Only validate expiration if explicitly set
-            if (token && authData.expiresAt) {
-              const expiry = new Date(authData.expiresAt)
-              if (expiry <= new Date()) {
-                console.log('🔒 Session token expired, clearing storage')
-                sessionStorage.removeItem('auth')
-                return null
-              }
-            }
           } catch (e) {
-            console.warn('Failed to parse sessionStorage auth:', e)
-            sessionStorage.removeItem('auth') // Clear corrupted data
           }
         }
       }
     }
 
-    // Basic validation - ensure token exists and is properly formatted
-    if (!token || typeof token !== 'string' || token.trim().length === 0) {
-      console.log('🔒 No valid token found')
+    if (!token) {
       return null
     }
 
-    // Basic JWT format check (should have 3 parts separated by dots)
-    const tokenParts = token.split('.')
-    if (tokenParts.length !== 3) {
-      console.warn('🔒 Invalid JWT format, clearing storage')
-      if (process.client) {
-        localStorage.removeItem('auth')
-        sessionStorage.removeItem('auth')
-      }
-      return null
-    }
 
-    return token.trim()
+
+    // Log token info without sensitive data
+
+    return token
   } catch (error) {
-    console.error('❌ Error in getAuthToken:', error)
     return null
   }
 }
 
-// Create authenticated fetch headers with automatic token refresh
-const createAuthHeaders = async (includeContentType = true, autoRefresh = true) => {
+// Create authenticated fetch headers
+const createAuthHeaders = async (includeContentType = true) => {
   const headers = {}
 
   if (includeContentType) {
     headers['Content-Type'] = 'application/json'
   }
 
-  const token = await getAuthToken(autoRefresh)
+  const token = getAuthToken()
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
+    console.log('🔑 Token added to headers:', token.substring(0, 20) + '...')
   } else {
-    console.warn('⚠️ No authentication token available')
-    // Don't redirect immediately - let the API call fail with proper error handling
+    console.error('❌ No token found, redirecting to login')
+    handleAuthRedirect()
     return null
   }
 
@@ -144,55 +94,6 @@ const normalizeApiUrl = (baseUrl, endpoint) => {
 }
 
 // Login API
-// Refresh token endpoint - dedicated refresh function
-export async function refreshToken(refreshToken) {
-  try {
-    const config = useRuntimeConfig()
-    
-    // Try form data format first (as suggested by curl --form)
-    const formData = new FormData()
-    formData.append('refreshToken', refreshToken)
-    
-    const response = await $fetch('/refresh-token', {
-      method: 'POST',
-      body: formData,
-      baseURL: config.public.apiBaseUrl
-    })
-    
-    return {
-      success: true,
-      data: response
-    }
-  } catch (error) {
-    console.error('Token refresh failed:', error)
-    
-    // If form data fails, try JSON format as fallback
-    try {
-      console.log('Retrying with JSON format...')
-      const config = useRuntimeConfig()
-      const response = await $fetch('/refresh-token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: { refreshToken },
-        baseURL: config.public.apiBaseUrl
-      })
-      
-      return {
-        success: true,
-        data: response
-      }
-    } catch (jsonError) {
-      console.error('JSON format also failed:', jsonError)
-      return {
-        success: false,
-        error: jsonError.response?.data || jsonError.message
-      }
-    }
-  }
-}
-
 export async function login(identifier, password) {
   const config = useRuntimeConfig()
   const API_BASE_URL = config.public.apiBaseUrl

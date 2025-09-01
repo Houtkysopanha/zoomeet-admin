@@ -379,6 +379,30 @@ const loadEvents = async () => {
       }
     } else {
       console.error('API Error Response:', data)
+      
+      // Handle authentication errors specifically
+      if (status === 401) {
+        console.log('🔐 401 error in events page - redirecting to login')
+        // Clear auth and redirect
+        const { clearAuth } = useAuth()
+        clearAuth()
+        
+        // Show specific auth error message
+        toast.add({
+          severity: 'warn',
+          summary: 'Session Expired',
+          detail: 'Your session has expired. Redirecting to login...',
+          life: 2000
+        })
+        
+        // Redirect after a short delay
+        setTimeout(() => {
+          navigateTo('/login?session_expired=true&reason=token_expired')
+        }, 2000)
+        
+        return
+      }
+      
       toast.add({
         severity: 'error',
         summary: 'API Error',
@@ -387,6 +411,28 @@ const loadEvents = async () => {
       })
     }
   } catch (error) {
+    console.error('❌ Load events catch block error:', error)
+    
+    // Handle authentication errors in catch block too
+    if (error.message && error.message.includes('401')) {
+      console.log('🔐 401 error caught - redirecting to login')
+      const { clearAuth } = useAuth()
+      clearAuth()
+      
+      toast.add({
+        severity: 'warn',
+        summary: 'Session Expired',
+        detail: 'Your session has expired. Redirecting to login...',
+        life: 2000
+      })
+      
+      setTimeout(() => {
+        navigateTo('/login?session_expired=true&reason=token_expired')
+      }, 2000)
+      
+      return
+    }
+    
     toast.add({
       severity: 'error',
       summary: 'Fetch Error',

@@ -1,7 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
-  devtools: { enabled: process.env.NODE_ENV === 'development' },
+  devtools: { enabled: process.env.NODE_ENV === 'production' },
   css: [
     '~/assets/css/tailwind.css',
     'primevue/resources/themes/saga-blue/theme.css',
@@ -91,42 +91,29 @@ export default defineNuxtConfig({
     // Error handling is now done via pages/[...slug].vue
   },
   ssr: true,
-  runtimeConfig: {
-    // Private keys (only available on server-side)
-    tokenSecret: process.env.TOKEN_SECRET || 'fallback-secret-key',
-    // Public keys (exposed to client-side)
+   runtimeConfig: {
     public: {
       apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL ||
-        (process.env.NODE_ENV === 'development'
+        (process.env.NODE_ENV === 'production'
           ? 'https://dev-gateway.prestigealliance.co/api/v1'
           : 'https://gateway.etickets.asia/api/v1'),
       apiAdminBaseUrl: process.env.NUXT_PUBLIC_API_ADMIN_BASE_URL ||
-        (process.env.NODE_ENV === 'development'
+        (process.env.NODE_ENV === 'production'
           ? 'https://dev-apiticket.prestigealliance.co/api/v1/admin'
           : 'https://api-ticket.etickets.asia/api/v1/admin'),
       appName: process.env.NUXT_PUBLIC_APP_NAME ||
-        (process.env.NODE_ENV === 'development'
+        (process.env.NODE_ENV === 'production'
           ? 'eTicketsAsia (Dev)'
           : 'eTicketsAsia'),
       appVersion: process.env.NUXT_PUBLIC_APP_VERSION || '1.0.0',
-      environment: process.env.NODE_ENV || 'production',
-      // Enhanced token configuration for 24-hour sessions
-      auth: {
-        tokenExpiryWarning: 7200000, // 2 hours in milliseconds (warn 2h before expiry)
-        tokenCheckInterval: 1800000,  // 30 minutes in milliseconds (check every 30min)
-        maxRefreshAttempts: 3,
-        autoRefreshEnabled: true,
-        secureCookies: process.env.NODE_ENV === 'production',
-        cookieDomain: process.env.NODE_ENV === 'production' ? '.etickets.asia' : undefined, // Don't set domain for dev
-        sessionDuration: 86400000 // 24 hours in milliseconds
-      }
+      environment: process.env.NODE_ENV || 'production'
     },
-    proxy: {
-    '/api/': {
-      target: 'https://api-ticket.etickets.asia/api/v1',
-      pathRewrite: { '^/api/': '' },
-      changeOrigin: true,
-    }
+   proxy: {
+  '/api/': {
+    target: process.env.API_BASE_URL, // use env variable
+    pathRewrite: { '^/api/': '' },
+    changeOrigin: true,
   }
+}
   },
 })
