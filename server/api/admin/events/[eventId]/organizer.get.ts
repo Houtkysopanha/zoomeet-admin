@@ -19,12 +19,12 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Forward the request to the actual API (use same URL as catch-all proxy) - FIXED: Remove /admin suffix and include in path
-    const externalApiUrl = process.env.NODE_ENV === 'development'
-      ? 'https://dev-apiticket.prestigealliance.co/api/v1'
-      : 'https://api-ticket.etickets.asia/api/v1'
+    // Use runtime config instead of hardcoded URLs
+    const externalApiUrl = config.public.apiAdminBaseUrl.replace('/admin', '')
     
     const apiUrl = `${externalApiUrl}/admin/events/${eventId}/organizer`
+    console.log('🔗 Organizer API URL from config:', apiUrl)
+    console.log('🔗 Environment:', config.public.environment)
     
     const response = await $fetch(apiUrl, {
       method: 'GET',

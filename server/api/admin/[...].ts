@@ -9,22 +9,41 @@ export default defineEventHandler(async (event) => {
     
     console.log(`Server-side admin API request: ${method} /admin/${path}`)
 
-    // Use the actual external admin API URL - FIXED: Remove /admin suffix to avoid duplication
-    const externalApiUrl = process.env.NODE_ENV === 'development'
-      ? 'https://dev-apiticket.prestigealliance.co/api/v1'
-      : 'https://api-ticket.etickets.asia/api/v1'
+    // Use runtime config instead of hardcoded URLs
+    const externalApiUrl = config.public.apiAdminBaseUrl.replace('/admin', '')
 
     const fullUrl = `${externalApiUrl}/admin/${path}`
-    console.log('Server-side admin API URL:', fullUrl)
+    console.log('Server-side admin API URL from config:', fullUrl)
+    console.log('🔗 Environment:', config.public.environment)
 
-    // Get authorization header from the request
-    const authHeader = getHeader(event, 'authorization')
+    // Get authorization header from the request (try multiple formats)
+    const allHeaders = getHeaders(event)
+    let authHeader = getHeader(event, 'authorization') || getHeader(event, 'Authorization')
+    
     if (!authHeader) {
+      for (const [key, value] of Object.entries(allHeaders)) {
+        if (key.toLowerCase() === 'authorization') {
+          authHeader = value as string
+          break
+        }
+      }
+    }
+    
+    if (!authHeader) {
+      console.error('❌ No authorization header found in catch-all handler')
+      console.log('📋 Available headers:', Object.keys(allHeaders))
       throw createError({
         statusCode: 401,
         statusMessage: 'Authorization header required'
       })
     }
+
+    // Ensure Bearer format
+    if (!authHeader.startsWith('Bearer ')) {
+      authHeader = `Bearer ${authHeader}`
+    }
+
+    console.log('🔑 Auth header found in catch-all:', authHeader.substring(0, 30) + '...')
 
     // Prepare headers
     const headers: Record<string, string> = {

@@ -20,12 +20,12 @@ export default defineEventHandler(async (event) => {
     let externalApiUrl
     if (path.startsWith('admin/') || path.includes('/admin/')) {
       // Admin endpoints
-      externalApiUrl = process.env.NODE_ENV === 'development' 
+      externalApiUrl = process.env.NODE_ENV === 'production' 
         ? 'https://dev-apiticket.prestigealliance.co/api/v1'
         : 'https://api-ticket.etickets.asia/api/v1'
     } else {
       // Regular API endpoints
-      externalApiUrl = process.env.NODE_ENV === 'development' 
+      externalApiUrl = process.env.NODE_ENV === 'production' 
         ? 'https://dev-gateway.prestigealliance.co/api/v1'
         : 'https://gateway.etickets.asia/api/v1'
     }

@@ -21,15 +21,27 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Get the external API URL based on environment - FIXED: Remove /admin suffix to avoid duplication
-    const externalApiUrl = process.env.NODE_ENV === 'development'
-      ? 'https://dev-apiticket.prestigealliance.co/api/v1'
-      : 'https://api-ticket.etickets.asia/api/v1'
-
+    // Use runtime config instead of hardcoded URLs
+    const externalApiUrl = config.public.apiAdminBaseUrl.replace('/admin', '')
+    
     console.log('🔄 Updating event via server proxy:', eventId)
+    console.log('🔗 External API URL from config:', externalApiUrl)
 
-    // Get auth token from headers
-    const authHeader = getHeader(event, 'authorization')
+    // Get all headers to debug
+    const allHeaders = getHeaders(event)
+
+    // Get auth token from headers (try multiple header formats)
+    let authHeader = getHeader(event, 'authorization') || getHeader(event, 'Authorization')
+    
+    if (!authHeader) {
+      for (const [key, value] of Object.entries(allHeaders)) {
+        if (key.toLowerCase() === 'authorization') {
+          authHeader = value
+          break
+        }
+      }
+    }
+    
     if (!authHeader) {
       throw createError({
         statusCode: 401,
@@ -37,7 +49,12 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Forward the request to external API - FIXED: Include /admin in the path
+    // Ensure Bearer format
+    if (!authHeader.startsWith('Bearer ')) {
+      authHeader = `Bearer ${authHeader}`
+    }
+
+    // Forward the request to external API
     const response = await $fetch(`${externalApiUrl}/admin/events/${eventId}`, {
       method: 'POST', // Laravel uses POST with _method override
       body: formData,
