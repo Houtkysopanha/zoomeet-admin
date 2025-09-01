@@ -1,5 +1,5 @@
 <template>
-  <nav class="flex items-center space-x-2 :text-base text-gray-600 text-3xl font-bold">
+  <nav class="flex items-center space-x-2 :text-base text-gray-600 text-2xl font-bold">
     <template v-for="(item, index) in items" :key="index">
       <NuxtLink
         v-if="item.to && index !== items.length - 1"
@@ -10,7 +10,7 @@
       </NuxtLink>
       <span
         v-else-if="index === items.length - 1"
-        class="text-purple-600 text-3xl font-bold"
+        class="text-purple-600 text-2xl font-bold"
       >
         {{ item.text }}
       </span>

@@ -27,7 +27,7 @@
             :showButtonBar="true"
             :dateFormat="'dd MM, yy'"
             class="w-full border border-gray-200 rounded-2xl sm:max-w-xs"
-            inputClass="input-standard text-center text-blue-950 font-medium text-sm lg:text-lg"
+            inputClass="input-standard text-start text-blue-950 font-medium text-sm lg:text-lg"
             placeholder="Select Date Range"
             @date-select="updateDisplay"
           />
@@ -60,7 +60,6 @@
               class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
             >
               <NuxtLink
-                to="/admin/profile"
                 class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
               >
                 <Icon name="i-heroicons-user-circle" class="mr-3 text-gray-400" />
