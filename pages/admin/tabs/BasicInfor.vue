@@ -1548,21 +1548,55 @@ const validateSlug = () => {
 }
 
 const generateSlug = () => {
-  if (formData.eventName) {
-    formData.eventSlug = formData.eventName
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, '')
-      .replace(/--+/g, '-')
-      .replace(/^-|-$/g, '');
-    toast.add({ severity: 'success', summary: 'Slug Generated', detail: 'Slug generated from event name!', life: 3000 });
-  } else {
-    const adjectives = ['awesome', 'amazing', 'fantastic', 'incredible', 'spectacular', 'wonderful']
-    const nouns = ['event', 'conference', 'summit', 'meetup', 'workshop', 'seminar']
-    const numbers = Math.floor(Math.random() * 999) + 1
-    const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)]
-    const randomNoun = nouns[Math.floor(Math.random() * nouns.length)]
-    formData.eventSlug = `${randomAdjective}-${randomNoun}-${numbers}`
-    toast.add({ severity: 'success', summary: 'Slug Generated', detail: 'Random slug generated!', life: 3000 });
+  try {
+    let newSlug = ''
+    
+    if (formData.eventName && formData.eventName.trim()) {
+      newSlug = formData.eventName
+        .toLowerCase()
+        .trim()
+        // Replace spaces and special characters with hyphens
+        .replace(/\s+/g, '-')
+        // Remove non-ASCII characters (including Khmer) and keep only letters, numbers, hyphens
+        .replace(/[^\x00-\x7F]/g, '') // Remove non-ASCII characters
+        .replace(/[^a-z0-9-]/g, '')
+        .replace(/--+/g, '-')
+        .replace(/^-|-$/g, '')
+    }
+    
+    // If the event name only contains non-ASCII characters (like Khmer), generate a random slug
+    if (!newSlug || newSlug.length === 0) {
+      const adjectives = ['awesome', 'amazing', 'fantastic', 'incredible', 'spectacular', 'wonderful']
+      const nouns = ['event', 'conference', 'summit', 'meetup', 'workshop', 'seminar']
+      const numbers = Math.floor(Math.random() * 999) + 1
+      const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)]
+      const randomNoun = nouns[Math.floor(Math.random() * nouns.length)]
+      newSlug = `${randomAdjective}-${randomNoun}-${numbers}`
+      
+      toast.add({ 
+        severity: 'info', 
+        summary: 'Slug Generated', 
+        detail: 'Generated random slug (original name contains special characters)', 
+        life: 3000 
+      })
+    } else {
+      toast.add({ 
+        severity: 'success', 
+        summary: 'Slug Generated', 
+        detail: 'Slug generated from event name!', 
+        life: 3000 
+      })
+    }
+    
+    formData.eventSlug = newSlug
+  } catch (error) {
+    console.error('Error generating slug:', error)
+    toast.add({ 
+      severity: 'error', 
+      summary: 'Slug Generation Failed', 
+      detail: 'Could not generate slug. Please enter manually.', 
+      life: 4000 
+    })
   }
 }
 
@@ -1593,12 +1627,31 @@ watch(formData, () => {
   })
 }, { deep: true })
 
-// Watch for event name changes to suggest slug
+// Watch for event name changes to suggest slug with debouncing
+let slugGenerationTimeout = null
+let lastProcessedName = ''
+
 watch(() => formData.eventName, (newName) => {
-  if (newName && !formData.eventSlug) {
-    generateSlug(); // Auto-generate slug if event name is entered and slug is empty
+  // Clear previous timeout
+  if (slugGenerationTimeout) {
+    clearTimeout(slugGenerationTimeout)
   }
-});
+  
+  // Only generate slug if:
+  // 1. Event name exists and has changed significantly
+  // 2. Slug field is empty (user hasn't manually entered one)
+  // 3. It's different from the last processed name
+  if (newName && 
+      newName.trim() !== lastProcessedName && 
+      (!formData.eventSlug || formData.eventSlug.trim() === '')) {
+    
+    // Debounce the slug generation to avoid multiple triggers
+    slugGenerationTimeout = setTimeout(() => {
+      lastProcessedName = newName.trim()
+      generateSlug()
+    }, 800) // Wait 800ms after user stops typing
+  }
+})
 
 // Cleanup on unmount
 onBeforeUnmount(() => {

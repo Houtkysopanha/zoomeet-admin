@@ -58,23 +58,23 @@
 
     <!-- Filters and Search -->
     <div class="mb-6 flex items-center justify-between mt-10 rounded-lg">
-      <div class="flex items-center space-x-4">
+     <div class="flex items-center space-x-4 w-full lg:w-auto">
         <div class="relative w-full">
           <div class="border border-gray-300 rounded-full overflow-hidden flex">
             <div class="relative flex-1">
-              <Icon name="i-heroicons-magnifying-glass" class="absolute w-8 h-8 left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
+              <Icon name="i-heroicons-magnifying-glass" class="absolute w-6 h-6 lg:w-8 lg:h-8 left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
               <input
                 v-model="searchQuery"
                 type="text"
                 placeholder="Search"
-                class="w-full pl-14 border-0 focus:ring-0 focus:outline-none bg-transparent p-3 rounded-full"
+                class="w-full pl-12 lg:pl-14 border-0 focus:ring-0 focus:outline-none bg-transparent p-2 lg:p-3 rounded-full text-sm lg:text-base"
               />
             </div>
-            <div class="relative space-x-5">
-              <Icon name="mynaui:filter" class="absolute w-8 h-8 left-3 top-1/2 bg-gradient-to-t from-blue-900 to-purple-800 transform -translate-y-1/2 text-grad" />
+            <div class="relative">
+              <Icon name="mynaui:filter" class="absolute w-6 h-6 lg:w-8 lg:h-8 left-3 top-1/2 bg-gradient-to-t from-blue-900 to-purple-800 transform -translate-y-1/2" />
               <Button
                 label="Filters"
-                class="p-button-outlined px-5 text-purple-600 border-purple-600 w-full h-full rounded-none p-3"
+                class="p-button-outlined px-4 lg:px-5 text-purple-600 border-purple-600 w-full h-full rounded-none p-2 ml-5 lg:p-3 text-sm lg:text-base"
                 @click="toggleFilters"
               />
             </div>
@@ -732,24 +732,6 @@ definePageMeta({ layout: 'admin' })
 }
 
 /* Avatar styling */
-img.rounded-full, .rounded-full {
-  transition: all 0.3s ease;
-}
-
-img.rounded-full:hover, .rounded-full:hover {
-  transform: scale(1.1);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* Gradient variations for different users */
-.bg-gradient-to-r {
-  transition: all 0.3s ease;
-}
-
-.bg-gradient-to-r:hover {
-  transform: scale(1.1);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
 
 
 </style>
