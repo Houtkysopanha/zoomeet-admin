@@ -220,6 +220,7 @@ import { useToast } from 'primevue/usetoast'
 import IconnButton from '~/components/ui/IconnButton.vue'
 import Breadcrumb from '~/components/common/Breadcrumb.vue'
 import EventCard from '~/components/common/EventCard.vue'
+import { formatEventDateRange, formatEventTime } from '~/utils/dateFormatter'
 import CardCommon from '~/components/common/CardCommon.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -263,12 +264,8 @@ const loadEventCard = async () => {
       title: event.name || 'Untitled Event',
       owner: event.organizer || 'Unknown Organizer',
       location: event.location || 'No location specified',
-      date: event.start_date
-        ? new Date(event.start_date).toLocaleDateString()
-        : 'No date specified',
-      time: event.start_date
-        ? new Date(event.start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        : 'No time specified'
+      date: formatEventDateRange(event.start_date, event.end_date),
+      time: formatEventTime(event)
     }
   } catch (err) {
     console.error("❌ Failed to fetch event details:", err)

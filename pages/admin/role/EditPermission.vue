@@ -290,7 +290,9 @@ const formatCategoryName = (category) => {
   return map[category] || category.charAt(0).toUpperCase() + category.slice(1)
 }
 
-const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleDateString('en-GB') : '-'
+import { formatSingleDate } from '~/utils/dateFormatter'
+
+const formatDate = (dateStr) => dateStr ? formatSingleDate(dateStr) : '-'
 
 // Helper function to get initials from name
 const getInitials = (name) => {

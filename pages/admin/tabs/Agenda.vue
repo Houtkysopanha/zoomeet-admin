@@ -9,7 +9,7 @@
         </div>
         <div class="flex items-center space-x-4">
           <div v-if="currentEventId" class="text-right">
-            <p class="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-500">Basic Info Saved</p>
+            <p class="py-1 rounded-full text-xs font-medium text-purple-500">Basic Info Saved</p>
             <p class="text-xs text-gray-500">{{ currentEventName }}</p>
           </div>
           <Button
@@ -17,8 +17,8 @@
             :class="[
               'px-4 py-2 rounded-full font-medium transition-all duration-300',
               isSkipped
-                ? 'bg-green-600 text-white hover:bg-green-700'
-                : 'bg-yellow-500 text-white hover:bg-yellow-600'
+                ? 'bg-green-50 text-green-700 border border-green-600 hover:bg-green-100'
+                : 'bg-purple-50 text-purple-600 border border-purple-600 hover:bg-purple-100'
             ]"
           >
             <Icon :name="isSkipped ? 'heroicons:plus' : 'heroicons:x-mark'" class="w-4 h-4 mr-2" />

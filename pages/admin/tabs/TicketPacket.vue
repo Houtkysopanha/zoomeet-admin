@@ -6,10 +6,9 @@
         <p class="text-gray-400">Create and manage different ticket types</p>
       </div>
       <div v-if="currentEventId" class="text-right">
-        <p class="px-3 py-1 rounded-full text-xs font-medium text-green-500">Basic Info Saved</p>
+        <p class="py-1 rounded-full text-xs font-medium text-purple-500">Basic Info Saved</p>
         <p class="text-xs text-gray-500">{{ currentEventName }}</p>
         <p v-if="shouldShowEditMode" class="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-500">Click Icon for update and click Update before save draft</p>
-        <p v-else class="text-xs text-purple-600 font-medium">🆕 Create Mode</p>
       </div>
     </div>
 
@@ -106,7 +105,7 @@
         :disabled="!currentEventId"
       >
         <Icon name="heroicons:plus" class="mr-2" />
-        Create Ticket
+        Add Ticket
       </Button>
       
       <!-- PHASE 2: Save Draft (New tickets exist but not saved) -->
@@ -117,10 +116,10 @@
           :disabled="!currentEventId"
         >
           <Icon name="heroicons:plus" class="mr-2" />
-          Add Another Ticket
+          Add Ticket
         </Button>
         
-        <Button
+        <!-- <Button
           @click="saveDraft"
           class="save-draft-btn"
           :disabled="!currentEventId || loading || !isValidTicketData"
@@ -128,7 +127,7 @@
         >
           <Icon name="heroicons:document-plus" class="mr-2" />
           {{ loading ? 'Saving...' : 'Save Draft' }}
-        </Button>
+        </Button> -->
       </template>
       
       <!-- PHASE 3: After Draft Saved - Show Add + Save Changes (like Agenda) -->

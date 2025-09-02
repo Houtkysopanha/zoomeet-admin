@@ -145,7 +145,7 @@
         class="text-[12px] border-b border-gray-300"
       >
         <template #body="slotProps">
-          <span>{{ formatDate(slotProps.data.date) }}</span>
+          <span>{{ formatDate(slotProps.data) }}</span>
         </template>
       </Column>
 
@@ -517,12 +517,27 @@ const filteredEvents = computed(() => {
   return result.slice(start, start + itemsPerPage.value)
 })
 
+import { formatSingleDate, formatEventDateRange } from '~/utils/dateFormatter'
+
 const onPage = (event) => {
   currentPage.value = event.page + 1
 }
 
-const formatDate = (date) =>
-  date.toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' })
+const formatDate = (eventData) => {
+  // Use date range formatting if we have both start and end dates
+  if (eventData.start_date && eventData.end_date) {
+    return formatEventDateRange(eventData.start_date, eventData.end_date)
+  }
+  // Fallback to single date if only start_date exists
+  else if (eventData.start_date) {
+    return formatSingleDate(eventData.start_date)
+  }
+  // Final fallback to the date field if it exists
+  else if (eventData.date) {
+    return formatSingleDate(eventData.date)
+  }
+  return 'Date not available'
+}
 
 const formatCurrency = (value) => `$${value.toLocaleString()}`
 

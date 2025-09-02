@@ -347,6 +347,7 @@
                     <input
                       v-model="buyXGetYForm.startDate"
                       type="date"
+                      :min="new Date().toISOString().split('T')[0]"
                       class="w-full px-4 py-3 bg-gray-100 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     />
                   </div>
@@ -357,6 +358,7 @@
                     <input
                       v-model="buyXGetYForm.endDate"
                       type="date"
+                      :min="buyXGetYForm.startDate || new Date().toISOString().split('T')[0]"
                       class="w-full px-4 py-3 bg-gray-100 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     />
                   </div>
@@ -727,6 +729,7 @@ import EventCard from '~/components/common/EventCard.vue'
 import Breadcrumb from '~/components/common/Breadcrumb.vue'
 import Calendar from 'primevue/calendar'
 import { getEventDetails, getEventTicketTypes, createPromotion, getEventPromotions, updatePromotion, deletePromotion, createCoupon, getCoupons } from '~/composables/api'
+import { formatDateForDisplay, formatDateForAPI, formatEventDateRange, formatEventTime, formatSingleDate, getDateValidationError, isValidDate, isValidDateRange, isNotInPast } from '~/utils/dateFormatter'
 
 // Layout
 definePageMeta({
@@ -795,12 +798,8 @@ const loadEventCard = async () => {
       title: event.name || 'Untitled Event',
       owner: event.organizer || 'Unknown Organizer',
       location: event.location || 'No location specified',
-      date: event.start_date
-        ? new Date(event.start_date).toLocaleDateString()
-        : 'No date specified',
-      time: event.start_date
-        ? new Date(event.start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        : 'No time specified'
+      date: formatEventDateRange(event.start_date, event.end_date),
+      time: formatEventTime(event)
     }
   } catch (err) {
     console.error("❌ Failed to fetch event details:", err)
@@ -1048,23 +1047,7 @@ const fetchCoupons = async (forceRefresh = false) => {
   }
 }
 
-// Helper function to format date for display
-const formatDateForDisplay = (dateString) => {
-  if (!dateString) return '14/08/2025'
-  try {
-    const date = new Date(dateString)
-    if (isNaN(date.getTime())) return '14/08/2025'
-    
-    const day = String(date.getDate()).padStart(2, '0')
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const year = date.getFullYear()
-    
-    return `${day}/${month}/${year}`
-  } catch (error) {
-    console.warn('Failed to format date:', dateString)
-    return '14/08/2025'
-  }
-}
+// Use imported formatDateForDisplay function
 
 // Toast notification helpers
 const showSuccess = (message) => {
@@ -1143,6 +1126,40 @@ const updatePromotionData = async () => {
       return
     }
 
+    // Validate quantities are positive integers
+    const buyQuantity = parseInt(buyXGetYForm.value.buyQuantity)
+    const getQuantity = parseInt(buyXGetYForm.value.getQuantity)
+    
+    if (isNaN(buyQuantity) || buyQuantity <= 0) {
+      showError('Buy quantity must be a positive number')
+      return
+    }
+    
+    if (isNaN(getQuantity) || getQuantity <= 0) {
+      showError('Free quantity must be a positive number')
+      return
+    }
+
+    // Validate date fields if provided
+    if (buyXGetYForm.value.startDate && buyXGetYForm.value.endDate) {
+      const dateValidationError = getDateValidationError(
+        buyXGetYForm.value.startDate,
+        buyXGetYForm.value.endDate,
+        {
+          allowPastStart: true, // Allow past dates for editing existing promotions
+          allowPastEnd: false,
+          allowSameDay: true,
+          startFieldName: 'Start date',
+          endFieldName: 'End date'
+        }
+      )
+      
+      if (dateValidationError) {
+        showError(dateValidationError)
+        return
+      }
+    }
+
     const response = await updatePromotion(eventId.value, editingPromotion.value.id, {
       ticket_type_id: buyXGetYForm.value.ticketTypeId,
       free_ticket_type_id: buyXGetYForm.value.freeTicketTypeId,
@@ -1172,12 +1189,31 @@ const updatePromotionData = async () => {
 
 
 
-// Helper function to convert display date (DD/MM/YYYY) to ISO date (YYYY-MM-DD)
+// Helper function to convert display date to ISO date (YYYY-MM-DD)
 const convertDisplayDateToISO = (displayDate) => {
   if (!displayDate) return ''
   
   try {
-    // Handle DD/MM/YYYY format
+    // Handle "D Month, Years" format (e.g., "14 July, 2025")
+    const monthPattern = /^(\d{1,2})\s+([A-Za-z]+),?\s+(\d{4})$/
+    const monthMatch = displayDate.match(monthPattern)
+    if (monthMatch) {
+      const day = monthMatch[1].padStart(2, '0')
+      const monthName = monthMatch[2]
+      const year = monthMatch[3]
+      
+      // Convert month name to number
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                         'July', 'August', 'September', 'October', 'November', 'December']
+      const monthIndex = monthNames.findIndex(m => m.toLowerCase() === monthName.toLowerCase())
+      
+      if (monthIndex !== -1) {
+        const month = String(monthIndex + 1).padStart(2, '0')
+        return `${year}-${month}-${day}`
+      }
+    }
+    
+    // Handle DD/MM/YYYY format (legacy support)
     const parts = displayDate.split('/')
     if (parts.length === 3) {
       const day = parts[0].padStart(2, '0')
@@ -1259,8 +1295,8 @@ const fetchPromotions = async (forceRefresh = false) => {
           status: promotion.is_active ? 'Active' : 'Inactive',
           usedCount: promotion.used_count || 0,
           maxUses: promotion.max_uses || 1000,
-          validFrom: promotion.start_date ? new Date(promotion.start_date).toLocaleDateString('en-GB') : '14/08/2025',
-          validUntil: promotion.end_date ? new Date(promotion.end_date).toLocaleDateString('en-GB') : '14/12/2025',
+          validFrom: promotion.start_date ? formatSingleDate(promotion.start_date) : formatSingleDate(new Date()),
+          validUntil: promotion.end_date ? formatSingleDate(promotion.end_date) : formatSingleDate(new Date(new Date().getTime() + 90 * 24 * 60 * 60 * 1000)),
           selected: false,
           type: `buy${promotion.buy_quantity}get${promotion.free_quantity}`,
           description: promotion.description
@@ -1311,23 +1347,21 @@ const generateVoucher = async () => {
     return
   }
 
-  // Validate date fields
-  if (!voucherForm.value.valid_from) {
-    showError('Valid from date is required')
-    return
-  }
-
-  if (!voucherForm.value.expires_at) {
-    showError('Valid until date is required')
-    return
-  }
-
-  // Validate that expires_at is after valid_from
-  const validFromDate = new Date(formatDateForAPI(voucherForm.value.valid_from))
-  const expiresAtDate = new Date(formatDateForAPI(voucherForm.value.expires_at))
+  // Validate date fields using the new validation utility
+  const dateValidationError = getDateValidationError(
+    voucherForm.value.valid_from,
+    voucherForm.value.expires_at,
+    {
+      allowPastStart: false,
+      allowPastEnd: false,
+      allowSameDay: false,
+      startFieldName: 'Valid from date',
+      endFieldName: 'Valid until date'
+    }
+  )
   
-  if (expiresAtDate <= validFromDate) {
-    showError('Valid until date must be after valid from date')
+  if (dateValidationError) {
+    showError(dateValidationError)
     return
   }
 
@@ -1417,33 +1451,7 @@ const generateVoucher = async () => {
   }
 }
 
-// Helper function to format date for API (YYYY-MM-DD format)
-const formatDateForAPI = (dateInput) => {
-  if (!dateInput) return new Date().toISOString().split('T')[0]
-  
-  // If it's a Date object from Calendar component
-  if (dateInput instanceof Date) {
-    return dateInput.toISOString().split('T')[0]
-  }
-  
-  // If it's already a string in YYYY-MM-DD format, return as-is
-  if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
-    return dateInput
-  }
-  
-  // Try to parse and convert
-  try {
-    const date = new Date(dateInput)
-    if (isNaN(date.getTime())) {
-      console.warn('⚠️ Invalid date, using today:', dateInput)
-      return new Date().toISOString().split('T')[0]
-    }
-    return date.toISOString().split('T')[0]
-  } catch (error) {
-    console.warn('⚠️ Date parsing failed, using today:', dateInput)
-    return new Date().toISOString().split('T')[0]
-  }
-}
+// Use imported formatDateForAPI function
 
 // Update voucher types for filtering based on actual data
 const updateVoucherTypes = () => {
@@ -1527,7 +1535,47 @@ const generateBuyXGetY = async () => {
   // Validate form data
   if (!buyXGetYForm.value.ticketTypeId || !buyXGetYForm.value.freeTicketTypeId || 
       !buyXGetYForm.value.buyQuantity || !buyXGetYForm.value.getQuantity) {
-    console.error('❌ Missing required form data')
+    showError('Please fill in all required fields: ticket types and quantities')
+    return
+  }
+
+  // Validate quantities are positive integers
+  const buyQuantity = parseInt(buyXGetYForm.value.buyQuantity)
+  const getQuantity = parseInt(buyXGetYForm.value.getQuantity)
+  
+  if (isNaN(buyQuantity) || buyQuantity <= 0) {
+    showError('Buy quantity must be a positive number')
+    return
+  }
+  
+  if (isNaN(getQuantity) || getQuantity <= 0) {
+    showError('Free quantity must be a positive number')
+    return
+  }
+
+  // Validate date fields if provided
+  if (buyXGetYForm.value.startDate && buyXGetYForm.value.endDate) {
+    const dateValidationError = getDateValidationError(
+      buyXGetYForm.value.startDate,
+      buyXGetYForm.value.endDate,
+      {
+        allowPastStart: false,
+        allowPastEnd: false,
+        allowSameDay: true, // Allow same day for promotions
+        startFieldName: 'Start date',
+        endFieldName: 'End date'
+      }
+    )
+    
+    if (dateValidationError) {
+      showError(dateValidationError)
+      return
+    }
+  } else if (buyXGetYForm.value.startDate && !isNotInPast(buyXGetYForm.value.startDate)) {
+    showError('Start date cannot be in the past')
+    return
+  } else if (buyXGetYForm.value.endDate && !isNotInPast(buyXGetYForm.value.endDate)) {
+    showError('End date cannot be in the past')
     return
   }
 
