@@ -127,12 +127,12 @@
         field="name"
         header="Event"
         sortable
-        class="w-[23%] text-[14px] border-b border-gray-300 "
+        class="w-[23%] text-[14px] border-b border-gray-300 khmer-text"
       >
         <template #body="slotProps">
           <div class="text-black font-medium capitalize">
             <span>{{ slotProps.data.name }}</span>
-            <p class="text-[12px] text-gray-600 text-justify pr-6">
+            <p class="text-[12px] text-gray-600 text-justify pr-6 khmer-text">
               <span> Owner: {{ slotProps.data.organizer }}</span>
             </p>
           </div>
@@ -149,7 +149,7 @@
         </template>
       </Column>
 
-    <Column field="venue" header="Venue" class="text-[12px] border-b border-gray-300" />
+    <Column field="venue" header="Venue" class="text-[12px] border-b border-gray-300 khmer-text" />
       <Column field="type" header="Event Type" class="text-[12px] border-b border-gray-300" />
 
       <Column

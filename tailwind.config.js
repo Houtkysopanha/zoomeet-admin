@@ -18,6 +18,10 @@ export default {
       '2xl': '1536px',
     },
     extend: {
+      fontFamily: {
+        'sans': ['Kantumruy', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        'khmer': ['Kantumruy', 'sans-serif'],
+      },
       backgroundImage: {
         'custom-gradient': 'linear-gradient(79deg, #4D66A6 7.31%, #B61EEB 98.95%)',
       },
