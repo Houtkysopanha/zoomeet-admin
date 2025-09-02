@@ -66,7 +66,7 @@
                 placeholder="31/07/2025 09:00"
                 v-model="formData.startDate"
                 :class="[
-                  'w-full p-3 mt-1 bg-gray-100 rounded-2xl',
+                  'w-full p-3 mt-1 bg-gray-100 ring-0 rounded-2xl',
                   getFieldError('start_date') ? 'border-red-500 border-2' : ''
                 ]"
                 dateFormat="dd/mm/yy"
@@ -1661,7 +1661,18 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+
 :deep(.p-calendar .p-inputtext) {
-  @apply bg-transparent border-0;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
+
+:deep(.p-calendar .p-inputtext:focus) {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
 </style>
