@@ -161,7 +161,14 @@
               </div>
             </template>
           </Column>
-          <Column field="phoneNumber" header="Phone Number" sortable class="text-[14px] border-b border-gray-300"></Column>
+          <Column field="phoneNumber" header="Phone Number" sortable class="text-[14px] border-b border-gray-300">
+            <template #body="{ data }">
+              <span v-if="isValidPhoneNumber(data.phoneNumber)">
+                +{{ cleanPhoneNumber(data.phoneNumber) }}
+              </span>
+              <span v-else class="text-gray-400">N/A</span>
+            </template>
+          </Column>
           <Column field="optionalNote" header="Optional Note" class="text-[14px] border-b border-gray-300"></Column>
           <Column field="permissions" header="Permissions" class="text-[14px] border-b border-gray-300">
   <template #body="{ data }">
@@ -325,6 +332,22 @@ const colorByPermission = (perm) => {
   if (p.includes('report')) return 'bg-pink-50 text-pink-800'
 
   return 'bg-gray-100 text-gray-800'
+}
+
+// Helper function to validate if a phone number contains only numbers
+const isValidPhoneNumber = (phoneNumber) => {
+  if (!phoneNumber || phoneNumber === 'N/A' || phoneNumber.trim() === '') {
+    return false
+  }
+  // Remove any non-digit characters and check if we have at least 8 digits
+  const digitsOnly = phoneNumber.replace(/\D/g, '')
+  return digitsOnly.length >= 8
+}
+
+// Helper function to clean phone number (keep only digits)
+const cleanPhoneNumber = (phoneNumber) => {
+  if (!phoneNumber) return ''
+  return phoneNumber.replace(/\D/g, '')
 }
 
 // Helper function to get initials from name

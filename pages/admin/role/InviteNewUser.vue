@@ -28,15 +28,56 @@
         
         <div class="space-y-6">
           <div>
-            <label for="contact" class="block text-sm font-medium text-gray-700 mb-2">Phone Number or Email</label>
-            <input
-              type="text"
-              id="contact"
-              v-model="newUser.contact"
-              placeholder="Enter phone number or email to search users..."
-              class="w-full px-4 py-3 bg-gray-100 border-none rounded-xl text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-300 ease-in-out transform focus:scale-[1.02]"
-              @input="handleSearch"
-            />
+            <!-- Tab Navigation (similar to login page) -->
+            <div class="mb-6 grid grid-cols-2 py-2">
+              <button
+                @click="currentSearchTab = 'email'" 
+                :class="[
+                  'py-2 px-1 mr-6 font-semibold transition-colors duration-200 self-stretch text-center justify-start text-lg leading-loose',
+                  currentSearchTab === 'email' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-500 hover:text-gray-700'
+                ]"
+                role="tab"
+                :aria-selected="currentSearchTab === 'email'"
+              >
+                Email
+              </button>
+              <button
+                @click="currentSearchTab = 'phone'"
+                :class="[
+                  'py-2 px-1 mr-6 font-semibold transition-colors duration-200 self-stretch text-center justify-start text-lg leading-loose',
+                  currentSearchTab === 'phone' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-500 hover:text-gray-700'
+                ]"
+                role="tab"
+                :aria-selected="currentSearchTab === 'phone'"
+              >
+                Phone Number
+              </button>
+            </div>
+
+            <!-- Email Search Tab -->
+            <div v-if="currentSearchTab === 'email'">
+              <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+              <input
+                id="email"
+                v-model="searchEmail"
+                type="email"
+                placeholder="Enter email address to search organizers..."
+                class="w-full px-4 py-3 bg-gray-100 border-none rounded-xl text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-300 ease-in-out transform focus:scale-[1.02]"
+                @input="handleEmailSearch"
+              />
+            </div>
+
+            <!-- Phone Number Search Tab -->
+            <div v-if="currentSearchTab === 'phone'">
+              <PhoneNumber 
+                v-model="searchPhone"
+                @input="handlePhoneSearch"
+                @change="handlePhoneNumberChange"
+                placeholder="Enter phone number to search organizers..."
+                class="focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+
             <p v-if="contactError" class="text-xs text-red-500 mt-2 animate-fade-in">Type at least 3 characters</p>
             
             <!-- Search loading indicator -->
@@ -192,19 +233,19 @@
 
 
         <!-- No users found states -->
-        <div v-if="newUser.contact.length >= 3 && !searching && getFilteredUsers().length === 0 && getAlreadyInvitedUsers().length === 0" class="flex flex-col items-center justify-center mt-12 mb-4 animate-fade-in">
+        <div v-if="getCurrentSearchValue().length >= 3 && !searching && getFilteredUsers().length === 0 && getAlreadyInvitedUsers().length === 0" class="flex flex-col items-center justify-center mt-12 mb-4 animate-fade-in">
           <img src="../../../assets/image/not-found.png" alt="Organizer not found" class="w-32 h-32 opacity-70 transition-all duration-300 hover:opacity-90" />
           <p class="text-sm text-gray-500 mt-4 font-medium">Organizer not found</p>
           <p class="text-xs text-gray-400 mt-1">Try different search terms</p>
         </div>
 
-        <div v-else-if="newUser.contact.length >= 3 && !searching && getFilteredUsers().length === 0 && getAlreadyInvitedUsers().length > 0" class="flex flex-col items-center justify-center mt-12 mb-4 animate-fade-in">
+        <div v-else-if="getCurrentSearchValue().length >= 3 && !searching && getFilteredUsers().length === 0 && getAlreadyInvitedUsers().length > 0" class="flex flex-col items-center justify-center mt-12 mb-4 animate-fade-in">
           <img src="../../../assets/image/not-found.png" alt="No new organizers to invite" class="w-32 h-32 opacity-70 transition-all duration-300 hover:opacity-90" />
           <p class="text-sm text-gray-500 mt-4 font-medium">No new organizers to invite</p>
           <p class="text-xs text-gray-400 mt-1">All found users are already part of the team</p>
         </div>
 
-        <div v-else-if="!newUser.contact && !users.length && !searching" class="flex flex-col items-center justify-center mt-12 mb-4 animate-fade-in">
+        <div v-else-if="!getCurrentSearchValue() && !users.length && !searching" class="flex flex-col items-center justify-center mt-12 mb-4 animate-fade-in">
           <img src="../../../assets/image/not-found.png" alt="Search for organizers" class="w-32 h-32 opacity-70 transition-all duration-300 hover:opacity-90" />
           <p class="text-sm text-gray-400 mt-4">Start typing to search for organizers</p>
         </div>
@@ -315,21 +356,46 @@ const selectUser = (user) => {
   if (existingIndex !== -1) {
     // User is already selected, so unselect them
     selectedUsers.value.splice(existingIndex, 1)
-    // If this was the user whose contact info is shown, clear it or show the last selected user's contact
-    if (newUser.value.contact === (user.email || user.phone_number)) {
-      if (selectedUsers.value.length > 0) {
-        // Show contact of the last remaining selected user
-        const lastUser = selectedUsers.value[selectedUsers.value.length - 1]
-        newUser.value.contact = lastUser.email || lastUser.phone_number || ""
-      } else {
-        // No users selected, clear contact field
-        newUser.value.contact = ""
+    
+    // Update the tab fields based on the remaining selected users
+    if (selectedUsers.value.length > 0) {
+      // Show contact of the last remaining selected user
+      const lastUser = selectedUsers.value[selectedUsers.value.length - 1]
+      const contact = lastUser.email || lastUser.phone_number || ""
+      newUser.value.contact = contact
+      
+      // Update the appropriate tab field
+      if (lastUser.email) {
+        currentSearchTab.value = 'email'
+        searchEmail.value = lastUser.email
+        searchPhone.value = ''
+      } else if (lastUser.phone_number) {
+        currentSearchTab.value = 'phone'
+        searchPhone.value = lastUser.phone_number
+        searchEmail.value = ''
       }
+    } else {
+      // No users selected, clear all fields
+      newUser.value.contact = ""
+      searchEmail.value = ""
+      searchPhone.value = ""
     }
   } else {
     // User is not selected, so select them
     selectedUsers.value.push(user)
-    newUser.value.contact = user.email || user.phone_number || ""
+    const contact = user.email || user.phone_number || ""
+    newUser.value.contact = contact
+    
+    // Update the appropriate tab field and switch to the correct tab
+    if (user.email) {
+      currentSearchTab.value = 'email'
+      searchEmail.value = user.email
+      searchPhone.value = ''
+    } else if (user.phone_number) {
+      currentSearchTab.value = 'phone'
+      searchPhone.value = user.phone_number
+      searchEmail.value = ''
+    }
   }
 }
 
@@ -357,6 +423,11 @@ if (!eventId.value) {
   })
   router.push('/admin/event')
 }
+
+// Search form state (tabbed interface like login page)
+const currentSearchTab = ref('email'); // 'email' or 'phone'
+const searchEmail = ref('');
+const searchPhone = ref('');
 
 const newUser = ref({ contact: '', note: '' });
 const contactError = ref(false);
@@ -482,12 +553,27 @@ const isUserAlreadyInvited = (user) => {
       return organizer.email.toLowerCase().trim() === user.email.toLowerCase().trim()
     }
     
-    // Quaternary check: phone number match
+    // Quaternary check: phone number match (enhanced with multiple format checking)
     if (organizer.phone_number && user.phone_number) {
-      // Remove spaces and special characters for comparison
-      const cleanOrganizerPhone = organizer.phone_number.replace(/\s+/g, '').replace(/[^\d+]/g, '')
-      const cleanUserPhone = user.phone_number.replace(/\s+/g, '').replace(/[^\d+]/g, '')
-      return cleanOrganizerPhone === cleanUserPhone
+      // Get all possible formats for both numbers
+      const organizerFormats = getPhoneSearchFormats(organizer.phone_number)
+      const userFormats = getPhoneSearchFormats(user.phone_number)
+      
+      // Check if any format matches
+      const hasMatch = organizerFormats.some(orgFormat => 
+        userFormats.some(userFormat => {
+          // Clean both for comparison (digits only)
+          const cleanOrg = orgFormat.replace(/[^\d]/g, '')
+          const cleanUser = userFormat.replace(/[^\d]/g, '')
+          
+          // Match if same digits, or if one is a suffix of the other (handling country codes)
+          return cleanOrg === cleanUser || 
+                 (cleanOrg.length > cleanUser.length && cleanOrg.endsWith(cleanUser)) ||
+                 (cleanUser.length > cleanOrg.length && cleanUser.endsWith(cleanOrg))
+        })
+      )
+      
+      if (hasMatch) return true
     }
     
     // Final fallback: name + contact combination (stricter check)
@@ -531,11 +617,30 @@ const getUserStatus = (user) => {
 
 const findOrganizerByUser = (user) => {
   return currentOrganizers.value.find(org => {
-    return (org.user_id && user.id && org.user_id === user.id) ||
-           (org.id && user.id && org.id === user.id) ||
-           (org.email && user.email && org.email.toLowerCase() === user.email.toLowerCase()) ||
-           (org.phone_number && user.phone_number && 
-            org.phone_number.replace(/\s+/g, '') === user.phone_number.replace(/\s+/g, ''))
+    // Primary check: user ID match
+    if (org.user_id && user.id && org.user_id === user.id) return true
+    if (org.id && user.id && org.id === user.id) return true
+    
+    // Email match
+    if (org.email && user.email && org.email.toLowerCase() === user.email.toLowerCase()) return true
+    
+    // Enhanced phone number match
+    if (org.phone_number && user.phone_number) {
+      const organizerFormats = getPhoneSearchFormats(org.phone_number)
+      const userFormats = getPhoneSearchFormats(user.phone_number)
+      
+      return organizerFormats.some(orgFormat => 
+        userFormats.some(userFormat => {
+          const cleanOrg = orgFormat.replace(/[^\d]/g, '')
+          const cleanUser = userFormat.replace(/[^\d]/g, '')
+          return cleanOrg === cleanUser || 
+                 (cleanOrg.length > cleanUser.length && cleanOrg.endsWith(cleanUser)) ||
+                 (cleanUser.length > cleanOrg.length && cleanUser.endsWith(cleanOrg))
+        })
+      )
+    }
+    
+    return false
   })
 }
 
@@ -596,11 +701,28 @@ const getExistingUserRoles = (user) => {
   if (!organizersLoaded.value || !currentOrganizers.value.length) return []
   
   const organizer = currentOrganizers.value.find(org => {
-    return (org.user_id && user.id && org.user_id === user.id) ||
-           (org.id && user.id && org.id === user.id) ||
-           (org.email && user.email && org.email.toLowerCase() === user.email.toLowerCase()) ||
-           (org.phone_number && user.phone_number && 
-            org.phone_number.replace(/\s+/g, '') === user.phone_number.replace(/\s+/g, ''))
+    // Primary checks
+    if (org.user_id && user.id && org.user_id === user.id) return true
+    if (org.id && user.id && org.id === user.id) return true
+    if (org.email && user.email && org.email.toLowerCase() === user.email.toLowerCase()) return true
+    
+    // Enhanced phone number matching
+    if (org.phone_number && user.phone_number) {
+      const organizerFormats = getPhoneSearchFormats(org.phone_number)
+      const userFormats = getPhoneSearchFormats(user.phone_number)
+      
+      return organizerFormats.some(orgFormat => 
+        userFormats.some(userFormat => {
+          const cleanOrg = orgFormat.replace(/[^\d]/g, '')
+          const cleanUser = userFormat.replace(/[^\d]/g, '')
+          return cleanOrg === cleanUser || 
+                 (cleanOrg.length > cleanUser.length && cleanOrg.endsWith(cleanUser)) ||
+                 (cleanUser.length > cleanOrg.length && cleanUser.endsWith(cleanOrg))
+        })
+      )
+    }
+    
+    return false
   })
   
   if (!organizer || !organizer.roles) return []
@@ -613,10 +735,6 @@ onMounted(() => {
   loadPermissions()
   loadCurrentOrganizers()
 })
-
-const validateContact = () => {
-  contactError.value = newUser.value.contact.length > 0 && newUser.value.contact.length < 3;
-};
 
 const inviteUser = async () => {
   // Prevent multiple submissions
@@ -765,16 +883,26 @@ const inviteUser = async () => {
   }
 }
 
-const handleSearch = () => {
+// Helper function to get current search value based on active tab
+const getCurrentSearchValue = () => {
+  return currentSearchTab.value === 'email' ? searchEmail.value.trim() : searchPhone.value.trim()
+}
+
+// Tab-specific search handlers (similar to login page logic)
+const handleEmailSearch = () => {
   clearTimeout(searchTimeout)
   searchTimeout = setTimeout(async () => {
-    validateContact()
-    if (newUser.value.contact.length >= 3) {
+    const email = searchEmail.value.trim()
+    contactError.value = email.length > 0 && email.length < 3
+    
+    if (email.length >= 3) {
       searching.value = true
       try {
-        users.value = await searchUsers(newUser.value.contact)
+        users.value = await searchUsers(email)
+        // Update the legacy contact field for compatibility
+        newUser.value.contact = email
       } catch (error) {
-        console.error('Search error:', error)
+        console.error('Email search error:', error)
         users.value = []
       } finally {
         searching.value = false
@@ -782,8 +910,160 @@ const handleSearch = () => {
     } else {
       users.value = []
       searching.value = false
+      newUser.value.contact = ''
     }
   }, 400)
+}
+
+const handlePhoneSearch = () => {
+  clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(async () => {
+    const phone = searchPhone.value.trim()
+    contactError.value = phone.length > 0 && phone.length < 3
+    
+    if (phone.length >= 3) {
+      searching.value = true
+      try {
+        // Get all possible phone number formats to search with
+        const searchFormats = getPhoneSearchFormats(phone)
+        let searchResults = []
+        
+        // Try searching with different phone formats in order of likelihood
+        for (const format of searchFormats) {
+          console.log('🔍 Searching with phone format:', format)
+          const results = await searchUsers(format)
+          if (results && results.length > 0) {
+            searchResults = results
+            console.log('✅ Found', results.length, 'results with format:', format)
+            break // Stop searching once we find results
+          } else {
+            console.log('❌ No results with format:', format)
+          }
+        }
+        
+        users.value = searchResults
+        // Update the legacy contact field for compatibility (use original input)
+        newUser.value.contact = phone
+        
+        if (searchResults.length === 0) {
+          console.log('❌ No results found with any phone format for input:', phone)
+          console.log('🔍 Tried formats:', searchFormats)
+        } else {
+          console.log('✅ Final results count:', searchResults.length)
+        }
+      } catch (error) {
+        console.error('Phone search error:', error)
+        users.value = []
+      } finally {
+        searching.value = false
+      }
+    } else {
+      users.value = []
+      searching.value = false
+      newUser.value.contact = ''
+    }
+  }, 400)
+}
+
+// Handle phone number component change event (gets more detailed info)
+const handlePhoneNumberChange = (phoneData) => {
+  // phoneData contains: { countryCode, phoneNumber, fullNumber, country }
+  console.log('📞 PhoneNumber component data:', phoneData)
+  
+  // We can use the phoneData to get better search terms
+  if (phoneData && phoneData.phoneNumber) {
+    // Extract just the local number part
+    const localNumber = phoneData.phoneNumber.replace(phoneData.countryCode, '').replace(/[^\d]/g, '')
+    console.log('📞 Extracted local number:', localNumber)
+    
+    // Update search phone to trigger search with local number
+    if (localNumber.length >= 3) {
+      // Use the local number for search instead of full international format
+      searchPhone.value = localNumber
+    }
+  }
+}
+
+// Helper function to generate different phone number search formats
+const getPhoneSearchFormats = (inputPhone) => {
+  const formats = []
+  
+  // Clean input: remove all non-digit characters except +
+  const cleanInput = inputPhone.replace(/[^\d+]/g, '')
+  const digitsOnly = cleanInput.replace(/[^\d]/g, '')
+  
+  // PRIORITY ORDER: Most likely to least likely formats
+  
+  // 1. For Cambodian numbers, if user types local format (like 10730876)
+  // Try this first as it's most common use case
+  if (digitsOnly.length >= 6 && digitsOnly.length <= 10 && !cleanInput.startsWith('+')) {
+    // Remove leading zeros first
+    const withoutLeadingZeros = digitsOnly.replace(/^0+/, '')
+    if (withoutLeadingZeros.length >= 6) {
+      formats.push(withoutLeadingZeros) // Most likely: just the local number
+      formats.push(`0${withoutLeadingZeros}`) // With leading zero
+    }
+    formats.push(digitsOnly) // Original digits
+  }
+  
+  // 2. Original input as-is (what user typed)
+  formats.push(inputPhone)
+  
+  // 3. Clean digits only
+  if (digitsOnly !== inputPhone && digitsOnly.length >= 6) {
+    formats.push(digitsOnly)
+  }
+  
+  // 4. If input is local format, try with country codes
+  if (!cleanInput.startsWith('+') && digitsOnly.length >= 6) {
+    const withoutLeadingZeros = digitsOnly.replace(/^0+/, '')
+    if (withoutLeadingZeros.length >= 6) {
+      formats.push(`855${withoutLeadingZeros}`) // Without + prefix
+      formats.push(`+855${withoutLeadingZeros}`) // With + prefix
+      formats.push(`855${digitsOnly}`) // With original digits
+      formats.push(`+855${digitsOnly}`) // With + and original digits
+    }
+  }
+  
+  // 5. If input already has country code, try local variants
+  if (cleanInput.startsWith('+855') || cleanInput.startsWith('855')) {
+    const localPart = cleanInput.replace(/^(\+?855)/, '')
+    if (localPart.length >= 6) {
+      formats.push(localPart) // Just local part
+      if (!localPart.startsWith('0')) {
+        formats.push(`0${localPart}`) // With leading zero
+      }
+    }
+  }
+  
+  // 6. Try full international formats if not already added
+  if (!cleanInput.startsWith('+') && digitsOnly.length >= 8) {
+    formats.push(`+855${digitsOnly}`)
+    formats.push(`855${digitsOnly}`)
+  }
+  
+  // 7. Common formatting patterns (least priority)
+  if (digitsOnly.length >= 8) {
+    const spacedFormat = digitsOnly.replace(/(\d{2,3})(\d{3})(\d+)/, '$1 $2 $3')
+    formats.push(spacedFormat)
+    
+    const dashedFormat = digitsOnly.replace(/(\d{2,3})(\d{3})(\d+)/, '$1-$2-$3')
+    formats.push(dashedFormat)
+  }
+  
+  // Remove duplicates and keep order, filter short numbers
+  const uniqueFormats = []
+  const seen = new Set()
+  
+  for (const format of formats) {
+    if (format && format.length >= 3 && !seen.has(format)) {
+      uniqueFormats.push(format)
+      seen.add(format)
+    }
+  }
+  
+  console.log('📞 Generated phone search formats for', inputPhone, '(prioritized):', uniqueFormats)
+  return uniqueFormats
 }
 
 // Helper function to format permission names
