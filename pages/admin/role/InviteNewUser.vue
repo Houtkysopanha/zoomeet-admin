@@ -44,6 +44,20 @@
               <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600 mr-2"></div>
               <span class="text-sm">Searching organizers...</span>
             </div>
+
+            <!-- Protection loading indicator -->
+            <div v-if="loadingOrganizers" class="flex items-center mt-2 text-blue-600">
+              <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+              <span class="text-sm">Loading protection data...</span>
+            </div>
+
+            <!-- Protection status indicator -->
+            <div v-if="organizersLoaded && !loadingOrganizers" class="flex items-center mt-2 text-green-600">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+              </svg>
+              <span class="text-sm">Member Team : {{ getTotalTeamMembersCount() }} </span>
+            </div>
           </div>
 
           <div>
@@ -60,9 +74,69 @@
 
         <!-- Search results counter -->
         <div class="border border-1 border-gray-200 my-3"></div>
-        <div v-if="users.length > 0" class="mt-4 mb-2 animate-fade-in">
+        <div v-if="getFilteredUsers().length > 0 || getAlreadyInvitedUsers().length > 0" class="mt-4 mb-2 animate-fade-in">
           <p class="text-sm text-gray-600">
-            Found {{ users.length }} organizer{{ users.length !== 1 ? 's' : '' }}
+            <span v-if="getFilteredUsers().length > 0">
+              Found {{ getFilteredUsers().length }} available organizer{{ getFilteredUsers().length !== 1 ? 's' : '' }}
+            </span>
+            <span v-if="getAlreadyInvitedUsers().length > 0" class="text-orange-600 ml-2">
+              ({{ getAlreadyInvitedUsers().length }} already invited)
+            </span>
+          </p>
+        </div>
+
+        <!-- Already invited users notice (if any) -->
+        <div v-if="getAlreadyInvitedUsers().length > 0" class="mt-4 mb-4 p-4 bg-orange-50 rounded-xl border border-orange-200 animate-fade-in">
+          <div class="flex items-center mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-orange-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+            <p class="text-sm font-medium text-orange-800">
+              Already Team Members ({{ getAlreadyInvitedUsers().length }}):
+            </p>
+          </div>
+          <div class="space-y-2">
+            <div 
+              v-for="user in getAlreadyInvitedUsers()" 
+              :key="user.id"
+              class="flex items-center justify-between p-3 rounded-lg border"
+              :class="getUserStatusClass(user)"
+            >
+              <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 flex items-center justify-center rounded-full font-semibold text-sm"
+                     :class="getUserAvatarClass(user)">
+                  {{ getInitials(user.name) }}
+                </div>
+                <div>
+                  <div class="flex items-center space-x-2">
+                    <p class="text-sm font-medium" :class="getUserNameClass(user)">{{ user.name }}</p>
+                    <span class="text-xs px-2 py-0.5 rounded-full font-medium" :class="getUserStatusBadgeClass(user)">
+                      {{ getUserStatus(user) }}
+                    </span>
+                  </div>
+                  <p class="text-xs" :class="getUserContactClass(user)">{{ user.email || user.phone_number }}</p>
+                  <!-- Show existing roles if available -->
+                  <div v-if="getExistingUserRoles(user).length > 0" class="flex flex-wrap gap-1 mt-1">
+                    <span 
+                      v-for="role in getExistingUserRoles(user)" 
+                      :key="role"
+                      class="text-xs px-2 py-0.5 rounded-full" 
+                      :class="getUserRoleBadgeClass(user)"
+                    >
+                      {{ formatCategoryName(role) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div :class="getUserIconClass(user)" title="Already has permissions">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <p class="text-xs mt-3 font-medium" :class="getWarningTextClass()">
+            ⚠️ These users already have permissions for this event and cannot be invited again.
           </p>
         </div>
 
@@ -89,9 +163,9 @@
           </div>
         </div>
 
-<ul v-if="users.length" class="mt-6 space-y-3">
+<ul v-if="getFilteredUsers().length" class="mt-6 space-y-3">
   <li
-    v-for="(u, index) in users"
+    v-for="(u, index) in getFilteredUsers()"
     :key="u.id"
     @click="selectUser(u)"
     class="flex items-center justify-between p-4 rounded-2xl cursor-pointer transition-all duration-300 border transform hover:scale-[1.02] animate-slide-in"
@@ -118,10 +192,16 @@
 
 
         <!-- No users found states -->
-        <div v-if="newUser.contact.length >= 3 && !searching && users.length === 0" class="flex flex-col items-center justify-center mt-12 mb-4 animate-fade-in">
+        <div v-if="newUser.contact.length >= 3 && !searching && getFilteredUsers().length === 0 && getAlreadyInvitedUsers().length === 0" class="flex flex-col items-center justify-center mt-12 mb-4 animate-fade-in">
           <img src="../../../assets/image/not-found.png" alt="Organizer not found" class="w-32 h-32 opacity-70 transition-all duration-300 hover:opacity-90" />
           <p class="text-sm text-gray-500 mt-4 font-medium">Organizer not found</p>
           <p class="text-xs text-gray-400 mt-1">Try different search terms</p>
+        </div>
+
+        <div v-else-if="newUser.contact.length >= 3 && !searching && getFilteredUsers().length === 0 && getAlreadyInvitedUsers().length > 0" class="flex flex-col items-center justify-center mt-12 mb-4 animate-fade-in">
+          <img src="../../../assets/image/not-found.png" alt="No new organizers to invite" class="w-32 h-32 opacity-70 transition-all duration-300 hover:opacity-90" />
+          <p class="text-sm text-gray-500 mt-4 font-medium">No new organizers to invite</p>
+          <p class="text-xs text-gray-400 mt-1">All found users are already part of the team</p>
         </div>
 
         <div v-else-if="!newUser.contact && !users.length && !searching" class="flex flex-col items-center justify-center mt-12 mb-4 animate-fade-in">
@@ -181,7 +261,7 @@ import { useToast } from 'primevue/usetoast'
 import InputSwitch from 'primevue/inputswitch';
 import Breadcrumb from '~/components/common/Breadcrumb.vue'
 import IconnButton from '~/components/ui/IconnButton.vue'
-import { fetchOrganizerPermissions, searchUsers, inviteUserAPI } from '@/composables/api'
+import { fetchOrganizerPermissions, searchUsers, inviteUserAPI, fetchEventOrganizers } from '@/composables/api'
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
@@ -192,6 +272,44 @@ const selectedUsers = ref([])
 
 // Handle selecting/unselecting a user
 const selectUser = (user) => {
+  // PROTECTION: Check if user is already invited with enhanced messaging (includes inactive users)
+  if (isUserAlreadyInvited(user)) {
+    // Find the matching organizer to show more details
+    const existingOrganizer = currentOrganizers.value.find(organizer => {
+      return (organizer.user_id && user.id && organizer.user_id === user.id) ||
+             (organizer.id && user.id && organizer.id === user.id) ||
+             (organizer.email && user.email && organizer.email.toLowerCase() === user.email.toLowerCase()) ||
+             (organizer.phone_number && user.phone_number && 
+              organizer.phone_number.replace(/\s+/g, '') === user.phone_number.replace(/\s+/g, ''))
+    })
+    
+    let detailMessage = `${user.name} is already part of the team for this event`
+    
+    // Show status (active/inactive)
+    if (existingOrganizer) {
+      const isActive = existingOrganizer.status === 'active' || existingOrganizer.is_active === true || existingOrganizer.is_active === 1
+      const statusText = isActive ? 'active' : 'inactive'
+      detailMessage += ` (${statusText})`
+      
+      if (existingOrganizer.roles && existingOrganizer.roles.length > 0) {
+        const roleNames = existingOrganizer.roles.map(role => role.role_name || role.name).join(', ')
+        detailMessage += ` with roles: ${roleNames}`
+      }
+      
+      if (!isActive) {
+        detailMessage += '. Inactive users cannot be re-invited.'
+      }
+    }
+    
+    toast.add({
+      severity: 'warn',
+      summary: 'User Already Has Permissions',
+      detail: detailMessage,
+      life: 6000
+    })
+    return
+  }
+  
   const existingIndex = selectedUsers.value.findIndex(u => u.id === user.id)
   
   if (existingIndex !== -1) {
@@ -248,6 +366,11 @@ const searching = ref(false);
 const inviting = ref(false);
 const permissionsLoading = ref(false);
 
+// Protection against duplicate invitations
+const currentOrganizers = ref([]);
+const loadingOrganizers = ref(false);
+const organizersLoaded = ref(false);
+
 // Dynamic permissions structure from API
 const availablePermissions = ref({})
 const permissions = ref({})
@@ -293,9 +416,202 @@ const loadPermissions = async () => {
   }
 }
 
-// Load permissions on component mount
+// Load current event organizers for protection against duplicate invitations
+const loadCurrentOrganizers = async () => {
+  if (!eventId.value) return
+  
+  loadingOrganizers.value = true
+  try {
+    console.log('🔒 Loading ALL team members (active + inactive) for comprehensive protection...')
+    const response = await fetchEventOrganizers(eventId.value)
+    
+    if (response.status === 200 && response.data.success) {
+      currentOrganizers.value = response.data.data || []
+      organizersLoaded.value = true
+      
+      const activeCount = getActiveTeamMembersCount()
+      const totalCount = getTotalTeamMembersCount()
+      const inactiveCount = totalCount - activeCount
+      
+      console.log('🔒 Protection loaded:')
+      console.log(`   - ${activeCount} active team members`)
+      console.log(`   - ${inactiveCount} inactive team members`)
+      console.log(`   - ${totalCount} total members protected`)
+      
+      // Log all team members with their status for debugging
+      currentOrganizers.value.forEach(org => {
+        const status = org.status || (org.is_active ? 'active' : 'inactive') || 'unknown'
+        const roles = org.roles?.map(r => r.role_name).join(', ') || 'No roles'
+        console.log(`👤 ${org.name || org.email} (${status}): ${roles}`)
+      })
+    } else {
+      console.warn('No team members found or error:', response.data.message)
+      currentOrganizers.value = []
+      organizersLoaded.value = true
+    }
+  } catch (error) {
+    console.error('❌ Failed to load current team members:', error)
+    // Don't show error to user since this is background protection
+    currentOrganizers.value = []
+    organizersLoaded.value = true
+  } finally {
+    loadingOrganizers.value = false
+  }
+}
+
+// Check if a user is already invited/part of the team
+const isUserAlreadyInvited = (user) => {
+  if (!organizersLoaded.value || !currentOrganizers.value.length) return false
+  
+  return currentOrganizers.value.some(organizer => {
+    // IMPORTANT: Check ALL team members regardless of active/inactive status
+    // This prevents re-inviting inactive users who might cause conflicts
+    
+    // Primary check: user ID match
+    if (organizer.user_id && user.id) {
+      return organizer.user_id === user.id
+    }
+    
+    // Secondary check: direct ID match (if organizer has id field)
+    if (organizer.id && user.id) {
+      return organizer.id === user.id
+    }
+    
+    // Tertiary check: email match (case insensitive)
+    if (organizer.email && user.email) {
+      return organizer.email.toLowerCase().trim() === user.email.toLowerCase().trim()
+    }
+    
+    // Quaternary check: phone number match
+    if (organizer.phone_number && user.phone_number) {
+      // Remove spaces and special characters for comparison
+      const cleanOrganizerPhone = organizer.phone_number.replace(/\s+/g, '').replace(/[^\d+]/g, '')
+      const cleanUserPhone = user.phone_number.replace(/\s+/g, '').replace(/[^\d+]/g, '')
+      return cleanOrganizerPhone === cleanUserPhone
+    }
+    
+    // Final fallback: name + contact combination (stricter check)
+    if (organizer.name && user.name) {
+      const nameMatch = organizer.name.toLowerCase().trim() === user.name.toLowerCase().trim()
+      if (nameMatch) {
+        // If names match, also check if any contact info matches
+        const organizerContact = organizer.email || organizer.phone_number || ''
+        const userContact = user.email || user.phone_number || ''
+        return organizerContact && userContact && 
+               organizerContact.toLowerCase().trim() === userContact.toLowerCase().trim()
+      }
+    }
+    
+    return false
+  })
+}
+
+// Get count of active team members
+const getActiveTeamMembersCount = () => {
+  if (!organizersLoaded.value) return 0
+  return currentOrganizers.value.filter(org => 
+    org.status === 'active' || org.is_active === true || org.is_active === 1 || !org.hasOwnProperty('status')
+  ).length
+}
+
+// Get total count of all team members (active + inactive)
+const getTotalTeamMembersCount = () => {
+  if (!organizersLoaded.value) return 0
+  return currentOrganizers.value.length
+}
+
+// Helper functions for user status styling
+const getUserStatus = (user) => {
+  const organizer = findOrganizerByUser(user)
+  if (!organizer) return 'Unknown'
+  
+  const isActive = organizer.status === 'active' || organizer.is_active === true || organizer.is_active === 1
+  return isActive ? 'Active' : 'Inactive'
+}
+
+const findOrganizerByUser = (user) => {
+  return currentOrganizers.value.find(org => {
+    return (org.user_id && user.id && org.user_id === user.id) ||
+           (org.id && user.id && org.id === user.id) ||
+           (org.email && user.email && org.email.toLowerCase() === user.email.toLowerCase()) ||
+           (org.phone_number && user.phone_number && 
+            org.phone_number.replace(/\s+/g, '') === user.phone_number.replace(/\s+/g, ''))
+  })
+}
+
+const isUserActive = (user) => {
+  const organizer = findOrganizerByUser(user)
+  if (!organizer) return false
+  return organizer.status === 'active' || organizer.is_active === true || organizer.is_active === 1
+}
+
+const getUserStatusClass = (user) => {
+  return isUserActive(user) ? 'bg-orange-100 border-orange-200' : 'bg-gray-100 border-gray-300'
+}
+
+const getUserAvatarClass = (user) => {
+  return isUserActive(user) ? 'bg-orange-200 text-orange-700' : 'bg-gray-200 text-gray-600'
+}
+
+const getUserNameClass = (user) => {
+  return isUserActive(user) ? 'text-orange-800' : 'text-gray-700'
+}
+
+const getUserContactClass = (user) => {
+  return isUserActive(user) ? 'text-orange-600' : 'text-gray-500'
+}
+
+const getUserStatusBadgeClass = (user) => {
+  return isUserActive(user) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+}
+
+const getUserRoleBadgeClass = (user) => {
+  return isUserActive(user) ? 'bg-orange-200 text-orange-700' : 'bg-gray-200 text-gray-600'
+}
+
+const getUserIconClass = (user) => {
+  return isUserActive(user) ? 'text-orange-600' : 'text-gray-500'
+}
+
+const getWarningTextClass = () => {
+  return 'text-orange-600'
+}
+
+// Filter search results to exclude already invited users
+const getFilteredUsers = () => {
+  if (!organizersLoaded.value) return users.value
+  
+  return users.value.filter(user => !isUserAlreadyInvited(user))
+}
+
+// Get already invited users from search results (for display)
+const getAlreadyInvitedUsers = () => {
+  if (!organizersLoaded.value) return []
+  
+  return users.value.filter(user => isUserAlreadyInvited(user))
+}
+
+// Get existing roles for a user who is already invited
+const getExistingUserRoles = (user) => {
+  if (!organizersLoaded.value || !currentOrganizers.value.length) return []
+  
+  const organizer = currentOrganizers.value.find(org => {
+    return (org.user_id && user.id && org.user_id === user.id) ||
+           (org.id && user.id && org.id === user.id) ||
+           (org.email && user.email && org.email.toLowerCase() === user.email.toLowerCase()) ||
+           (org.phone_number && user.phone_number && 
+            org.phone_number.replace(/\s+/g, '') === user.phone_number.replace(/\s+/g, ''))
+  })
+  
+  if (!organizer || !organizer.roles) return []
+  
+  return organizer.roles.map(role => role.role_name || role.name || role).filter(Boolean)
+}
+
+// Load permissions and organizers on component mount
 onMounted(() => {
   loadPermissions()
+  loadCurrentOrganizers()
 })
 
 const validateContact = () => {
@@ -317,6 +633,37 @@ const inviteUser = async () => {
     return
   }
 
+  // CRITICAL PROTECTION: Double-check that none of the selected users are already invited
+  // This is the main protection against duplicate invitations (both active and inactive users)
+  const alreadyInvitedUsers = selectedUsers.value.filter(user => isUserAlreadyInvited(user))
+  if (alreadyInvitedUsers.length > 0) {
+    const userDetails = alreadyInvitedUsers.map(u => {
+      const status = getUserStatus(u)
+      return `${u.name} (${status})`
+    }).join(', ')
+    
+    toast.add({
+      severity: 'error',
+      summary: 'Duplicate Invitation Blocked',
+      detail: `Cannot invite ${userDetails} - already part of the team with existing permissions`,
+      life: 6000
+    })
+    
+    // Remove already invited users from selection automatically
+    selectedUsers.value = selectedUsers.value.filter(user => !isUserAlreadyInvited(user))
+    
+    // If no users left after filtering, show additional message
+    if (selectedUsers.value.length === 0) {
+      toast.add({
+        severity: 'warn',
+        summary: 'No Valid Users',
+        detail: 'All selected users already have permissions for this event (including inactive members)',
+        life: 4000
+      })
+    }
+    return
+  }
+
   // Validation: Check if permissions are selected
   const hasPermissions = Object.values(permissions.value).some(perm => perm.enabled)
   if (!hasPermissions) {
@@ -324,6 +671,20 @@ const inviteUser = async () => {
       severity: 'error',
       summary: 'Validation Error',
       detail: 'Please select at least one permission for the user',
+      life: 4000
+    })
+    return
+  }
+
+  // ADDITIONAL PROTECTION: Final check before API call
+  console.log('🔒 Final protection check before invitation...')
+  const finalCheck = selectedUsers.value.filter(user => isUserAlreadyInvited(user))
+  if (finalCheck.length > 0) {
+    console.error('🚫 Protection triggered: Users already invited detected at final stage')
+    toast.add({
+      severity: 'error',
+      summary: 'Protection Error',
+      detail: 'System protection prevented duplicate invitation',
       life: 4000
     })
     return
@@ -346,14 +707,30 @@ const inviteUser = async () => {
     if (data.success) {
       toast.add({
         severity: 'success',
-        summary: 'Invitation Sent',
+        summary: 'Invitation Sent Successfully',
         detail: `Invitation sent to ${selectedUsers.value.map(u => u.name).join(', ')}`,
         life: 4000
       })
-      // Reset selection
+      
+      // Reset all form data
       selectedUsers.value = []
       newUser.value.contact = ''
+      newUser.value.note = ''
       Object.keys(permissions.value).forEach(cat => permissions.value[cat].enabled = false)
+      
+      // IMPORTANT: Reload current organizers to update protection data
+      console.log('🔄 Reloading team members for updated protection...')
+      await loadCurrentOrganizers()
+      
+      // Clear search results to force fresh search with new protection data
+      users.value = []
+      
+      toast.add({
+        severity: 'info',
+        summary: 'Protection Updated',
+        detail: 'Team member list refreshed for protection',
+        life: 2000
+      })
     } else {
       toast.add({
         severity: 'error',
@@ -364,12 +741,25 @@ const inviteUser = async () => {
     }
   } catch (error) {
     console.error('❌ Error inviting users:', error)
-    toast.add({
-      severity: 'error',
-      summary: 'API Error',
-      detail: error.response?.data?.message || error.message,
-      life: 4000
-    })
+    
+    // Check if error is related to duplicate invitation from server
+    if (error.response?.status === 409 || error.message?.includes('already')) {
+      toast.add({
+        severity: 'error',
+        summary: 'Duplicate Invitation',
+        detail: 'User already has permissions for this event',
+        life: 4000
+      })
+      // Refresh organizers list to get latest data
+      await loadCurrentOrganizers()
+    } else {
+      toast.add({
+        severity: 'error',
+        summary: 'API Error',
+        detail: error.response?.data?.message || error.message,
+        life: 4000
+      })
+    }
   } finally {
     inviting.value = false
   }
