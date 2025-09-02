@@ -1176,4 +1176,17 @@ const removeSpeakerField = (index) => {
   opacity: 0;
   transform: translateY(-10px);
 }
+:deep(.p-calendar .p-inputtext) {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+:deep(.p-calendar .p-inputtext:focus) {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
 </style>
