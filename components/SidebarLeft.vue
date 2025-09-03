@@ -129,20 +129,25 @@
 
 <script setup>
 import logo1 from '@/assets/image/finalize-logo.jpg'
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useGlobalEventCount } from '@/composables/useEventCount.js'
 
 defineEmits(['close-mobile'])
 
 const route = useRoute()
 const showSettingsDropdown = ref(false)
 
-const navLinks = [
+// Use the global event count composable
+const { totalEventCount, loadEventCount, loading, error } = useGlobalEventCount()
+
+// Computed nav links with dynamic event count
+const navLinks = computed(() => [
   { to: "/admin/dashboard", icon: "ic:round-dashboard", text: "Dashboard", activeClass: "bg-[#E6F2FF]", disabled: false },
-  { to: "/admin/event", icon: "clarity:event-solid", text: "Event", count: 26, activeClass: "bg-[#E6F2FF]", disabled: false },
-  { to: "/admin/booking", icon: "material-symbols-light:receipt-rounded", text: "Booking", count: 26, activeClass: "bg-[#E6F2FF]", disabled: true },
+  { to: "/admin/event", icon: "clarity:event-solid", text: "Event", count: totalEventCount.value, activeClass: "bg-[#E6F2FF]", disabled: false },
+  { to: "/admin/booking", icon: "material-symbols-light:receipt-rounded", text: "Booking", count: 0, activeClass: "bg-[#E6F2FF]", disabled: true },
   { to: "/admin/checkIn", icon: "mdi:invoice-text-check", text: "Check-in Service", activeClass: "bg-[#E6F2FF]", disabled: true },
-]
+])
 
 const settingsLinks = [
   { to: "", icon: "mingcute:user-setting-fill", text: "Manage Role and Staff", activeClass: "bg-[#E6F2FF]", disabled: true },
@@ -196,6 +201,8 @@ function isActive(path) {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  // Load event count when component mounts
+  loadEventCount()
 })
 
 onUnmounted(() => {

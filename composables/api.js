@@ -2,53 +2,53 @@
 import axios from 'axios'
 // Get auth token using proper Nuxt 3 pattern with automatic refresh
 // Auto-imported by Nuxt: useRuntimeConfig, $fetch
-
 // Get auth token using proper Nuxt 3 pattern
 const getAuthToken = () => {
   try {
-    // Use the useAuth composable consistently for token management
-    const { getToken, isTokenExpired } = useAuth()
+    const { getToken, isTokenExpired, clearAuth } = useAuth()
     let token = getToken()
 
-    // If no token from composable, try direct storage access as fallback
+    // If expired, clear and return null
+    if (token && isTokenExpired()) {
+      console.warn('⚠️ Attempted to use expired token, clearing auth...')
+      clearAuth()
+      return null
+    }
+
+    // If no token from composable, try storage fallback
     if (!token && process.client) {
-      
-      // Try localStorage first
-      const stored = localStorage.getItem('auth')
+      let stored = localStorage.getItem('auth')
       if (stored) {
         try {
           const authData = JSON.parse(stored)
           token = authData?.token
-        } catch (e) {
-        }
+        } catch (e) {}
       }
-      
-      // Try sessionStorage as backup
+
       if (!token) {
-        const sessionStored = sessionStorage.getItem('auth')
+        let sessionStored = sessionStorage.getItem('auth')
         if (sessionStored) {
           try {
             const authData = JSON.parse(sessionStored)
             token = authData?.token
-          } catch (e) {
-          }
+          } catch (e) {}
         }
+      }
+
+      // Extra safety: check again
+      if (token && isTokenExpired()) {
+        console.warn('⚠️ Fallback token is expired, clearing auth...')
+        clearAuth()
+        return null
       }
     }
 
-    if (!token) {
-      return null
-    }
-
-
-
-    // Log token info without sensitive data
-
-    return token
+    return token || null
   } catch (error) {
     return null
   }
 }
+
 
 // Create authenticated fetch headers
 const createAuthHeaders = async (includeContentType = true) => {
@@ -137,9 +137,8 @@ export async function login(identifier, password) {
 
 // Fetch events list
 export async function fetchEvents() {
-  
-  // Use server proxy route to avoid CORS issues
-  const eventsUrl = '/api/admin/events'
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
 
   try {
     
@@ -149,9 +148,9 @@ export async function fetchEvents() {
       return { status: 401, data: { success: false, data: [], message: 'Authentication required' } }
     }
 
-    const response = await $fetch(eventsUrl, {
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events`, {
       method: 'GET',
-      headers: headers,
+      headers
     })
 
     // Validate and log each event ID
@@ -269,6 +268,8 @@ function validateUUID(uuid) {
 
 // Get event details - Enhanced for any UUID
 export async function getEventDetails(eventId) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
   if (!eventId) {
     throw new Error('Event ID is required')
   }
@@ -285,16 +286,15 @@ export async function getEventDetails(eventId) {
   }
 
   try {
-    const serverUrl = `/api/admin/events/${cleanUUID}`
     const headers = await createAuthHeaders()
     if (!headers) {
       throw new Error('Authentication required')
     }
-    
-    const response = await $fetch(serverUrl, {
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${cleanUUID}`, {
       method: 'GET',
       headers
     })
+
 
     if (!response) {
       throw new Error('Empty response from server')
@@ -338,9 +338,9 @@ export async function getEventDetails(eventId) {
 // Create event
 export async function createEvent(eventData, isDraft = true) {
   const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
   
   // Use server proxy route to avoid CORS issues
-  const createEventUrl = '/api/admin/events'
 
   if (!eventData) {
     return {
@@ -579,7 +579,7 @@ if (eventData.chairs && Array.isArray(eventData.chairs)) {
     // Use server proxy route to avoid CORS issues
     try {
       const headers = await createAuthHeaders(false) // Don't include Content-Type for FormData
-      const response = await $fetch(createEventUrl, {
+      const response = await $fetch(`${API_ADMIN_BASE_URL}/events`, {
         method: 'POST',
         body: formData,
         headers: {
@@ -711,7 +711,8 @@ if (eventData.chairs && Array.isArray(eventData.chairs)) {
 export async function updateEvent(eventId, eventData) {
   
   // Use server proxy route to avoid CORS issues
-  const updateEventUrl = `/api/admin/events/${eventId}`
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
 
   try {
     // Prepare FormData for Laravel update with _method approach
@@ -844,7 +845,7 @@ export async function updateEvent(eventId, eventData) {
       throw new Error('Authentication required')
     }
     
-    const response = await $fetch(updateEventUrl, {
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}`, {
       method: 'POST',
       body: formData,
       headers,
@@ -951,6 +952,9 @@ export async function updateEvent(eventId, eventData) {
 
 // Update ticket type - UPDATED: Match exact API specification
 export async function updateTicketType(eventId, ticketTypeId, ticketData) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
   if (!eventId || !ticketTypeId) {
     throw new Error('Event ID and Ticket Type ID are required')
   }
@@ -975,13 +979,12 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
     if (isNaN(normalizedData.total) || normalizedData.total < 1) throw new Error('Quantity must be at least 1')
     
     // Use server proxy endpoint for ticket type update
-    const serverUrl = `/api/admin/events/${eventId}/ticket-types/${ticketTypeId}`
     const headers = await createAuthHeaders()
     if (!headers) {
       throw new Error('Authentication required')
     }
     
-    const response = await $fetch(serverUrl, {
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}//ticket-types/${ticketTypeId}`, {
       method: 'PUT',
       body: normalizedData,
       headers // Use JSON Content-Type
@@ -1004,6 +1007,8 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
 
 // Create ticket types
 export async function createTicketTypes(eventId, ticketTypesData) {
+    const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
   if (!eventId || !ticketTypesData) {
     throw new Error('Event ID and ticket types data are required')
   }
@@ -1055,7 +1060,7 @@ export async function createTicketTypes(eventId, ticketTypesData) {
     // Send tickets in proper structure to server proxy endpoint
     const serverUrl = `/api/admin/events/${eventId}/ticket-types`
     const headers = await createAuthHeaders()
-    const response = await $fetch(serverUrl, {
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types`, {
       method: 'POST',
       body: requestBody,
       headers: {
@@ -1161,6 +1166,8 @@ export async function getTicketTypeDetails(eventId, ticketTypeId) {
 
 // Delete event - ENHANCED WITH CONFIRMATION
 export async function deleteEvent(eventId) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
   if (!eventId) {
     throw new Error('Event ID is required')
   }
@@ -1171,13 +1178,12 @@ export async function deleteEvent(eventId) {
   }
 
   try {
-    const serverUrl = `/api/admin/events/${eventId}`
     const headers = await createAuthHeaders()
     if (!headers) {
       throw new Error('Authentication required')
     }
     
-    const response = await $fetch(serverUrl, {
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}`, {
       method: 'DELETE',
       headers
     })
@@ -1200,6 +1206,8 @@ export async function deleteEvent(eventId) {
 
 // Delete ticket type - UPDATED: Match exact API specification
 export async function deleteTicketType(eventId, ticketTypeId) {
+   const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
   if (!eventId || !ticketTypeId) {
     throw new Error('Event ID and Ticket Type ID are required')
   }
@@ -1211,13 +1219,12 @@ export async function deleteTicketType(eventId, ticketTypeId) {
 
   try {
     // Use server proxy endpoint for ticket type deletion
-    const serverUrl = `/api/admin/events/${eventId}/ticket-types/${ticketTypeId}`
     const headers = await createAuthHeaders()
     if (!headers) {
       throw new Error('Authentication required')
     }
     
-    const response = await $fetch(serverUrl, {
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types/${ticketTypeId}`, {
       method: 'DELETE',
       headers
     })
