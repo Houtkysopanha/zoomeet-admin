@@ -30,7 +30,6 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
       const refreshSuccess = await refreshToken()
       
       if (refreshSuccess) {
-        console.log('✅ Token refreshed successfully in middleware')
       } else {
         console.error('❌ Token refresh failed in middleware')
         return navigateTo('/login?session_expired=true&reason=refresh_failed')

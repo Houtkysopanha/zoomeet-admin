@@ -137,7 +137,7 @@
   scrollable
   responsiveLayout="scroll">
 
-          <Column field="user" header="User" sortable class="text-[14px] border-b border-gray-300">
+          <Column field="user" header="User" sortable class="text-[12px] border-b border-gray-300">
             <template #body="{ data }">
               <div class="flex items-center gap-2">
                 <!-- Avatar image if available, otherwise show initials -->
@@ -161,9 +161,16 @@
               </div>
             </template>
           </Column>
-          <Column field="phoneNumber" header="Phone Number" sortable class="text-[14px] border-b border-gray-300"></Column>
-          <Column field="optionalNote" header="Optional Note" class="text-[14px] border-b border-gray-300"></Column>
-          <Column field="permissions" header="Permissions" class="text-[14px] border-b border-gray-300">
+          <Column field="phoneNumber" header="Phone Number" sortable class="text-[12px] border-b border-gray-300">
+            <template #body="{ data }">
+              <span v-if="isValidPhoneNumber(data.phoneNumber)">
+                +{{ cleanPhoneNumber(data.phoneNumber) }}
+              </span>
+              <span v-else class="text-gray-400">N/A</span>
+            </template>
+          </Column>
+          <Column field="optionalNote" header="Optional Note" class="text-[12px] border-b border-gray-300"></Column>
+          <Column field="permissions" header="Permissions" class="text-[12px] border-b border-gray-300">
   <template #body="{ data }">
     <div v-if="data.permissions && data.permissions.length > 0" class="flex flex-wrap gap-1">
       <span v-for="perm in data.permissions" :key="perm"
@@ -175,7 +182,7 @@
   </template>
 </Column>
 
-          <Column field="status" header="Status" class="text-[14px] border-b border-gray-300">
+          <Column field="status" header="Status" class="text-[12px] border-b border-gray-300">
             <template #body="{ data }">
               <span :class="['px-2 py-1 rounded-full text-xs font-medium', {
                 'bg-green-100 text-green-700': data.status === 'Active',
@@ -185,7 +192,7 @@
               </span>
             </template>
           </Column>
-          <Column header="Actions" class="text-[14px] border-b border-gray-300">
+          <Column header="Actions" class="text-[12px] border-b border-gray-300">
             <template #body="{ data }">
              <Button
   icon="pi pi-ellipsis-v"
@@ -220,13 +227,13 @@ import { useToast } from 'primevue/usetoast'
 import IconnButton from '~/components/ui/IconnButton.vue'
 import Breadcrumb from '~/components/common/Breadcrumb.vue'
 import EventCard from '~/components/common/EventCard.vue'
+import { formatEventDateRange, formatEventTime } from '~/utils/dateFormatter'
 import CardCommon from '~/components/common/CardCommon.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Dropdown from 'primevue/dropdown'
 import Menu from 'primevue/menu'
 import Button from 'primevue/button'
-import poster from '@/assets/image/poster-manage-booking.png'
 
 import { fetchEventOrganizers, disableEventOrganizer, removeOrganizer, getEventDetails } from '@/composables/api'
 
@@ -263,12 +270,8 @@ const loadEventCard = async () => {
       title: event.name || 'Untitled Event',
       owner: event.organizer || 'Unknown Organizer',
       location: event.location || 'No location specified',
-      date: event.start_date
-        ? new Date(event.start_date).toLocaleDateString()
-        : 'No date specified',
-      time: event.start_date
-        ? new Date(event.start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        : 'No time specified'
+      date: formatEventDateRange(event.start_date, event.end_date),
+      time: formatEventTime(event)
     }
   } catch (err) {
     console.error("❌ Failed to fetch event details:", err)
@@ -328,6 +331,22 @@ const colorByPermission = (perm) => {
   if (p.includes('report')) return 'bg-pink-50 text-pink-800'
 
   return 'bg-gray-100 text-gray-800'
+}
+
+// Helper function to validate if a phone number contains only numbers
+const isValidPhoneNumber = (phoneNumber) => {
+  if (!phoneNumber || phoneNumber === 'N/A' || phoneNumber.trim() === '') {
+    return false
+  }
+  // Remove any non-digit characters and check if we have at least 8 digits
+  const digitsOnly = phoneNumber.replace(/\D/g, '')
+  return digitsOnly.length >= 8
+}
+
+// Helper function to clean phone number (keep only digits)
+const cleanPhoneNumber = (phoneNumber) => {
+  if (!phoneNumber) return ''
+  return phoneNumber.replace(/\D/g, '')
 }
 
 // Helper function to get initials from name

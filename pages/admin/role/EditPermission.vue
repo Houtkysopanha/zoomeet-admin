@@ -76,7 +76,14 @@
             </div>
             <div>
               <p class="text-sm text-gray-500">Phone Number</p>
-              <p class="text-gray-900">{{ userInfo.phone }}</p>
+              <p class="text-gray-900">
+                <span v-if="isValidPhoneNumber(userInfo.phone)">
+                  +{{ cleanPhoneNumber(userInfo.phone) }}
+                </span>
+                <span v-else class="text-gray-400">
+                  {{ userInfo.phone || 'N/A' }}
+                </span>
+              </p>
             </div>
           </div>
 
@@ -290,7 +297,25 @@ const formatCategoryName = (category) => {
   return map[category] || category.charAt(0).toUpperCase() + category.slice(1)
 }
 
-const formatDate = (dateStr) => dateStr ? new Date(dateStr).toLocaleDateString('en-GB') : '-'
+import { formatSingleDate } from '~/utils/dateFormatter'
+
+const formatDate = (dateStr) => dateStr ? formatSingleDate(dateStr) : '-'
+
+// Helper function to validate if a phone number contains only numbers
+const isValidPhoneNumber = (phoneNumber) => {
+  if (!phoneNumber || phoneNumber === 'N/A' || phoneNumber.trim() === '') {
+    return false
+  }
+  // Remove any non-digit characters and check if we have at least 8 digits
+  const digitsOnly = phoneNumber.replace(/\D/g, '')
+  return digitsOnly.length >= 8
+}
+
+// Helper function to clean phone number (keep only digits)
+const cleanPhoneNumber = (phoneNumber) => {
+  if (!phoneNumber) return ''
+  return phoneNumber.replace(/\D/g, '')
+}
 
 // Helper function to get initials from name
 const getInitials = (name) => {

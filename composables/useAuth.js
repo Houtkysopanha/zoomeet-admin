@@ -1,73 +1,47 @@
-
+// ~/composables/useAuth.js
 const AUTH_COOKIE = 'auth'
 
 export function useAuth() {
+  // Global reactive state (persists across components)
+  const state = useState(AUTH_COOKIE, () => null)
+
   const cookie = useCookie(AUTH_COOKIE, {
     default: () => null,
-    serialize: JSON.stringify,
-    deserialize: JSON.parse,
     httpOnly: false,
-    secure: process.env.NODE_ENV === 'production' && !process.dev,
-    sameSite: 'strict'
+    secure: process.dev ? false : true,
+    sameSite: 'strict',
+    path: '/'
   })
 
-  // Reactive user state
-  const user = ref(cookie.value)
+  // Derived helpers
+  const user = computed(() => state.value?.user || null)
+  const isAuthenticated = computed(() => Boolean(state.value?.access_token))
 
-  // Check if user is authenticated
-  const isAuthenticated = computed(() => {
-    return !!(user.value?.token)
-  })
+  function setAuth(authData) {
+    try {
+      if (!authData?.access_token) {
+        throw new Error('Access token is required for authentication')
+      }
 
-    // Set authentication data
-    function setAuth(authData) {
-      try {
-        // Validate required token
-        if (!authData?.token) {
-          throw new Error('Token is required for authentication')
-        }
+      const expiresAt =
+        authData.expiresAt || getTokenExpirationSafe(authData.access_token)
 
-        // Add timestamp and expiration if not present
-        const enhancedAuthData = {
-          ...authData,
-          loginTime: authData.loginTime || new Date().toISOString(),
-          expiresAt: authData.expiresAt || getTokenExpiration(authData.token)
-        }
+      const enhanced = {
+        ...authData,
+        loginTime: authData.loginTime || new Date().toISOString(),
+        expiresAt
+      }
 
-        // Store in all available storage mechanisms
-        if (process.client) {
-          // First, clear any existing auth data
-          localStorage.removeItem('auth')
-          sessionStorage.removeItem('auth')
-          cookie.value = null
-          user.value = null
+      state.value = enhanced
 
-          // Then set new auth data in all storages
-          const authString = JSON.stringify(enhancedAuthData)
-          localStorage.setItem('auth', authString)
-          sessionStorage.setItem('auth', authString)
-          cookie.value = enhancedAuthData
-          user.value = enhancedAuthData
+      if (process.client) {
+        const json = JSON.stringify(enhanced)
+        localStorage.setItem(AUTH_COOKIE, json)
+        sessionStorage.setItem(AUTH_COOKIE, json)
+        cookie.value = enhanced
 
-          // Verify storage
-          const stored = localStorage.getItem('auth')
-          const parsed = stored ? JSON.parse(stored) : null
-          if (!parsed?.token) {
-            throw new Error('Failed to verify token storage')
-          }
 
-          console.log('✅ Auth data stored successfully:', {
-            token: parsed.token ? 'present' : 'missing',
-            storage: 'all',
-            loginTime: enhancedAuthData.loginTime
-          })
-        }
-        
-        console.log('✅ Auth data set successfully', {
-          token: authData.token ? 'present' : 'missing',
-          loginTime: enhancedAuthData.loginTime,
-          expiresAt: enhancedAuthData.expiresAt
-        })
+      }
     } catch (e) {
       console.error('❌ Failed to set auth data:', e)
       clearAuth()
@@ -75,219 +49,171 @@ export function useAuth() {
     }
   }
 
-  // Clear authentication data
   function clearAuth() {
-    console.log('🗑️ Clearing auth data...')
-    
-    // Clear reactive state
+    state.value = null
     cookie.value = null
-    user.value = null
 
-    // Clear all storage locations
     if (process.client) {
       try {
-        localStorage.removeItem('auth')
-        sessionStorage.removeItem('auth')
-        document.cookie = `${AUTH_COOKIE}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`
-        console.log('✅ Auth data cleared from all storage locations')
+        localStorage.removeItem(AUTH_COOKIE)
+        sessionStorage.removeItem(AUTH_COOKIE)
+        document.cookie = `${AUTH_COOKIE}=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`
       } catch (e) {
         console.error('❌ Error clearing auth data:', e)
       }
     }
   }
 
-  // Get current user token
   function getToken() {
-    return user.value?.token || null
+    return state.value?.access_token || null
   }
 
-  // Get current user info
+  function getRefreshToken() {
+    return state.value?.refresh_token || null
+  }
+
   function getUser() {
-    return user.value?.user || null
+    return state.value?.user || null
   }
 
-  // Initialize auth state from storage
   function initAuth() {
-    if (process.client) {
-      console.log('🔄 Initializing auth state...')
-      let authData = null
+    if (!process.client) return
+    let auth = null
 
-      // Try getting from localStorage first (most reliable)
-      const stored = localStorage.getItem('auth')
-      if (stored) {
-        console.log('📍 Found auth data in localStorage')
+    const ls = localStorage.getItem(AUTH_COOKIE)
+    if (ls) {
+      try {
+        auth = JSON.parse(ls)
+      } catch {}
+    }
+
+    if (!auth?.access_token && cookie.value?.access_token) {
+      auth = cookie.value
+    }
+
+    if (!auth?.access_token) {
+      const ss = sessionStorage.getItem(AUTH_COOKIE)
+      if (ss) {
         try {
-          authData = JSON.parse(stored)
-          // Immediately set in all storages to ensure consistency
-          if (authData?.token) {
-            localStorage.setItem('auth', stored)
-            sessionStorage.setItem('auth', stored)
-            cookie.value = authData
-            user.value = authData
-            console.log('✅ Auth data restored and synchronized')
-            return
-          }
-        } catch (e) {
-          console.error('❌ Failed to parse localStorage auth data:', e)
-        }
+          auth = JSON.parse(ss)
+          console.log('📍 Found auth in sessionStorage')
+        } catch {}
       }
+    }
 
-      // Try cookie as backup
-      if (!authData?.token && cookie.value?.token) {
-        console.log('📍 Found auth data in cookie')
-        authData = cookie.value
-      }
-
-      // Finally try sessionStorage
-      if (!authData?.token) {
-        const sessionStored = sessionStorage.getItem('auth')
-        if (sessionStored) {
-          console.log('📍 Found auth data in sessionStorage')
-          try {
-            authData = JSON.parse(sessionStored)
-          } catch (e) {
-            console.error('❌ Failed to parse sessionStorage auth data:', e)
-          }
-        }
-      }
-
-      // If we found valid auth data, set it
-      if (authData?.token) {
-        try {
-          // Check if token is expired
-          const expiresAt = authData.expiresAt || getTokenExpiration(authData.token)
-          if (expiresAt && new Date() > new Date(expiresAt)) {
-            console.warn('⚠️ Stored token is expired')
-            clearAuth()
-            return
-          }
-
-          user.value = authData
-          cookie.value = authData
-          console.log('✅ Auth state initialized successfully')
-        } catch (e) {
-          console.error('❌ Failed to initialize auth state:', e)
-          clearAuth()
-        }
-      } else {
-        console.log('ℹ️ No valid auth data found during initialization')
+    if (auth?.access_token) {
+      const expiresAt =
+        auth.expiresAt || getTokenExpirationSafe(auth.access_token)
+      if (expiresAt && new Date() > new Date(expiresAt)) {
+        console.warn('⚠️ Token expired; clearing')
         clearAuth()
+        return
       }
+
+      state.value = { ...auth, expiresAt }
+      localStorage.setItem(AUTH_COOKIE, JSON.stringify(state.value))
+      sessionStorage.setItem(AUTH_COOKIE, JSON.stringify(state.value))
+      cookie.value = state.value
+    } else {
+      console.log('ℹ️ No valid auth found; clearing')
+      clearAuth()
     }
   }
 
-  
-
-  // Check if token is expired
   function isTokenExpired() {
-    if (!user.value?.token) return true
-    
-    // If we have expiresAt, use it
-    if (user.value.expiresAt) {
-      const now = new Date()
-      const expiry = new Date(user.value.expiresAt)
-      const isExpired = now >= expiry
-      
-      if (isExpired) {
-        console.warn('⚠️ Token expired:', {
-          now: now.toISOString(),
-          expiry: expiry.toISOString(),
-          expired: isExpired
-        })
-      }
-      
-      return isExpired
+    if (!state.value?.access_token) return true
+    if (state.value.expiresAt) {
+      return new Date() >= new Date(state.value.expiresAt)
     }
-    
-    // Fallback: parse JWT token directly
+    if (!process.client) return true
     try {
-      const token = user.value.token
-      const parts = token.split('.')
-      if (parts.length !== 3) return true
-      
-      const payload = JSON.parse(atob(parts[1]))
-      if (payload.exp) {
+      const payload = parseJwt(state.value.access_token)
+      if (payload?.exp) {
         const now = Math.floor(Date.now() / 1000)
-        const isExpired = now >= payload.exp
-        
-        if (isExpired) {
-          console.warn('⚠️ JWT token expired:', {
-            now: now,
-            exp: payload.exp,
-            expired: isExpired
-          })
-        }
-        
-        return isExpired
+        return now >= payload.exp
       }
     } catch (e) {
-      console.error('❌ Failed to parse JWT token for expiration check:', e)
-      return true
+      console.error('❌ Expiry parse error:', e)
     }
-    
-    return false
+    return true
   }
 
-  // Get time until token expires
   function getTimeUntilExpiry() {
-    if (!user.value?.expiresAt) return null
-    const expiryTime = new Date(user.value.expiresAt)
-    const now = new Date()
-    return Math.max(0, expiryTime.getTime() - now.getTime())
+    if (!state.value?.expiresAt) return null
+    const now = Date.now()
+    const exp = new Date(state.value.expiresAt).getTime()
+    return Math.max(0, exp - now)
   }
 
-  // Check if token should be refreshed (less than 5 minutes remaining)
   function shouldRefreshToken() {
-    const timeUntilExpiry = getTimeUntilExpiry()
-    return timeUntilExpiry !== null && timeUntilExpiry < 5 * 60 * 1000 // 5 minutes in milliseconds
+    const ms = getTimeUntilExpiry()
+    return ms !== null && ms < 5 * 60 * 1000
   }
 
-  // Refresh token (placeholder for actual refresh logic)
   async function refreshToken() {
     try {
-      // For now, this is a placeholder
-      // In a real app, you would call your refresh token endpoint here
       console.log('🔄 Token refresh not implemented yet')
       return false
-    } catch (error) {
-      console.error('❌ Failed to refresh token:', error)
+    } catch (e) {
+      console.error('❌ Refresh failed:', e)
       return false
+    }
+  }
+
+  function logout() {
+    clearAuth()
+    if (process.client) {
+      return navigateTo('/login')
     }
   }
 
   return {
-    user: readonly(user),
+    // state
+    user,
     isAuthenticated,
+
+    // actions
     setAuth,
     clearAuth,
-    getToken,
-    getUser,
     initAuth,
+    refreshToken,
+    logout,
+
+    // getters
+    getToken,
+    getRefreshToken,
+    getUser,
     isTokenExpired,
     getTimeUntilExpiry,
-    shouldRefreshToken,
-    refreshToken
+    shouldRefreshToken
   }
 }
 
-// Helper function to extract expiration from JWT token
-function getTokenExpiration(token) {
-  if (!token) return null
-
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-
-    const payload = JSON.parse(atob(parts[1]))
-    if (payload.exp) {
-      return new Date(payload.exp * 1000).toISOString()
-    }
-  } catch (e) {
-    console.error('Failed to parse token expiration:', e)
+/* -------------------- helpers -------------------- */
+function getTokenExpirationSafe(token) {
+  if (!process.client) {
+    const d = new Date()
+    d.setHours(d.getHours() + 24)
+    return d.toISOString()
   }
+  try {
+    const payload = parseJwt(token)
+    if (payload?.exp) return new Date(payload.exp * 1000).toISOString()
+  } catch {}
+  const d = new Date()
+  d.setHours(d.getHours() + 24)
+  return d.toISOString()
+}
 
-  // Default to 24 hours if no expiration found
-  const defaultExpiry = new Date()
-  defaultExpiry.setHours(defaultExpiry.getHours() + 24)
-  return defaultExpiry.toISOString()
+function parseJwt(jwt) {
+  const parts = String(jwt).split('.')
+  if (parts.length !== 3) throw new Error('Invalid JWT format')
+  const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+  const json = decodeURIComponent(
+    atob(b64)
+      .split('')
+      .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+      .join('')
+  )
+  return JSON.parse(json)
 }

@@ -9,7 +9,7 @@
         </div>
         <div class="flex items-center space-x-4">
           <div v-if="currentEventId" class="text-right">
-            <p class="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-500">Basic Info Saved</p>
+            <p class="py-1 rounded-full text-xs font-medium text-purple-500">Basic Info Saved</p>
             <p class="text-xs text-gray-500">{{ currentEventName }}</p>
           </div>
           <Button
@@ -17,8 +17,8 @@
             :class="[
               'px-4 py-2 rounded-full font-medium transition-all duration-300',
               isSkipped
-                ? 'bg-green-600 text-white hover:bg-green-700'
-                : 'bg-yellow-500 text-white hover:bg-yellow-600'
+                ? 'bg-green-50 text-green-700 border border-green-600 hover:bg-green-100'
+                : 'bg-purple-50 text-purple-600 border border-purple-600 hover:bg-purple-100'
             ]"
           >
             <Icon :name="isSkipped ? 'heroicons:plus' : 'heroicons:x-mark'" class="w-4 h-4 mr-2" />
@@ -703,21 +703,10 @@ const createOrUpdateAgenda = async () => {
         throw new Error('No agenda ID found for update operation')
       }
       
-      console.log('📅 Updating agenda item:', {
-        eventId: currentEventId.value,
-        agendaId: editingAgendaId.value,
-        method: 'PUT',
-        data: agendaData
-      })
       
       response = await updateAgendaItem(currentEventId.value, editingAgendaId.value, agendaData);
     } else {
-      // FIXED: Create new agenda using POST method
-      console.log('📅 Creating new agenda item:', {
-        eventId: currentEventId.value,
-        method: 'POST',
-        data: agendaData
-      })
+
       
       response = await createAgendaItems(currentEventId.value, agendaData);
     }
@@ -732,10 +721,7 @@ const createOrUpdateAgenda = async () => {
     )
 
     if (isSuccess) {
-      console.log('✅ Agenda operation successful:', {
-        isEdit: isEditMode.value,
-        response: response
-      })
+  
       
       toast.add({
         severity: 'success',
@@ -776,21 +762,9 @@ const loadAgendaItems = async () => {
   if (!currentEventId.value) return
 
   try {
-    console.log('📅 Loading agenda items:', {
-      eventId: currentEventId.value,
-      method: 'GET',
-      endpoint: `/admin/events/${currentEventId.value}/agendas`
-    })
     
     const response = await getEventAgenda(currentEventId.value);
     
-    console.log('📅 Agenda load response:', {
-      hasResponse: !!response,
-      hasSuccess: response?.success,
-      hasData: !!response?.data,
-      dataLength: response?.data?.length || 0,
-      responseStructure: Object.keys(response || {})
-    })
     
     // FIXED: Enhanced response handling for different API response structures
     let agendaData = null
@@ -811,7 +785,7 @@ const loadAgendaItems = async () => {
       console.log('✅ Loaded agenda items:', agendaData.length)
     } else {
       agendaItems.value = []
-      console.log('📅 No agenda items found or invalid response structure')
+    
     }
     
   } catch (error) {
@@ -848,13 +822,6 @@ const deleteAgendaAction = (event, agendaId) => {
     },
     accept: async () => {
       try {
-        console.log('📅 Deleting agenda item:', {
-          eventId: currentEventId.value,
-          agendaId: agendaId,
-          method: 'DELETE',
-          endpoint: `/admin/events/${currentEventId.value}/agendas/${agendaId}`
-        })
-        
         const response = await deleteAgenda(currentEventId.value, agendaId);
         
         // FIXED: Enhanced response handling for delete operation
@@ -1176,4 +1143,17 @@ const removeSpeakerField = (index) => {
   opacity: 0;
   transform: translateY(-10px);
 }
+:deep(.p-calendar .p-inputtext) {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+:deep(.p-calendar .p-inputtext:focus) {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
 </style>

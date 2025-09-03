@@ -66,7 +66,7 @@
                 placeholder="31/07/2025 09:00"
                 v-model="formData.startDate"
                 :class="[
-                  'w-full p-3 mt-1 bg-gray-100 rounded-2xl',
+                  'w-full p-3 mt-1 bg-gray-100 ring-0 rounded-2xl',
                   getFieldError('start_date') ? 'border-red-500 border-2' : ''
                 ]"
                 dateFormat="dd/mm/yy"
@@ -236,66 +236,73 @@
         </div>
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div class="">
-            <DataTable :value="formData.chairs" :loading="isLoadingData" stripedRows responsiveLayout="scroll" class="custom-datatable" :emptyMessage="'No chairs added yet'">
-              <Column field="name" header="Name" class="name-column">
-                <template #body="slotProps">
-                  <div class="flex items-center gap-4 py-2">
-                    <div class="relative">
-                      <img
-                        v-if="getChairImageSrc(slotProps.data)"
-                        :src="getChairImageSrc(slotProps.data)"
-                        :alt="slotProps.data.name"
-                        class="w-12 h-12 rounded-full object-cover shadow-md hover:shadow-lg transition-shadow duration-200 border-2 border-gray-200"
-                        @error="handleChairImageError"
-                      />
-                      <Avatar
-                        v-else
-                        :label="slotProps.data.name.charAt(0)"
-                        shape="circle"
-                        size="large"
-                        class="shadow-md hover:shadow-lg transition-shadow duration-200 bg-purple-600 text-white"
-                      />
+            <ClientOnly>
+              <DataTable :value="formData.chairs" :loading="isLoadingData" stripedRows responsiveLayout="scroll" class="custom-datatable" :emptyMessage="'No chairs added yet'">
+                <Column field="name" header="Name" class="name-column">
+                  <template #body="slotProps">
+                    <div class="flex items-center gap-4 py-2">
+                      <div class="relative">
+                        <img
+                          v-if="getChairImageSrc(slotProps.data)"
+                          :src="getChairImageSrc(slotProps.data)"
+                          :alt="slotProps.data.name"
+                          class="w-12 h-12 rounded-full object-cover shadow-md hover:shadow-lg transition-shadow duration-200 border-2 border-gray-200"
+                          @error="handleChairImageError"
+                        />
+                        <Avatar
+                          v-else
+                          :label="slotProps.data.name.charAt(0)"
+                          shape="circle"
+                          size="large"
+                          class="shadow-md hover:shadow-lg transition-shadow duration-200 bg-purple-600 text-white"
+                        />
+                      </div>
+                      <div>
+                        <h3 class="font-semibold text-gray-900 hover:text-purple-600 transition-colors duration-200">
+                          {{ slotProps.data.name }}</h3>
+                        <p class="text-sm text-gray-500">{{ slotProps.data.position }}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 class="font-semibold text-gray-900 hover:text-purple-600 transition-colors duration-200">
-                        {{ slotProps.data.name }}</h3>
-                      <p class="text-sm text-gray-500">{{ slotProps.data.position }}</p>
+                  </template>
+                </Column>
+                <Column field="company" header="Ministry/Company" class="company-column">
+                  <template #body="slotProps">
+                    <span class="text-gray-700 font-medium">{{ slotProps.data.company }}</span>
+                  </template>
+                </Column>
+                <Column header="Action" class="action-column">
+                  <template #body="slotProps">
+                    <div class="flex items-center justify-center gap-2">
+                      <Button icon="pi pi-pencil" text rounded size="small" class="action-btn edit-btn" @click="openChairDialog(slotProps.data, slotProps.index)" title="Edit Chair" />
+                      <span class="text-gray-300">|</span>
+                      <Button icon="pi pi-trash" text rounded size="small" class="action-btn delete-btn" @click="deleteChair(slotProps.index)" title="Delete Chair" />
                     </div>
+                  </template>
+                </Column>
+                <template #empty>
+                  <div class="text-center py-12">
+                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <i class="pi pi-users text-2xl text-gray-400"></i>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">No chairs added yet</h3>
+                    <p class="text-gray-500 mb-6">Add your first chair to get started with event management.</p>
+                    <Button @click="openChairDialog()" class="add-chair-btn">
+                      <i class="pi pi-plus mr-2"></i>
+                      Add First Chair</Button>
                   </div>
                 </template>
-              </Column>
-              <Column field="company" header="Ministry/Company" class="company-column">
-                <template #body="slotProps">
-                  <span class="text-gray-700 font-medium">{{ slotProps.data.company }}</span>
-                </template>
-              </Column>
-              <Column header="Action" class="action-column">
-                <template #body="slotProps">
-                  <div class="flex items-center justify-center gap-2">
-                    <Button icon="pi pi-pencil" text rounded size="small" class="action-btn edit-btn" @click="openChairDialog(slotProps.data, slotProps.index)" title="Edit Chair" />
-                    <span class="text-gray-300">|</span>
-                    <Button icon="pi pi-trash" text rounded size="small" class="action-btn delete-btn" @click="deleteChair(slotProps.index)" title="Delete Chair" />
+                <template #loading>
+                  <div class="flex items-center justify-center py-8">
+                    <ProgressSpinner size="50" strokeWidth="4" fill="transparent" animationDuration="1s" />
                   </div>
                 </template>
-              </Column>
-              <template #empty>
-                <div class="text-center py-12">
-                  <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="pi pi-users text-2xl text-gray-400"></i>
-                  </div>
-                  <h3 class="text-lg font-medium text-gray-900 mb-2">No chairs added yet</h3>
-                  <p class="text-gray-500 mb-6">Add your first chair to get started with event management.</p>
-                  <Button @click="openChairDialog()" class="add-chair-btn">
-                    <i class="pi pi-plus mr-2"></i>
-                    Add First Chair</Button>
-                </div>
-              </template>
-              <template #loading>
+              </DataTable>
+              <template #fallback>
                 <div class="flex items-center justify-center py-8">
-                  <ProgressSpinner size="50" strokeWidth="4" fill="transparent" animationDuration="1s" />
+                  <div class="text-gray-500">Loading chairs...</div>
                 </div>
               </template>
-            </DataTable>
+            </ClientOnly>
           </div>
         </div>
       </section>
@@ -368,6 +375,20 @@ import ProgressSpinner from 'primevue/progressspinner'
 // Import custom components
 import ChairForm from '~/components/common/ChairForm.vue'
 import UploadPhoto from '~/components/common/UploadPhoto.vue'
+
+// UUID generator with fallback for older browsers
+const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  
+  // Fallback UUID v4 generator
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
 
 const toast = useToast()
 const eventStore = useEventStore()
@@ -505,13 +526,15 @@ const loadExistingData = async () => {
         }
       }
 
-      // Restore File objects and create avatars
+      // Restore File objects and create avatars (client-side only)
       formData.chairs.forEach(chair => {
         const fileObject = chairFileObjects.get(chair.id);
         if (fileObject instanceof File) {
           chair.profile_image = fileObject;
-          chair.avatar = URL.createObjectURL(fileObject);
-  
+          // Only create object URLs on client-side
+          if (process.client) {
+            chair.avatar = URL.createObjectURL(fileObject);
+          }
         } else if (chair.profile_image_url) {
           chair.avatar = chair.profile_image_url;
         }
@@ -1207,7 +1230,7 @@ const openChairDialog = (chair = null, index = -1) => {
 }
 
 const ensureLocalKey = (chair) => {
-  if (!chair.localKey) chair.localKey = crypto.randomUUID();
+  if (!chair.localKey) chair.localKey = generateUUID();
   return chair;
 };
 
@@ -1218,7 +1241,7 @@ const handleChairSaved = (chairData) => {
   const existing = isEdit ? formData.chairs[editingChairIndex.value] : null;
 
   // Keep a stable localKey for mapping (do NOT send to API)
-  const localKey = existing?.localKey || crypto.randomUUID();
+  const localKey = existing?.localKey || generateUUID();
 
   const processed = {
     // server id – only if we really have one
@@ -1239,7 +1262,7 @@ const handleChairSaved = (chairData) => {
       : (chairData.profile_image_url ?? existing?.profile_image_url ?? null),
 
     // for preview only
-    avatar: chairData.profile_image instanceof File
+    avatar: chairData.profile_image instanceof File && process.client
       ? URL.createObjectURL(chairData.profile_image)
       : (chairData.avatar ?? existing?.avatar ?? chairData.profile_image_url ?? null),
   };
@@ -1297,9 +1320,10 @@ const getChairImageSrc = (chair) => {
   }
 
   try {
-    // Priority 1: File object (newly uploaded)
-    if (chair.profile_image instanceof File) {
-      return URL.createObjectURL(chair.profile_image);
+    // Priority 1: Avatar URL (pre-created object URL or existing image URL)
+    // This is set during chair creation and should be used first
+    if (chair.avatar && typeof chair.avatar === 'string' && chair.avatar.trim()) {
+      return chair.avatar;
     }
 
     // Priority 2: profile_image_url from API
@@ -1309,9 +1333,11 @@ const getChairImageSrc = (chair) => {
         : `${window.location.origin}${chair.profile_image_url}`;
     }
 
-    // Priority 3: Avatar URL (existing or generated)
-    if (chair.avatar && typeof chair.avatar === 'string' && chair.avatar.trim()) {
-      return chair.avatar;
+    // Priority 3: File object (newly uploaded) - only as fallback
+    // We should avoid creating new object URLs here for performance and consistency
+    if (chair.profile_image instanceof File && process.client) {
+      console.warn('Creating object URL in getChairImageSrc - consider using pre-created avatar URL');
+      return URL.createObjectURL(chair.profile_image);
     }
 
     // Priority 4: Legacy photo field
@@ -1322,6 +1348,7 @@ const getChairImageSrc = (chair) => {
     }
     return null;
   } catch (error) {
+    console.error('Error in getChairImageSrc:', error);
     return null;
   }
 };
@@ -1661,7 +1688,18 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+
 :deep(.p-calendar .p-inputtext) {
-  @apply bg-transparent border-0;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
+
+:deep(.p-calendar .p-inputtext:focus) {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
 </style>

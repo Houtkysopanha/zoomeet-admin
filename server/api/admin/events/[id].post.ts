@@ -24,8 +24,6 @@ export default defineEventHandler(async (event) => {
     // Use runtime config instead of hardcoded URLs
     const externalApiUrl = config.public.apiAdminBaseUrl.replace('/admin', '')
     
-    console.log('🔄 Updating event via server proxy:', eventId)
-    console.log('🔗 External API URL from config:', externalApiUrl)
 
     // Get all headers to debug
     const allHeaders = getHeaders(event)

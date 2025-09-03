@@ -195,24 +195,23 @@ const loadEventData = async () => {
   }
 }
 
+import { formatSingleDate } from '~/utils/dateFormatter'
+
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A'
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
+  return formatSingleDate(dateString)
 }
 
 const formatDateTime = (dateString) => {
   if (!dateString) return 'N/A'
-  return new Date(dateString).toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+  const date = new Date(dateString)
+  const formattedDate = formatSingleDate(dateString)
+  const time = date.toLocaleString('en-US', {
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    hour12: true
   })
+  return `${formattedDate} at ${time}`
 }
 
 const goBack = () => {
