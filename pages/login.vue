@@ -207,7 +207,7 @@ import { useToast } from "primevue/usetoast";
 import Toast from 'primevue/toast';
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue';
 import { classicLoader } from '~/composables/useClassicLoader.js';
-import { Icon } from '@iconify/vue'
+import { Icon } from '@iconify/vue';
 // Images
 import logo1 from '@/assets/image/eticketsasia.png';
 import PhoneNumber from "~/components/PhoneNumber.vue";
@@ -279,7 +279,6 @@ async function handleLogin() {
     const data = await login(identifier, password.value)
     classicLoader.updateProgress(60, 'Verifying account...')
     
-    console.log('🔍 Login response data:', data) // Debug log
     
     let token = null;
     let refreshToken = null;
@@ -312,17 +311,16 @@ async function handleLogin() {
     if (!token) {
       throw new Error("Missing access token in login response. Please check your credentials.");
     }
-    
-    console.log('🔍 Extracted tokens:', { hasToken: !!token, hasRefreshToken: !!refreshToken }) // Debug log
+  
     
     classicLoader.updateProgress(85, 'Loading dashboard...')
     const { setAuth, getToken } = useAuth();
     
     // Store both access token and refresh token
     const authData = { 
-      token, 
-      user,
-      refreshToken: refreshToken || null // Store refresh token if available
+     access_token: token,             // ✅ must match useAuth
+  refresh_token: refreshToken || null, // ✅ must match useAuth
+  user
     };
     
     setAuth(authData);
@@ -358,6 +356,4 @@ async function handleLogin() {
     classicLoader.hide()
   }
 }
-
-
 </script>

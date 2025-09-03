@@ -703,21 +703,10 @@ const createOrUpdateAgenda = async () => {
         throw new Error('No agenda ID found for update operation')
       }
       
-      console.log('📅 Updating agenda item:', {
-        eventId: currentEventId.value,
-        agendaId: editingAgendaId.value,
-        method: 'PUT',
-        data: agendaData
-      })
       
       response = await updateAgendaItem(currentEventId.value, editingAgendaId.value, agendaData);
     } else {
-      // FIXED: Create new agenda using POST method
-      console.log('📅 Creating new agenda item:', {
-        eventId: currentEventId.value,
-        method: 'POST',
-        data: agendaData
-      })
+
       
       response = await createAgendaItems(currentEventId.value, agendaData);
     }
@@ -732,10 +721,7 @@ const createOrUpdateAgenda = async () => {
     )
 
     if (isSuccess) {
-      console.log('✅ Agenda operation successful:', {
-        isEdit: isEditMode.value,
-        response: response
-      })
+  
       
       toast.add({
         severity: 'success',
@@ -776,21 +762,9 @@ const loadAgendaItems = async () => {
   if (!currentEventId.value) return
 
   try {
-    console.log('📅 Loading agenda items:', {
-      eventId: currentEventId.value,
-      method: 'GET',
-      endpoint: `/admin/events/${currentEventId.value}/agendas`
-    })
     
     const response = await getEventAgenda(currentEventId.value);
     
-    console.log('📅 Agenda load response:', {
-      hasResponse: !!response,
-      hasSuccess: response?.success,
-      hasData: !!response?.data,
-      dataLength: response?.data?.length || 0,
-      responseStructure: Object.keys(response || {})
-    })
     
     // FIXED: Enhanced response handling for different API response structures
     let agendaData = null
@@ -811,7 +785,7 @@ const loadAgendaItems = async () => {
       console.log('✅ Loaded agenda items:', agendaData.length)
     } else {
       agendaItems.value = []
-      console.log('📅 No agenda items found or invalid response structure')
+    
     }
     
   } catch (error) {
@@ -848,13 +822,6 @@ const deleteAgendaAction = (event, agendaId) => {
     },
     accept: async () => {
       try {
-        console.log('📅 Deleting agenda item:', {
-          eventId: currentEventId.value,
-          agendaId: agendaId,
-          method: 'DELETE',
-          endpoint: `/admin/events/${currentEventId.value}/agendas/${agendaId}`
-        })
-        
         const response = await deleteAgenda(currentEventId.value, agendaId);
         
         // FIXED: Enhanced response handling for delete operation

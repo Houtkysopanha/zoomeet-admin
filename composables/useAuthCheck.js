@@ -4,7 +4,7 @@ export function checkAuthAndRedirect() {
     const { isTokenExpired, clearAuth } = useAuth()
     
     if (isTokenExpired()) {
-      console.log('🔐 Token expired detected - auto redirecting')
+
       clearAuth()
       window.location.href = '/login?session_expired=true&reason=auto_detected'
       return false

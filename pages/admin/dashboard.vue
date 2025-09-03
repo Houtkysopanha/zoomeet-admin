@@ -140,6 +140,7 @@ import CardCommon from '~/components/common/CardCommon.vue'
 import { useToast } from 'primevue/usetoast'
 import RecentEvent from './RecentEvent.vue'
 import ComingEvent from './ComingEvent.vue'
+const { clearAuth } = useAuth()
 const config = useRuntimeConfig() // add this at the top of script setup
 
 const router = useRouter()
@@ -173,14 +174,20 @@ const handleClickOutside = (event) => {
 
 const logoutWithToast = () => {
   showUserMenu.value = false
+
+  // Clear auth from all storage (cookie, localStorage, sessionStorage)
+  clearAuth()
+
+  // Show toast
   toast.add({
     severity: 'info',
     summary: 'Logged out',
     detail: 'You have been logged out successfully.',
-    life: 3000,
+    life: 2000,
   })
-  localStorage.removeItem('auth')
-  setTimeout(() => router.push('/login'), 1500)
+
+  // Redirect immediately
+  router.push('/login')
 }
 
 const updateDisplay = () => {
@@ -208,7 +215,6 @@ async function fetchUserInfo() {
         const refreshSuccess = await refreshToken()
         if (refreshSuccess) {
           token = getToken() // Get refreshed token
-          console.log('✅ Token refreshed successfully')
         } else {
           throw new Error('Token refresh failed')
         }
@@ -234,8 +240,6 @@ async function fetchUserInfo() {
         'Content-Type': 'application/json'
       },
     })
-
-    console.log('📡 User info API response status:', res.status)
     
     if (res.status === 401) {
       console.log('🔒 API returned 401, clearing auth and redirecting')
@@ -257,7 +261,6 @@ async function fetchUserInfo() {
     }
 
     const data = await res.json()
-    console.log('✅ User info retrieved successfully:', data)
     userName.value = data.name || data.preferred_username || data.email || 'No Name'
     userRole.value = data.role || 'Admin'
   } catch (error) {

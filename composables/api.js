@@ -61,7 +61,6 @@ const createAuthHeaders = async (includeContentType = true) => {
   const token = getAuthToken()
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
-    console.log('🔑 Token added to headers:', token.substring(0, 20) + '...')
   } else {
     console.error('❌ No token found, redirecting to login')
     handleAuthRedirect()
@@ -984,7 +983,7 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
       throw new Error('Authentication required')
     }
     
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}//ticket-types/${ticketTypeId}`, {
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types/${ticketTypeId}`, {
       method: 'PUT',
       body: normalizedData,
       headers // Use JSON Content-Type
@@ -1993,11 +1992,6 @@ export async function createPromotion(eventId, promotionData) {
     if (isNaN(requestData.free_quantity) || requestData.free_quantity < 1) {
       throw new Error('Free quantity must be at least 1')
     }
-    
-    console.log('📅 Create - Formatted dates - Start:', requestData.start_date, 'End:', requestData.end_date)
-
-    console.log('🎯 Creating promotion:', requestData)
-
     const headers = await createAuthHeaders()
     if (!headers) {
       throw new Error('Authentication required')
@@ -2009,7 +2003,6 @@ export async function createPromotion(eventId, promotionData) {
       headers
     })
 
-    console.log('✅ Promotion created successfully:', response)
 
     return {
       success: true,
@@ -2170,7 +2163,6 @@ export async function deletePromotion(eventId, promotionId) {
       }
     )
 
-    console.log('✅ Promotion deleted successfully:', response)
 
     return {
       success: true,
@@ -2208,15 +2200,11 @@ export async function createCoupon(eventId, couponData) {
     const headers = await createAuthHeaders()
     if (!headers) throw new Error('Authentication required')
 
-    console.log('🎫 Creating coupon with data:', couponData)
-
     const response = await $fetch(`${API_ADMIN_BASE_URL}/coupons`, {
       method: 'POST',
       headers,
       body: couponData
     })
-
-    console.log('✅ Coupon created successfully:', response)
 
     return {
       success: true,
@@ -2261,7 +2249,6 @@ export async function getCoupons(eventId) {
     const headers = await createAuthHeaders()
     if (!headers) throw new Error('Authentication required')
 
-    console.log('🎫 Fetching coupons for event:', eventId)
 
     const response = await $fetch(`${API_ADMIN_BASE_URL}/coupons`, {
       method: 'GET',

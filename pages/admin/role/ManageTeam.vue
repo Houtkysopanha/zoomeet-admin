@@ -137,7 +137,7 @@
   scrollable
   responsiveLayout="scroll">
 
-          <Column field="user" header="User" sortable class="text-[14px] border-b border-gray-300">
+          <Column field="user" header="User" sortable class="text-[12px] border-b border-gray-300">
             <template #body="{ data }">
               <div class="flex items-center gap-2">
                 <!-- Avatar image if available, otherwise show initials -->
@@ -161,7 +161,7 @@
               </div>
             </template>
           </Column>
-          <Column field="phoneNumber" header="Phone Number" sortable class="text-[14px] border-b border-gray-300">
+          <Column field="phoneNumber" header="Phone Number" sortable class="text-[12px] border-b border-gray-300">
             <template #body="{ data }">
               <span v-if="isValidPhoneNumber(data.phoneNumber)">
                 +{{ cleanPhoneNumber(data.phoneNumber) }}
@@ -169,8 +169,8 @@
               <span v-else class="text-gray-400">N/A</span>
             </template>
           </Column>
-          <Column field="optionalNote" header="Optional Note" class="text-[14px] border-b border-gray-300"></Column>
-          <Column field="permissions" header="Permissions" class="text-[14px] border-b border-gray-300">
+          <Column field="optionalNote" header="Optional Note" class="text-[12px] border-b border-gray-300"></Column>
+          <Column field="permissions" header="Permissions" class="text-[12px] border-b border-gray-300">
   <template #body="{ data }">
     <div v-if="data.permissions && data.permissions.length > 0" class="flex flex-wrap gap-1">
       <span v-for="perm in data.permissions" :key="perm"
@@ -182,7 +182,7 @@
   </template>
 </Column>
 
-          <Column field="status" header="Status" class="text-[14px] border-b border-gray-300">
+          <Column field="status" header="Status" class="text-[12px] border-b border-gray-300">
             <template #body="{ data }">
               <span :class="['px-2 py-1 rounded-full text-xs font-medium', {
                 'bg-green-100 text-green-700': data.status === 'Active',
@@ -192,7 +192,7 @@
               </span>
             </template>
           </Column>
-          <Column header="Actions" class="text-[14px] border-b border-gray-300">
+          <Column header="Actions" class="text-[12px] border-b border-gray-300">
             <template #body="{ data }">
              <Button
   icon="pi pi-ellipsis-v"
@@ -234,7 +234,6 @@ import Column from 'primevue/column'
 import Dropdown from 'primevue/dropdown'
 import Menu from 'primevue/menu'
 import Button from 'primevue/button'
-import poster from '@/assets/image/poster-manage-booking.png'
 
 import { fetchEventOrganizers, disableEventOrganizer, removeOrganizer, getEventDetails } from '@/composables/api'
 

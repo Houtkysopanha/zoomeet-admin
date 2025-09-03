@@ -78,17 +78,26 @@ export default defineNuxtConfig({
   },
   icon: {
     serverBundle: {
-      collections: ['heroicons', 'mdi', 'ep', 'fluent', 'icon-park-solid'] // include collections you actually use
+      collections: ['heroicons', 'mdi', 'ep', 'fluent', 'icon-park-solid'],
+      // Ensure collections are properly resolved
+      remote: false
     },
     clientBundle: {
       scan: true,
       sizeLimitKb: 256
-    }
+    },
+    // Add provider configuration
+    provider: 'iconify',
+    // Disable CDN fallback in production
+    fallbackToApi: false
   },
   // ...existing code...
   // Enhanced error handling with 404 catch-all
   nitro: {
     // Error handling is now done via pages/[...slug].vue
+    experimental: {
+      wasm: true
+    }
   },
   ssr: true,
    runtimeConfig: {

@@ -1,5 +1,4 @@
 export default defineNuxtPlugin(() => {
-  console.log('🌐 Initializing API plugin...')
   
   const config = useRuntimeConfig()
   

@@ -81,7 +81,6 @@ export function useTokenManager() {
     try {
       // You would implement your token refresh logic here
       // For now, we'll just log and reset attempts on success
-      console.log('🔄 Token refresh would be attempted here')
       refreshAttempts = 0
       
     } catch (error) {

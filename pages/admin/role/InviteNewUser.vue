@@ -504,16 +504,13 @@ const loadCurrentOrganizers = async () => {
       const totalCount = getTotalTeamMembersCount()
       const inactiveCount = totalCount - activeCount
       
-      console.log('🔒 Protection loaded:')
-      console.log(`   - ${activeCount} active team members`)
-      console.log(`   - ${inactiveCount} inactive team members`)
-      console.log(`   - ${totalCount} total members protected`)
+
       
       // Log all team members with their status for debugging
       currentOrganizers.value.forEach(org => {
         const status = org.status || (org.is_active ? 'active' : 'inactive') || 'unknown'
         const roles = org.roles?.map(r => r.role_name).join(', ') || 'No roles'
-        console.log(`👤 ${org.name || org.email} (${status}): ${roles}`)
+
       })
     } else {
       console.warn('No team members found or error:', response.data.message)
@@ -837,7 +834,6 @@ const inviteUser = async () => {
       Object.keys(permissions.value).forEach(cat => permissions.value[cat].enabled = false)
       
       // IMPORTANT: Reload current organizers to update protection data
-      console.log('🔄 Reloading team members for updated protection...')
       await loadCurrentOrganizers()
       
       // Clear search results to force fresh search with new protection data
@@ -930,11 +926,9 @@ const handlePhoneSearch = () => {
         
         // Try searching with different phone formats in order of likelihood
         for (const format of searchFormats) {
-          console.log('🔍 Searching with phone format:', format)
           const results = await searchUsers(format)
           if (results && results.length > 0) {
             searchResults = results
-            console.log('✅ Found', results.length, 'results with format:', format)
             break // Stop searching once we find results
           } else {
             console.log('❌ No results with format:', format)
@@ -947,9 +941,7 @@ const handlePhoneSearch = () => {
         
         if (searchResults.length === 0) {
           console.log('❌ No results found with any phone format for input:', phone)
-          console.log('🔍 Tried formats:', searchFormats)
         } else {
-          console.log('✅ Final results count:', searchResults.length)
         }
       } catch (error) {
         console.error('Phone search error:', error)

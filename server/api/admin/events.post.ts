@@ -7,9 +7,6 @@ export default defineEventHandler(async (event) => {
     // Use runtime config instead of hardcoded URLs
     const externalApiUrl = config.public.apiAdminBaseUrl.replace('/admin', '')
 
-    console.log('🚀 Creating event via server proxy:', externalApiUrl)
-    console.log('🔗 Environment:', config.public.environment)
-
     // Get auth token from headers
     const authHeader = getHeader(event, 'authorization')
     if (!authHeader) {
@@ -27,8 +24,6 @@ export default defineEventHandler(async (event) => {
         'Authorization': authHeader
       }
     })
-
-    console.log('✅ Event created successfully')
     return response
 
   } catch (error: any) {

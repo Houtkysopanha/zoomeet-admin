@@ -938,7 +938,6 @@ const fetchTicketTypes = async (retryCount = 0) => {
     
     if (response?.success && response?.data?.ticket_types) {
       ticketTypes.value = response.data.ticket_types.filter(ticketType => ticketType.is_active)
-      console.log('✅ Ticket types fetched successfully:', ticketTypes.value)
     } else {
       throw new Error('Invalid response format')
     }
@@ -999,11 +998,11 @@ const fetchCoupons = async (forceRefresh = false) => {
       const currentEventCoupons = couponsArray.filter(coupon => {
         const couponEventId = coupon.event_id
         const matches = couponEventId === eventId.value
-        console.log(`🔍 Coupon ${coupon.code}: event_id=${couponEventId}, current=${eventId.value}, matches=${matches}`)
+
         return matches
       })
 
-      console.log(`📊 Total coupons from API: ${couponsArray.length}, Filtered for current event: ${currentEventCoupons.length}`)
+  
 
       // Transform API data to match UI expectations
       vouchers.value = currentEventCoupons.map(coupon => ({
@@ -1025,7 +1024,6 @@ const fetchCoupons = async (forceRefresh = false) => {
         event_id: coupon.event_id // Store event_id for reference
       }))
       
-      console.log('✅ Coupons fetched and filtered for current event:', vouchers.value)
       
       // Update voucher types for filtering
       updateVoucherTypes()
@@ -1269,7 +1267,7 @@ const fetchPromotions = async (forceRefresh = false) => {
     if (response.success && response.data) {
       // Transform backend promotion data to match our UI format
       const backendPromotions = Array.isArray(response.data) ? response.data : []
-      console.log('🔍 Raw promotion data from backend:', backendPromotions)
+
       
       // Validate that all promotions have valid IDs
       const validPromotions = backendPromotions.filter(promotion => {
@@ -1281,7 +1279,6 @@ const fetchPromotions = async (forceRefresh = false) => {
       })
       
       promotions.value = validPromotions.map(promotion => {
-        console.log('🔍 Processing promotion:', promotion)
         return {
           id: promotion.id,
           backendId: promotion.id, // Keep original ID for debugging
@@ -1303,7 +1300,6 @@ const fetchPromotions = async (forceRefresh = false) => {
         }
       })
       
-      console.log('✅ Promotions transformed for UI:', promotions.value)
     }
   } catch (error) {
     console.error('❌ Failed to fetch promotions:', error)
@@ -1379,9 +1375,6 @@ const generateVoucher = async () => {
       expires_at: formatDateForAPI(voucherForm.value.expires_at),
       is_active: voucherForm.value.is_active !== undefined ? voucherForm.value.is_active : true
     }
-
-    console.log('🎫 Creating voucher with data:', couponData)
-
     const response = await createCoupon(eventId.value, couponData)
 
     if (response.success) {
@@ -1417,7 +1410,6 @@ const generateVoucher = async () => {
           // Update filter types
           updateVoucherTypes()
           
-          console.log('✅ Added new voucher to local list:', transformedVoucher)
         }
       }
       
@@ -1496,9 +1488,7 @@ const debugCoupons = async () => {
     console.log('❌ No event ID for debugging')
     return
   }
-  
-  console.log('🔍 DEBUGGING COUPON ENDPOINTS')
-  console.log('Event ID:', eventId.value)
+
   
   // Test direct API calls to understand the issue
   const headers = await createAuthHeaders()
@@ -1512,12 +1502,10 @@ const debugCoupons = async () => {
   
   for (const endpoint of testEndpoints) {
     try {
-      console.log(`🔍 Testing: ${endpoint}`)
       const response = await $fetch(endpoint, {
         method: 'GET',
         headers
       })
-      console.log(`✅ SUCCESS: ${endpoint}`, response)
     } catch (error) {
       console.log(`❌ FAILED: ${endpoint}`, error.status, error.message)
     }
@@ -1609,12 +1597,10 @@ const generateBuyXGetY = async () => {
       end_date: buyXGetYForm.value.endDate || new Date(new Date().getTime() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     }
 
-    console.log('🎯 Creating promotion with data:', promotionData)
 
     const response = await createPromotion(eventId.value, promotionData)
     
     if (response.success) {
-      console.log('✅ Promotion created successfully')
       
       // Refresh promotions list
       await fetchPromotions()
@@ -1675,12 +1661,10 @@ const deleteSelected = async () => {
   }
 
   try {
-    console.log('🗑️ Deleting promotions:', selectedPromotions.map(p => ({ id: p.id, name: p.name })))
     
     for (const promo of selectedPromotions) {
-      console.log(`🗑️ Deleting promotion: ${promo.id} (${promo.name})`)
+
       await deletePromotion(eventId.value, promo.id)
-      console.log(`✅ Successfully deleted promotion: ${promo.id}`)
     }
     
     showSuccess('Selected promotions deleted successfully!')
@@ -1693,20 +1677,12 @@ const deleteSelected = async () => {
 
 // Debug function to test event isolation
 const debugEventIsolation = async () => {
-  console.log('🔍 DEBUGGING EVENT ISOLATION')
-  console.log('Current Event ID:', eventId.value)
-  console.log('Route params:', route.params)
-  console.log('Route query:', route.query)
-  
-  // Show current vouchers in memory
-  console.log('📊 Current vouchers in memory:', vouchers.value.length)
   vouchers.value.forEach((voucher, index) => {
-    console.log(`  ${index + 1}. ${voucher.code} (event_id: ${voucher.event_id}) - Matches current: ${voucher.event_id === eventId.value}`)
   })
   
   // Fetch fresh data and check what comes from API
   try {
-    console.log('🔄 Fetching fresh data from API...')
+
     const response = await getCoupons(eventId.value)
     
     if (response.success && response.data) {
@@ -1718,7 +1694,6 @@ const debugEventIsolation = async () => {
         rawCoupons = response.data.data
       }
       
-      console.log('📡 Raw API response contains:', rawCoupons.length, 'coupons')
       
       // Check event IDs in raw response
       const eventGroups = {}
@@ -1730,7 +1705,7 @@ const debugEventIsolation = async () => {
         eventGroups[eventId].push(coupon.code)
       })
       
-      console.log('📊 Coupons grouped by event_id:')
+
       Object.keys(eventGroups).forEach(eid => {
         const isCurrentEvent = eid === eventId.value
         console.log(`  Event ${eid} ${isCurrentEvent ? '(CURRENT)' : ''}: ${eventGroups[eid].length} coupons - [${eventGroups[eid].join(', ')}]`)
@@ -1770,12 +1745,9 @@ onMounted(async () => {
     }
   }
 
-  console.log('🎯 Event ID found:', eventId.value)
-
   // Watch for route changes and refresh data for new events
   watch(() => route.params.id, async (newEventId, oldEventId) => {
     if (newEventId && newEventId !== oldEventId) {
-      console.log('🔄 Event changed from', oldEventId, 'to', newEventId)
       eventId.value = newEventId
       
       // Clear existing data

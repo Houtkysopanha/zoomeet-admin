@@ -31,7 +31,6 @@ export default defineEventHandler(async (event) => {
     
     if (!authHeader) {
       console.error('❌ No authorization header found in catch-all handler')
-      console.log('📋 Available headers:', Object.keys(allHeaders))
       throw createError({
         statusCode: 401,
         statusMessage: 'Authorization header required'
