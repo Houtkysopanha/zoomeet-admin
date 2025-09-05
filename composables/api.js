@@ -1892,6 +1892,52 @@ export const removeOrganizer = async ({ eventId, userId, token }) => {
   )
 }
 
+// Delete chair from event
+export async function deleteChair(eventId, chairId) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  if (!chairId) {
+    throw new Error('Chair ID is required')
+  }
+
+  // Validate UUID format for event ID
+  if (!validateUUID(eventId)) {
+    throw new Error('Invalid event ID format. Expected UUID format.')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/chairs/${chairId}`, {
+      method: 'DELETE',
+      headers
+    })
+
+    return response
+  } catch (error) {
+    console.error('❌ Failed to delete chair:', error)
+    
+    // Enhanced error handling
+    if (error.status === 404) {
+      throw new Error('Chair not found or already deleted')
+    } else if (error.status === 403) {
+      throw new Error('You do not have permission to delete this chair')
+    } else if (error.status === 409) {
+      throw new Error('Cannot delete chair that is currently in use')
+    }
+    
+    throw error
+  }
+}
+
 export const getEventDetail = async (eventId) => {
   try {
     const config = useRuntimeConfig()

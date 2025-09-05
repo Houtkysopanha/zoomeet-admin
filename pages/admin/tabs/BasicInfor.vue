@@ -348,6 +348,9 @@
 
       <!-- Note: All save and update actions are handled by the main page buttons -->
     </div>
+    
+    <!-- Confirmation Dialog -->
+    <ConfirmDialog />
   </div>
 </template>
 
@@ -355,9 +358,10 @@
 import './css/style.css'
 import { ref, reactive, computed, onMounted, onBeforeUnmount, inject, watch, nextTick } from 'vue'
 import { useToast } from "primevue/usetoast"
+import { useConfirm } from "primevue/useconfirm"
 import { useEventStore } from '~/composables/useEventStore'
 import { useEventTabsStore } from '~/composables/useEventTabs'
-import { fetchCategories } from '~/composables/api'
+import { fetchCategories, deleteChair as deleteChairAPI } from '~/composables/api'
 import { useAuth } from '~/composables/useAuth'
 import { useFormValidation } from '~/composables/useFormValidation'
 
@@ -371,6 +375,7 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Avatar from 'primevue/avatar'
 import ProgressSpinner from 'primevue/progressspinner'
+import ConfirmDialog from 'primevue/confirmdialog'
 
 // Import custom components
 import ChairForm from '~/components/common/ChairForm.vue'
@@ -391,6 +396,7 @@ const generateUUID = () => {
 };
 
 const toast = useToast()
+const confirm = useConfirm()
 const eventStore = useEventStore()
 const tabsStore = useEventTabsStore()
 const { getToken } = useAuth()
@@ -1247,11 +1253,19 @@ const handleChairSaved = (chairData) => {
   const imageWasRemoved = (chairData, existing) => {
     // If editing and both profile_image_url and avatar are explicitly null/empty
     // and no new file was uploaded, then image was intentionally removed
-    return isEdit && 
+    const wasRemoved = isEdit && 
            chairData.profile_image_url === null && 
            (chairData.avatar === '' || chairData.avatar === null) &&
            !(chairData.profile_image instanceof File) &&
            (existing?.profile_image_url || existing?.avatar);
+    
+    if (wasRemoved) {
+      console.log('🗑️ Image removal detected for chair:', chairData.name)
+      console.log('📋 Chair data:', chairData)
+      console.log('📋 Existing data:', existing)
+    }
+    
+    return wasRemoved;
   };
 
   const processed = {
@@ -1316,18 +1330,60 @@ const handleChairSaved = (chairData) => {
 };
 
 
-const deleteChair = (index) => {
-  formData.chairs.splice(index, 1)
+const deleteChair = async (index) => {
+  const chair = formData.chairs[index]
   
-  // Save to tabs store
-  tabsStore.saveTabData(0, { chairs: formData.chairs })
-  tabsStore.markTabModified(0)
-  
-  toast.add({
-    severity: 'success',
-    summary: 'Chair Removed',
-    detail: 'Chair has been removed successfully',
-    life: 2000
+  // Show PrimeVue confirmation dialog
+  confirm.require({
+    message: `Are you sure you want to delete ${chair.name}? This action cannot be undone.`,
+    header: 'Delete Chair',
+    icon: 'pi pi-exclamation-triangle',
+    rejectClass: 'p-button-secondary p-button-outlined',
+    rejectLabel: 'Cancel',
+    acceptLabel: 'Delete',
+    accept: async () => {
+      try {
+        // If chair has an ID and we have an event ID, delete from server first
+        if (chair.id && eventStore.currentEvent?.id) {
+          console.log(`🗑️ Deleting chair ${chair.id} from event ${eventStore.currentEvent.id}`)
+          
+          await deleteChairAPI(eventStore.currentEvent.id, chair.id)
+          
+          toast.add({
+            severity: 'success',
+            summary: 'Chair Deleted',
+            detail: `${chair.name} has been deleted from the server successfully.`,
+            life: 3000
+          })
+        }
+        
+        // Remove from local array
+        formData.chairs.splice(index, 1)
+        
+        // Save to tabs store
+        tabsStore.saveTabData(0, { chairs: formData.chairs })
+        tabsStore.markTabModified(0)
+        
+        // Show success message for local removal
+        if (!chair.id) {
+          toast.add({
+            severity: 'success',
+            summary: 'Chair Removed',
+            detail: 'Chair has been removed successfully',
+            life: 2000
+          })
+        }
+      } catch (error) {
+        console.error('❌ Error deleting chair:', error)
+        
+        toast.add({
+          severity: 'error',
+          summary: 'Delete Failed',
+          detail: error.message || 'Failed to delete chair. Please try again.',
+          life: 4000
+        })
+      }
+    }
   })
 }
 

@@ -184,9 +184,9 @@ watch(() => props.chair, (newChair) => {
       sort_order: newChair.sort_order || 1,
       // FIXED: Only set profile_image if it's actually a File object
       profile_image: newChair.profile_image instanceof File ? newChair.profile_image : null,
-      // Use profile_image_url or avatar for existing images - but exclude placeholders
-      avatar: !isPlaceholderImage(newChair.avatar) ? newChair.avatar : (!isPlaceholderImage(newChair.profile_image_url) ? newChair.profile_image_url : ''),
-      profile_image_url: !isPlaceholderImage(newChair.profile_image_url) ? newChair.profile_image_url : null
+      // FIXED: Preserve removal state - if avatar is empty string and profile_image_url is null, keep it that way
+      avatar: newChair.avatar === '' ? '' : (!isPlaceholderImage(newChair.avatar) ? newChair.avatar : (!isPlaceholderImage(newChair.profile_image_url) ? newChair.profile_image_url : '')),
+      profile_image_url: newChair.profile_image_url === null ? null : (!isPlaceholderImage(newChair.profile_image_url) ? newChair.profile_image_url : null)
     }
   } else {
     // Reset form for new chair
@@ -261,18 +261,26 @@ const saveChair = async () => {
     }
 
     // Create a clean copy of chair data for emitting
-    const chairToSave = {
-      id: chairData.value.id,
-      name: chairData.value.name,
-      position: chairData.value.position,
-      company: chairData.value.company,
-      sort_order: chairData.value.sort_order,
-      profile_image: chairData.value.profile_image,
-      // Preserve existing profile_image_url when editing
-      profile_image_url: chairData.value.profile_image_url,
-      // Only include avatar URL if it's from an existing image (not a new file upload)
-      avatar: chairData.value.profile_image ? null : chairData.value.avatar
-    }
+   const chairToSave = {
+  id: chairData.value.id,
+  name: chairData.value.name,
+  position: chairData.value.position,
+  company: chairData.value.company,
+  sort_order: chairData.value.sort_order,
+  profile_image: chairData.value.profile_image,
+  avatar: chairData.value.avatar,
+  profile_image_url: chairData.value.profile_image_url,
+  image_removed: chairData.value.avatar === '' && !chairData.value.profile_image // 👈 tell API to remove image
+}
+
+    console.log('💾 Saving chair data:', chairToSave)
+    console.log('🖼️ Image state:', {
+      hasFile: chairToSave.profile_image instanceof File,
+      hasAvatar: !!chairToSave.avatar,
+      hasProfileImageUrl: !!chairToSave.profile_image_url,
+      avatarValue: chairToSave.avatar,
+      profileImageUrlValue: chairToSave.profile_image_url
+    })
 
     emit('save', chairToSave)
     
@@ -416,6 +424,18 @@ const handleImageRemoved = () => {
   chairData.value.profile_image = null
   chairData.value.avatar = ''
   chairData.value.profile_image_url = null
+  chairData.value.image_removed = true   // 👈 mark removal
+  
+  cleanupObjectUrls()
+  chairData.value.profile_image = null
+  chairData.value.avatar = ''
+  chairData.value.profile_image_url = null
+  
+  console.log('📋 After removal:', {
+    profile_image: chairData.value.profile_image,
+    avatar: chairData.value.avatar,
+    profile_image_url: chairData.value.profile_image_url
+  })
 }
 
 // Safe image source getter
@@ -447,9 +467,10 @@ const getImageSrc = () => {
     }
     
     // Priority 2: If we have an avatar URL (from existing image or pre-created object URL) - exclude placeholders
-    if (chairData.value.avatar && typeof chairData.value.avatar === 'string' && chairData.value.avatar.trim() && !isPlaceholderImage(chairData.value.avatar)) {
-      return chairData.value.avatar
-    }
+    if (chairData.value.avatar === '' && !chairData.value.profile_image) {
+    chairData.value.profile_image_url = null
+}
+
     
     // Priority 3: If we have a profile_image_url (existing image from API) - exclude placeholders
     if (chairData.value.profile_image_url && typeof chairData.value.profile_image_url === 'string' && chairData.value.profile_image_url.trim() && !isPlaceholderImage(chairData.value.profile_image_url)) {
