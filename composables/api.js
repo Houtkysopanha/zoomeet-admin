@@ -1913,6 +1913,198 @@ export const getEventDetail = async (eventId) => {
   }
 }
 
+// Get event settings
+export async function getEventSettings(eventId) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  if (!validateUUID(eventId)) {
+    throw new Error('Invalid event ID format')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/settings`, {
+      method: 'GET',
+      headers
+    })
+
+    return response
+  } catch (error) {
+    console.error('❌ Failed to get event settings:', error)
+    
+    // If settings don't exist (404), return default structure
+    if (error.status === 404) {
+      return {
+        success: true,
+        data: {
+          registration_dateline: null,
+          qrcode_available_hours: 48,
+          max_ticket_per_person: 5,
+          refund_policy_id: null,
+          ticket_transfer_deadline: null,
+          terms_and_condition: '',
+          special_instructions: '',
+          accept_cash_payment: 0,
+          is_required_age_verification: 0,
+          maximum_age: null,
+          required_identity_document: null
+        }
+      }
+    }
+    
+    throw error
+  }
+}
+
+// Create or update event settings
+export async function saveEventSettings(eventId, settingsData) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  if (!settingsData) {
+    throw new Error('Settings data is required')
+  }
+
+  if (!validateUUID(eventId)) {
+    throw new Error('Invalid event ID format')
+  }
+
+  try {
+    // Validate and normalize settings data to match API specification
+    const normalizedData = {
+      registration_dateline: settingsData.registration_dateline || settingsData.registrationDeadline || null,
+      qrcode_available_hours: parseInt(settingsData.qrcode_available_hours || 48),
+      max_ticket_per_person: parseInt(settingsData.max_ticket_per_person || 5),
+      refund_policy_id: settingsData.refund_policy_id || 
+        (settingsData.refundPolicyOption === 'Full Refund' ? 1 : 
+         settingsData.refundPolicyOption === 'Not Refund' ? 2 : null),
+      ticket_transfer_deadline: settingsData.ticket_transfer_deadline || null,
+      terms_and_condition: settingsData.terms_and_condition || settingsData.termsAndConditions || '',
+      special_instructions: settingsData.special_instructions || settingsData.specialInstructions || '',
+      accept_cash_payment: settingsData.accept_cash_payment !== undefined ? 
+        (settingsData.accept_cash_payment ? 1 : 0) : 0,
+      is_required_age_verification: settingsData.is_required_age_verification !== undefined ? 
+        (settingsData.is_required_age_verification ? 1 : 0) : 
+        (settingsData.requireAgeVerification ? 1 : 0),
+      maximum_age: settingsData.maximum_age || 
+        (settingsData.minimumAgeOptions && typeof settingsData.minimumAgeOptions === 'string' ? 
+          parseInt(settingsData.minimumAgeOptions.replace(/\D/g, '')) : null),
+      required_identity_document: Array.isArray(settingsData.required_identity_document) ? 
+        settingsData.required_identity_document : 
+        (Array.isArray(settingsData.requiredIdentityDocuments) ? 
+          settingsData.requiredIdentityDocuments : 
+          (settingsData.required_identity_document ? [settingsData.required_identity_document] : []))
+    }
+
+    console.log('🔍 Pre-processing data:', {
+      original_required_identity_document: settingsData.required_identity_document,
+      original_requiredIdentityDocuments: settingsData.requiredIdentityDocuments,
+      processed_required_identity_document: normalizedData.required_identity_document
+    })
+
+    // Convert identity documents array to comma-separated string for API
+    if (Array.isArray(normalizedData.required_identity_document) && normalizedData.required_identity_document.length > 0) {
+      // Validate that all values are from the allowed list
+      const allowedValues = ['drivers_license', 'national_id', 'passport', 'student_card']
+      const validDocuments = normalizedData.required_identity_document.filter(doc => 
+        allowedValues.includes(doc)
+      )
+      
+      if (validDocuments.length > 0) {
+        normalizedData.required_identity_document = validDocuments.join(',')
+      } else {
+        console.warn('⚠️ No valid identity documents found, setting to empty string')
+        normalizedData.required_identity_document = ''
+      }
+    } else {
+      normalizedData.required_identity_document = ''
+    }
+
+    console.log('🔍 After identity document conversion:', normalizedData.required_identity_document)
+
+    // Remove empty required_identity_document field if it's empty
+    if (!normalizedData.required_identity_document || normalizedData.required_identity_document === '') {
+      delete normalizedData.required_identity_document
+    }
+
+    // Ensure maximum_age is null when age verification is disabled
+    if (normalizedData.is_required_age_verification === 0) {
+      normalizedData.maximum_age = null
+    }
+
+    // Format dates properly for API
+    if (normalizedData.registration_dateline) {
+      if (normalizedData.registration_dateline instanceof Date) {
+        normalizedData.registration_dateline = normalizedData.registration_dateline.toISOString().slice(0, 19).replace('T', ' ')
+      }
+    }
+
+    if (normalizedData.ticket_transfer_deadline) {
+      if (normalizedData.ticket_transfer_deadline instanceof Date) {
+        normalizedData.ticket_transfer_deadline = normalizedData.ticket_transfer_deadline.toISOString().slice(0, 19).replace('T', ' ')
+      }
+    }
+
+    console.log('💾 Saving event settings:', { eventId, normalizedData })
+    console.log('📤 Final payload being sent to API:', JSON.stringify(normalizedData, null, 2))
+
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/settings`, {
+      method: 'POST',
+      body: normalizedData,
+      headers
+    })
+
+    console.log('✅ Settings saved successfully:', response)
+
+    return response
+  } catch (error) {
+    console.error('❌ Failed to save event settings:', error)
+    
+    // Enhanced error handling
+    if (error.status === 422) {
+      let detailedMessage = 'Settings validation failed:'
+      let validationErrors = {}
+      
+      if (error.data?.errors) {
+        validationErrors = error.data.errors
+        const errorMessages = []
+        Object.entries(error.data.errors).forEach(([field, messages]) => {
+          if (Array.isArray(messages)) {
+            errorMessages.push(`${field}: ${messages.join(', ')}`)
+          } else {
+            errorMessages.push(`${field}: ${messages}`)
+          }
+        })
+        detailedMessage = `Settings validation failed:\n${errorMessages.join('\n')}`
+      } else if (error.data?.message) {
+        detailedMessage = error.data.message
+      }
+      
+      throw new Error(detailedMessage)
+    }
+    
+    throw error
+  }
+}
+
 // Create promotion (Buy X Get Y)
 export async function createPromotion(eventId, promotionData) {
   if (!eventId) {

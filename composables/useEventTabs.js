@@ -54,14 +54,16 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       isComplete: false
     },
     settings: {
-      policies: {},
-      configurations: {},
       registrationDeadline: null,
-      refundPolicy: null,
+      refundPolicyOption: null,
+      maxTicketPerPerson: 5,
+      ticketTransferDeadline: null,
+      qrcodeAvailableHours: '48 hours before event starts',
       termsAndConditions: '',
       specialInstructions: '',
+      acceptCashPayment: false,
       requireAgeVerification: false,
-      minimumAge: null,
+      minimumAgeOptions: null,
       requiredIdentityDocuments: [],
       lastSaved: null,
       isComplete: false
@@ -177,14 +179,16 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
     }
     
     tabData.settings = {
-      policies: {},
-      configurations: {},
       registrationDeadline: null,
-      refundPolicy: null,
+      refundPolicyOption: null,
+      maxTicketPerPerson: 5,
+      ticketTransferDeadline: null,
+      qrcodeAvailableHours: '48 hours before event starts',
       termsAndConditions: '',
       specialInstructions: '',
+      acceptCashPayment: false,
       requireAgeVerification: false,
-      minimumAge: null,
+      minimumAgeOptions: null,
       requiredIdentityDocuments: [],
       lastSaved: null,
       isComplete: false
@@ -504,14 +508,16 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
     } else {
       // Reset settings with event ID
       tabData.settings = {
-        policies: {},
-        configurations: {},
         registrationDeadline: null,
-        refundPolicy: null,
+        refundPolicyOption: null,
+        maxTicketPerPerson: 5,
+        ticketTransferDeadline: null,
+        qrcodeAvailableHours: '48 hours before event starts',
         termsAndConditions: '',
         specialInstructions: '',
+        acceptCashPayment: false,
         requireAgeVerification: false,
-        minimumAge: null,
+        minimumAgeOptions: null,
         requiredIdentityDocuments: [],
         eventId: eventData.id,
         lastSaved: null,
