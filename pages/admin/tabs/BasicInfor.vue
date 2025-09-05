@@ -952,10 +952,10 @@ eventData.chairs = formData.chairs.map((chair, index) => {
         } else if (chair.profile_image instanceof File) {
           // Priority 2: Direct File object on chair
           profileImage = chair.profile_image
-        } else if (chair.profile_image_url) {
-          // Priority 3: Existing image URL from API
-          profileImageUrl = chair.profile_image_url
         } else {
+          // Priority 3: Handle existing URL or explicit removal
+          // FIXED: Always set profileImageUrl to signal intent to API
+          profileImageUrl = chair.profile_image_url || ''  // Empty string signals removal
         }
         
         return {
@@ -1243,6 +1243,17 @@ const handleChairSaved = (chairData) => {
   // Keep a stable localKey for mapping (do NOT send to API)
   const localKey = existing?.localKey || generateUUID();
 
+  // Helper function to check if an image was intentionally removed
+  const imageWasRemoved = (chairData, existing) => {
+    // If editing and both profile_image_url and avatar are explicitly null/empty
+    // and no new file was uploaded, then image was intentionally removed
+    return isEdit && 
+           chairData.profile_image_url === null && 
+           (chairData.avatar === '' || chairData.avatar === null) &&
+           !(chairData.profile_image instanceof File) &&
+           (existing?.profile_image_url || existing?.avatar);
+  };
+
   const processed = {
     // server id – only if we really have one
     id: (chairData.id ?? existing?.id) ?? null,
@@ -1253,18 +1264,22 @@ const handleChairSaved = (chairData) => {
     company: chairData.company || existing?.company || '',
     sort_order: parseInt(chairData.sort_order ?? existing?.sort_order ?? 1) || 1,
 
-    // If a new file was chosen, keep it; else keep URL
+    // Handle image logic properly for removal
     profile_image: chairData.profile_image instanceof File
       ? chairData.profile_image
       : null,
     profile_image_url: chairData.profile_image instanceof File
       ? null
-      : (chairData.profile_image_url ?? existing?.profile_image_url ?? null),
+      : imageWasRemoved(chairData, existing)
+        ? null  // Image was intentionally removed
+        : (chairData.profile_image_url ?? existing?.profile_image_url ?? null),
 
     // for preview only
     avatar: chairData.profile_image instanceof File && process.client
       ? URL.createObjectURL(chairData.profile_image)
-      : (chairData.avatar ?? existing?.avatar ?? chairData.profile_image_url ?? null),
+      : imageWasRemoved(chairData, existing)
+        ? null  // Image was intentionally removed
+        : (chairData.avatar ?? existing?.avatar ?? chairData.profile_image_url ?? null),
   };
 
   if (isEdit) formData.chairs[editingChairIndex.value] = processed;
@@ -1276,6 +1291,9 @@ const handleChairSaved = (chairData) => {
 
   if (processed.profile_image instanceof File) {
     fileMap.set(localKey, processed.profile_image);
+  } else if (imageWasRemoved(chairData, existing)) {
+    // Remove from file map if image was intentionally removed
+    fileMap.delete(localKey);
   }
 
   tabsStore.saveTabData(0, {
@@ -1320,32 +1338,51 @@ const getChairImageSrc = (chair) => {
   }
 
   try {
-    // Priority 1: Avatar URL (pre-created object URL or existing image URL)
-    // This is set during chair creation and should be used first
-    if (chair.avatar && typeof chair.avatar === 'string' && chair.avatar.trim()) {
+    // Helper function to check if URL is a placeholder/default image
+    const isPlaceholderImage = (url) => {
+      if (!url || typeof url !== 'string') return true;
+      const trimmedUrl = url.trim();
+      if (trimmedUrl === '') return true;
+      
+      const lowercaseUrl = trimmedUrl.toLowerCase();
+      return lowercaseUrl === 'null' ||
+             lowercaseUrl === 'undefined' ||
+             lowercaseUrl.includes('default') || 
+             lowercaseUrl.includes('placeholder') || 
+             lowercaseUrl.includes('avatar.png') ||
+             lowercaseUrl.includes('no-image') ||
+             lowercaseUrl.includes('not-found') ||
+             lowercaseUrl.includes('blank') ||
+             lowercaseUrl.includes('empty');
+    };
+
+    // Priority 1: Avatar URL (pre-created object URL or existing image URL from API)
+    // This is set during chair creation and when loading from API
+    if (chair.avatar && typeof chair.avatar === 'string' && chair.avatar.trim() && !isPlaceholderImage(chair.avatar)) {
       return chair.avatar;
     }
 
-    // Priority 2: profile_image_url from API
-    if (chair.profile_image_url && typeof chair.profile_image_url === 'string' && chair.profile_image_url.trim()) {
+    // Priority 2: profile_image_url from API (when avatar is not set)
+    if (chair.profile_image_url && typeof chair.profile_image_url === 'string' && chair.profile_image_url.trim() && !isPlaceholderImage(chair.profile_image_url)) {
       return chair.profile_image_url.startsWith('http')
         ? chair.profile_image_url
         : `${window.location.origin}${chair.profile_image_url}`;
     }
 
-    // Priority 3: File object (newly uploaded) - only as fallback
-    // We should avoid creating new object URLs here for performance and consistency
+    // Priority 3: File object (newly uploaded) - create object URL
+    // This should only happen for new uploads before saving
     if (chair.profile_image instanceof File && process.client) {
       console.warn('Creating object URL in getChairImageSrc - consider using pre-created avatar URL');
       return URL.createObjectURL(chair.profile_image);
     }
 
-    // Priority 4: Legacy photo field
-    if (chair.photo && typeof chair.photo === 'string' && chair.photo.trim()) {
+    // Priority 4: Legacy photo field (fallback) - but exclude placeholders
+    if (chair.photo && typeof chair.photo === 'string' && chair.photo.trim() && !isPlaceholderImage(chair.photo)) {
       return chair.photo.startsWith('http')
         ? chair.photo
         : `${window.location.origin}${chair.photo}`;
     }
+    
     return null;
   } catch (error) {
     console.error('Error in getChairImageSrc:', error);

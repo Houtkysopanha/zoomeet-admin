@@ -414,8 +414,29 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
         ...chair,
         id: chair.id || chair.event_id || 633,
         event_id: chair.event_id || null,
-        profile_image: chair.profile_image_url ? chair.profile_image_url : null,
-        profile_image_url: chair.profile_image_url || null
+        // FIXED: Don't set profile_image to URL string when loading from API
+        // profile_image should only be File objects for new uploads
+        profile_image: null,
+        // ENHANCED: Filter out placeholder/default images AND string literals like "null", "undefined"
+        profile_image_url: chair.profile_image_url && 
+                          typeof chair.profile_image_url === 'string' &&
+                          chair.profile_image_url.trim() !== '' &&
+                          chair.profile_image_url.toLowerCase() !== 'null' &&
+                          chair.profile_image_url.toLowerCase() !== 'undefined' &&
+                          !chair.profile_image_url.toLowerCase().includes('default') && 
+                          !chair.profile_image_url.toLowerCase().includes('placeholder') &&
+                          !chair.profile_image_url.toLowerCase().includes('avatar.png') &&
+                          !chair.profile_image_url.toLowerCase().includes('no-image') ? chair.profile_image_url : null,
+        // Set avatar for display purposes when loading existing images (excluding placeholders)
+        avatar: chair.profile_image_url && 
+                typeof chair.profile_image_url === 'string' &&
+                chair.profile_image_url.trim() !== '' &&
+                chair.profile_image_url.toLowerCase() !== 'null' &&
+                chair.profile_image_url.toLowerCase() !== 'undefined' &&
+                !chair.profile_image_url.toLowerCase().includes('default') && 
+                !chair.profile_image_url.toLowerCase().includes('placeholder') &&
+                !chair.profile_image_url.toLowerCase().includes('avatar.png') &&
+                !chair.profile_image_url.toLowerCase().includes('no-image') ? chair.profile_image_url : null
       })),
       chairFileObjects: tabData.basicInfo?.chairFileObjects || reactive(new Map()), // Preserve existing chairFileObjects
       members: eventData.members || [],

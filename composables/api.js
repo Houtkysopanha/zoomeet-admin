@@ -478,6 +478,9 @@ if (eventData.chairs && Array.isArray(eventData.chairs)) {
     } else if (chair.profile_image_url) {
       // Preserve existing server URL (so backend doesn’t overwrite with null)
       formData.append(`chairs[${index}][profile_image_url]`, chair.profile_image_url);
+    } else {
+      // Explicitly signal image removal by sending empty string
+      formData.append(`chairs[${index}][profile_image_url]`, '');
     }
   });
 }
@@ -812,10 +815,10 @@ export async function updateEvent(eventId, eventData) {
           formData.append(`chairs[${index}][profile_image]`, file);
         } else if (chair.profile_image_url && chair.profile_image_url.trim() !== '') {
           // ✅ Preserve existing server image URL
-       
           formData.append(`chairs[${index}][profile_image_url]`, chair.profile_image_url);
-        } else if (chair.profile_image) {
-
+        } else {
+          // Explicitly signal image removal by sending empty string
+          formData.append(`chairs[${index}][profile_image_url]`, '');
         }
       });
     }
@@ -1466,6 +1469,8 @@ export async function publishEvent(eventId) {
     } else if (chair.profile_image instanceof File) {
       formData.append(`chairs[${index}][profile_image]`, chair.profile_image)
     } else {
+      // Explicitly signal image removal by sending empty string
+      formData.append(`chairs[${index}][profile_image_url]`, '');
     }
   }
 })
@@ -1984,61 +1989,40 @@ export async function saveEventSettings(eventId, settingsData) {
 
   try {
     // Validate and normalize settings data to match API specification
-    const normalizedData = {
-      registration_dateline: settingsData.registration_dateline || settingsData.registrationDeadline || null,
-      qrcode_available_hours: parseInt(settingsData.qrcode_available_hours || 48),
-      max_ticket_per_person: parseInt(settingsData.max_ticket_per_person || 5),
-      refund_policy_id: settingsData.refund_policy_id || 
-        (settingsData.refundPolicyOption === 'Full Refund' ? 1 : 
-         settingsData.refundPolicyOption === 'Not Refund' ? 2 : null),
-      ticket_transfer_deadline: settingsData.ticket_transfer_deadline || null,
-      terms_and_condition: settingsData.terms_and_condition || settingsData.termsAndConditions || '',
-      special_instructions: settingsData.special_instructions || settingsData.specialInstructions || '',
-      accept_cash_payment: settingsData.accept_cash_payment !== undefined ? 
-        (settingsData.accept_cash_payment ? 1 : 0) : 0,
-      is_required_age_verification: settingsData.is_required_age_verification !== undefined ? 
-        (settingsData.is_required_age_verification ? 1 : 0) : 
-        (settingsData.requireAgeVerification ? 1 : 0),
-      maximum_age: settingsData.maximum_age || 
-        (settingsData.minimumAgeOptions && typeof settingsData.minimumAgeOptions === 'string' ? 
-          parseInt(settingsData.minimumAgeOptions.replace(/\D/g, '')) : null),
-      required_identity_document: Array.isArray(settingsData.required_identity_document) ? 
-        settingsData.required_identity_document : 
-        (Array.isArray(settingsData.requiredIdentityDocuments) ? 
-          settingsData.requiredIdentityDocuments : 
-          (settingsData.required_identity_document ? [settingsData.required_identity_document] : []))
-    }
+   // Build normalizedData
+const normalizedData = {
+  registration_dateline: settingsData.registration_dateline || settingsData.registrationDeadline || null,
+  qrcode_available_hours: parseInt(settingsData.qrcode_available_hours || 48),
+  max_ticket_per_person: parseInt(settingsData.max_ticket_per_person || 5),
+  refund_policy_id: settingsData.refund_policy_id || (settingsData.refundPolicy === 'Full Refund' ? 1 : settingsData.refundPolicy === 'Not Refund' ? 2 : null),
+  ticket_transfer_deadline: settingsData.ticket_transfer_deadline || null,
+  terms_and_condition: settingsData.terms_and_condition || settingsData.termsAndConditions || '',
+  special_instructions: settingsData.special_instructions || settingsData.specialInstructions || '',
+  is_required_age_verification: settingsData.is_required_age_verification !== undefined ? 
+    (settingsData.is_required_age_verification ? 1 : 0) : 
+    (settingsData.requireAgeVerification ? 1 : 0),
+  maximum_age: settingsData.maximum_age || (settingsData.minimumAge ? parseInt(settingsData.minimumAge.replace(/\D/g, '')) : null)
+}
 
-    console.log('🔍 Pre-processing data:', {
-      original_required_identity_document: settingsData.required_identity_document,
-      original_requiredIdentityDocuments: settingsData.requiredIdentityDocuments,
-      processed_required_identity_document: normalizedData.required_identity_document
-    })
+// ✅ Fix required_identity_document handling here
+if (Array.isArray(settingsData.required_identity_document)) {
+  normalizedData.required_identity_document = settingsData.required_identity_document
+    .filter(doc => ['driver_license', 'national_id_card', 'passport', 'student_card'].includes(doc))
+    .join(',')
+} else if (Array.isArray(settingsData.requiredIdentityDocuments)) {
+  normalizedData.required_identity_document = settingsData.requiredIdentityDocuments
+    .filter(doc => ['driver_license', 'national_id_card', 'passport', 'student_card'].includes(doc))
+    .join(',')
+} else if (typeof settingsData.required_identity_document === 'string') {
+  normalizedData.required_identity_document = settingsData.required_identity_document
+} else {
+  normalizedData.required_identity_document = ''
+}
 
-    // Convert identity documents array to comma-separated string for API
-    if (Array.isArray(normalizedData.required_identity_document) && normalizedData.required_identity_document.length > 0) {
-      // Validate that all values are from the allowed list
-      const allowedValues = ['drivers_license', 'national_id', 'passport', 'student_card']
-      const validDocuments = normalizedData.required_identity_document.filter(doc => 
-        allowedValues.includes(doc)
-      )
-      
-      if (validDocuments.length > 0) {
-        normalizedData.required_identity_document = validDocuments.join(',')
-      } else {
-        console.warn('⚠️ No valid identity documents found, setting to empty string')
-        normalizedData.required_identity_document = ''
-      }
-    } else {
-      normalizedData.required_identity_document = ''
-    }
-
-    console.log('🔍 After identity document conversion:', normalizedData.required_identity_document)
-
-    // Remove empty required_identity_document field if it's empty
-    if (!normalizedData.required_identity_document || normalizedData.required_identity_document === '') {
-      delete normalizedData.required_identity_document
-    }
+// Remove field if empty string
+if (!normalizedData.required_identity_document) {
+  delete normalizedData.required_identity_document
+}
 
     // Ensure maximum_age is null when age verification is disabled
     if (normalizedData.is_required_age_verification === 0) {

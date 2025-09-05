@@ -22,7 +22,7 @@
           <Dropdown
             v-model="settings.refundPolicyOption"
             :options="refundPolicyOptions"
-            placeholder="Select policy"
+            placeholder="Select Refund policy"
             class="w-full"
           />
         </div>
@@ -57,12 +57,26 @@
       <!-- QR Code Available -->
       <div class="mb-4">
         <label class="block text-sm font-medium text-gray-700 mb-2">QR code available</label>
-        <Dropdown
-          v-model="settings.qrcodeAvailableHours"
-          :options="qrcodeAvailableOptions"
-          placeholder="48 hours before event starts"
-          class="w-full"
-        />
+        <div class="space-y-2">
+          <Dropdown
+            v-model="settings.qrcodeAvailableHours"
+            :options="qrcodeAvailableOptions"
+            placeholder="48 hours before event starts"
+            class="w-full"
+          />
+          <div v-if="settings.qrcodeAvailableHours === 'Custom QR code available'" class="mt-2">
+            <div class="flex items-center space-x-2">
+              <InputNumber
+                v-model="settings.customQrcodeHours"
+                :min="1"
+                :max="8760"
+                placeholder="168"
+                class="flex-1"
+              />
+            </div>
+            <small class="text-gray-500">Enter custom hours (1 week = 168 hours)</small>
+          </div>
+        </div>
       </div>
 
       <!-- Terms and Conditions -->
@@ -122,7 +136,7 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Require Identity Document</label>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Require Identity Document <span class="text-red-600">(Can be tick only1)</span></label>
           <div class="grid grid-cols-2 gap-2">
             <div v-for="doc in identityDocumentOptions" :key="doc.value" class="flex items-center">
               <Checkbox v-model="settings.requiredIdentityDocuments" :value="doc.value" :inputId="doc.value" />
@@ -171,6 +185,7 @@ const settings = ref({
   maxTicketPerPerson: 5,
   ticketTransferDeadline: null,
   qrcodeAvailableHours: '48 hours before event starts',
+  customQrcodeHours: 168, // Default to 1 week (168 hours)
   termsAndConditions: '',
   specialInstructions: '',
   acceptCashPayment: false,
@@ -180,23 +195,23 @@ const settings = ref({
 })
 
 const refundPolicyOptions = ref([
-  'Full Refund', 'Not Refund',
+  'Refund', 'Not Refund',
 ])
 
 const minimumAgeOptions = ref([
-  '18 years old', '19 years old', '20 years old'
+  '16 years old', '17 years old', '18 years old', '19 years old', '20 years old', '21 years old'
 ])
 
 const qrcodeAvailableOptions = ref([
   '24 hours before event starts',
   '48 hours before event starts', 
   '72 hours before event starts',
-  '1 week before event starts'
+  'Custom QR code available'
 ])
 
 const identityDocumentOptions = ref([
-  { label: 'Driver\'s License', value: 'drivers_license' },
-  { label: 'National ID Card', value: 'national_id' },
+  { label: 'Driver\'s License', value: 'driver_license' },
+  { label: 'National ID Card', value: 'national_id_card' },
   { label: 'Passport', value: 'passport' },
   { label: 'Student Card', value: 'student_card' }
 ])
@@ -257,12 +272,18 @@ const loadSettingsFromAPI = async () => {
       // Map API data to component format
       settings.value = {
         registrationDeadline: parseAPIDate(apiData.registration_dateline),
-        refundPolicyOption: apiData.refund_policy_id === 1 ? 'Full Refund' : 
+        refundPolicyOption: apiData.refund_policy_id === 1 ? 'Refund' : 
                            apiData.refund_policy_id === 2 ? 'Not Refund' : null,
         maxTicketPerPerson: apiData.max_ticket_per_person || 5,
         ticketTransferDeadline: parseAPIDate(apiData.ticket_transfer_deadline),
-        qrcodeAvailableHours: apiData.qrcode_available_hours ? 
-          `${apiData.qrcode_available_hours} hours before event starts` : '48 hours before event starts',
+        qrcodeAvailableHours: (() => {
+          const hours = apiData.qrcode_available_hours || 48
+          if (hours === 24) return '24 hours before event starts'
+          if (hours === 48) return '48 hours before event starts'
+          if (hours === 72) return '72 hours before event starts'
+          return 'Custom QR code available'
+        })(),
+        customQrcodeHours: apiData.qrcode_available_hours || 168,
         termsAndConditions: apiData.terms_and_condition || '',
         specialInstructions: apiData.special_instructions || '',
         acceptCashPayment: Number(apiData.accept_cash_payment) === 1,
@@ -332,13 +353,25 @@ const saveSettingsToAPI = async () => {
     // Convert component format to API format
     const apiData = {
       registration_dateline: formatDateForAPI(settings.value.registrationDeadline),
-      refund_policy_id: settings.value.refundPolicyOption === 'Full Refund' ? 1 : 
+      refund_policy_id: settings.value.refundPolicyOption === 'Refund' ? 1 : 
                        settings.value.refundPolicyOption === 'Not Refund' ? 2 : null,
       max_ticket_per_person: parseInt(settings.value.maxTicketPerPerson) || 5,
       ticket_transfer_deadline: formatDateForAPI(settings.value.ticketTransferDeadline),
-      qrcode_available_hours: settings.value.qrcodeAvailableHours ? 
-        (settings.value.qrcodeAvailableHours.match && settings.value.qrcodeAvailableHours.match(/\d+/) ? 
-          parseInt(settings.value.qrcodeAvailableHours.match(/\d+/)[0]) : 48) : 48,
+      qrcode_available_hours: (() => {
+        if (settings.value.qrcodeAvailableHours === 'Custom QR code available') {
+          return parseInt(settings.value.customQrcodeHours) || 168
+        }
+        const match = settings.value.qrcodeAvailableHours?.match(/(\d+)/)
+        if (match) {
+          const hours = parseInt(match[1])
+          // Convert "1 week" to 168 hours
+          if (settings.value.qrcodeAvailableHours.includes('week')) {
+            return hours * 7 * 24
+          }
+          return hours
+        }
+        return 48 // Default
+      })(),
       terms_and_condition: settings.value.termsAndConditions || '',
       special_instructions: settings.value.specialInstructions || '',
       accept_cash_payment: settings.value.acceptCashPayment ? 1 : 0,
@@ -350,7 +383,7 @@ const saveSettingsToAPI = async () => {
         settings.value.requiredIdentityDocuments : []
     }
 
-    console.log('� Original settings values:', {
+    console.log('📊 Original settings values:', {
       registrationDeadline: settings.value.registrationDeadline,
       registrationDeadlineType: typeof settings.value.registrationDeadline,
       registrationDeadlineValid: settings.value.registrationDeadline instanceof Date ? !isNaN(settings.value.registrationDeadline.getTime()) : 'not a Date',
@@ -359,7 +392,7 @@ const saveSettingsToAPI = async () => {
       ticketTransferDeadlineValid: settings.value.ticketTransferDeadline instanceof Date ? !isNaN(settings.value.ticketTransferDeadline.getTime()) : 'not a Date'
     })
     
-    console.log('�📤 Sending to API:', apiData)
+    console.log('📤 Sending to API:', apiData)
     console.log('🔍 Age verification logic:', {
       requireAgeVerification: settings.value.requireAgeVerification,
       minimumAgeOptions: settings.value.minimumAgeOptions,
@@ -426,6 +459,7 @@ const handleSaveCurrentTab = (event) => {
     maxTicketPerPerson: settings.value.maxTicketPerPerson,
     ticketTransferDeadline: settings.value.ticketTransferDeadline,
     qrcodeAvailableHours: settings.value.qrcodeAvailableHours,
+    customQrcodeHours: settings.value.customQrcodeHours,
     termsAndConditions: settings.value.termsAndConditions,
     specialInstructions: settings.value.specialInstructions,
     acceptCashPayment: settings.value.acceptCashPayment,
@@ -455,6 +489,7 @@ watch(settings, () => {
       maxTicketPerPerson: settings.value.maxTicketPerPerson,
       ticketTransferDeadline: settings.value.ticketTransferDeadline,
       qrcodeAvailableHours: settings.value.qrcodeAvailableHours,
+      customQrcodeHours: settings.value.customQrcodeHours,
       termsAndConditions: settings.value.termsAndConditions,
       specialInstructions: settings.value.specialInstructions,
       acceptCashPayment: settings.value.acceptCashPayment,
@@ -525,10 +560,11 @@ watch(() => props.eventId || eventCreationState.eventId.value, async (newEventId
       // Load tab data into settings
       settings.value = {
         registrationDeadline: safeParseDateFromTab(tabData.registrationDeadline),
-        refundPolicyOption: tabData.refundPolicyOption || 'Full Refund',
+        refundPolicyOption: tabData.refundPolicyOption || null,
         maxTicketPerPerson: tabData.maxTicketPerPerson || 5,
         ticketTransferDeadline: safeParseDateFromTab(tabData.ticketTransferDeadline),
-        qrcodeAvailableHours: tabData.qrcodeAvailableHours || '48 hours before event',
+        qrcodeAvailableHours: tabData.qrcodeAvailableHours || '48 hours before event starts',
+        customQrcodeHours: tabData.customQrcodeHours || 168,
         termsAndConditions: tabData.termsAndConditions || '',
         specialInstructions: tabData.specialInstructions || '',
         acceptCashPayment: tabData.acceptCashPayment || false,
@@ -570,6 +606,7 @@ onMounted(async () => {
         maxTicketPerPerson: settingsData.maxTicketPerPerson || 5,
         ticketTransferDeadline: safeParseDateFromStorage(settingsData.ticketTransferDeadline),
         qrcodeAvailableHours: settingsData.qrcodeAvailableHours || '48 hours before event starts',
+        customQrcodeHours: settingsData.customQrcodeHours || 168,
         termsAndConditions: settingsData.termsAndConditions || '',
         specialInstructions: settingsData.specialInstructions || '',
         acceptCashPayment: settingsData.acceptCashPayment || false,
@@ -636,5 +673,17 @@ onUnmounted(() => {
 
 :deep(.p-checkbox.p-highlight .p-checkbox-box .p-checkbox-icon) {
   @apply text-purple-600; /* Make the checkmark purple */
+}
+:deep(.p-calendar .p-inputtext) {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+:deep(.p-calendar .p-inputtext:focus) {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 </style>

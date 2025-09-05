@@ -99,17 +99,51 @@ const displayImageSrc = computed(() => {
     return props.eventData.event_background_url
   }
   
-  // Priority 5: First chair image with profile_image_url
+  // Priority 5: First chair image with profile_image_url (excluding placeholders)
   if (props.chairs && props.chairs.length > 0) {
-    const chairWithImage = props.chairs.find(chair => chair.profile_image_url)
+    const chairWithImage = props.chairs.find(chair => {
+      if (!chair.profile_image_url || typeof chair.profile_image_url !== 'string') return false;
+      const trimmedUrl = chair.profile_image_url.trim();
+      if (trimmedUrl === '') return false;
+      
+      const lowercaseUrl = trimmedUrl.toLowerCase();
+      const isPlaceholder = lowercaseUrl === 'null' ||
+                           lowercaseUrl === 'undefined' ||
+                           lowercaseUrl.includes('default') || 
+                           lowercaseUrl.includes('placeholder') || 
+                           lowercaseUrl.includes('avatar.png') ||
+                           lowercaseUrl.includes('no-image') ||
+                           lowercaseUrl.includes('not-found') ||
+                           lowercaseUrl.includes('blank') ||
+                           lowercaseUrl.includes('empty');
+      return !isPlaceholder;
+    });
+    
     if (chairWithImage) {
       return chairWithImage.profile_image_url
     }
   }
   
-  // Priority 6: Event data chairs
+  // Priority 6: Event data chairs (excluding placeholders)
   if (props.eventData?.chairs && props.eventData.chairs.length > 0) {
-    const chairWithImage = props.eventData.chairs.find(chair => chair.profile_image_url)
+    const chairWithImage = props.eventData.chairs.find(chair => {
+      if (!chair.profile_image_url || typeof chair.profile_image_url !== 'string') return false;
+      const trimmedUrl = chair.profile_image_url.trim();
+      if (trimmedUrl === '') return false;
+      
+      const lowercaseUrl = trimmedUrl.toLowerCase();
+      const isPlaceholder = lowercaseUrl === 'null' ||
+                           lowercaseUrl === 'undefined' ||
+                           lowercaseUrl.includes('default') || 
+                           lowercaseUrl.includes('placeholder') || 
+                           lowercaseUrl.includes('avatar.png') ||
+                           lowercaseUrl.includes('no-image') ||
+                           lowercaseUrl.includes('not-found') ||
+                           lowercaseUrl.includes('blank') ||
+                           lowercaseUrl.includes('empty');
+      return !isPlaceholder;
+    });
+    
     if (chairWithImage) {
       return chairWithImage.profile_image_url
     }

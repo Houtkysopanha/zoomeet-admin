@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen flex bg-[#F8F8FF] flex-col items-center p-6 overflow-y-hidden">
     <div
-      class="relative w-full bg-gradient-to-r from-[#6A3ABF] to-[#A060F0] py-20 text-center rounded-3xl shadow-xl overflow-hidden transform transition-all duration-500 hover:scale-[1.02]"
+      class="relative w-full bg-gradient-to-r from-[#6A3ABF] to-[#A060F0] py-20 text-center rounded-3xl shadow-xl transform transition-all duration-500 hover:scale-[1.02]"
     >
       <Icon name="heroicons:ticket" class="absolute top-8 left-10 text-white/20 w-12 h-12 animate-pulse" />
       <Icon name="heroicons:ticket" class="absolute top-1/2 left-20 text-white/20 w-16 h-16 animate-spin-slow" />
