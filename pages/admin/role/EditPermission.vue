@@ -47,12 +47,20 @@
           </div>
           <h2 class="text-xl font-semibold text-gray-900 my-4">{{ userInfo.name }}</h2>
           <div class="flex space-x-4 text-sm">
+            <template v-if="userInfo.services && userInfo.services.length > 0">
+              <span 
+                v-for="(service, idx) in userInfo.services" 
+                :key="idx"
+                class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full"
+              >
+                {{ service }}
+              </span>
+            </template>
             <span 
-              v-for="(service, idx) in userInfo.services" 
-              :key="idx"
-              class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full"
+              v-else
+              class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full"
             >
-              {{ service }}
+              No roles assigned
             </span>
           </div>
         </div>
@@ -145,6 +153,20 @@
   </div>
 </template>
 
+          <!-- Show message when user has no permissions yet -->
+          <div v-if="(!userInfo.services || userInfo.services.length === 0) && Object.keys(permissions).length > 0" class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+            <div class="flex items-start space-x-3">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+              </svg>
+              <div class="flex-1">
+                <h4 class="text-sm font-medium text-amber-800 mb-1">No Permissions Assigned</h4>
+                <p class="text-sm text-amber-700">
+                  This user was invited without specific permissions. You can now assign roles by enabling the permissions below.
+                </p>
+              </div>
+            </div>
+          </div>
 
           <div v-if="Object.keys(availablePermissions).length === 0" class="text-center py-8">
             <p class="text-gray-500">No permissions available</p>
@@ -236,13 +258,13 @@ const loadUserData = async () => {
       phone: userData.phone_number,
       inviteDate: userData.created_at,
       updateDate: userData.updated_at,
-      services: userData.roles.map(formatCategoryName),
+      services: userData.roles ? userData.roles.map(formatCategoryName) : [],
       isActive: userData.is_active == 1  // <-- convert 0/1 to boolean
     }
 
     // Enable permissions based on user roles
     Object.keys(permissions.value).forEach(category => {
-      permissions.value[category].enabled = userData.roles.includes(category)
+      permissions.value[category].enabled = userData.roles && userData.roles.includes(category)
     })
   } catch (error) {
     toast.add({ severity: 'error', summary: 'Error', detail: error.message, life: 4000 })

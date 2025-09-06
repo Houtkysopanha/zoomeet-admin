@@ -178,7 +178,16 @@
         {{ perm }}
       </span>
     </div>
-    <span v-else class="text-gray-400 text-xs">No permissions assigned</span>
+    <div v-else class="flex items-center gap-2">
+      <span class="text-gray-400 text-xs">No permissions assigned</span>
+      <button 
+        @click="editPermission(data)"
+        class="text-purple-600 hover:text-purple-800 text-xs underline"
+        title="Assign permissions"
+      >
+        Assign
+      </button>
+    </div>
   </template>
 </Column>
 

@@ -182,7 +182,7 @@
         <div
           :class="[
             'rounded-2xl lg:rounded-3xl transition-all duration-300 ease-in-out',
-            activeIndex === 1 ? '' : 'bg-white shadow-lg p-3 lg:p-4'
+            activeIndex === 1 ? '' : 'bg-white p-3 lg:p-4'
           ]"
         >
           <!-- Render all components with smooth fade transitions -->

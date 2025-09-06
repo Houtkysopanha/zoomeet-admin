@@ -252,8 +252,8 @@
       </div>
 
       <div class="bg-white rounded-2xl p-10">
-        <h2 class="text-xl font-semibold mb-2">Role Assignment</h2>
-        <p class="text-sm text-gray-500 mb-6">Pick a permission for the team to access the team coordinator.</p>
+        <h2 class="text-xl font-semibold mb-2">Role Assignment (Optional)</h2>
+        <p class="text-sm text-gray-500 mb-6">Pick permissions for the team to access the team coordinator. You can also invite users without roles and assign them later.</p>
 
         <!-- Loading state for permissions -->
         <div v-if="permissionsLoading" class="flex justify-center items-center py-8">
@@ -263,6 +263,22 @@
 
         <!-- Dynamic permission categories -->
         <div v-else class="space-y-4">
+          <!-- Info note about optional permissions -->
+          <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+            <div class="flex items-start space-x-3">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+              </svg>
+              <div class="flex-1">
+                <h4 class="text-sm font-medium text-blue-800 mb-1">Permission Assignment</h4>
+                <p class="text-sm text-blue-700">
+                  You can invite users without assigning permissions and set their roles later. 
+                  Alternatively, assign permissions now to give immediate access to specific features.
+                </p>
+              </div>
+            </div>
+          </div>
+          
           <div 
             v-for="(categoryPermissions, category) in availablePermissions" 
             :key="category"
@@ -779,16 +795,15 @@ const inviteUser = async () => {
     return
   }
 
-  // Validation: Check if permissions are selected
+  // Note: Permissions are now optional - users can be invited without roles and assigned later
   const hasPermissions = Object.values(permissions.value).some(perm => perm.enabled)
   if (!hasPermissions) {
     toast.add({
-      severity: 'error',
-      summary: 'Validation Error',
-      detail: 'Please select at least one permission for the user',
-      life: 4000
+      severity: 'info',
+      summary: 'Inviting Without Permissions',
+      detail: 'User will be invited without specific permissions. You can assign roles later from the Manage Team page.',
+      life: 5000
     })
-    return
   }
 
   // ADDITIONAL PROTECTION: Final check before API call
@@ -815,16 +830,21 @@ const inviteUser = async () => {
     note: newUser.value.note || null
   })),
   permissions: permissions.value,
+  hasPermissions: hasPermissions,  // Pass permission status to API
   token
 })
 
 
     if (data.success) {
+      const successMessage = hasPermissions 
+        ? `Invitation sent to ${selectedUsers.value.map(u => u.name).join(', ')} with assigned permissions`
+        : `Invitation sent to ${selectedUsers.value.map(u => u.name).join(', ')}. You can assign permissions later from Manage Team.`
+        
       toast.add({
         severity: 'success',
         summary: 'Invitation Sent Successfully',
-        detail: `Invitation sent to ${selectedUsers.value.map(u => u.name).join(', ')}`,
-        life: 4000
+        detail: successMessage,
+        life: 5000
       })
       
       // Reset all form data
