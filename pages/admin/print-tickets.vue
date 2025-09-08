@@ -64,7 +64,7 @@
                   >
                 </div>
                 <!-- Event Title Overlay -->
-                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-b from-white/50 to-[#1D2346] p-4">
                   <h3 class="text-white font-semibold text-sm leading-tight">{{ ticket.eventTitle }}</h3>
                   <p class="text-white/80 text-xs mt-1">Owner: {{ ticket.owner }}</p>
                 </div>

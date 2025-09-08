@@ -16,11 +16,11 @@
         Search by booking reference, phone number, or ID to verify ticket holder identity
       </p>
       <div class="absolute -bottom-8 left-1/2 -translate-x-1/2 z-20 w-full max-w-5xl">
-        <div class="flex w-full bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="flex w-full bg-[#F8F8FF] rounded-xl shadow-lg overflow-hidden">
           <InputText
             v-model="generalSearchQuery"
             placeholder="Search identity tickets"
-            class="flex-1 p-5 text-lg border-none focus:ring-2 focus:ring-purple-500 focus:outline-none rounded-l-xl placeholder-gray-400"
+            class="flex-1 p-5 bg-[#F8F8FF] text-lg border-none focus:ring-2 focus:ring-purple-500 focus:outline-none rounded-l-xl placeholder-gray-400"
             @keyup.enter="performGeneralSearch"
           />
           <Button
@@ -38,7 +38,7 @@
     <div class="flex-1 w-full mt-12 p-2">
       <Transition name="slide-fade" mode="out-in">
         <!-- Search Form with Tabs -->
-        <div v-if="!searchPerformed && showSearchForm" key="searchForm" class="bg-white rounded-xl shadow-lg p-6 max-w-5xl mx-auto">
+        <div v-if="!searchPerformed && showSearchForm" key="searchForm" class="bg-[#F8F8FF] rounded-xl shadow-lg p-6 max-w-5xl mx-auto">
           <!-- Tab Navigation -->
           <div class="flex w-full mb-4 border-b border-gray-200">
             <button
@@ -238,7 +238,7 @@
                       </span>
                     </div>
                     <!-- Event Title Overlay -->
-                    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-b from-white/50 to-[#1D2346] p-4">
                       <h3 class="text-white font-semibold text-sm leading-tight">{{ result.eventTitle }}</h3>
                       <p class="text-white/80 text-xs mt-1">Owner: {{ result.owner }}</p>
                     </div>
