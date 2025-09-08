@@ -17,12 +17,9 @@
       </p>
       <div class="absolute -bottom-8 left-1/2 -translate-x-1/2 z-20 w-full max-w-5xl">
         <div class="flex w-full bg-[#F8F8FF] rounded-xl shadow-lg overflow-hidden">
-          <InputText
-            v-model="generalSearchQuery"
-            placeholder="Search identity tickets"
-            class="flex-1 p-5 bg-[#F8F8FF] text-lg border-none focus:ring-2 focus:ring-purple-500 focus:outline-none rounded-l-xl placeholder-gray-400"
-            @keyup.enter="performGeneralSearch"
-          />
+          <div class="flex-1 p-5 bg-[#F8F8FF] text-lg border-none rounded-l-xl text-gray-400 cursor-default select-none text-left">
+            Search identity tickets
+          </div>
           <Button
             v-if="!showSearchForm"
             label="Search"
