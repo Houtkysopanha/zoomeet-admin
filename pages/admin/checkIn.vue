@@ -497,6 +497,14 @@
             <p class="text-gray-600 text-sm mt-1">Complete Ticket Holder's Information</p>
           </div>
 
+          <!-- General Error Message -->
+          <div v-if="assignFormErrors.general" class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div class="flex items-center">
+              <Icon name="heroicons:exclamation-triangle" class="w-5 h-5 text-red-500 mr-2" />
+              <span class="text-red-700 text-sm font-medium">{{ assignFormErrors.general }}</span>
+            </div>
+          </div>
+
           <!-- Name Field -->
           <div>
             <label class="block text-gray-700 text-sm font-medium mb-2">Name <span class="text-red-500">*</span></label>
@@ -523,17 +531,17 @@
                 <span class="text-sm font-medium">+855</span>
               </div>
               <InputText
-                v-model="assignForm.phoneNumber"
+                v-model="assignForm.phone_number"
                 placeholder="97 6028 424"
                 :class="[
                   'flex-1 p-3 border rounded-r-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none',
-                  assignFormErrors.phoneNumber ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                  assignFormErrors.phone_number ? 'border-red-300 bg-red-50' : 'border-gray-300'
                 ]"
               />
             </div>
-            <div v-if="assignFormErrors.phoneNumber" class="mt-1 text-red-600 text-sm flex items-center">
+            <div v-if="assignFormErrors.phone_number" class="mt-1 text-red-600 text-sm flex items-center">
               <Icon name="heroicons:exclamation-circle" class="w-4 h-4 mr-1" />
-              {{ assignFormErrors.phoneNumber }}
+              {{ assignFormErrors.phone_number }}
             </div>
           </div>
 
@@ -554,32 +562,33 @@
             </div>
           </div>
 
-          <!-- Identity Document Section -->
-          <div>
+          <!-- Identity Document Section (Hidden with opacity) -->
+          <div class="opacity-30 pointer-events-none">
             <h3 class="text-lg font-semibold text-gray-900 mb-2">Identity Document</h3>
             <p class="text-gray-500 text-sm mb-4">We will need your ID to verify that you are over 18 years old</p>
             
-            <label class="block text-gray-700 text-sm font-medium mb-2">ID Card/Passport number <span class="text-red-500">*</span></label>
+            <label class="block text-gray-700 text-sm font-medium mb-2">ID Card/Passport number</label>
             <InputText
-              v-model="assignForm.idNumber"
+              v-model="assignForm.id_card_no"
               placeholder="e.g. 1100546873"
+              disabled
               :class="[
-                'w-full p-3 rounded-lg border focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none',
-                assignFormErrors.idNumber ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                'w-full p-3 rounded-lg border focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none bg-gray-100 cursor-not-allowed',
+                assignFormErrors.id_card_no ? 'border-red-300 bg-red-50' : 'border-gray-300'
               ]"
             />
-            <div v-if="assignFormErrors.idNumber" class="mt-1 text-red-600 text-sm flex items-center">
+            <div v-if="assignFormErrors.id_card_no" class="mt-1 text-red-600 text-sm flex items-center">
               <Icon name="heroicons:exclamation-circle" class="w-4 h-4 mr-1" />
-              {{ assignFormErrors.idNumber }}
+              {{ assignFormErrors.id_card_no }}
             </div>
           </div>
 
-          <!-- Upload Identity Section -->
-          <div>
+          <!-- Upload Identity Section (Hidden with opacity) -->
+          <div class="opacity-30 pointer-events-none">
             <label class="block text-gray-700 text-sm font-medium mb-2">Upload Identity</label>
-            <div class="border-2 border-dashed border-purple-300 rounded-lg p-8 text-center bg-purple-50">
-              <Icon name="heroicons:photo" class="w-12 h-12 text-purple-400 mx-auto mb-3" />
-              <p class="text-gray-600 mb-2">Drop your image here, or <span class="text-purple-600 font-medium cursor-pointer">browse</span></p>
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-gray-50">
+              <Icon name="heroicons:photo" class="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <p class="text-gray-400 mb-2">Drop your image here, or <span class="text-gray-400 font-medium">browse</span></p>
               <p class="text-gray-400 text-xs">*Maximum file size: below 10MB</p>
               <p class="text-gray-400 text-xs">*Banner resolution must be 1920 Width x 1440 Height</p>
             </div>
@@ -782,24 +791,26 @@ watch(email, () => {
 // Assign form fields
 const assignForm = ref({
   name: '',
-  phoneNumber: '',
+  phone_number: '',
   email: '',
-  idNumber: ''
+  id_card_no: ''
 })
 
 const assignFormErrors = ref({
   name: '',
-  phoneNumber: '',
+  phone_number: '',
   email: '',
-  idNumber: ''
+  id_card_no: '',
+  general: ''
 })
 
 const validateAssignForm = () => {
   assignFormErrors.value = {
     name: '',
-    phoneNumber: '',
+    phone_number: '',
     email: '',
-    idNumber: ''
+    id_card_no: '',
+    general: ''
   }
   
   let isValid = true
@@ -814,11 +825,11 @@ const validateAssignForm = () => {
   }
 
   // Phone number validation
-  if (!assignForm.value.phoneNumber.trim()) {
-    assignFormErrors.value.phoneNumber = 'Phone number is required'
+  if (!assignForm.value.phone_number.trim()) {
+    assignFormErrors.value.phone_number = 'Phone number is required'
     isValid = false
-  } else if (!isValidPhoneNumber(assignForm.value.phoneNumber)) {
-    assignFormErrors.value.phoneNumber = 'Please enter a valid phone number'
+  } else if (!isValidPhoneNumber(assignForm.value.phone_number)) {
+    assignFormErrors.value.phone_number = 'Please enter a valid phone number'
     isValid = false
   }
 
@@ -828,14 +839,14 @@ const validateAssignForm = () => {
     isValid = false
   }
 
-  // ID number validation
-  if (!assignForm.value.idNumber.trim()) {
-    assignFormErrors.value.idNumber = 'ID card/passport number is required'
-    isValid = false
-  } else if (assignForm.value.idNumber.trim().length < 5) {
-    assignFormErrors.value.idNumber = 'ID number must be at least 5 characters long'
-    isValid = false
-  }
+  // ID number validation (optional for now)
+  // if (!assignForm.value.id_card_no.trim()) {
+  //   assignFormErrors.value.id_card_no = 'ID card/passport number is required'
+  //   isValid = false
+  // } else if (assignForm.value.id_card_no.trim().length < 5) {
+  //   assignFormErrors.value.id_card_no = 'ID number must be at least 5 characters long'
+  //   isValid = false
+  // }
 
   return isValid
 }
@@ -907,6 +918,7 @@ const performDetailedSearch = async (page = 1) => {
       // Transform API response to match UI format
       searchResults.value = response.data.map(ticket => ({
         id: ticket.id,
+        assignmentId: ticket.id, // This will be used for the API call
         status: ticket.attendance?.checked_in ? 'Check-in' : 'Not Check-in',
         isAssigned: ticket.is_assigned || !!(ticket.name || ticket.email || ticket.phone_number),
         image: ticket.event?.image || img, // Use event image if available, fallback to default
@@ -1009,15 +1021,16 @@ const openAssignModal = (ticket) => {
   // Reset form and errors
   assignForm.value = {
     name: '',
-    phoneNumber: '',
+    phone_number: '',
     email: '',
-    idNumber: ''
+    id_card_no: ''
   }
   assignFormErrors.value = {
     name: '',
-    phoneNumber: '',
+    phone_number: '',
     email: '',
-    idNumber: ''
+    id_card_no: '',
+    general: ''
   }
 }
 
@@ -1026,30 +1039,71 @@ const closeAssignModal = () => {
   selectedTicket.value = null
 }
 
-const completeAssignment = () => {
+const completeAssignment = async () => {
   if (!validateAssignForm()) {
     return // Stop if validation fails
   }
 
-  if (selectedTicket.value) {
-    // Only update ticket holder information, NOT the check-in status
-    // Check-in status should only change when QR code is scanned
-    selectedTicket.value.ticketHolder = assignForm.value.name
-    selectedTicket.value.phoneNumberOrEmail = assignForm.value.phoneNumber
-    selectedTicket.value.email = assignForm.value.email
-    selectedTicket.value.idNumber = assignForm.value.idNumber
-    selectedTicket.value.isAssigned = true // Add flag to track if ticket is assigned
-    
-    console.log('Ticket assigned successfully:', {
-      ticket: selectedTicket.value.bookingRef,
-      holder: assignForm.value.name,
-      phone: assignForm.value.phoneNumber,
-      email: assignForm.value.email,
-      idNumber: assignForm.value.idNumber
-    })
+  if (!selectedTicket.value) {
+    console.error('No ticket selected for assignment')
+    return
   }
-  
-  closeAssignModal()
+
+  try {
+    // Show loading state (you can add a loading indicator here)
+    console.log('🎫 Starting ticket assignment for:', selectedTicket.value.assignmentId)
+    
+    // Import and call the API function
+    const { assignTicket } = await import('@/composables/api')
+    
+    // Prepare form data (only include id_card_no if it has a value)
+    const formData = {
+      name: assignForm.value.name,
+      phone_number: assignForm.value.phone_number,
+      email: assignForm.value.email
+    }
+    
+    // Only include id_card_no if it's provided
+    if (assignForm.value.id_card_no && assignForm.value.id_card_no.trim()) {
+      formData.id_card_no = assignForm.value.id_card_no
+    }
+    
+    const response = await assignTicket(selectedTicket.value.assignmentId, formData)
+
+    if (response.success) {
+      // Update the ticket in the search results
+      selectedTicket.value.ticketHolder = assignForm.value.name
+      selectedTicket.value.phoneNumberOrEmail = assignForm.value.phone_number
+      selectedTicket.value.email = assignForm.value.email
+      selectedTicket.value.idCardNo = assignForm.value.id_card_no
+      selectedTicket.value.isAssigned = true
+      
+      console.log('✅ Ticket assigned successfully:', {
+        ticket: selectedTicket.value.bookingRef,
+        holder: assignForm.value.name,
+        phone: assignForm.value.phone_number,
+        email: assignForm.value.email,
+        idNumber: assignForm.value.id_card_no
+      })
+      
+      closeAssignModal()
+      
+      // You can show a success toast notification here if you have one
+      // toast.success('Ticket assigned successfully!')
+      
+    } else {
+      throw new Error(response.message || 'Assignment failed')
+    }
+    
+  } catch (error) {
+    console.error('❌ Failed to assign ticket:', error)
+    
+    // Set a general error that will be displayed in the modal
+    assignFormErrors.value.general = error.message || 'Failed to assign ticket. Please try again.'
+    
+    // You can show an error toast notification here if you have one
+    // toast.error(error.message || 'Failed to assign ticket')
+  }
 }
 
 const navigateToPrintTickets = () => {

@@ -2683,3 +2683,119 @@ export async function searchCheckIns(searchParams, page = 1, perPage = 20) {
     throw new Error(userMessage)
   }
 }
+
+// Assign ticket to a holder
+export async function assignTicket(assignmentId, formData) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!assignmentId) {
+    throw new Error('Assignment ID is required')
+  }
+
+  if (!formData || typeof formData !== 'object') {
+    throw new Error('Form data is required')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+
+    // Create FormData for the request
+    const requestFormData = new FormData()
+    
+    // Add required fields to FormData
+    if (formData.name) {
+      requestFormData.append('name', formData.name.trim())
+    }
+    if (formData.email) {
+      requestFormData.append('email', formData.email.trim())
+    }
+    if (formData.phone_number) {
+      requestFormData.append('phone_number', formData.phone_number.trim())
+    }
+
+    // Optional fields
+    if (formData.id_card_no) {
+      requestFormData.append('id_card_no', formData.id_card_no.trim())
+    }
+    if (formData.passport_no) {
+      requestFormData.append('passport_no', formData.passport_no.trim())
+    }
+
+    console.log('🎫 Assigning ticket with assignment ID:', assignmentId)
+    console.log('📝 Form data fields:', Object.fromEntries(requestFormData.entries()))
+
+    // Remove Content-Type from headers to let browser set it for FormData
+    const formDataHeaders = { ...headers }
+    delete formDataHeaders['Content-Type']
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/check-ins/${assignmentId}/assign`, {
+      method: 'POST',
+      body: requestFormData,
+      headers: formDataHeaders
+    })
+
+    console.log('✅ Ticket assignment response:', response)
+
+    return {
+      success: true,
+      data: response.data || response,
+      message: response.message || 'Ticket assigned successfully'
+    }
+
+  } catch (error) {
+    console.error('❌ Failed to assign ticket:', error)
+    
+    // Handle authentication errors
+    if (error.status === 401) {
+      handleAuthRedirect()
+      throw new Error('Authentication required. Please log in again.')
+    }
+    
+    if (error.status === 403) {
+      throw new Error('You do not have permission to assign tickets.')
+    }
+    
+    // Handle validation errors
+    if (error.status === 422) {
+      let errorMessage = 'Invalid form data. Please check your input and try again.'
+      
+      if (error.data?.errors) {
+        const validationErrors = []
+        Object.entries(error.data.errors).forEach(([field, messages]) => {
+          if (Array.isArray(messages)) {
+            validationErrors.push(`${field}: ${messages.join(', ')}`)
+          } else {
+            validationErrors.push(`${field}: ${messages}`)
+          }
+        })
+        errorMessage = `Validation failed:\n${validationErrors.join('\n')}`
+      } else if (error.data?.message) {
+        errorMessage = error.data.message
+      }
+      
+      throw new Error(errorMessage)
+    }
+    
+    // Handle not found
+    if (error.status === 404) {
+      throw new Error('Ticket not found or assignment ID is invalid.')
+    }
+    
+    // Handle conflict (already assigned)
+    if (error.status === 409) {
+      throw new Error('This ticket has already been assigned to someone else.')
+    }
+    
+    // Don't expose technical details to users
+    let userMessage = 'Failed to assign ticket. Please try again.'
+    if (error.status >= 500) {
+      userMessage = 'Server error. Please try again later.'
+    }
+    
+    throw new Error(userMessage)
+  }
+}
