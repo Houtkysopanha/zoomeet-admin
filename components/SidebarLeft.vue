@@ -187,12 +187,12 @@ function isActive(path) {
   
   // For Booking menu item, check if current route is booking-related
   if (path === '/admin/booking') {
-    return route.path.startsWith('/admin/booking')
+    return route.path.startsWith('/admin/booking') 
   }
   
   // For Check-in menu item, check if current route is check-in related
   if (path === '/admin/checkIn') {
-    return route.path.startsWith('/admin/checkIn')
+    return route.path.startsWith('/admin/checkIn') ||route.path.startsWith('/admin/print-tickets')
   }
   
   // Default: check if current path starts with the menu path

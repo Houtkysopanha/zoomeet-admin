@@ -161,16 +161,26 @@
             <div class="mb-6">
               <label class="block text-sm font-medium text-gray-700 mb-2">
                 Event Slug <span class="text-red-500">*</span></label>
-              <div class="flex gap-4 ">
-                <InputText
-                  v-model="formData.eventSlug"
-                  :class="[
-                    'w-full p-3 h-12 rounded-2xl bg-gray-100 border-gray-200 focus:border-purple-400 focus:ring-purple-400',
-                    getFieldError('event_slug') ? 'border-red-500 border-2' : ''
-                  ]"
-                  placeholder="my-awesome-event"
+              <div class="flex items-center gap-3">
+                <div class="flex-1">
+                  <InputText
+                    v-model="formData.eventSlug"
+                    :class="[
+                      'w-full p-3 h-12 rounded-2xl bg-gray-100 border-gray-200 focus:border-purple-400 focus:ring-purple-400',
+                      getFieldError('event_slug') ? 'border-red-500 border-2' : ''
+                    ]"
+                    placeholder="my-awesome-event"
+                  />
+                </div>
+                <Button 
+                  icon="pi pi-refresh" 
+                  text 
+                  rounded 
+                  size="small" 
+                  class="flex-shrink-0 bg-gray-100 rounded-2xl h-12 w-12 flex items-center justify-center text-gray-400 hover:text-purple-600 transition-colors duration-200" 
+                  @click="generateSlug" 
+                  title="Generate new slug" 
                 />
-                <Button icon="pi pi-refresh" text rounded size="small" class=" bg-gray-100 rounded-2xl h-12 w-20 transform -translate-y-1/2 text-gray-400 hover:text-purple-600 transition-colors duration-200" @click="generateSlug" title="Generate new slug" />
               </div>
               <small v-if="getFieldError('event_slug')" class="text-red-500">{{ getFieldError('event_slug') }}</small>
               <p class="text-xs text-gray-500 mt-2">
