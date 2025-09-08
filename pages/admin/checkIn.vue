@@ -64,6 +64,14 @@
 
           <!-- Tab Content -->
           <div class="space-y-4">
+            <!-- General Error Message -->
+            <div v-if="formErrors.general" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+              <div class="flex items-center">
+                <Icon name="heroicons:exclamation-triangle" class="w-5 h-5 text-red-500 mr-2" />
+                <span class="text-red-700 text-sm font-medium">{{ formErrors.general }}</span>
+              </div>
+            </div>
+
             <!-- Phone Number Tab -->
             <div v-if="activeTab === 'phone'" class="space-y-4">
               <div class="w-full">
@@ -72,8 +80,15 @@
                   id="phoneNumber"
                   v-model="phoneNumber"
                   placeholder="+855 93984640"
-                  class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800 transition-all duration-200"
+                  :class="[
+                    'w-full p-3 rounded-lg border focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800 transition-all duration-200',
+                    formErrors.phone ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                  ]"
                 />
+                <div v-if="formErrors.phone" class="mt-1 text-red-600 text-sm flex items-center">
+                  <Icon name="heroicons:exclamation-circle" class="w-4 h-4 mr-1" />
+                  {{ formErrors.phone }}
+                </div>
               </div>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -81,18 +96,36 @@
                   <InputText
                     id="bookingReference"
                     v-model="bookingReference"
+                    :disabled="!!ticketId"
                     placeholder="ZM2025001"
-                    class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800 transition-all duration-200"
+                    :class="[
+                      'w-full p-3 rounded-lg border focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800 transition-all duration-200',
+                      formErrors.bookingRef ? 'border-red-300 bg-red-50' : 'border-gray-300',
+                      !!ticketId ? 'disabled:bg-gray-100 disabled:cursor-not-allowed' : ''
+                    ]"
                   />
+                  <div v-if="formErrors.bookingRef" class="mt-1 text-red-600 text-sm flex items-center">
+                    <Icon name="heroicons:exclamation-circle" class="w-4 h-4 mr-1" />
+                    {{ formErrors.bookingRef }}
+                  </div>
                 </div>
                 <div>
                   <label for="ticketId" class="block text-gray-700 text-sm font-medium mb-2">Ticket ID</label>
                   <InputText
                     id="ticketId"
                     v-model="ticketId"
+                    :disabled="!!bookingReference"
                     placeholder="Ticket ID"
-                    class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800 transition-all duration-200"
+                    :class="[
+                      'w-full p-3 rounded-lg border focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800 transition-all duration-200',
+                      formErrors.ticketId ? 'border-red-300 bg-red-50' : 'border-gray-300',
+                      !!bookingReference ? 'disabled:bg-gray-100 disabled:cursor-not-allowed' : ''
+                    ]"
                   />
+                  <div v-if="formErrors.ticketId" class="mt-1 text-red-600 text-sm flex items-center">
+                    <Icon name="heroicons:exclamation-circle" class="w-4 h-4 mr-1" />
+                    {{ formErrors.ticketId }}
+                  </div>
                 </div>
               </div>
             </div>
@@ -105,8 +138,15 @@
                   id="email"
                   v-model="email"
                   placeholder="example@email.com"
-                  class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800 transition-all duration-200"
+                  :class="[
+                    'w-full p-3 rounded-lg border focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800 transition-all duration-200',
+                    formErrors.email ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                  ]"
                 />
+                <div v-if="formErrors.email" class="mt-1 text-red-600 text-sm flex items-center">
+                  <Icon name="heroicons:exclamation-circle" class="w-4 h-4 mr-1" />
+                  {{ formErrors.email }}
+                </div>
               </div>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -114,18 +154,36 @@
                   <InputText
                     id="bookingReferenceEmail"
                     v-model="bookingReferenceEmail"
+                    :disabled="!!ticketIdEmail"
                     placeholder="ZM2025001"
-                    class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800 transition-all duration-200"
+                    :class="[
+                      'w-full p-3 rounded-lg border focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800 transition-all duration-200',
+                      formErrors.bookingRef ? 'border-red-300 bg-red-50' : 'border-gray-300',
+                      !!ticketIdEmail ? 'disabled:bg-gray-100 disabled:cursor-not-allowed' : ''
+                    ]"
                   />
+                  <div v-if="formErrors.bookingRef" class="mt-1 text-red-600 text-sm flex items-center">
+                    <Icon name="heroicons:exclamation-circle" class="w-4 h-4 mr-1" />
+                    {{ formErrors.bookingRef }}
+                  </div>
                 </div>
                 <div>
                   <label for="ticketIdEmail" class="block text-gray-700 text-sm font-medium mb-2">Ticket ID</label>
                   <InputText
                     id="ticketIdEmail"
                     v-model="ticketIdEmail"
+                    :disabled="!!bookingReferenceEmail"
                     placeholder="Ticket ID"
-                    class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800 transition-all duration-200"
+                    :class="[
+                      'w-full p-3 rounded-lg border focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800 transition-all duration-200',
+                      formErrors.ticketId ? 'border-red-300 bg-red-50' : 'border-gray-300',
+                      !!bookingReferenceEmail ? 'disabled:bg-gray-100 disabled:cursor-not-allowed' : ''
+                    ]"
                   />
+                  <div v-if="formErrors.ticketId" class="mt-1 text-red-600 text-sm flex items-center">
+                    <Icon name="heroicons:exclamation-circle" class="w-4 h-4 mr-1" />
+                    {{ formErrors.ticketId }}
+                  </div>
                 </div>
               </div>
             </div>
@@ -134,8 +192,9 @@
             <div class="flex justify-end mt-6">
               <Button
                 label="Search"
-                class="bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white py-3 px-8 rounded-lg hover:from-purple-700 hover:to-fuchsia-700 transition-all duration-200 flex items-center gap-2 text-lg font-semibold shadow-md"
-                @click="performDetailedSearch"
+                :disabled="!canSearch"
+                class="bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white py-3 px-8 rounded-lg hover:from-purple-700 hover:to-fuchsia-700 transition-all duration-200 flex items-center gap-2 text-lg font-semibold shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                @click="performDetailedSearch(1)"
               >
                 <Icon name="heroicons:magnifying-glass" class="w-5 h-5" />
                 Search
@@ -177,7 +236,38 @@
         
         <!-- Loading state -->
         <div v-else-if="loading" key="loading" class="flex items-center justify-center min-h-[400px]">
-          <div class="text-xl text-gray-600">Loading tickets...</div>
+          <div class="flex flex-col items-center space-y-4">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+            <div class="text-xl text-gray-600">Searching tickets...</div>
+          </div>
+        </div>
+        
+        <!-- Error state -->
+        <div v-else-if="hasSearchError" key="error" class="flex flex-col items-center justify-center min-h-[400px] space-y-6">
+          <div class="relative">
+            <!-- Error icon -->
+            <div class="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center">
+              <Icon name="heroicons:exclamation-triangle" class="w-12 h-12 text-red-500" />
+            </div>
+          </div>
+          
+          <div class="text-center space-y-3 max-w-md">
+            <h3 class="text-xl font-semibold text-gray-900">No Results Found</h3>
+            <p class="text-gray-600">{{ searchError }}</p>
+            <div class="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button
+                label="Search Again"
+                class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-all duration-200"
+                @click="goBackToSearch"
+              />
+              <Button
+                label="Clear & New Search"
+                class="bg-gray-100 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-200 transition-all duration-200"
+                outlined
+                @click="goBackToSearch"
+              />
+            </div>
+          </div>
         </div>
         
         <!-- Search results -->
@@ -185,13 +275,15 @@
           <!-- Results Summary Bar -->
           <div class="flex justify-between items-center mb-6 rounded-lg p-4 ">
             <div class="flex items-center space-x-6">
-              <span class="text-gray-700 font-medium">Total number ({{ searchResults.length }})</span>
+              <span class="text-gray-700 font-medium">Total number ({{ totalResults }})</span>
               <span class="text-gray-400">|</span>
               <span class="text-gray-700 font-medium">Assign ({{ searchResults.filter(r => r.isAssigned).length }})</span>
               <span class="text-gray-400">|</span>
               <span class="text-gray-700 font-medium">Unassign ({{ searchResults.filter(r => !r.isAssigned).length }})</span>
               <span class="text-gray-400">|</span>
               <span class="text-gray-700 font-medium">Check-in ({{ searchResults.filter(r => r.status === 'Check-in').length }})</span>
+              <span class="text-gray-400">|</span>
+              <span class="text-gray-700 font-medium">Page {{ currentPage }} of {{ lastPage }}</span>
             </div>
             <Button
               label="Print Tickets"
@@ -236,8 +328,9 @@
                     </div>
                     <!-- Event Title Overlay -->
                     <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-b from-white/50 to-[#1D2346] p-4">
-                      <h3 class="text-white font-semibold text-sm leading-tight">{{ result.eventTitle }}</h3>
-                      <p class="text-white/80 text-xs mt-1">Owner: {{ result.owner }}</p>
+                      <h3 class="text-white font-semibold text-sm leading-tight">{{ result.eventTitle || '-' }}</h3>
+                      <p class="text-white/80 text-xs mt-1">Owner: {{ result.owner || '-' }}</p>
+                      <p class="text-white/70 text-xs">{{ result.date || '-' }}</p>
                     </div>
                   </div>
 
@@ -260,11 +353,11 @@
                       <div class="space-y-4">
                         <div>
                           <span class="text-gray-500 text-sm">Booking Ref</span>
-                          <p class="font-semibold text-gray-900">{{ result.bookingRef }}</p>
+                          <p class="font-semibold text-gray-900">{{ result.bookingRef || '-' }}</p>
                         </div>
                         <div>
                           <span class="text-gray-500 text-sm">Ticket ID</span>
-                          <p class="font-semibold text-gray-900">{{ result.ticketId }}</p>
+                          <p class="font-semibold text-gray-900">{{ result.ticketId || '-' }}</p>
                         </div>
                       </div>
 
@@ -272,34 +365,36 @@
                       <div class="space-y-4">
                         <div>
                           <span class="text-gray-500 text-sm">Ticket Type</span>
-                          <p class="font-semibold text-gray-900">{{ result.ticketType }}</p>
+                          <p class="font-semibold text-gray-900">{{ result.ticketType || '-' }}</p>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
                           <div>
                             <span class="text-gray-500 text-sm">Gate</span>
-                            <p class="font-semibold text-gray-900">{{ result.gate }}</p>
+                            <p class="font-semibold text-gray-900">{{ result.gate || '-'}}</p>
                           </div>
                           <div>
                             <span class="text-gray-500 text-sm">Seat Number</span>
-                            <p class="font-semibold text-gray-900">{{ result.seatNumber }}</p>
+                            <p class="font-semibold text-gray-900 text-xs">{{ result.seatNumber || '-' }}</p>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    <!-- Bottom Row - Location, Date, Time -->
-                    <div class="grid grid-cols-3 gap-8 mt-6 pt-4 border-t border-gray-100">
-                      <div>
+                    <!-- Bottom Row - Event Details -->
+                    <div class="mt-6 pt-4 border-t border-gray-100">
+                       <div>
                         <span class="text-gray-500 text-sm">Location</span>
-                        <p class="font-semibold text-gray-900">{{ result.location }}</p>
+                        <p class="font-semibold text-gray-900">{{ result.location || '-' }}</p>
                       </div>
-                      <div>
+                      <div class="grid grid-cols-3 gap-6">
+                        <div>
                         <span class="text-gray-500 text-sm">Date</span>
-                        <p class="font-semibold text-gray-900">{{ result.date }}</p>
+                        <p class="font-semibold text-gray-900">{{ result.date || '-' }}</p>
                       </div>
                       <div>
                         <span class="text-gray-500 text-sm">Time</span>
-                        <p class="font-semibold text-gray-900">{{ result.time }}</p>
+                        <p class="font-semibold text-gray-900">{{ result.time || '-' }}</p>
+                      </div>
                       </div>
                     </div>
                   </div>
@@ -309,15 +404,24 @@
                 <div class="w-48 p-6 border-l border-gray-100 flex flex-col items-center justify-center space-y-4">
                   <div class="text-center">
                     <p class="text-gray-700 font-medium mb-3">Scan to Enter</p>
-                    <!-- QR Code Placeholder -->
-                    <div class="w-24 h-24 bg-gray-100 border border-gray-200 rounded-lg flex items-center justify-center">
-                      <div class="grid grid-cols-8 gap-px">
-                        <div v-for="i in 64" :key="i" class="w-1 h-1 bg-gray-600" :class="{ 'bg-transparent': Math.random() > 0.6 }"></div>
-                      </div>
-                    </div>
+                    <!-- QR Code Generator -->
+                    <QRCodeGenerator 
+                      :value="result.qrCode || result.ticketId || `ticket-${result.id}`"
+                      :size="96"
+                      container-class="mx-auto"
+                      :options="{
+                        errorCorrectionLevel: 'M',
+                        margin: 1,
+                        color: {
+                          dark: '#374151',
+                          light: '#FFFFFF'
+                        }
+                      }"
+                    />
                   </div>
                   
                   <!-- Action Button -->
+                                    <!-- Action Button -->
                   <Button
                     :label="result.isAssigned ? 'Assigned' : 'Assign Ticket'"
                     :disabled="result.isAssigned"
@@ -336,6 +440,49 @@
               </div>
             </div>
           </div>
+
+          <!-- Pagination -->
+          <div v-if="lastPage > 1" class="flex justify-center items-center space-x-2 mt-8 mb-4">
+            <!-- Previous Button -->
+            <Button
+              :disabled="currentPage === 1"
+              class="px-3 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="goToPage(currentPage - 1)"
+            >
+              <Icon name="heroicons:chevron-left" class="w-4 h-4" />
+            </Button>
+
+            <!-- Page Numbers -->
+            <template v-for="page in getPaginationRange()" :key="page">
+              <Button
+                v-if="page !== '...'"
+                :class="[
+                  'px-3 py-2 rounded-lg border text-sm font-medium transition-all duration-200',
+                  page === currentPage
+                    ? 'bg-purple-600 text-white border-purple-600'
+                    : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                ]"
+                @click="goToPage(page)"
+              >
+                {{ page }}
+              </Button>
+              <span v-else class="px-2 py-2 text-gray-500">...</span>
+            </template>
+
+            <!-- Next Button -->
+            <Button
+              :disabled="currentPage === lastPage"
+              class="px-3 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="goToPage(currentPage + 1)"
+            >
+              <Icon name="heroicons:chevron-right" class="w-4 h-4" />
+            </Button>
+          </div>
+
+          <!-- Results Per Page Info -->
+          <div v-if="totalResults > 0" class="text-center text-sm text-gray-600 mt-4">
+            Showing {{ ((currentPage - 1) * perPage) + 1 }} to {{ Math.min(currentPage * perPage, totalResults) }} of {{ totalResults }} results
+          </div>
         </div>
       </Transition>
     </div>
@@ -352,17 +499,24 @@
 
           <!-- Name Field -->
           <div>
-            <label class="block text-gray-700 text-sm font-medium mb-2">Name</label>
+            <label class="block text-gray-700 text-sm font-medium mb-2">Name <span class="text-red-500">*</span></label>
             <InputText
               v-model="assignForm.name"
-              placeholder="Enter"
-              class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none"
+              placeholder="Enter full name"
+              :class="[
+                'w-full p-3 rounded-lg border focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none',
+                assignFormErrors.name ? 'border-red-300 bg-red-50' : 'border-gray-300'
+              ]"
             />
+            <div v-if="assignFormErrors.name" class="mt-1 text-red-600 text-sm flex items-center">
+              <Icon name="heroicons:exclamation-circle" class="w-4 h-4 mr-1" />
+              {{ assignFormErrors.name }}
+            </div>
           </div>
 
           <!-- Phone Number Field -->
           <div>
-            <label class="block text-gray-700 text-sm font-medium mb-2">Phone Number</label>
+            <label class="block text-gray-700 text-sm font-medium mb-2">Phone Number <span class="text-red-500">*</span></label>
             <div class="flex">
               <div class="flex items-center bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg px-3">
                 <img src="https://flagcdn.com/kh.svg" alt="Cambodia" class="w-5 h-3 mr-2">
@@ -371,8 +525,15 @@
               <InputText
                 v-model="assignForm.phoneNumber"
                 placeholder="97 6028 424"
-                class="flex-1 p-3 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none"
+                :class="[
+                  'flex-1 p-3 border rounded-r-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none',
+                  assignFormErrors.phoneNumber ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                ]"
               />
+            </div>
+            <div v-if="assignFormErrors.phoneNumber" class="mt-1 text-red-600 text-sm flex items-center">
+              <Icon name="heroicons:exclamation-circle" class="w-4 h-4 mr-1" />
+              {{ assignFormErrors.phoneNumber }}
             </div>
           </div>
 
@@ -382,8 +543,15 @@
             <InputText
               v-model="assignForm.email"
               placeholder="e.g. info@gmail.com"
-              class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none"
+              :class="[
+                'w-full p-3 rounded-lg border focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none',
+                assignFormErrors.email ? 'border-red-300 bg-red-50' : 'border-gray-300'
+              ]"
             />
+            <div v-if="assignFormErrors.email" class="mt-1 text-red-600 text-sm flex items-center">
+              <Icon name="heroicons:exclamation-circle" class="w-4 h-4 mr-1" />
+              {{ assignFormErrors.email }}
+            </div>
           </div>
 
           <!-- Identity Document Section -->
@@ -391,12 +559,19 @@
             <h3 class="text-lg font-semibold text-gray-900 mb-2">Identity Document</h3>
             <p class="text-gray-500 text-sm mb-4">We will need your ID to verify that you are over 18 years old</p>
             
-            <label class="block text-gray-700 text-sm font-medium mb-2">ID Card/Passport number</label>
+            <label class="block text-gray-700 text-sm font-medium mb-2">ID Card/Passport number <span class="text-red-500">*</span></label>
             <InputText
               v-model="assignForm.idNumber"
               placeholder="e.g. 1100546873"
-              class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none"
+              :class="[
+                'w-full p-3 rounded-lg border focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none',
+                assignFormErrors.idNumber ? 'border-red-300 bg-red-50' : 'border-gray-300'
+              ]"
             />
+            <div v-if="assignFormErrors.idNumber" class="mt-1 text-red-600 text-sm flex items-center">
+              <Icon name="heroicons:exclamation-circle" class="w-4 h-4 mr-1" />
+              {{ assignFormErrors.idNumber }}
+            </div>
           </div>
 
           <!-- Upload Identity Section -->
@@ -430,13 +605,20 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch, computed } from 'vue'
 import InputText from 'primevue/inputtext'
 import Button from 'primevue/button'
 import { definePageMeta } from '#imports'
 import img from '@/assets/image/poster-manage-booking.png'
 import TicketCard from '~/components/common/TicketCard.vue'
-import Divider from 'primevue/divider' // Import Divider if you use it directly in this file
+import QRCodeGenerator from '~/components/common/QRCodeGenerator.vue'
+import Divider from 'primevue/divider'
+import { 
+  formatSingleDate, 
+  formatTime, 
+  formatEventDateRange,
+  isValidDate 
+} from '@/utils/dateFormatter'
 
 definePageMeta({
   layout: 'admin',
@@ -448,6 +630,93 @@ const searchResults = ref([])
 const searchPerformed = ref(false) // New state to control initial view
 const showSearchForm = ref(false) // Control search form visibility
 const activeTab = ref('phone') // Active tab state
+
+// Pagination states
+const currentPage = ref(1)
+const perPage = ref(20)
+const totalResults = ref(0)
+const lastPage = ref(1)
+
+// Error and validation states
+const searchError = ref('')
+const hasSearchError = ref(false)
+const formErrors = ref({
+  phone: '',
+  email: '',
+  bookingRef: '',
+  ticketId: '',
+  general: ''
+})
+
+// Helper function to clear all form errors
+const clearErrors = () => {
+  formErrors.value = {
+    phone: '',
+    email: '',
+    bookingRef: '',
+    ticketId: '',
+    general: ''
+  }
+  searchError.value = ''
+  hasSearchError.value = false
+}
+
+// Validation functions
+const isValidEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
+}
+
+const isValidPhoneNumber = (phone) => {
+  // Remove spaces, dashes, and plus signs for validation
+  const cleanPhone = phone.replace(/[\s\-\+]/g, '')
+  // Check if it's a valid Cambodia phone number (starts with 855 or just the local number)
+  const phoneRegex = /^(\+?855)?[1-9]\d{7,8}$/
+  return phoneRegex.test(cleanPhone)
+}
+
+const validateForm = () => {
+  clearErrors()
+  let isValid = true
+
+  const currentPhone = activeTab.value === 'phone' ? phoneNumber.value.trim() : ''
+  const currentEmail = activeTab.value === 'email' ? email.value.trim() : ''
+  const currentBookingRef = activeTab.value === 'phone' ? bookingReference.value.trim() : bookingReferenceEmail.value.trim()
+  const currentTicketId = activeTab.value === 'phone' ? ticketId.value.trim() : ticketIdEmail.value.trim()
+
+  // Check if at least one field is provided
+  if (!currentPhone && !currentEmail && !currentBookingRef && !currentTicketId) {
+    formErrors.value.general = 'Please enter at least one search criteria to find tickets.'
+    isValid = false
+    return isValid
+  }
+
+  // Validate phone number if provided
+  if (currentPhone && !isValidPhoneNumber(currentPhone)) {
+    formErrors.value.phone = 'Please enter a valid Cambodia phone number (e.g., +855 12 345 6789 or 012 345 6789)'
+    isValid = false
+  }
+
+  // Validate email if provided
+  if (currentEmail && !isValidEmail(currentEmail)) {
+    formErrors.value.email = 'Please enter a valid email address (e.g., example@email.com)'
+    isValid = false
+  }
+
+  // Validate booking reference if provided
+  if (currentBookingRef && currentBookingRef.length < 3) {
+    formErrors.value.bookingRef = 'Booking reference must be at least 3 characters long'
+    isValid = false
+  }
+
+  // Validate ticket ID if provided
+  if (currentTicketId && currentTicketId.length < 3) {
+    formErrors.value.ticketId = 'Ticket ID must be at least 3 characters long'
+    isValid = false
+  }
+
+  return isValid
+}
 
 // Modal states
 const showAssignModal = ref(false)
@@ -461,6 +730,55 @@ const ticketId = ref('')
 const bookingReferenceEmail = ref('')
 const ticketIdEmail = ref('')
 
+// Watch for mutual exclusivity between booking reference and ticket ID
+watch(bookingReference, (newValue) => {
+  if (newValue) {
+    ticketId.value = ''
+    clearErrors() // Clear errors when user starts typing
+  }
+})
+
+watch(ticketId, (newValue) => {
+  if (newValue) {
+    bookingReference.value = ''
+    clearErrors() // Clear errors when user starts typing
+  }
+})
+
+watch(bookingReferenceEmail, (newValue) => {
+  if (newValue) {
+    ticketIdEmail.value = ''
+    clearErrors() // Clear errors when user starts typing
+  }
+})
+
+watch(ticketIdEmail, (newValue) => {
+  if (newValue) {
+    bookingReferenceEmail.value = ''
+    clearErrors() // Clear errors when user starts typing
+  }
+})
+
+// Clear errors when user switches tabs
+watch(activeTab, () => {
+  clearErrors()
+})
+
+// Clear errors when user types in input fields
+watch(phoneNumber, () => {
+  if (formErrors.value.phone) {
+    formErrors.value.phone = ''
+    formErrors.value.general = ''
+  }
+})
+
+watch(email, () => {
+  if (formErrors.value.email) {
+    formErrors.value.email = ''
+    formErrors.value.general = ''
+  }
+})
+
 // Assign form fields
 const assignForm = ref({
   name: '',
@@ -469,118 +787,233 @@ const assignForm = ref({
   idNumber: ''
 })
 
-// Sample data for demonstration, matching the UI fields
-const sampleTickets = ref([
-  {
-    id: 1,
-    status: 'Check-in', // This represents QR scan check-in status
-    isAssigned: true, // This represents whether ticket is assigned to someone
-    image: img,
-    eventTitle: 'Navigating the future of cybersecurity in Cambodia 2015',
-    owner: 'Fussac',
-    ticketHolder: 'Sok Chenmeng',
-    bookingRef: '1',
-    phoneNumberOrEmail: '###### 424',
-    ticketId: '1234',
-    location: 'Hayatt Regency, Phnom Penh',
-    ticketType: 'Premium',
-    date: '14-16 July, 2025',
-    gate: '3',
-    time: '10:00 AM GMT+7',
-    seatNumber: '-',
-  },
-  {
-    id: 2,
-    status: 'Not Check-in', // QR scan status
-    isAssigned: false, // Not assigned to anyone yet
-    image: img,
-    eventTitle: 'Quer deixar seu cliente IMPRESSIONADO?',
-    owner: 'Fussac',
-    ticketHolder: '-',
-    bookingRef: 'ZM2025001',
-    phoneNumberOrEmail: '-',
-    ticketId: '1234',
-    location: 'Hayatt Regency, Phnom Penh',
-    ticketType: 'Premium',
-    date: '14-16 July, 2025',
-    gate: '3',
-    time: '10:00 AM GMT+7',
-    seatNumber: '-',
-  },
-  {
-    id: 3,
-    status: 'Not Check-in', // QR scan status - not checked in yet
-    isAssigned: true, // But already assigned to Jane Doe
-    image: img,
-    eventTitle: 'Tech Innovation Summit 2025',
-    owner: 'Global Tech',
-    ticketHolder: 'Jane Doe',
-    bookingRef: 'TX2025003',
-    phoneNumberOrEmail: '+855 11223344',
-    ticketId: '5678',
-    location: 'Phnom Penh Convention Center',
-    ticketType: 'VIP',
-    date: '20-22 August, 2025',
-    gate: '1',
-    time: '09:00 AM GMT+7',
-    seatNumber: 'A12',
-  },
-])
+const assignFormErrors = ref({
+  name: '',
+  phoneNumber: '',
+  email: '',
+  idNumber: ''
+})
+
+const validateAssignForm = () => {
+  assignFormErrors.value = {
+    name: '',
+    phoneNumber: '',
+    email: '',
+    idNumber: ''
+  }
+  
+  let isValid = true
+
+  // Name validation
+  if (!assignForm.value.name.trim()) {
+    assignFormErrors.value.name = 'Name is required'
+    isValid = false
+  } else if (assignForm.value.name.trim().length < 2) {
+    assignFormErrors.value.name = 'Name must be at least 2 characters long'
+    isValid = false
+  }
+
+  // Phone number validation
+  if (!assignForm.value.phoneNumber.trim()) {
+    assignFormErrors.value.phoneNumber = 'Phone number is required'
+    isValid = false
+  } else if (!isValidPhoneNumber(assignForm.value.phoneNumber)) {
+    assignFormErrors.value.phoneNumber = 'Please enter a valid phone number'
+    isValid = false
+  }
+
+  // Email validation (optional but if provided must be valid)
+  if (assignForm.value.email.trim() && !isValidEmail(assignForm.value.email)) {
+    assignFormErrors.value.email = 'Please enter a valid email address'
+    isValid = false
+  }
+
+  // ID number validation
+  if (!assignForm.value.idNumber.trim()) {
+    assignFormErrors.value.idNumber = 'ID card/passport number is required'
+    isValid = false
+  } else if (assignForm.value.idNumber.trim().length < 5) {
+    assignFormErrors.value.idNumber = 'ID number must be at least 5 characters long'
+    isValid = false
+  }
+
+  return isValid
+}
+
+// Computed property to check if search is allowed
+const canSearch = computed(() => {
+  const currentPhone = activeTab.value === 'phone' ? phoneNumber.value : ''
+  const currentEmail = activeTab.value === 'email' ? email.value : ''
+  const currentBookingRef = activeTab.value === 'phone' ? bookingReference.value : bookingReferenceEmail.value
+  const currentTicketId = activeTab.value === 'phone' ? ticketId.value : ticketIdEmail.value
+  
+  return !!(currentPhone || currentEmail || currentBookingRef || currentTicketId)
+})
 
 const performGeneralSearch = () => {
+  // Clear any previous errors
+  clearErrors()
   // Show the search form when search button is clicked
   showSearchForm.value = true
   searchPerformed.value = false
+  // Reset pagination and errors
+  currentPage.value = 1
+  hasSearchError.value = false
+  searchError.value = ''
 }
 
-const performDetailedSearch = () => {
+const performDetailedSearch = async (page = 1) => {
+  // Validate form first
+  if (!validateForm()) {
+    return // Stop execution if validation fails
+  }
+
   loading.value = true
   searchPerformed.value = true
   showSearchForm.value = false
+  hasSearchError.value = false
+  searchError.value = ''
   
-  setTimeout(() => {
+  try {
     // Get current tab's form values
-    const currentPhone = activeTab.value === 'phone' ? phoneNumber.value : ''
-    const currentEmail = activeTab.value === 'email' ? email.value : ''
-    const currentBookingRef = activeTab.value === 'phone' ? bookingReference.value : bookingReferenceEmail.value
-    const currentTicketId = activeTab.value === 'phone' ? ticketId.value : ticketIdEmail.value
+    const currentPhone = activeTab.value === 'phone' ? phoneNumber.value.trim() : ''
+    const currentEmail = activeTab.value === 'email' ? email.value.trim() : ''
+    const currentBookingRef = activeTab.value === 'phone' ? bookingReference.value.trim() : bookingReferenceEmail.value.trim()
+    const currentTicketId = activeTab.value === 'phone' ? ticketId.value.trim() : ticketIdEmail.value.trim()
     
-    // Filter tickets based on form inputs
-    searchResults.value = sampleTickets.value.filter((ticket) => {
-      let matches = true
-      
-      // Check phone number match
-      if (currentPhone && !ticket.phoneNumberOrEmail.toLowerCase().includes(currentPhone.toLowerCase())) {
-        matches = false
-      }
-      
-      // Check email match (if we had email field in sample data)
-      if (currentEmail && !ticket.phoneNumberOrEmail.toLowerCase().includes(currentEmail.toLowerCase())) {
-        matches = false
-      }
-      
-      // Check booking reference match
-      if (currentBookingRef && !ticket.bookingRef.toLowerCase().includes(currentBookingRef.toLowerCase())) {
-        matches = false
-      }
-      
-      // Check ticket ID match
-      if (currentTicketId && !ticket.ticketId.toLowerCase().includes(currentTicketId.toLowerCase())) {
-        matches = false
-      }
-      
-      return matches
-    })
+    // Build search parameters object
+    const searchParams = {}
     
-    loading.value = false
-  }, 1000)
+    if (currentPhone) searchParams.phone_number = currentPhone
+    if (currentEmail) searchParams.email = currentEmail
+    if (currentTicketId) searchParams.ticket_no = currentTicketId
+    if (currentBookingRef) searchParams.order_number = currentBookingRef
+    
+    console.log('🔍 Search parameters:', searchParams)
+    console.log('📄 Searching page:', page)
+    
+    // Use the API function from composables with pagination
+    const { searchCheckIns } = await import('@/composables/api')
+    const response = await searchCheckIns(searchParams, page, perPage.value)
+    
+    console.log('✅ API Response:', response)
+    
+    if (response.success && response.data) {
+      // Update pagination state
+      currentPage.value = response.meta.current_page
+      totalResults.value = response.meta.total
+      lastPage.value = response.meta.last_page
+      
+      // Transform API response to match UI format
+      searchResults.value = response.data.map(ticket => ({
+        id: ticket.id,
+        status: ticket.attendance?.checked_in ? 'Check-in' : 'Not Check-in',
+        isAssigned: ticket.is_assigned || !!(ticket.name || ticket.email || ticket.phone_number),
+        image: ticket.event?.image || img, // Use event image if available, fallback to default
+        eventTitle: ticket.event?.name || '-',
+        owner: ticket.order?.customer?.name || '-',
+        ticketHolder: ticket.name || ticket.order?.customer?.name || '-',
+        bookingRef: ticket.order?.order_number || '-',
+        phoneNumberOrEmail: ticket.phone_number || ticket.email || ticket.order?.customer?.email || ticket.order?.customer?.phone || '-',
+        ticketId: ticket.ticket_no || '-',
+        location: ticket.event?.location || '-',
+        ticketType: ticket.ticket_type?.name || '-',
+        date: ticket.event?.start_date && ticket.event?.end_date 
+          ? formatEventDateRange(ticket.event.start_date, ticket.event.end_date)
+          : ticket.event?.start_date 
+            ? formatSingleDate(ticket.event.start_date)
+            : '-',
+        gate: ticket.gate || '-',
+        time: ticket.event?.start_date ? formatTime(ticket.event.start_date) : '-',
+        seatNumber: ticket.seat_number || '-',
+        price: ticket.ticket_type?.price || '-',
+        qrCode: ticket.qr_code || '-',
+        checkedInTime: ticket.attendance?.time || '-',
+        idCardNo: ticket.id_card_no || '-',
+        passportNo: ticket.passport_no || '-',
+      }))
+      
+      console.log('✅ Transformed results:', searchResults.value)
+      
+      // Show message if no results found but search was successful
+      if (searchResults.value.length === 0) {
+        hasSearchError.value = true
+        searchError.value = 'No tickets found matching your search criteria. Please check your search terms and try again.'
+      }
+    } else {
+      searchResults.value = []
+      totalResults.value = 0
+      hasSearchError.value = true
+      searchError.value = response.message || 'No tickets found matching your search criteria. Please verify your search information and try again.'
+      console.warn('⚠️ No data found in API response:', response.message)
+    }
+    
+  } catch (error) {
+    console.error('❌ Search failed:', error)
+    
+    hasSearchError.value = true
+    searchError.value = 'Unable to search tickets at the moment. Please check your internet connection and try again.'
+    searchResults.value = []
+    totalResults.value = 0
+    
+    console.log('❌ Search error displayed to user:', searchError.value)
+  }
+  
+  loading.value = false
+}
+
+// Function to handle pagination
+const goToPage = (page) => {
+  if (page >= 1 && page <= lastPage.value && page !== currentPage.value) {
+    performDetailedSearch(page)
+  }
+}
+
+// Function to calculate pagination range for display
+const getPaginationRange = () => {
+  const delta = 2 // Number of pages to show on each side of current page
+  const range = []
+  const rangeWithDots = []
+
+  for (let i = Math.max(2, currentPage.value - delta); i <= Math.min(lastPage.value - 1, currentPage.value + delta); i++) {
+    range.push(i)
+  }
+
+  if (currentPage.value - delta > 2) {
+    rangeWithDots.push(1, '...')
+  } else {
+    rangeWithDots.push(1)
+  }
+
+  rangeWithDots.push(...range)
+
+  if (currentPage.value + delta < lastPage.value - 1) {
+    rangeWithDots.push('...', lastPage.value)
+  } else {
+    rangeWithDots.push(lastPage.value)
+  }
+
+  // Remove duplicates and handle edge cases
+  return rangeWithDots.filter((item, index, arr) => {
+    if (item === '...') return true
+    if (typeof item === 'number') {
+      return item <= lastPage.value && arr.indexOf(item) === index
+    }
+    return true
+  })
 }
 
 const openAssignModal = (ticket) => {
   selectedTicket.value = ticket
   showAssignModal.value = true
-  // Reset form
+  // Reset form and errors
   assignForm.value = {
+    name: '',
+    phoneNumber: '',
+    email: '',
+    idNumber: ''
+  }
+  assignFormErrors.value = {
     name: '',
     phoneNumber: '',
     email: '',
@@ -594,6 +1027,10 @@ const closeAssignModal = () => {
 }
 
 const completeAssignment = () => {
+  if (!validateAssignForm()) {
+    return // Stop if validation fails
+  }
+
   if (selectedTicket.value) {
     // Only update ticket holder information, NOT the check-in status
     // Check-in status should only change when QR code is scanned
@@ -617,6 +1054,28 @@ const completeAssignment = () => {
 
 const navigateToPrintTickets = () => {
   navigateTo('/admin/print-tickets')
+}
+
+const goBackToSearch = () => {
+  // Reset all states to initial
+  showSearchForm.value = true
+  searchPerformed.value = false
+  hasSearchError.value = false
+  searchError.value = ''
+  searchResults.value = []
+  totalResults.value = 0
+  currentPage.value = 1
+  
+  // Clear form fields
+  phoneNumber.value = ''
+  email.value = ''
+  bookingReference.value = ''
+  ticketId.value = ''
+  bookingReferenceEmail.value = ''
+  ticketIdEmail.value = ''
+  
+  // Clear any form errors
+  clearErrors()
 }
 
 const assignTicket = (ticket) => {

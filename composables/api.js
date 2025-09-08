@@ -2563,3 +2563,123 @@ export async function getCoupons(eventId) {
     }
   }
 }
+
+// Search check-ins for identity verification
+export async function searchCheckIns(searchParams, page = 1, perPage = 20) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!searchParams || typeof searchParams !== 'object') {
+    throw new Error('Search parameters are required')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+
+    // Build query parameters
+    const queryParams = new URLSearchParams()
+    
+    if (searchParams.phone_number) queryParams.append('phone_number', searchParams.phone_number)
+    if (searchParams.email) queryParams.append('email', searchParams.email)
+    if (searchParams.ticket_no) queryParams.append('ticket_no', searchParams.ticket_no)
+    if (searchParams.order_number) queryParams.append('order_number', searchParams.order_number)
+    
+    // Add pagination parameters
+    queryParams.append('page', page.toString())
+    queryParams.append('per_page', perPage.toString())
+
+    console.log('🔍 Searching check-ins with params:', searchParams)
+    console.log('� Pagination - Page:', page, 'Per Page:', perPage)
+    console.log('�🔗 API URL:', `${API_ADMIN_BASE_URL}/check-ins?${queryParams.toString()}`)
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/check-ins?${queryParams.toString()}`, {
+      method: 'GET',
+      headers
+    })
+
+    console.log('✅ Check-ins search response:', response)
+
+    // Ensure consistent response structure with pagination
+    if (response && response.data && Array.isArray(response.data)) {
+      return {
+        success: true,
+        data: response.data,
+        meta: response.meta || {
+          current_page: 1,
+          last_page: 1,
+          per_page: perPage,
+          total: response.data.length
+        },
+        message: 'Check-ins retrieved successfully'
+      }
+    } else if (response && Array.isArray(response)) {
+      return {
+        success: true,
+        data: response,
+        meta: {
+          current_page: 1,
+          last_page: 1,
+          per_page: perPage,
+          total: response.length
+        },
+        message: 'Check-ins retrieved successfully'
+      }
+    } else {
+      return {
+        success: false,
+        data: [],
+        meta: {
+          current_page: 1,
+          last_page: 1,
+          per_page: perPage,
+          total: 0
+        },
+        message: 'No check-ins found'
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Failed to search check-ins:', error)
+    
+    // Handle authentication errors
+    if (error.status === 401) {
+      handleAuthRedirect()
+      throw new Error('Authentication required. Please log in again.')
+    }
+    
+    if (error.status === 403) {
+      throw new Error('You do not have permission to access check-ins.')
+    }
+    
+    // Handle validation errors
+    if (error.status === 422) {
+      throw new Error('Invalid search parameters. Please check your input and try again.')
+    }
+    
+    // Handle not found
+    if (error.status === 404) {
+      return {
+        success: false,
+        data: [],
+        meta: {
+          current_page: 1,
+          last_page: 1,
+          per_page: perPage,
+          total: 0
+        },
+        message: 'No tickets found matching your search criteria.'
+      }
+    }
+    
+    // Don't expose technical details to users
+    let userMessage = 'Failed to search check-ins. Please try again.'
+    if (error.status >= 500) {
+      userMessage = 'Server error. Please try again later.'
+    }
+    
+    throw new Error(userMessage)
+  }
+}

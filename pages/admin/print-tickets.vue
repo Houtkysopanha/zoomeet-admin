@@ -140,13 +140,19 @@
                 <h4 class="text-gray-800 font-semibold text-base">Scan to Enter</h4>
                 
                 <!-- QR Code -->
-                <div class="w-24 h-24 bg-white border border-gray-300 rounded-lg p-1">
-                  <div class="w-full h-full bg-gray-100 rounded flex items-center justify-center">
-                    <div class="grid grid-cols-8 gap-px w-20 h-20">
-                      <div v-for="i in 64" :key="i" class="w-full h-full" :class="Math.random() > 0.5 ? 'bg-black' : 'bg-white'"></div>
-                    </div>
-                  </div>
-                </div>
+                <QRCodeGenerator 
+                  :value="ticket.qrCode || ticket.ticketId || `ticket-${ticket.id}`"
+                  :size="96"
+                  container-class="mx-auto"
+                  :options="{
+                    errorCorrectionLevel: 'M',
+                    margin: 1,
+                    color: {
+                      dark: '#000000',
+                      light: '#FFFFFF'
+                    }
+                  }"
+                />
               </div>
             </div>
           </div>
@@ -160,6 +166,7 @@
 import { ref, computed } from 'vue'
 import { definePageMeta, navigateTo } from '#imports'
 import Breadcrumb from '~/components/common/Breadcrumb.vue'
+import QRCodeGenerator from '~/components/common/QRCodeGenerator.vue'
 import img from '@/assets/image/poster-manage-booking.png'
 import IconnButton from '~/components/ui/IconnButton.vue'
 definePageMeta({
@@ -185,6 +192,7 @@ const printTickets = ref([
     gate: '3',
     time: '10:00 AM GMT+7',
     seatNumber: '-',
+    qrCode: 'PRINT-CYBER2015-1234-SOKCHENMENG',
   },
   {
     id: 2,
@@ -202,24 +210,26 @@ const printTickets = ref([
     gate: '3',
     time: '10:00 AM GMT+7',
     seatNumber: '-',
+    qrCode: 'PRINT-CYBER2015-ZM2025001-UNASSIGNED',
   },
   {
     id: 3,
     selected: false,
     image: img,
-    eventTitle: 'Navigating the future of cybersecurity in Cambodia 2015',
-    owner: 'Fussac',
-    ticketHolder: '-',
-    bookingRef: 'ZM2025001',
-    phoneNumberOrEmail: '-',
-    ticketId: '1234',
-    location: 'Hayatt Regency, Phnom Penh',
-    ticketType: 'Premium',
-    date: '14-16 July, 2025',
-    gate: '3',
-    time: '10:00 AM GMT+7',
-    seatNumber: '-',
-  }
+    eventTitle: 'Tech Innovation Summit 2025',
+    owner: 'Global Tech',
+    ticketHolder: 'Jane Doe',
+    bookingRef: 'TX2025003',
+    phoneNumberOrEmail: '+855 11223344',
+    ticketId: '5678',
+    location: 'Phnom Penh Convention Center',
+    ticketType: 'VIP',
+    date: '20-22 August, 2025',
+    gate: '1',
+    time: '09:00 AM GMT+7',
+    seatNumber: 'A12',
+    qrCode: 'PRINT-TECHSUMMIT2025-5678-JANEDOE',
+  },
 ])
 
 const selectAll = ref(false)
