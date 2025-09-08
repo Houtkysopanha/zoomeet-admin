@@ -599,6 +599,23 @@ if (eventData.chairs && Array.isArray(eventData.chairs)) {
       }
 
       
+      // Auto-assign creator as owner with all permissions (non-blocking)
+      const eventId = response.data?.id || response.id
+      if (eventId) {
+        try {
+          console.log('🔑 Auto-assigning event creator as owner...')
+          const ownerAssignment = await assignEventCreatorAsOwner(eventId)
+          if (ownerAssignment.success) {
+            console.log('✅ Creator successfully assigned as owner with all permissions')
+          } else {
+            console.warn('⚠️ Failed to assign creator as owner:', ownerAssignment.message)
+          }
+        } catch (ownerError) {
+          console.warn('⚠️ Non-blocking error in owner assignment:', ownerError)
+          // Don't fail event creation due to owner assignment issues
+        }
+      }
+      
       // Return normalized response
       return {
         success: true,
@@ -1751,28 +1768,27 @@ export const searchUsers = async (keyword) => {
 }
 
 
-export const inviteUserAPI = async ({ eventId, selectedUsers, permissions, token }) => {
+export const inviteUserAPI = async ({ eventId, selectedUsers, permissions, hasPermissions, token }) => {
   if (!selectedUsers || selectedUsers.length === 0) {
     throw new Error('Please select at least one user')
   }
 
-  const enabledRoles = Object.entries(permissions)
-    .filter(([category, perm]) => perm.enabled)
-    .map(([category, perm]) => ({
-      role_name: category,
-      permissions: perm.items
-    }))
-
-  if (enabledRoles.length === 0) {
-    throw new Error('Please select at least one permission for the user')
+  // Allow empty roles for users who will be assigned permissions later
+  let enabledRoles = []
+  if (hasPermissions) {
+    enabledRoles = Object.entries(permissions)
+      .filter(([category, perm]) => perm.enabled)
+      .map(([category, perm]) => ({
+        role_name: category,
+        permissions: perm.items
+      }))
   }
 
   const userIds = selectedUsers.map(u => u.id)
   const payload = {
     user_ids: userIds,
-    roles: enabledRoles,
+    roles: enabledRoles, // Can be empty array
     note: selectedUsers[0]?.note || null
-
   }
 
   try {
@@ -1872,6 +1888,44 @@ export const disableEventOrganizer = async (eventId, userId, token) => {
       headers
     }
   )
+}
+
+// Auto-assign event creator as owner with all permissions
+export const assignEventCreatorAsOwner = async (eventId) => {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+  
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+
+    // Get all available permissions first
+    const permissionsResponse = await fetchOrganizerPermissions()
+    if (permissionsResponse.status !== 200 || !permissionsResponse.data.success) {
+      throw new Error('Failed to fetch available permissions')
+    }
+
+    // Create owner role with all permissions
+    const allPermissions = permissionsResponse.data.data
+    const ownerRoles = Object.entries(allPermissions).map(([category, permissions]) => ({
+      role_name: category,
+      permissions: permissions
+    }))
+
+    const response = await axios.post(
+      `${API_ADMIN_BASE_URL}/events/${eventId}/organizer/assign-creator-as-owner`,
+      { roles: ownerRoles },
+      { headers }
+    )
+
+    return response.data
+  } catch (error) {
+    console.error('❌ Failed to assign creator as owner:', error)
+    // Don't throw error to prevent blocking event creation
+    return { success: false, message: error.message }
+  }
 }
 
 export const removeOrganizer = async ({ eventId, userId, token }) => {

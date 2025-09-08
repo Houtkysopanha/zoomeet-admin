@@ -8,7 +8,6 @@
       <div v-if="currentEventId" class="text-right">
         <p class="py-1 rounded-full text-xs font-medium text-purple-500">Basic Info Saved</p>
         <p class="text-xs text-gray-500">{{ currentEventName }}</p>
-        <p v-if="shouldShowEditMode" class="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-500">Click Icon for update and click Update before save draft</p>
       </div>
     </div>
 
@@ -28,8 +27,8 @@
       <div class="flex items-center">
         <Icon name="heroicons:information-circle" class="w-5 h-5 text-blue-600 mr-2" />
         <div>
-          <p class="text-sm font-medium text-blue-800">Editing Published Event</p>
-          <p class="text-xs text-blue-600">Changes to tickets will affect live event. Please review carefully before saving.</p>
+          <p class="text-sm font-medium text-blue-800">Editing Ticket Event</p>
+          <p class="text-xs text-blue-600">Click Icon for update and click Update before save draft.</p>
         </div>
       </div>
     </div>
@@ -96,7 +95,7 @@
     </div>
 
     <!-- Action Buttons Based on Workflow State (Agenda Pattern) -->
-    <div class="flex justify-center items-center mt-6 gap-4">
+    <div class="flex justify-end items-center mt-6 gap-4">
       <!-- PHASE 1: Create First Ticket (No tickets exist) -->
       <Button
         v-if="tickets.length === 0"

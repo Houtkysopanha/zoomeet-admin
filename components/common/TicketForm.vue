@@ -72,13 +72,13 @@
           buttonLayout="horizontal"
           :min="1"
           :useGrouping="false"
-          class="w-full bg-gray-100 rounded-2xl"
+          class="w-full bg-gray-100"
           :class="{ 'p-invalid': isValidating && (ticketData.quantity === null || ticketData.quantity < 1) }"
-          inputClass="w-full p-3 bg-gray-100 rounded-2xl"
+          inputClass="w-full p-3 bg-gray-100"
           placeholder="Enter quantity (minimum 1)"
           @update:modelValue="updateQuantity"
         >
-          <template #incrementbutton>
+          <template #incrementbutton>r
             <Button icon="pi pi-plus" class="p-button-text p-button-secondary" />
           </template>
           <template #decrementbutton>
@@ -287,5 +287,11 @@ const updateDescription = (event) => {
 
 .ticket-form-container {
   @apply transition-all duration-300 ease-in-out;
+}
+
+:deep(.p-inputnumber-input:focus){
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 </style>

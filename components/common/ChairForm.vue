@@ -75,7 +75,7 @@
           @existing-image-removed="handleImageRemoved"
         />
         <!-- Display current image if editing -->
-        <div v-if="(chairData.avatar || chairData.profile_image || chairData.profile_image_url) && isEdit" class="mt-3">
+        <div v-if="(chairData.avatar || chairData.profile_image) && isEdit" class="mt-3">
           <p class="text-sm text-gray-600 mb-2">Current Image:</p>
           <img
             :src="getImageSrc()"
@@ -150,9 +150,9 @@ const chairData = ref({
   company: '',
   sort_order: 1,
   profile_image: null,
-  avatar: '',
-  profile_image_url: null
+  avatar: ''
 })
+
 
 
 // Watch for chair prop changes to populate form
@@ -174,8 +174,7 @@ watch(() => props.chair, (newChair) => {
              lowercaseUrl.includes('not-found') ||
              lowercaseUrl.includes('blank') ||
              lowercaseUrl.includes('empty');
-    };
-
+    };     
     chairData.value = {
       id: newChair.id,
       name: newChair.name || '',
@@ -197,7 +196,7 @@ watch(() => props.chair, (newChair) => {
       company: '',
       sort_order: 1,
       profile_image: null,
-      avatar: '',
+    avatar: '',
       profile_image_url: null
     }
   }
@@ -281,7 +280,6 @@ const saveChair = async () => {
       avatarValue: chairToSave.avatar,
       profileImageUrlValue: chairToSave.profile_image_url
     })
-
     emit('save', chairToSave)
     
     toast.add({
@@ -437,46 +435,19 @@ const handleImageRemoved = () => {
     profile_image_url: chairData.value.profile_image_url
   })
 }
-
 // Safe image source getter
 const getImageSrc = () => {
   try {
-    // Helper function to check if URL is a placeholder/default image
-    const isPlaceholderImage = (url) => {
-      if (!url || typeof url !== 'string') return true;
-      const trimmedUrl = url.trim();
-      if (trimmedUrl === '') return true;
-      
-      const lowercaseUrl = trimmedUrl.toLowerCase();
-      return lowercaseUrl === 'null' ||
-             lowercaseUrl === 'undefined' ||
-             lowercaseUrl.includes('default') || 
-             lowercaseUrl.includes('placeholder') || 
-             lowercaseUrl.includes('avatar.png') ||
-             lowercaseUrl.includes('no-image') ||
-             lowercaseUrl.includes('not-found') ||
-             lowercaseUrl.includes('blank') ||
-             lowercaseUrl.includes('empty');
-    };
-
-    // Priority 1: If we have a profile_image File object and it's valid (new upload)
+    // If we have a profile_image File object and it's valid
     if (chairData.value.profile_image instanceof File) {
       const objectUrl = URL.createObjectURL(chairData.value.profile_image)
       objectUrls.value.push(objectUrl)
       return objectUrl
     }
     
-    // Priority 2: If we have an avatar URL (from existing image or pre-created object URL) - exclude placeholders
-    if (chairData.value.avatar === '' && !chairData.value.profile_image) {
-    chairData.value.profile_image_url = null
-}
-
-    
-    // Priority 3: If we have a profile_image_url (existing image from API) - exclude placeholders
-    if (chairData.value.profile_image_url && typeof chairData.value.profile_image_url === 'string' && chairData.value.profile_image_url.trim() && !isPlaceholderImage(chairData.value.profile_image_url)) {
-      return chairData.value.profile_image_url.startsWith('http') 
-        ? chairData.value.profile_image_url 
-        : `${window.location.origin}${chairData.value.profile_image_url}`
+    // If we have an avatar URL (from existing image)
+    if (chairData.value.avatar) {
+      return chairData.value.avatar
     }
 
     // No image

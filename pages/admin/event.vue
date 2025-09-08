@@ -543,12 +543,12 @@ const formatCurrency = (value) => `$${value.toLocaleString()}`
 
 const getStatusClass = (status) => {
   const classes = {
-    Active: 'bg-green-100 text-green-800 px-2 py-1 rounded-full',
-    Pending: 'bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full',
-    Completed: 'bg-gray-100 text-gray-800 px-2 py-1 rounded-full',
-    Draft: 'bg-gray-200 text-gray-700 px-2 py-1 rounded-full',
+    Active: 'bg-green-50 border border-green-400 text-green-700 px-2 rounded-full',
+    Pending: 'bg-yellow-50 border border-yellow-400 text-yellow-700 px-2 rounded-full',
+    Completed: 'bg-gray-50 border border-gray-400 text-gray-700 px-2 rounded-full',
+    Draft: 'bg-gray-50 border border-gray-400 text-gray-700 px-3 rounded-full',
   }
-  return classes[status] || 'bg-gray-100 text-gray-800 px-2 py-1 rounded-full'
+  return classes[status] || 'bg-gray-50 border border-gray-400 text-gray-700 px-3 rounded-full'
 }
 
 const toggleFilters = () => {
