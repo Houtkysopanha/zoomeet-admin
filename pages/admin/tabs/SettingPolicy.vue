@@ -686,4 +686,9 @@ onUnmounted(() => {
   box-shadow: none !important;
   border: none !important;
 }
+:deep(.p-inputnumber-input:focus){
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
 </style>
