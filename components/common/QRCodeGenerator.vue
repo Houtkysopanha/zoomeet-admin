@@ -4,7 +4,7 @@
       ref="qrCanvas"
       :width="size"
       :height="size"
-      class="border border-gray-200 rounded-lg"
+      class="rounded-lg"
       :class="containerClass"
     />
   </div>
