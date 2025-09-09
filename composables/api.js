@@ -2563,3 +2563,239 @@ export async function getCoupons(eventId) {
     }
   }
 }
+
+// Search check-ins for identity verification
+export async function searchCheckIns(searchParams, page = 1, perPage = 20) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!searchParams || typeof searchParams !== 'object') {
+    throw new Error('Search parameters are required')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+
+    // Build query parameters
+    const queryParams = new URLSearchParams()
+    
+    if (searchParams.phone_number) queryParams.append('phone_number', searchParams.phone_number)
+    if (searchParams.email) queryParams.append('email', searchParams.email)
+    if (searchParams.ticket_no) queryParams.append('ticket_no', searchParams.ticket_no)
+    if (searchParams.order_number) queryParams.append('order_number', searchParams.order_number)
+    
+    // Add pagination parameters
+    queryParams.append('page', page.toString())
+    queryParams.append('per_page', perPage.toString())
+
+    console.log('🔍 Searching check-ins with params:', searchParams)
+    console.log('� Pagination - Page:', page, 'Per Page:', perPage)
+    console.log('�🔗 API URL:', `${API_ADMIN_BASE_URL}/check-ins?${queryParams.toString()}`)
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/check-ins?${queryParams.toString()}`, {
+      method: 'GET',
+      headers
+    })
+
+    console.log('✅ Check-ins search response:', response)
+
+    // Ensure consistent response structure with pagination
+    if (response && response.data && Array.isArray(response.data)) {
+      return {
+        success: true,
+        data: response.data,
+        meta: response.meta || {
+          current_page: 1,
+          last_page: 1,
+          per_page: perPage,
+          total: response.data.length
+        },
+        message: 'Check-ins retrieved successfully'
+      }
+    } else if (response && Array.isArray(response)) {
+      return {
+        success: true,
+        data: response,
+        meta: {
+          current_page: 1,
+          last_page: 1,
+          per_page: perPage,
+          total: response.length
+        },
+        message: 'Check-ins retrieved successfully'
+      }
+    } else {
+      return {
+        success: false,
+        data: [],
+        meta: {
+          current_page: 1,
+          last_page: 1,
+          per_page: perPage,
+          total: 0
+        },
+        message: 'No check-ins found'
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Failed to search check-ins:', error)
+    
+    // Handle authentication errors
+    if (error.status === 401) {
+      handleAuthRedirect()
+      throw new Error('Authentication required. Please log in again.')
+    }
+    
+    if (error.status === 403) {
+      throw new Error('You do not have permission to access check-ins.')
+    }
+    
+    // Handle validation errors
+    if (error.status === 422) {
+      throw new Error('Invalid search parameters. Please check your input and try again.')
+    }
+    
+    // Handle not found
+    if (error.status === 404) {
+      return {
+        success: false,
+        data: [],
+        meta: {
+          current_page: 1,
+          last_page: 1,
+          per_page: perPage,
+          total: 0
+        },
+        message: 'No tickets found matching your search criteria.'
+      }
+    }
+    
+    // Don't expose technical details to users
+    let userMessage = 'Failed to search check-ins. Please try again.'
+    if (error.status >= 500) {
+      userMessage = 'Server error. Please try again later.'
+    }
+    
+    throw new Error(userMessage)
+  }
+}
+
+// Assign ticket to a holder
+export async function assignTicket(assignmentId, formData) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!assignmentId) {
+    throw new Error('Assignment ID is required')
+  }
+
+  if (!formData || typeof formData !== 'object') {
+    throw new Error('Form data is required')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+
+    // Create FormData for the request
+    const requestFormData = new FormData()
+    
+    // Add required fields to FormData
+    if (formData.name) {
+      requestFormData.append('name', formData.name.trim())
+    }
+    if (formData.email) {
+      requestFormData.append('email', formData.email.trim())
+    }
+    if (formData.phone_number) {
+      requestFormData.append('phone_number', formData.phone_number.trim())
+    }
+
+    // Optional fields
+    if (formData.id_card_no) {
+      requestFormData.append('id_card_no', formData.id_card_no.trim())
+    }
+    if (formData.passport_no) {
+      requestFormData.append('passport_no', formData.passport_no.trim())
+    }
+
+    console.log('🎫 Assigning ticket with assignment ID:', assignmentId)
+    console.log('📝 Form data fields:', Object.fromEntries(requestFormData.entries()))
+
+    // Remove Content-Type from headers to let browser set it for FormData
+    const formDataHeaders = { ...headers }
+    delete formDataHeaders['Content-Type']
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/check-ins/${assignmentId}/assign`, {
+      method: 'POST',
+      body: requestFormData,
+      headers: formDataHeaders
+    })
+
+    console.log('✅ Ticket assignment response:', response)
+
+    return {
+      success: true,
+      data: response.data || response,
+      message: response.message || 'Ticket assigned successfully'
+    }
+
+  } catch (error) {
+    console.error('❌ Failed to assign ticket:', error)
+    
+    // Handle authentication errors
+    if (error.status === 401) {
+      handleAuthRedirect()
+      throw new Error('Authentication required. Please log in again.')
+    }
+    
+    if (error.status === 403) {
+      throw new Error('You do not have permission to assign tickets.')
+    }
+    
+    // Handle validation errors
+    if (error.status === 422) {
+      let errorMessage = 'Invalid form data. Please check your input and try again.'
+      
+      if (error.data?.errors) {
+        const validationErrors = []
+        Object.entries(error.data.errors).forEach(([field, messages]) => {
+          if (Array.isArray(messages)) {
+            validationErrors.push(`${field}: ${messages.join(', ')}`)
+          } else {
+            validationErrors.push(`${field}: ${messages}`)
+          }
+        })
+        errorMessage = `Validation failed:\n${validationErrors.join('\n')}`
+      } else if (error.data?.message) {
+        errorMessage = error.data.message
+      }
+      
+      throw new Error(errorMessage)
+    }
+    
+    // Handle not found
+    if (error.status === 404) {
+      throw new Error('Ticket not found or assignment ID is invalid.')
+    }
+    
+    // Handle conflict (already assigned)
+    if (error.status === 409) {
+      throw new Error('This ticket has already been assigned to someone else.')
+    }
+    
+    // Don't expose technical details to users
+    let userMessage = 'Failed to assign ticket. Please try again.'
+    if (error.status >= 500) {
+      userMessage = 'Server error. Please try again later.'
+    }
+    
+    throw new Error(userMessage)
+  }
+}
