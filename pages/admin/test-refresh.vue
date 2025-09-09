@@ -45,6 +45,14 @@
           </button>
           
           <button 
+            @click="testDirectRefreshAPI" 
+            :disabled="refreshing"
+            class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
+          >
+            {{ refreshing ? 'Testing...' : 'Test Direct API' }}
+          </button>
+          
+          <button 
             @click="testAPICall" 
             :disabled="testing"
             class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
@@ -193,15 +201,62 @@ const testTokenRefresh = async () => {
   addLog('info', 'Starting token refresh test...')
   
   try {
+    // Log current token info before refresh
+    const beforeRefresh = {
+      hasToken: !!getToken(),
+      hasRefreshToken: !!getRefreshToken(),
+      isExpired: isTokenExpired(),
+      timeUntilExpiry: getTimeUntilExpiry()
+    }
+    addLog('info', 'Before refresh state', beforeRefresh)
+    
     const result = await refreshToken()
     
     if (result) {
-      addLog('success', 'Token refresh successful!')
+      // Log token info after refresh
+      const afterRefresh = {
+        hasToken: !!getToken(),
+        hasRefreshToken: !!getRefreshToken(),
+        isExpired: isTokenExpired(),
+        timeUntilExpiry: getTimeUntilExpiry()
+      }
+      addLog('success', 'Token refresh successful!', afterRefresh)
     } else {
-      addLog('error', 'Token refresh failed')
+      addLog('error', 'Token refresh failed - returned false')
     }
   } catch (error) {
     addLog('error', 'Token refresh error', { error: error.message })
+  } finally {
+    refreshing.value = false
+  }
+}
+
+const testDirectRefreshAPI = async () => {
+  refreshing.value = true
+  addLog('info', 'Testing direct refresh API call...')
+  
+  try {
+    const currentRefreshToken = getRefreshToken()
+    if (!currentRefreshToken) {
+      addLog('error', 'No refresh token available for direct API test')
+      return
+    }
+
+    // Import and test the API function directly
+    const { refreshAccessToken } = await import('@/composables/api')
+    const result = await refreshAccessToken(currentRefreshToken)
+    
+    if (result.success) {
+      addLog('success', 'Direct refresh API test successful!', {
+        hasAccessToken: !!result.data?.tokens?.access_token,
+        hasRefreshToken: !!result.data?.tokens?.refresh_token,
+        expiresIn: result.data?.tokens?.expires_in
+      })
+    } else {
+      addLog('error', 'Direct refresh API test failed')
+    }
+  } catch (error) {
+    addLog('error', 'Direct refresh API error', { error: error.message })
   } finally {
     refreshing.value = false
   }
