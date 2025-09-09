@@ -2418,7 +2418,6 @@ export async function updatePromotion(eventId, promotionId, promotionData) {
   }
 }
 // ============= PROMOTION API FUNCTIONS =============
-
 // Delete promotion
 export async function deletePromotion(eventId, promotionId) {
   if (!eventId || !promotionId) {
