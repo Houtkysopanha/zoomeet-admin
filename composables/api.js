@@ -2564,6 +2564,104 @@ export async function getCoupons(eventId) {
   }
 }
 
+// Update voucher/coupon
+export async function updateCoupon(couponId, couponData) {
+  if (!couponId) throw new Error('Coupon ID is required')
+  if (!couponData) throw new Error('Coupon data is required')
+
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) throw new Error('Authentication required')
+
+    console.log('🔄 Updating coupon:', couponId, couponData)
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/coupons/${couponId}`, {
+      method: 'PUT',
+      headers,
+      body: couponData
+    })
+
+    console.log('✅ Coupon updated successfully:', response)
+
+    return {
+      success: true,
+      data: response,
+      message: 'Voucher updated successfully'
+    }
+  } catch (error) {
+    console.error('❌ Failed to update coupon:', error)
+
+    let userMessage = 'Failed to update voucher. Please try again.'
+    if (error.status === 400) {
+      userMessage = 'Invalid voucher data. Please check your inputs.'
+    } else if (error.status === 401) {
+      userMessage = 'Authentication required. Please log in again.'
+    } else if (error.status === 403) {
+      userMessage = 'You don\'t have permission to update vouchers.'
+    } else if (error.status === 404) {
+      userMessage = 'Voucher not found. It may have been deleted.'
+    } else if (error.status === 422) {
+      if (error.data?.errors) {
+        const errorMessages = []
+        Object.entries(error.data.errors).forEach(([field, messages]) => {
+          errorMessages.push(`${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
+        })
+        userMessage = `Validation failed:\n${errorMessages.join('\n')}`
+      } else if (error.data?.message) {
+        userMessage = error.data.message
+      }
+    }
+
+    throw new Error(userMessage)
+  }
+}
+
+// Delete voucher/coupon
+export async function deleteCoupon(couponId) {
+  if (!couponId) throw new Error('Coupon ID is required')
+
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) throw new Error('Authentication required')
+
+    console.log('🗑️ Deleting coupon:', couponId)
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/coupons/${couponId}`, {
+      method: 'DELETE',
+      headers
+    })
+
+    console.log('✅ Coupon deleted successfully:', response)
+
+    return {
+      success: true,
+      data: response,
+      message: 'Voucher deleted successfully'
+    }
+  } catch (error) {
+    console.error('❌ Failed to delete coupon:', error)
+
+    let userMessage = 'Failed to delete voucher. Please try again.'
+    if (error.status === 401) {
+      userMessage = 'Authentication required. Please log in again.'
+    } else if (error.status === 403) {
+      userMessage = 'You don\'t have permission to delete vouchers.'
+    } else if (error.status === 404) {
+      userMessage = 'Voucher not found. It may have already been deleted.'
+    } else if (error.status === 409) {
+      userMessage = 'Cannot delete voucher as it has been used by customers.'
+    }
+
+    throw new Error(userMessage)
+  }
+}
+
 // Search check-ins for identity verification
 export async function searchCheckIns(searchParams, page = 1, perPage = 20) {
   const config = useRuntimeConfig()
