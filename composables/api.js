@@ -1,8 +1,5 @@
 // Auto-imported by Nuxt: useRuntimeConfig, $fetch
 import axios from 'axios'
-// Get auth token using proper Nuxt 3 pattern with automatic refresh
-// Auto-imported by Nuxt: useRuntimeConfig, $fetch
-// Get auth token using proper Nuxt 3 pattern
 const getAuthToken = () => {
   try {
     const { getToken, isTokenExpired, clearAuth } = useAuth()
@@ -2895,5 +2892,64 @@ export async function assignTicket(assignmentId, formData) {
     }
     
     throw new Error(userMessage)
+  }
+}
+
+// Refresh access token using refresh token
+export async function refreshAccessToken(refreshToken) {
+  const config = useRuntimeConfig()
+  const API_BASE_URL = config.public.apiBaseUrl
+
+  if (!API_BASE_URL) {
+    throw new Error('API base URL is not configured.')
+  }
+
+  if (!refreshToken) {
+    throw new Error('Refresh token is required')
+  }
+
+  try {
+    console.log('🔄 Calling refresh token API...')
+    
+    // Create FormData to match the curl format: --form 'refresh_token="..."'
+    const formData = new FormData()
+    formData.append('refresh_token', refreshToken)
+
+    const refreshUrl = normalizeApiUrl(API_BASE_URL, 'refresh-token')
+    
+    const response = await $fetch(refreshUrl, {
+      method: 'POST',
+      body: formData,
+      // Don't include Authorization header for refresh token endpoint
+    })
+
+    console.log('✅ Refresh token API response received')
+
+    // Validate response structure
+    if (!response || !response.tokens || !response.tokens.access_token) {
+      throw new Error('Invalid refresh response structure: missing tokens.access_token')
+    }
+
+    return {
+      success: true,
+      data: response
+    }
+
+  } catch (error) {
+    console.error('❌ Refresh token API error:', error)
+    
+    // Enhanced error handling for refresh token specific errors
+    if (error.status === 401) {
+      throw new Error('Refresh token has expired. Please login again.')
+    } else if (error.status === 422) {
+      throw new Error('Invalid refresh token format. Please login again.')
+    } else if (error.status === 429) {
+      throw new Error('Too many refresh attempts. Please wait a moment and try again.')
+    } else if (error.status === 500) {
+      throw new Error('Server error during token refresh. Please try again later.')
+    }
+    
+    // Don't expose technical details
+    throw new Error(error.message || 'Failed to refresh access token. Please login again.')
   }
 }

@@ -2,33 +2,27 @@
   <!-- Main card container -->
   <div class=" bg-transparent rounded-2xl shadow-sm border border-gray-200 overflow-hidden p-3 md:p-4 ">
     <!-- Top section: Image and Event Details -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-3 md:mb-10">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
       <!-- Left side: Image with overlay text -->
-      <div class="relative w-full rounded-xl overflow-hidden shadow-md h-48 sm:h-52 md:h-40 lg:h-48 xl:h-52">
+      <div class="relative w-full rounded-xl overflow-hidden shadow-md h-48 sm:h-52 md:h-[8rem] md:mb-5 ">
         <img
           :src="displayImageSrc"
           :alt="altText"
           class="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
           :onerror="`this.onerror=null;this.src='${fallbackImage}';`"
         />
-        <!-- <div class="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-500 opacity-70"></div> -->
-        <div class="absolute inset-0 flex flex-col justify-center items-start p-3 md:p-4 text-white text-left">
-          <p class="text-xs md:text-sm font-light mb-1 drop-shadow-lg">{{ overlayText1 }}</p>
-          <p class="text-lg sm:text-xl md:text-2xl font-bold leading-tight drop-shadow-lg line-clamp-2">{{ overlayText2 }}</p>
-          <p class="text-xs md:text-sm drop-shadow-lg">{{ overlayText3 }}</p>
-        </div>
       </div>
 
       <!-- Right side: Event Title, Owner, Location -->
-      <div class="flex flex-col p-1 space-y-4">
-        <h2 class="text-lg md:text-xl font-semibold text-gray-800 leading-tight line-clamp-2">{{ eventTitle }}</h2>
+      <div class="flex flex-col p-1 space-y-3">
+        <h2 class="text-lg md:text-md font-semibold text-gray-800 leading-tight line-clamp-2">{{ eventTitle }}</h2>
         
         <!-- Owner section with proper icon alignment -->
         <div class="flex items-start text-gray-600">
-          <i class="pi pi-user text-blue-950 font-medium text-base mr-2 mt-0.5 flex-shrink-0"></i>
+          <i class="pi pi-user text-blue-950 font-medium text-sm mr-2 mt-0.5 flex-shrink-0"></i>
           <div class="flex-1 min-w-0">
-            <span class="text-sm text-blue-950 font-medium md:text-base break-words">
-              <span class="text-gray-600">Owner:</span> {{ owner }}
+            <span class="text-sm text-blue-950 font-medium md:text-sm break-words">
+              <span class="text-gray-600 md:text-sm">Owner:</span> {{ owner }}
             </span>
           </div>
         </div>
@@ -37,17 +31,17 @@
         <div class="flex items-start text-gray-600">
           <i class="pi pi-map-marker text-blue-950 font-medium text-base mr-2 mt-0.5 flex-shrink-0"></i>
           <div class="flex-1 min-w-0">
-            <span class="text-sm text-blue-950 font-medium md:text-base break-words">{{ location }}</span>
+            <span class="text-sm text-blue-950 font-medium md:text-sm break-words">{{ location }}</span>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Bottom section: Date and Time -->
-    <div class="flex flex-col sm:flex-row justify-around items-center bg-[#F8F8FF] border border-white p-6 rounded-xl shadow-md">
+    <div class="flex flex-col sm:flex-row justify-around items-center bg-[#F8F8FF] border border-white p-3 rounded-xl shadow-md">
       <div class="flex flex-col items-center text-center mb-2 sm:mb-0">
         <p class="text-gray-500 text-xs font-medium">Date</p>
-        <p class="text-gray-800 text-base md:text-lg font-semibold">{{ formattedDate }}</p>
+        <p class="text-gray-800 text-base md:text-sm font-semibold">{{ formattedDate }}</p>
       </div>
 
       <!-- Vertical separator (visible on larger screens) -->
@@ -57,7 +51,7 @@
 
       <div class="flex flex-col items-center text-center">
         <p class="text-gray-500 text-xs font-medium">Time</p>
-        <p class="text-gray-800 text-base md:text-lg font-semibold">{{ formattedTime }}</p>
+        <p class="text-gray-800 text-base md:text-sm font-semibold">{{ formattedTime }}</p>
       </div>
     </div>
   </div>
