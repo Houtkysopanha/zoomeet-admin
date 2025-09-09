@@ -127,7 +127,7 @@
         field="name"
         header="Event"
         sortable
-        class="w-[23%] text-[14px] border-b border-gray-300 khmer-text"
+        class="w-[23%] text-[12px] border-b border-gray-300 khmer-text"
       >
         <template #body="slotProps">
           <div class="text-black font-medium capitalize">
@@ -142,14 +142,14 @@
         field="date"
         header="Date"
         sortable
-        class="text-[12px] border-b border-gray-300"
+        class="text-[12px] w-[15%] border-b border-gray-300"
       >
         <template #body="slotProps">
           <span>{{ formatDate(slotProps.data) }}</span>
         </template>
       </Column>
 
-    <Column field="venue" header="Venue" class="text-[12px] border-b border-gray-300 khmer-text" />
+    <Column field="venue" header="Venue" class="text-[12px] w-[15%] border-b border-gray-300 khmer-text" />
       <Column field="type" header="Event Type" class="text-[12px] border-b border-gray-300" />
 
       <Column

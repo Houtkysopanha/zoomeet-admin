@@ -288,155 +288,151 @@
             <Button
               label="Print Tickets"
               icon="pi pi-print"
-              class="bg-white border border-purple-500 text-purple-600 hover:bg-purple-50 px-4 py-2 rounded-lg transition-all duration-200"
+              disabled
+              class="bg-gray-200 border border-gray-300 text-gray-400 px-4 py-2 rounded-lg cursor-not-allowed opacity-50"
               outlined
-              @click="navigateToPrintTickets"
+              @click="() => {}"
             />
           </div>
 
-          <!-- Ticket Cards -->
-          <div class="space-y-4">
-            <div
-              v-for="result in searchResults"
-              :key="result.id"
-              class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+         <!-- Ticket Cards -->
+<div class="space-y-4">
+  <div
+    v-for="result in searchResults"
+    :key="result.id"
+    class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+  >
+    <div class="flex flex-col md:flex-row">
+      <!-- Left: Event Image and Info -->
+      <div class="flex flex-col md:flex-row flex-1">
+        <!-- Event Poster -->
+        <div class="relative w-full md:w-56 lg:w-64 overflow-hidden">
+          <img 
+            :src="result.image" 
+            :alt="result.eventTitle"
+            class="w-full object-cover"
+          />
+          <!-- Status Badge -->
+          <div class="absolute top-3 left-3">
+            <span 
+              v-if="result.status === 'Check-in'"
+              class="bg-purple-600 text-white px-3 py-1 rounded-full text-xs font-medium"
             >
-              <div class="flex">
-                <!-- Left: Event Image and Info -->
-                <div class="flex-1 flex">
-                  <!-- Event Poster -->
-                  <div class="relative overflow-hidden">
-                    <img 
-                      :src="result.image" 
-                      :alt="result.eventTitle"
-                      class="w-96 h-full object-cover"
-                    />
-                    <!-- Status Badge -->
-                    <div class="absolute top-3 left-3">
-                      <span 
-                        v-if="result.status === 'Check-in'"
-                        class="bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-medium"
-                      >
-                        ✓ Check-in
-                      </span>
-                      <span 
-                        v-else
-                        class="bg-gray-400 text-white px-3 py-1 rounded-full text-sm font-medium"
-                      >
-                        Not Check-in
-                      </span>
-                    </div>
-                    <!-- Event Title Overlay -->
-                    <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-b from-white/50 to-[#1D2346] p-4">
-                      <h3 class="text-white font-semibold text-sm leading-tight">{{ result.eventTitle || '-' }}</h3>
-                      <p class="text-white font-semibold text-sm mt-1">Owner: {{ result.owner || '-' }}</p>
-                    </div>
-                  </div>
+              ✓ Check-in
+            </span>
+            <span 
+              v-else
+              class="bg-gray-400 text-white px-3 py-1 rounded-full text-xs font-medium"
+            >
+              Not Check-in
+            </span>
+          </div>
+          <!-- Event Title Overlay -->
+          <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-b from-white/50 to-[#1D2346]/90 p-3">
+            <h3 class="text-white font-semibold text-sm leading-tight truncate">{{ result.eventTitle || '-' }}</h3>
+            <p class="text-white text-xs mt-1 truncate">Owner: {{ result.owner || '-' }}</p>
+          </div>
+        </div>
 
-                  <!-- Ticket Details -->
-                  <div class="flex-1 p-6">
-                    <div class="grid grid-cols-3 gap-8">
-                      <!-- First Column -->
-                      <div class="space-y-4">
-                        <div>
-                          <span class="text-gray-500 text-sm">Ticket Holder</span>
-                          <p class="font-semibold text-gray-900">{{ result.ticketHolder || '-' }}</p>
-                        </div>
-                        <div>
-                          <span class="text-gray-500 text-sm">Phone Number or Email</span>
-                          <p class="font-semibold text-gray-900">{{ result.phoneNumberOrEmail || '-' }}</p>
-                        </div>
-                      </div>
+        <!-- Ticket Details -->
+        <div class="flex-1 p-4 md:p-6">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <!-- First Column -->
+            <div class="space-y-3">
+              <div>
+                <span class="text-gray-500 text-xs">Ticket Holder</span>
+                <p class="font-semibold text-gray-900 text-sm">{{ result.ticketHolder || '-' }}</p>
+              </div>
+              <div>
+                <span class="text-gray-500 text-xs">Phone Number / Email</span>
+                <p class="font-semibold text-gray-900 text-sm truncate">{{ result.phoneNumberOrEmail || '-' }}</p>
+              </div>
+            </div>
 
-                      <!-- Second Column -->
-                      <div class="space-y-4">
-                        <div>
-                          <span class="text-gray-500 text-sm">Booking Ref</span>
-                          <p class="font-semibold text-gray-900">{{ result.bookingRef || '-' }}</p>
-                        </div>
-                        <div>
-                          <span class="text-gray-500 text-sm">Ticket ID</span>
-                          <p class="font-semibold text-gray-900">{{ result.ticketId || '-' }}</p>
-                        </div>
-                      </div>
+            <!-- Second Column -->
+            <div class="space-y-3">
+              <div>
+                <span class="text-gray-500 text-xs">Booking Ref</span>
+                <p class="font-semibold text-gray-900 text-sm">{{ result.bookingRef || '-' }}</p>
+              </div>
+              <div>
+                <span class="text-gray-500 text-xs">Ticket ID</span>
+                <p class="font-semibold text-gray-900 text-sm">{{ result.ticketId || '-' }}</p>
+              </div>
+            </div>
 
-                      <!-- Third Column -->
-                      <div class="space-y-4">
-                        <div>
-                          <span class="text-gray-500 text-sm">Ticket Type</span>
-                          <p class="font-semibold text-gray-900">{{ result.ticketType || '-' }}</p>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
-                          <div>
-                            <span class="text-gray-500 text-sm">Gate</span>
-                            <p class="font-semibold text-gray-900">{{ result.gate || '-'}}</p>
-                          </div>
-                          <div>
-                            <span class="text-gray-500 text-sm">Seat Number</span>
-                            <p class="font-semibold text-gray-900 text-xs">{{ result.seatNumber || '-' }}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Bottom Row - Event Details -->
-                    <div class="mt-6 pt-4 border-t border-gray-100">
-                       <div>
-                        <span class="text-gray-500 text-sm">Location</span>
-                        <p class="font-semibold text-gray-900">{{ result.location || '-' }}</p>
-                      </div>
-                      <div class="grid grid-cols-3 gap-6">
-                        <div>
-                        <span class="text-gray-500 text-sm">Date</span>
-                        <p class="font-semibold text-gray-900">{{ result.date || '-' }}</p>
-                      </div>
-                      <div>
-                        <span class="text-gray-500 text-sm">Time</span>
-                        <p class="font-semibold text-gray-900">{{ result.time || '-' }}</p>
-                      </div>
-                      </div>
-                    </div>
-                  </div>
+            <!-- Third Column -->
+            <div class="space-y-3">
+              <div>
+                <span class="text-gray-500 text-xs">Ticket Type</span>
+                <p class="font-semibold text-gray-900 text-sm">{{ result.ticketType || '-' }}</p>
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <span class="text-gray-500 text-xs">Gate</span>
+                  <p class="font-semibold text-gray-900 text-sm">{{ result.gate || '-'}}</p>
                 </div>
-
-                <!-- Right: QR Code and Actions -->
-                <div class="w-48 p-6 border-l border-gray-100 flex flex-col items-center justify-center space-y-4">
-                  <div class="text-center">
-                    <p class="text-gray-700 font-medium mb-3">Scan to Enter</p>
-                    <!-- QR Code Generator -->
-                    <QRCodeGenerator 
-                      :value="result.qrCode || result.ticketId || `ticket-${result.id}`"
-                      :size="105"
-                      container-class="mx-auto"
-                      :options="{
-                        errorCorrectionLevel: 'M',
-                        margin: 1,
-                        color: {
-                          dark: '#374151',
-                          light: '#FFFFFF'
-                        }
-                      }"
-                    />
-                  </div>
-                  
-                  <!-- Action Button -->
-                  <Button
-                    :label="result.isAssigned ? 'Re-assign' : 'Assign Ticket'"
-                    :class="[
-                      'w-full py-2 px-3 rounded-full text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2',
-                      result.isAssigned 
-                        ? 'bg-gray-500 text-white hover:bg-gray-600' 
-                        : 'bg-purple-600 text-white hover:bg-purple-700'
-                    ]"
-                    @click="openAssignModal(result)"
-                  >
-                    <Icon :name="result.isAssigned ? 'heroicons:arrow-path' : 'icon-park-solid:ticket'" class="w-4 h-4" /> 
-                    {{ result.isAssigned ? 'Re-assign' : 'Assign Ticket' }}
-                  </Button>
+                <div>
+                  <span class="text-gray-500 text-xs">Seat Number</span>
+                  <p class="font-semibold text-gray-900 text-sm">{{ result.seatNumber || '-' }}</p>
                 </div>
               </div>
             </div>
           </div>
+
+          <!-- Bottom Row - Event Details -->
+          <div class="mt-2 pt-2 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div>
+              <span class="text-gray-500 text-xs">Location</span>
+              <p class="font-semibold text-gray-900 text-sm">{{ result.location || '-' }}</p>
+            </div>
+            <div>
+              <span class="text-gray-500 text-xs">Date</span>
+              <p class="font-semibold text-gray-900 text-sm">{{ result.date || '-' }}</p>
+            </div>
+            <div>
+              <span class="text-gray-500 text-xs">Time</span>
+              <p class="font-semibold text-gray-900 text-sm">{{ result.time || '-' }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: QR Code and Actions -->
+      <div class="w-full md:w-44 p-4 border-t md:border-t-0 md:border-l border-gray-100 flex flex-col items-center justify-center space-y-3">
+        <div class="text-center">
+          <p class="text-gray-700 font-medium mb-2 text-sm">Scan to Enter</p>
+          <QRCodeGenerator 
+            :value="result.qrCode || result.ticketId || `ticket-${result.id}`"
+            :size="90"
+            container-class="mx-auto"
+            :options="{
+              errorCorrectionLevel: 'M',
+              margin: 1,
+              color: { dark: '#374151', light: '#FFFFFF' }
+            }"
+          />
+        </div>
+        
+        <!-- Action Button -->
+        <Button
+          :label="result.isAssigned ? 'Re-assign' : 'Assign Ticket'"
+          :class="[
+            'w-full py-2 px-3 rounded-full text-xs font-medium transition-all duration-200 flex items-center justify-center gap-2',
+            result.isAssigned 
+              ? 'bg-gray-500 text-white hover:bg-gray-600' 
+              : 'bg-purple-600 text-white hover:bg-purple-700'
+          ]"
+          @click="openAssignModal(result)"
+        >
+          <Icon :name="result.isAssigned ? 'heroicons:arrow-path' : 'icon-park-solid:ticket'" class="w-4 h-4" /> 
+          {{ result.isAssigned ? 'Re-assign' : 'Assign Ticket' }}
+        </Button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
           <!-- Pagination -->
           <div v-if="lastPage > 1" class="flex justify-center items-center space-x-2 mt-8 mb-4">
@@ -485,9 +481,10 @@
     </div>
 
     <!-- Assign Ticket Modal -->
-    <div v-if="showAssignModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-xl p-8 max-w-[45rem] w-full mx-4 shadow-2xl">
-        <div class="space-y-6">
+    <div v-if="showAssignModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] shadow-2xl flex flex-col modal-transition">
+        <!-- Modal Content - Scrollable -->
+        <div class="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 modal-body modal-content-spacing">
           <!-- Modal Header -->
           <div>
             <h2 class="text-xl font-bold text-gray-900">
@@ -500,8 +497,8 @@
 
           <!-- General Error Message -->
           <div v-if="assignFormErrors.general" class="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div class="flex items-center">
-              <Icon name="heroicons:exclamation-triangle" class="w-5 h-5 text-red-500 mr-2" />
+            <div class="flex items-start">
+              <Icon name="heroicons:exclamation-triangle" class="w-5 h-5 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
               <span class="text-red-700 text-sm font-medium">{{ assignFormErrors.general }}</span>
             </div>
           </div>
@@ -517,9 +514,9 @@
                 assignFormErrors.name ? 'border-red-300 bg-red-50' : 'border-gray-300'
               ]"
             />
-            <div v-if="assignFormErrors.name" class="mt-1 text-red-600 text-sm flex items-center">
-              <Icon name="heroicons:exclamation-circle" class="w-4 h-4 mr-1" />
-              {{ assignFormErrors.name }}
+            <div v-if="assignFormErrors.name" class="mt-1 text-red-600 text-sm flex items-start">
+              <Icon name="heroicons:exclamation-circle" class="w-4 h-4 mr-1 mt-0.5 flex-shrink-0" />
+              <span>{{ assignFormErrors.name }}</span>
             </div>
           </div>
 
@@ -529,23 +526,23 @@
               Phone Number 
               <span class="text-gray-500 text-xs">(Phone OR Email required)</span>
             </label>
-            <div class="flex">
-              <div class="flex items-center bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg px-3">
-                <img src="https://flagcdn.com/kh.svg" alt="Cambodia" class="w-5 h-3 mr-2">
-                <span class="text-sm font-medium">+855</span>
+            <div class="flex phone-input-container">
+              <div class="flex items-center bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg px-3 min-w-fit phone-prefix">
+                <img src="https://flagcdn.com/kh.svg" alt="Cambodia" class="w-5 h-3 mr-2 flex-shrink-0">
+                <span class="text-sm font-medium whitespace-nowrap">+855</span>
               </div>
               <InputText
                 v-model="assignForm.phone_number"
                 placeholder="97 6028 424"
                 :class="[
-                  'flex-1 p-3 border rounded-r-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none',
+                  'flex-1 p-3 border rounded-r-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none min-w-0 phone-input',
                   assignFormErrors.phone_number ? 'border-red-300 bg-red-50' : 'border-gray-300'
                 ]"
               />
             </div>
-            <div v-if="assignFormErrors.phone_number" class="mt-1 text-red-600 text-sm flex items-center">
-              <Icon name="heroicons:exclamation-circle" class="w-4 h-4 mr-1" />
-              {{ assignFormErrors.phone_number }}
+            <div v-if="assignFormErrors.phone_number" class="mt-1 text-red-600 text-sm flex items-start">
+              <Icon name="heroicons:exclamation-circle" class="w-4 h-4 mr-1 mt-0.5 flex-shrink-0" />
+              <span>{{ assignFormErrors.phone_number }}</span>
             </div>
           </div>
 
@@ -563,9 +560,9 @@
                 assignFormErrors.email ? 'border-red-300 bg-red-50' : 'border-gray-300'
               ]"
             />
-            <div v-if="assignFormErrors.email" class="mt-1 text-red-600 text-sm flex items-center">
-              <Icon name="heroicons:exclamation-circle" class="w-4 h-4 mr-1" />
-              {{ assignFormErrors.email }}
+            <div v-if="assignFormErrors.email" class="mt-1 text-red-600 text-sm flex items-start">
+              <Icon name="heroicons:exclamation-circle" class="w-4 h-4 mr-1 mt-0.5 flex-shrink-0" />
+              <span>{{ assignFormErrors.email }}</span>
             </div>
           </div>
 
@@ -584,9 +581,9 @@
                 assignFormErrors.id_card_no ? 'border-red-300 bg-red-50' : 'border-gray-300'
               ]"
             />
-            <div v-if="assignFormErrors.id_card_no" class="mt-1 text-red-600 text-sm flex items-center">
-              <Icon name="heroicons:exclamation-circle" class="w-4 h-4 mr-1" />
-              {{ assignFormErrors.id_card_no }}
+            <div v-if="assignFormErrors.id_card_no" class="mt-1 text-red-600 text-sm flex items-start">
+              <Icon name="heroicons:exclamation-circle" class="w-4 h-4 mr-1 mt-0.5 flex-shrink-0" />
+              <span>{{ assignFormErrors.id_card_no }}</span>
             </div>
           </div>
 
@@ -601,16 +598,20 @@
             </div>
           </div>
 
+          </div>
+        
+        <!-- Modal Footer - Fixed at bottom -->
+        <div class="border-t border-gray-100 p-6 md:p-8 bg-gray-50 rounded-b-xl modal-footer">
           <!-- Action Buttons -->
-          <div class="flex gap-3 pt-4">
+          <div class="flex flex-col sm:flex-row gap-3">
             <Button
               label="Cancel"
-              class="flex-1 py-3 px-6 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200"
+              class="w-full sm:flex-1 py-3 px-6 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-200 order-2 sm:order-1"
               @click="closeAssignModal"
             />
             <Button
               :label="selectedTicket?.isAssigned ? 'Update Assignment' : 'Assign Ticket'"
-              class="flex-1 py-3 px-6 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-all duration-200"
+              class="w-full sm:flex-1 py-3 px-6 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-all duration-200 order-1 sm:order-2"
               @click="completeAssignment"
             />
           </div>
@@ -1262,5 +1263,82 @@ const assignTicket = (ticket) => {
 .fade-leave-to {
   opacity: 0;
   transform: translateY(10px);
+}
+
+/* Modal responsive adjustments */
+@media (max-width: 640px) {
+  .modal-content {
+    margin: 1rem;
+    max-height: calc(100vh - 2rem);
+  }
+}
+
+/* Ensure phone input doesn't break on small screens */
+@media (max-width: 480px) {
+  .phone-input-container {
+    flex-direction: column;
+  }
+  
+  .phone-prefix {
+    border-radius: 0.5rem 0.5rem 0 0 !important;
+    border-right: 1px solid #d1d5db !important;
+  }
+  
+  .phone-input {
+    border-radius: 0 0 0.5rem 0.5rem !important;
+    border-top: none !important;
+  }
+}
+
+/* Modal scrolling behavior */
+.modal-body {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db #f9fafb;
+}
+
+.modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: #f9fafb;
+  border-radius: 3px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Ensure modal footer stays at bottom */
+.modal-footer {
+  flex-shrink: 0;
+}
+
+/* Better spacing for modal content */
+.modal-content-spacing > * + * {
+  margin-top: 1.5rem;
+}
+
+/* Smooth transitions for modal elements */
+.modal-transition {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Ensure buttons remain accessible on small screens */
+@media (max-height: 600px) {
+  .modal-body {
+    max-height: calc(60vh - 120px);
+  }
+}
+
+@media (max-height: 500px) {
+  .modal-body {
+    max-height: calc(50vh - 100px);
+  }
 }
 </style>
