@@ -481,24 +481,6 @@ watch(searchQuery, (newQuery, oldQuery) => {
   }
 })
 
-// Watch for filtered events changes to clean up menu refs
-watch(() => filteredEvents.value, (newFilteredEvents, oldFilteredEvents) => {
-  // Use nextTick to ensure DOM has updated
-  nextTick(() => {
-    const currentEventIds = new Set(newFilteredEvents.map(e => e.id))
-    const oldEventIds = oldFilteredEvents ? new Set(oldFilteredEvents.map(e => e.id)) : new Set()
-  
-    
-    // Clean up menu refs for events that are no longer visible
-    Object.keys(actionMenus.value).forEach(eventId => {
-      if (!currentEventIds.has(eventId)) {
-        delete actionMenus.value[eventId]
-
-      }
-    })
-  })
-}, { flush: 'post' })
-
 const applySort = () => {
   // Parse sortOption and update sortField and sortOrder accordingly
   const [field, order] = sortOption.value.split('-')
@@ -552,6 +534,24 @@ const filteredEvents = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   return result.slice(start, start + itemsPerPage.value)
 })
+
+// Watch for filtered events changes to clean up menu refs
+watch(() => filteredEvents.value, (newFilteredEvents, oldFilteredEvents) => {
+  // Use nextTick to ensure DOM has updated
+  nextTick(() => {
+    const currentEventIds = new Set(newFilteredEvents.map(e => e.id))
+    const oldEventIds = oldFilteredEvents ? new Set(oldFilteredEvents.map(e => e.id)) : new Set()
+  
+    
+    // Clean up menu refs for events that are no longer visible
+    Object.keys(actionMenus.value).forEach(eventId => {
+      if (!currentEventIds.has(eventId)) {
+        delete actionMenus.value[eventId]
+
+      }
+    })
+  })
+}, { flush: 'post' })
 
 import { formatSingleDate, formatEventDateRange } from '~/utils/dateFormatter'
 

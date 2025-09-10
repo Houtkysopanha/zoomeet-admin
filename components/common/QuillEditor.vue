@@ -103,7 +103,7 @@ onMounted(async () => {
             ['clean']
           ]
         },
-        formats: ['bold', 'italic', 'underline', 'list', 'bullet', 'link']
+        formats: ['bold', 'italic', 'underline', 'list', 'link']
       }
 
       quillInstance = new Quill(quillEditorRef.value, options)

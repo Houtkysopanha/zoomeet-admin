@@ -214,6 +214,7 @@
                 />
               </template>
             </ClientOnly>
+             <span class="text-xs text-gray-400"> <small class="text-red-500">*</small> Text Editor will abvailable later.</span>
           </div>
 
           <!-- Venue -->
@@ -259,6 +260,7 @@
                 />
               </template>
             </ClientOnly>
+             <span class="text-xs text-gray-400"> <small class="text-red-500">*</small> Text Editor will abvailable later.</span>
           </div>
 
           <!-- Speakers -->
