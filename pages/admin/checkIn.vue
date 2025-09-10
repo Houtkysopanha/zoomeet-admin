@@ -624,7 +624,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import InputText from 'primevue/inputtext'
 import Button from 'primevue/button'
 import { definePageMeta } from '#imports'
@@ -772,6 +772,137 @@ const validateForm = () => {
 // Modal states
 const showAssignModal = ref(false)
 const selectedTicket = ref(null)
+
+// Watch for check-in status changes and show toast alerts
+watch(searchResults, (newResults, oldResults) => {
+  if (!oldResults || oldResults.length === 0) return
+  
+  // Compare each ticket to detect status changes
+  newResults.forEach((newTicket) => {
+    const oldTicket = oldResults.find(old => old.id === newTicket.id)
+    
+    if (oldTicket) {
+      // Check if status changed from "Not Check-in" to "Check-in"
+      if (oldTicket.status === 'Not Check-in' && newTicket.status === 'Check-in') {
+        // Get ticket holder name for personalized message
+        const holderName = newTicket.ticketHolder && newTicket.ticketHolder !== '-' 
+          ? newTicket.ticketHolder 
+          : 'Guest'
+        
+        // Show success toast alert
+        toast.success(`🎉 Check-in successful! Welcome ${holderName}!`, {
+          position: toast.POSITION.TOP_RIGHT,
+          timeout: 4000,
+          autoClose: 4000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true
+        })
+        
+        console.log(`✅ Check-in detected for ticket ${newTicket.ticketId} - ${holderName}`)
+      }
+      
+      // Also handle reverse case (check-out) if needed
+      else if (oldTicket.status === 'Check-in' && newTicket.status === 'Not Check-in') {
+        const holderName = newTicket.ticketHolder && newTicket.ticketHolder !== '-' 
+          ? newTicket.ticketHolder 
+          : 'Guest'
+        
+        toast.info(`ℹ️ ${holderName} has been checked out`, {
+          position: toast.POSITION.TOP_RIGHT,
+          timeout: 3000
+        })
+        
+      }
+    }
+  })
+}, { deep: true })
+
+// Polling function to refresh ticket status periodically
+const pollTicketStatus = async () => {
+  if (!searchPerformed.value || loading.value || searchResults.value.length === 0) {
+    return
+  }
+  
+  try {
+    // Re-run the search quietly to get updated statuses
+    const { searchCheckIns } = await import('@/composables/api')
+    
+    // Get current search parameters
+    const currentPhone = activeTab.value === 'phone' ? phoneNumber.value.trim() : ''
+    const currentEmail = activeTab.value === 'email' ? email.value.trim() : ''
+    const currentBookingRef = activeTab.value === 'phone' ? bookingReference.value.trim() : bookingReferenceEmail.value.trim()
+    const currentTicketId = activeTab.value === 'phone' ? ticketId.value.trim() : ticketIdEmail.value.trim()
+    
+    if (!currentPhone && !currentEmail && !currentBookingRef && !currentTicketId) {
+      return // No search criteria to poll with
+    }
+    
+    const searchParams = {}
+    if (currentPhone) searchParams.phone_number = currentPhone
+    if (currentEmail) searchParams.email = currentEmail
+    if (currentTicketId) searchParams.ticket_no = currentTicketId
+    if (currentBookingRef) searchParams.order_number = currentBookingRef
+    
+    const response = await searchCheckIns(searchParams, currentPage.value, perPage.value)
+    
+    if (response.success && response.data) {
+      // Store old results for comparison
+      const oldResults = [...searchResults.value]
+      
+      // Update search results with new data (this will trigger the watcher)
+      searchResults.value = response.data.map(ticket => ({
+        id: ticket.id,
+        assignmentId: ticket.id,
+        status: ticket.attendance?.checked_in ? 'Check-in' : 'Not Check-in',
+        isAssigned: ticket.is_assigned || !!(ticket.name || ticket.email || ticket.phone_number),
+        image: ticket.event?.cover_image_url || img,
+        eventTitle: ticket.event?.name || '-',
+        owner: ticket.event?.company || '-',
+        ticketHolder: ticket.name || '-',
+        bookingRef: ticket.order?.order_number || '-',
+        phoneNumberOrEmail: ticket.phone_number 
+          ? (ticket.phone_number.startsWith('+855') ? ticket.phone_number : `+855${ticket.phone_number}`)
+          : (ticket.email || '-'),
+        ticketId: ticket.ticket_no || '-',
+        location: ticket.event?.location || '-',
+        ticketType: ticket.ticket_type?.name || '-',
+        date: ticket.event?.start_date && ticket.event?.end_date 
+          ? formatEventDateRange(ticket.event.start_date, ticket.event.end_date)
+          : ticket.event?.start_date 
+            ? formatSingleDate(ticket.event.start_date)
+            : '-',
+        gate: ticket.gate || '-',
+        time: ticket.event?.start_date ? formatTime(ticket.event.start_date) : '-',
+        seatNumber: ticket.seat_number || '-',
+        price: ticket.ticket_type?.price || '-',
+        qrCode: ticket.qr_code || '-',
+        checkedInTime: ticket.attendance?.time || '-',
+        idCardNo: ticket.id_card_no || '-',
+        passportNo: ticket.passport_no || '-',
+      }))
+    }
+  } catch (error) {
+    // Silently handle polling errors to avoid disrupting user experience
+    console.warn('⚠️ Status polling failed:', error.message)
+  }
+}
+
+// Set up polling interval when component mounts
+let pollingInterval = null
+
+onMounted(() => {
+  // Start polling every 3 seconds when search results are displayed
+  pollingInterval = setInterval(pollTicketStatus, 3000)
+})
+
+onUnmounted(() => {
+  // Clean up polling when component unmounts
+  if (pollingInterval) {
+    clearInterval(pollingInterval)
+  }
+})
 
 // Form fields
 const phoneNumber = ref('')
