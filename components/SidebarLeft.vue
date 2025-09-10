@@ -146,7 +146,7 @@ const navLinks = computed(() => [
   { to: "/admin/dashboard", icon: "ic:round-dashboard", text: "Dashboard", activeClass: "bg-[#E6F2FF]", disabled: false },
   { to: "/admin/event", icon: "clarity:event-solid", text: "Event", count: totalEventCount.value, activeClass: "bg-[#E6F2FF]", disabled: false },
   { to: "/admin/booking", icon: "material-symbols-light:receipt-rounded", text: "Booking", count: 0, activeClass: "bg-[#E6F2FF]", disabled: true },
-  { to: "/admin/checkIn", icon: "mdi:invoice-text-check", text: "Check-in Service", activeClass: "bg-[#E6F2FF]", disabled: true },
+  { to: "/admin/checkIn", icon: "mdi:invoice-text-check", text: "Check-in Service", activeClass: "bg-[#E6F2FF]", disabled: false },
 ])
 
 const settingsLinks = [
@@ -187,12 +187,12 @@ function isActive(path) {
   
   // For Booking menu item, check if current route is booking-related
   if (path === '/admin/booking') {
-    return route.path.startsWith('/admin/booking')
+    return route.path.startsWith('/admin/booking') 
   }
   
   // For Check-in menu item, check if current route is check-in related
   if (path === '/admin/checkIn') {
-    return route.path.startsWith('/admin/checkIn')
+    return route.path.startsWith('/admin/checkIn') ||route.path.startsWith('/admin/print-tickets')
   }
   
   // Default: check if current path starts with the menu path

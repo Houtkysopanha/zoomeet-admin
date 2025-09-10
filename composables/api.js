@@ -1,8 +1,5 @@
 // Auto-imported by Nuxt: useRuntimeConfig, $fetch
 import axios from 'axios'
-// Get auth token using proper Nuxt 3 pattern with automatic refresh
-// Auto-imported by Nuxt: useRuntimeConfig, $fetch
-// Get auth token using proper Nuxt 3 pattern
 const getAuthToken = () => {
   try {
     const { getToken, isTokenExpired, clearAuth } = useAuth()
@@ -478,6 +475,9 @@ if (eventData.chairs && Array.isArray(eventData.chairs)) {
     } else if (chair.profile_image_url) {
       // Preserve existing server URL (so backend doesn’t overwrite with null)
       formData.append(`chairs[${index}][profile_image_url]`, chair.profile_image_url);
+    } else {
+      // Explicitly signal image removal by sending empty string
+      formData.append(`chairs[${index}][profile_image_url]`, '');
     }
   });
 }
@@ -595,6 +595,23 @@ if (eventData.chairs && Array.isArray(eventData.chairs)) {
         }
       }
 
+      
+      // Auto-assign creator as owner with all permissions (non-blocking)
+      const eventId = response.data?.id || response.id
+      if (eventId) {
+        try {
+          console.log('🔑 Auto-assigning event creator as owner...')
+          const ownerAssignment = await assignEventCreatorAsOwner(eventId)
+          if (ownerAssignment.success) {
+            console.log('✅ Creator successfully assigned as owner with all permissions')
+          } else {
+            console.warn('⚠️ Failed to assign creator as owner:', ownerAssignment.message)
+          }
+        } catch (ownerError) {
+          console.warn('⚠️ Non-blocking error in owner assignment:', ownerError)
+          // Don't fail event creation due to owner assignment issues
+        }
+      }
       
       // Return normalized response
       return {
@@ -812,10 +829,10 @@ export async function updateEvent(eventId, eventData) {
           formData.append(`chairs[${index}][profile_image]`, file);
         } else if (chair.profile_image_url && chair.profile_image_url.trim() !== '') {
           // ✅ Preserve existing server image URL
-       
           formData.append(`chairs[${index}][profile_image_url]`, chair.profile_image_url);
-        } else if (chair.profile_image) {
-
+        } else {
+          // Explicitly signal image removal by sending empty string
+          formData.append(`chairs[${index}][profile_image_url]`, '');
         }
       });
     }
@@ -1466,6 +1483,8 @@ export async function publishEvent(eventId) {
     } else if (chair.profile_image instanceof File) {
       formData.append(`chairs[${index}][profile_image]`, chair.profile_image)
     } else {
+      // Explicitly signal image removal by sending empty string
+      formData.append(`chairs[${index}][profile_image_url]`, '');
     }
   }
 })
@@ -1746,28 +1765,27 @@ export const searchUsers = async (keyword) => {
 }
 
 
-export const inviteUserAPI = async ({ eventId, selectedUsers, permissions, token }) => {
+export const inviteUserAPI = async ({ eventId, selectedUsers, permissions, hasPermissions, token }) => {
   if (!selectedUsers || selectedUsers.length === 0) {
     throw new Error('Please select at least one user')
   }
 
-  const enabledRoles = Object.entries(permissions)
-    .filter(([category, perm]) => perm.enabled)
-    .map(([category, perm]) => ({
-      role_name: category,
-      permissions: perm.items
-    }))
-
-  if (enabledRoles.length === 0) {
-    throw new Error('Please select at least one permission for the user')
+  // Allow empty roles for users who will be assigned permissions later
+  let enabledRoles = []
+  if (hasPermissions) {
+    enabledRoles = Object.entries(permissions)
+      .filter(([category, perm]) => perm.enabled)
+      .map(([category, perm]) => ({
+        role_name: category,
+        permissions: perm.items
+      }))
   }
 
   const userIds = selectedUsers.map(u => u.id)
   const payload = {
     user_ids: userIds,
-    roles: enabledRoles,
+    roles: enabledRoles, // Can be empty array
     note: selectedUsers[0]?.note || null
-
   }
 
   try {
@@ -1869,6 +1887,44 @@ export const disableEventOrganizer = async (eventId, userId, token) => {
   )
 }
 
+// Auto-assign event creator as owner with all permissions
+export const assignEventCreatorAsOwner = async (eventId) => {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+  
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+
+    // Get all available permissions first
+    const permissionsResponse = await fetchOrganizerPermissions()
+    if (permissionsResponse.status !== 200 || !permissionsResponse.data.success) {
+      throw new Error('Failed to fetch available permissions')
+    }
+
+    // Create owner role with all permissions
+    const allPermissions = permissionsResponse.data.data
+    const ownerRoles = Object.entries(allPermissions).map(([category, permissions]) => ({
+      role_name: category,
+      permissions: permissions
+    }))
+
+    const response = await axios.post(
+      `${API_ADMIN_BASE_URL}/events/${eventId}/organizer/assign-creator-as-owner`,
+      { roles: ownerRoles },
+      { headers }
+    )
+
+    return response.data
+  } catch (error) {
+    console.error('❌ Failed to assign creator as owner:', error)
+    // Don't throw error to prevent blocking event creation
+    return { success: false, message: error.message }
+  }
+}
+
 export const removeOrganizer = async ({ eventId, userId, token }) => {
   const config = useRuntimeConfig()
   
@@ -1885,6 +1941,52 @@ export const removeOrganizer = async ({ eventId, userId, token }) => {
       headers
     }
   )
+}
+
+// Delete chair from event
+export async function deleteChair(eventId, chairId) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  if (!chairId) {
+    throw new Error('Chair ID is required')
+  }
+
+  // Validate UUID format for event ID
+  if (!validateUUID(eventId)) {
+    throw new Error('Invalid event ID format. Expected UUID format.')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/chairs/${chairId}`, {
+      method: 'DELETE',
+      headers
+    })
+
+    return response
+  } catch (error) {
+    console.error('❌ Failed to delete chair:', error)
+    
+    // Enhanced error handling
+    if (error.status === 404) {
+      throw new Error('Chair not found or already deleted')
+    } else if (error.status === 403) {
+      throw new Error('You do not have permission to delete this chair')
+    } else if (error.status === 409) {
+      throw new Error('Cannot delete chair that is currently in use')
+    }
+    
+    throw error
+  }
 }
 
 export const getEventDetail = async (eventId) => {
@@ -1909,6 +2011,177 @@ export const getEventDetail = async (eventId) => {
     }
   } catch (error) {
     console.error('❌ Fetch Event Detail Error:', error)
+    throw error
+  }
+}
+
+// Get event settings
+export async function getEventSettings(eventId) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  if (!validateUUID(eventId)) {
+    throw new Error('Invalid event ID format')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/settings`, {
+      method: 'GET',
+      headers
+    })
+
+    return response
+  } catch (error) {
+    console.error('❌ Failed to get event settings:', error)
+    
+    // If settings don't exist (404), return default structure
+    if (error.status === 404) {
+      return {
+        success: true,
+        data: {
+          registration_dateline: null,
+          qrcode_available_hours: 48,
+          max_ticket_per_person: 5,
+          refund_policy_id: null,
+          ticket_transfer_deadline: null,
+          terms_and_condition: '',
+          special_instructions: '',
+          accept_cash_payment: 0,
+          is_required_age_verification: 0,
+          maximum_age: null,
+          required_identity_document: null
+        }
+      }
+    }
+    
+    throw error
+  }
+}
+
+// Create or update event settings
+export async function saveEventSettings(eventId, settingsData) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  if (!settingsData) {
+    throw new Error('Settings data is required')
+  }
+
+  if (!validateUUID(eventId)) {
+    throw new Error('Invalid event ID format')
+  }
+
+  try {
+    // Validate and normalize settings data to match API specification
+   // Build normalizedData
+const normalizedData = {
+  registration_dateline: settingsData.registration_dateline || settingsData.registrationDeadline || null,
+  qrcode_available_hours: parseInt(settingsData.qrcode_available_hours || 48),
+  max_ticket_per_person: parseInt(settingsData.max_ticket_per_person || 5),
+  refund_policy_id: settingsData.refund_policy_id || (settingsData.refundPolicy === 'Full Refund' ? 1 : settingsData.refundPolicy === 'Not Refund' ? 2 : null),
+  ticket_transfer_deadline: settingsData.ticket_transfer_deadline || null,
+  terms_and_condition: settingsData.terms_and_condition || settingsData.termsAndConditions || '',
+  special_instructions: settingsData.special_instructions || settingsData.specialInstructions || '',
+  is_required_age_verification: settingsData.is_required_age_verification !== undefined ? 
+    (settingsData.is_required_age_verification ? 1 : 0) : 
+    (settingsData.requireAgeVerification ? 1 : 0),
+  maximum_age: settingsData.maximum_age || (settingsData.minimumAge ? parseInt(settingsData.minimumAge.replace(/\D/g, '')) : null)
+}
+
+// ✅ Fix required_identity_document handling here
+if (Array.isArray(settingsData.required_identity_document)) {
+  normalizedData.required_identity_document = settingsData.required_identity_document
+    .filter(doc => ['driver_license', 'national_id_card', 'passport', 'student_card'].includes(doc))
+    .join(',')
+} else if (Array.isArray(settingsData.requiredIdentityDocuments)) {
+  normalizedData.required_identity_document = settingsData.requiredIdentityDocuments
+    .filter(doc => ['driver_license', 'national_id_card', 'passport', 'student_card'].includes(doc))
+    .join(',')
+} else if (typeof settingsData.required_identity_document === 'string') {
+  normalizedData.required_identity_document = settingsData.required_identity_document
+} else {
+  normalizedData.required_identity_document = ''
+}
+
+// Remove field if empty string
+if (!normalizedData.required_identity_document) {
+  delete normalizedData.required_identity_document
+}
+
+    // Ensure maximum_age is null when age verification is disabled
+    if (normalizedData.is_required_age_verification === 0) {
+      normalizedData.maximum_age = null
+    }
+
+    // Format dates properly for API
+    if (normalizedData.registration_dateline) {
+      if (normalizedData.registration_dateline instanceof Date) {
+        normalizedData.registration_dateline = normalizedData.registration_dateline.toISOString().slice(0, 19).replace('T', ' ')
+      }
+    }
+
+    if (normalizedData.ticket_transfer_deadline) {
+      if (normalizedData.ticket_transfer_deadline instanceof Date) {
+        normalizedData.ticket_transfer_deadline = normalizedData.ticket_transfer_deadline.toISOString().slice(0, 19).replace('T', ' ')
+      }
+    }
+
+    console.log('💾 Saving event settings:', { eventId, normalizedData })
+    console.log('📤 Final payload being sent to API:', JSON.stringify(normalizedData, null, 2))
+
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/settings`, {
+      method: 'POST',
+      body: normalizedData,
+      headers
+    })
+
+    console.log('✅ Settings saved successfully:', response)
+
+    return response
+  } catch (error) {
+    console.error('❌ Failed to save event settings:', error)
+    
+    // Enhanced error handling
+    if (error.status === 422) {
+      let detailedMessage = 'Settings validation failed:'
+      let validationErrors = {}
+      
+      if (error.data?.errors) {
+        validationErrors = error.data.errors
+        const errorMessages = []
+        Object.entries(error.data.errors).forEach(([field, messages]) => {
+          if (Array.isArray(messages)) {
+            errorMessages.push(`${field}: ${messages.join(', ')}`)
+          } else {
+            errorMessages.push(`${field}: ${messages}`)
+          }
+        })
+        detailedMessage = `Settings validation failed:\n${errorMessages.join('\n')}`
+      } else if (error.data?.message) {
+        detailedMessage = error.data.message
+      }
+      
+      throw new Error(detailedMessage)
+    }
+    
     throw error
   }
 }
@@ -2142,7 +2415,6 @@ export async function updatePromotion(eventId, promotionId, promotionData) {
   }
 }
 // ============= PROMOTION API FUNCTIONS =============
-
 // Delete promotion
 export async function deletePromotion(eventId, promotionId) {
   if (!eventId || !promotionId) {
@@ -2285,5 +2557,398 @@ export async function getCoupons(eventId) {
       data: [],
       message: userMessage
     }
+  }
+}
+
+// Update voucher/coupon
+export async function updateCoupon(couponId, couponData) {
+  if (!couponId) throw new Error('Coupon ID is required')
+  if (!couponData) throw new Error('Coupon data is required')
+
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) throw new Error('Authentication required')
+
+    console.log('🔄 Updating coupon:', couponId, couponData)
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/coupons/${couponId}`, {
+      method: 'PUT',
+      headers,
+      body: couponData
+    })
+
+    console.log('✅ Coupon updated successfully:', response)
+
+    return {
+      success: true,
+      data: response,
+      message: 'Voucher updated successfully'
+    }
+  } catch (error) {
+    console.error('❌ Failed to update coupon:', error)
+
+    let userMessage = 'Failed to update voucher. Please try again.'
+    if (error.status === 400) {
+      userMessage = 'Invalid voucher data. Please check your inputs.'
+    } else if (error.status === 401) {
+      userMessage = 'Authentication required. Please log in again.'
+    } else if (error.status === 403) {
+      userMessage = 'You don\'t have permission to update vouchers.'
+    } else if (error.status === 404) {
+      userMessage = 'Voucher not found. It may have been deleted.'
+    } else if (error.status === 422) {
+      if (error.data?.errors) {
+        const errorMessages = []
+        Object.entries(error.data.errors).forEach(([field, messages]) => {
+          errorMessages.push(`${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
+        })
+        userMessage = `Validation failed:\n${errorMessages.join('\n')}`
+      } else if (error.data?.message) {
+        userMessage = error.data.message
+      }
+    }
+
+    throw new Error(userMessage)
+  }
+}
+
+// Delete voucher/coupon
+export async function deleteCoupon(couponId) {
+  if (!couponId) throw new Error('Coupon ID is required')
+
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) throw new Error('Authentication required')
+
+    console.log('🗑️ Deleting coupon:', couponId)
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/coupons/${couponId}`, {
+      method: 'DELETE',
+      headers
+    })
+
+    console.log('✅ Coupon deleted successfully:', response)
+
+    return {
+      success: true,
+      data: response,
+      message: 'Voucher deleted successfully'
+    }
+  } catch (error) {
+    console.error('❌ Failed to delete coupon:', error)
+
+    let userMessage = 'Failed to delete voucher. Please try again.'
+    if (error.status === 401) {
+      userMessage = 'Authentication required. Please log in again.'
+    } else if (error.status === 403) {
+      userMessage = 'You don\'t have permission to delete vouchers.'
+    } else if (error.status === 404) {
+      userMessage = 'Voucher not found. It may have already been deleted.'
+    } else if (error.status === 409) {
+      userMessage = 'Cannot delete voucher as it has been used by customers.'
+    }
+
+    throw new Error(userMessage)
+  }
+}
+
+// Search check-ins for identity verification
+export async function searchCheckIns(searchParams, page = 1, perPage = 20) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!searchParams || typeof searchParams !== 'object') {
+    throw new Error('Search parameters are required')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+
+    // Build query parameters
+    const queryParams = new URLSearchParams()
+    
+    if (searchParams.phone_number) queryParams.append('phone_number', searchParams.phone_number)
+    if (searchParams.email) queryParams.append('email', searchParams.email)
+    if (searchParams.ticket_no) queryParams.append('ticket_no', searchParams.ticket_no)
+    if (searchParams.order_number) queryParams.append('order_number', searchParams.order_number)
+    
+    // Add pagination parameters
+    queryParams.append('page', page.toString())
+    queryParams.append('per_page', perPage.toString())
+
+    console.log('🔍 Searching check-ins with params:', searchParams)
+    console.log('� Pagination - Page:', page, 'Per Page:', perPage)
+    console.log('�🔗 API URL:', `${API_ADMIN_BASE_URL}/check-ins?${queryParams.toString()}`)
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/check-ins?${queryParams.toString()}`, {
+      method: 'GET',
+      headers
+    })
+
+    console.log('✅ Check-ins search response:', response)
+
+    // Ensure consistent response structure with pagination
+    if (response && response.data && Array.isArray(response.data)) {
+      return {
+        success: true,
+        data: response.data,
+        meta: response.meta || {
+          current_page: 1,
+          last_page: 1,
+          per_page: perPage,
+          total: response.data.length
+        },
+        message: 'Check-ins retrieved successfully'
+      }
+    } else if (response && Array.isArray(response)) {
+      return {
+        success: true,
+        data: response,
+        meta: {
+          current_page: 1,
+          last_page: 1,
+          per_page: perPage,
+          total: response.length
+        },
+        message: 'Check-ins retrieved successfully'
+      }
+    } else {
+      return {
+        success: false,
+        data: [],
+        meta: {
+          current_page: 1,
+          last_page: 1,
+          per_page: perPage,
+          total: 0
+        },
+        message: 'No check-ins found'
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Failed to search check-ins:', error)
+    
+    // Handle authentication errors
+    if (error.status === 401) {
+      handleAuthRedirect()
+      throw new Error('Authentication required. Please log in again.')
+    }
+    
+    if (error.status === 403) {
+      throw new Error('You do not have permission to access check-ins.')
+    }
+    
+    // Handle validation errors
+    if (error.status === 422) {
+      throw new Error('Invalid search parameters. Please check your input and try again.')
+    }
+    
+    // Handle not found
+    if (error.status === 404) {
+      return {
+        success: false,
+        data: [],
+        meta: {
+          current_page: 1,
+          last_page: 1,
+          per_page: perPage,
+          total: 0
+        },
+        message: 'No tickets found matching your search criteria.'
+      }
+    }
+    
+    // Don't expose technical details to users
+    let userMessage = 'Failed to search check-ins. Please try again.'
+    if (error.status >= 500) {
+      userMessage = 'Server error. Please try again later.'
+    }
+    
+    throw new Error(userMessage)
+  }
+}
+
+// Assign ticket to a holder
+export async function assignTicket(assignmentId, formData) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!assignmentId) {
+    throw new Error('Assignment ID is required')
+  }
+
+  if (!formData || typeof formData !== 'object') {
+    throw new Error('Form data is required')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+
+    // Create FormData for the request
+    const requestFormData = new FormData()
+    
+    // Add required fields to FormData
+    if (formData.name) {
+      requestFormData.append('name', formData.name.trim())
+    }
+    if (formData.email) {
+      requestFormData.append('email', formData.email.trim())
+    }
+    if (formData.phone_number) {
+      requestFormData.append('phone_number', formData.phone_number.trim())
+    }
+
+    // Optional fields
+    if (formData.id_card_no) {
+      requestFormData.append('id_card_no', formData.id_card_no.trim())
+    }
+    if (formData.passport_no) {
+      requestFormData.append('passport_no', formData.passport_no.trim())
+    }
+
+    console.log('🎫 Assigning ticket with assignment ID:', assignmentId)
+    console.log('📝 Form data fields:', Object.fromEntries(requestFormData.entries()))
+
+    // Remove Content-Type from headers to let browser set it for FormData
+    const formDataHeaders = { ...headers }
+    delete formDataHeaders['Content-Type']
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/check-ins/${assignmentId}/assign`, {
+      method: 'POST',
+      body: requestFormData,
+      headers: formDataHeaders
+    })
+
+    console.log('✅ Ticket assignment response:', response)
+
+    return {
+      success: true,
+      data: response.data || response,
+      message: response.message || 'Ticket assigned successfully'
+    }
+
+  } catch (error) {
+    console.error('❌ Failed to assign ticket:', error)
+    
+    // Handle authentication errors
+    if (error.status === 401) {
+      handleAuthRedirect()
+      throw new Error('Authentication required. Please log in again.')
+    }
+    
+    if (error.status === 403) {
+      throw new Error('You do not have permission to assign tickets.')
+    }
+    
+    // Handle validation errors
+    if (error.status === 422) {
+      let errorMessage = 'Invalid form data. Please check your input and try again.'
+      
+      if (error.data?.errors) {
+        const validationErrors = []
+        Object.entries(error.data.errors).forEach(([field, messages]) => {
+          if (Array.isArray(messages)) {
+            validationErrors.push(`${field}: ${messages.join(', ')}`)
+          } else {
+            validationErrors.push(`${field}: ${messages}`)
+          }
+        })
+        errorMessage = `Validation failed:\n${validationErrors.join('\n')}`
+      } else if (error.data?.message) {
+        errorMessage = error.data.message
+      }
+      
+      throw new Error(errorMessage)
+    }
+    
+    // Handle not found
+    if (error.status === 404) {
+      throw new Error('Ticket not found or assignment ID is invalid.')
+    }
+    
+    // Handle conflict (already assigned)
+    if (error.status === 409) {
+      throw new Error('This ticket has already been assigned to someone else.')
+    }
+    
+    // Don't expose technical details to users
+    let userMessage = 'Failed to assign ticket. Please try again.'
+    if (error.status >= 500) {
+      userMessage = 'Server error. Please try again later.'
+    }
+    
+    throw new Error(userMessage)
+  }
+}
+
+// Refresh access token using refresh token
+export async function refreshAccessToken(refreshToken) {
+  const config = useRuntimeConfig()
+  const API_BASE_URL = config.public.apiBaseUrl
+
+  if (!API_BASE_URL) {
+    throw new Error('API base URL is not configured.')
+  }
+
+  if (!refreshToken) {
+    throw new Error('Refresh token is required')
+  }
+
+  try {
+    console.log('🔄 Calling refresh token API...')
+    
+    // Create FormData to match the curl format: --form 'refresh_token="..."'
+    const formData = new FormData()
+    formData.append('refresh_token', refreshToken)
+
+    const refreshUrl = normalizeApiUrl(API_BASE_URL, 'refresh-token')
+    
+    const response = await $fetch(refreshUrl, {
+      method: 'POST',
+      body: formData,
+      // Don't include Authorization header for refresh token endpoint
+    })
+
+    console.log('✅ Refresh token API response received')
+
+    // Validate response structure
+    if (!response || !response.tokens || !response.tokens.access_token) {
+      throw new Error('Invalid refresh response structure: missing tokens.access_token')
+    }
+
+    return {
+      success: true,
+      data: response
+    }
+
+  } catch (error) {
+    console.error('❌ Refresh token API error:', error)
+    
+    // Enhanced error handling for refresh token specific errors
+    if (error.status === 401) {
+      throw new Error('Refresh token has expired. Please login again.')
+    } else if (error.status === 422) {
+      throw new Error('Invalid refresh token format. Please login again.')
+    } else if (error.status === 429) {
+      throw new Error('Too many refresh attempts. Please wait a moment and try again.')
+    } else if (error.status === 500) {
+      throw new Error('Server error during token refresh. Please try again later.')
+    }
+    
+    // Don't expose technical details
+    throw new Error(error.message || 'Failed to refresh access token. Please login again.')
   }
 }

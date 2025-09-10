@@ -161,16 +161,26 @@
             <div class="mb-6">
               <label class="block text-sm font-medium text-gray-700 mb-2">
                 Event Slug <span class="text-red-500">*</span></label>
-              <div class="flex gap-4 ">
-                <InputText
-                  v-model="formData.eventSlug"
-                  :class="[
-                    'w-full p-3 h-12 rounded-2xl bg-gray-100 border-gray-200 focus:border-purple-400 focus:ring-purple-400',
-                    getFieldError('event_slug') ? 'border-red-500 border-2' : ''
-                  ]"
-                  placeholder="my-awesome-event"
+              <div class="flex items-center gap-3">
+                <div class="flex-1">
+                  <InputText
+                    v-model="formData.eventSlug"
+                    :class="[
+                      'w-full p-3 h-12 rounded-2xl bg-gray-100 border-gray-200 focus:border-purple-400 focus:ring-purple-400',
+                      getFieldError('event_slug') ? 'border-red-500 border-2' : ''
+                    ]"
+                    placeholder="my-awesome-event"
+                  />
+                </div>
+                <Button 
+                  icon="pi pi-refresh" 
+                  text 
+                  rounded 
+                  size="small" 
+                  class="flex-shrink-0 bg-gray-100 rounded-2xl h-12 w-12 flex items-center justify-center text-gray-400 hover:text-purple-600 transition-colors duration-200" 
+                  @click="generateSlug" 
+                  title="Generate new slug" 
                 />
-                <Button icon="pi pi-refresh" text rounded size="small" class=" bg-gray-100 rounded-2xl h-12 w-20 transform -translate-y-1/2 text-gray-400 hover:text-purple-600 transition-colors duration-200" @click="generateSlug" title="Generate new slug" />
               </div>
               <small v-if="getFieldError('event_slug')" class="text-red-500">{{ getFieldError('event_slug') }}</small>
               <p class="text-xs text-gray-500 mt-2">
@@ -348,6 +358,9 @@
 
       <!-- Note: All save and update actions are handled by the main page buttons -->
     </div>
+    
+    <!-- Confirmation Dialog -->
+    <ConfirmDialog />
   </div>
 </template>
 
@@ -355,9 +368,10 @@
 import './css/style.css'
 import { ref, reactive, computed, onMounted, onBeforeUnmount, inject, watch, nextTick } from 'vue'
 import { useToast } from "primevue/usetoast"
+import { useConfirm } from "primevue/useconfirm"
 import { useEventStore } from '~/composables/useEventStore'
 import { useEventTabsStore } from '~/composables/useEventTabs'
-import { fetchCategories } from '~/composables/api'
+import { fetchCategories, deleteChair as deleteChairAPI } from '~/composables/api'
 import { useAuth } from '~/composables/useAuth'
 import { useFormValidation } from '~/composables/useFormValidation'
 
@@ -371,6 +385,7 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Avatar from 'primevue/avatar'
 import ProgressSpinner from 'primevue/progressspinner'
+import ConfirmDialog from 'primevue/confirmdialog'
 
 // Import custom components
 import ChairForm from '~/components/common/ChairForm.vue'
@@ -391,6 +406,7 @@ const generateUUID = () => {
 };
 
 const toast = useToast()
+const confirm = useConfirm()
 const eventStore = useEventStore()
 const tabsStore = useEventTabsStore()
 const { getToken } = useAuth()
@@ -952,10 +968,10 @@ eventData.chairs = formData.chairs.map((chair, index) => {
         } else if (chair.profile_image instanceof File) {
           // Priority 2: Direct File object on chair
           profileImage = chair.profile_image
-        } else if (chair.profile_image_url) {
-          // Priority 3: Existing image URL from API
-          profileImageUrl = chair.profile_image_url
         } else {
+          // Priority 3: Handle existing URL or explicit removal
+          // FIXED: Always set profileImageUrl to signal intent to API
+          profileImageUrl = chair.profile_image_url || ''  // Empty string signals removal
         }
         
         return {
@@ -1243,6 +1259,25 @@ const handleChairSaved = (chairData) => {
   // Keep a stable localKey for mapping (do NOT send to API)
   const localKey = existing?.localKey || generateUUID();
 
+  // Helper function to check if an image was intentionally removed
+  const imageWasRemoved = (chairData, existing) => {
+    // If editing and both profile_image_url and avatar are explicitly null/empty
+    // and no new file was uploaded, then image was intentionally removed
+    const wasRemoved = isEdit && 
+           chairData.profile_image_url === null && 
+           (chairData.avatar === '' || chairData.avatar === null) &&
+           !(chairData.profile_image instanceof File) &&
+           (existing?.profile_image_url || existing?.avatar);
+    
+    if (wasRemoved) {
+      console.log('🗑️ Image removal detected for chair:', chairData.name)
+      console.log('📋 Chair data:', chairData)
+      console.log('📋 Existing data:', existing)
+    }
+    
+    return wasRemoved;
+  };
+
   const processed = {
     // server id – only if we really have one
     id: (chairData.id ?? existing?.id) ?? null,
@@ -1253,18 +1288,22 @@ const handleChairSaved = (chairData) => {
     company: chairData.company || existing?.company || '',
     sort_order: parseInt(chairData.sort_order ?? existing?.sort_order ?? 1) || 1,
 
-    // If a new file was chosen, keep it; else keep URL
+    // Handle image logic properly for removal
     profile_image: chairData.profile_image instanceof File
       ? chairData.profile_image
       : null,
     profile_image_url: chairData.profile_image instanceof File
       ? null
-      : (chairData.profile_image_url ?? existing?.profile_image_url ?? null),
+      : imageWasRemoved(chairData, existing)
+        ? null  // Image was intentionally removed
+        : (chairData.profile_image_url ?? existing?.profile_image_url ?? null),
 
     // for preview only
     avatar: chairData.profile_image instanceof File && process.client
       ? URL.createObjectURL(chairData.profile_image)
-      : (chairData.avatar ?? existing?.avatar ?? chairData.profile_image_url ?? null),
+      : imageWasRemoved(chairData, existing)
+        ? null  // Image was intentionally removed
+        : (chairData.avatar ?? existing?.avatar ?? chairData.profile_image_url ?? null),
   };
 
   if (isEdit) formData.chairs[editingChairIndex.value] = processed;
@@ -1276,6 +1315,9 @@ const handleChairSaved = (chairData) => {
 
   if (processed.profile_image instanceof File) {
     fileMap.set(localKey, processed.profile_image);
+  } else if (imageWasRemoved(chairData, existing)) {
+    // Remove from file map if image was intentionally removed
+    fileMap.delete(localKey);
   }
 
   tabsStore.saveTabData(0, {
@@ -1298,18 +1340,60 @@ const handleChairSaved = (chairData) => {
 };
 
 
-const deleteChair = (index) => {
-  formData.chairs.splice(index, 1)
+const deleteChair = async (index) => {
+  const chair = formData.chairs[index]
   
-  // Save to tabs store
-  tabsStore.saveTabData(0, { chairs: formData.chairs })
-  tabsStore.markTabModified(0)
-  
-  toast.add({
-    severity: 'success',
-    summary: 'Chair Removed',
-    detail: 'Chair has been removed successfully',
-    life: 2000
+  // Show PrimeVue confirmation dialog
+  confirm.require({
+    message: `Are you sure you want to delete ${chair.name}? This action cannot be undone.`,
+    header: 'Delete Chair',
+    icon: 'pi pi-exclamation-triangle',
+    rejectClass: 'p-button-secondary p-button-outlined',
+    rejectLabel: 'Cancel',
+    acceptLabel: 'Delete',
+    accept: async () => {
+      try {
+        // If chair has an ID and we have an event ID, delete from server first
+        if (chair.id && eventStore.currentEvent?.id) {
+          console.log(`🗑️ Deleting chair ${chair.id} from event ${eventStore.currentEvent.id}`)
+          
+          await deleteChairAPI(eventStore.currentEvent.id, chair.id)
+          
+          toast.add({
+            severity: 'success',
+            summary: 'Chair Deleted',
+            detail: `${chair.name} has been deleted from the server successfully.`,
+            life: 3000
+          })
+        }
+        
+        // Remove from local array
+        formData.chairs.splice(index, 1)
+        
+        // Save to tabs store
+        tabsStore.saveTabData(0, { chairs: formData.chairs })
+        tabsStore.markTabModified(0)
+        
+        // Show success message for local removal
+        if (!chair.id) {
+          toast.add({
+            severity: 'success',
+            summary: 'Chair Removed',
+            detail: 'Chair has been removed successfully',
+            life: 2000
+          })
+        }
+      } catch (error) {
+        console.error('❌ Error deleting chair:', error)
+        
+        toast.add({
+          severity: 'error',
+          summary: 'Delete Failed',
+          detail: error.message || 'Failed to delete chair. Please try again.',
+          life: 4000
+        })
+      }
+    }
   })
 }
 
@@ -1320,32 +1404,51 @@ const getChairImageSrc = (chair) => {
   }
 
   try {
-    // Priority 1: Avatar URL (pre-created object URL or existing image URL)
-    // This is set during chair creation and should be used first
-    if (chair.avatar && typeof chair.avatar === 'string' && chair.avatar.trim()) {
+    // Helper function to check if URL is a placeholder/default image
+    const isPlaceholderImage = (url) => {
+      if (!url || typeof url !== 'string') return true;
+      const trimmedUrl = url.trim();
+      if (trimmedUrl === '') return true;
+      
+      const lowercaseUrl = trimmedUrl.toLowerCase();
+      return lowercaseUrl === 'null' ||
+             lowercaseUrl === 'undefined' ||
+             lowercaseUrl.includes('default') || 
+             lowercaseUrl.includes('placeholder') || 
+             lowercaseUrl.includes('avatar.png') ||
+             lowercaseUrl.includes('no-image') ||
+             lowercaseUrl.includes('not-found') ||
+             lowercaseUrl.includes('blank') ||
+             lowercaseUrl.includes('empty');
+    };
+
+    // Priority 1: Avatar URL (pre-created object URL or existing image URL from API)
+    // This is set during chair creation and when loading from API
+    if (chair.avatar && typeof chair.avatar === 'string' && chair.avatar.trim() && !isPlaceholderImage(chair.avatar)) {
       return chair.avatar;
     }
 
-    // Priority 2: profile_image_url from API
-    if (chair.profile_image_url && typeof chair.profile_image_url === 'string' && chair.profile_image_url.trim()) {
+    // Priority 2: profile_image_url from API (when avatar is not set)
+    if (chair.profile_image_url && typeof chair.profile_image_url === 'string' && chair.profile_image_url.trim() && !isPlaceholderImage(chair.profile_image_url)) {
       return chair.profile_image_url.startsWith('http')
         ? chair.profile_image_url
         : `${window.location.origin}${chair.profile_image_url}`;
     }
 
-    // Priority 3: File object (newly uploaded) - only as fallback
-    // We should avoid creating new object URLs here for performance and consistency
+    // Priority 3: File object (newly uploaded) - create object URL
+    // This should only happen for new uploads before saving
     if (chair.profile_image instanceof File && process.client) {
       console.warn('Creating object URL in getChairImageSrc - consider using pre-created avatar URL');
       return URL.createObjectURL(chair.profile_image);
     }
 
-    // Priority 4: Legacy photo field
-    if (chair.photo && typeof chair.photo === 'string' && chair.photo.trim()) {
+    // Priority 4: Legacy photo field (fallback) - but exclude placeholders
+    if (chair.photo && typeof chair.photo === 'string' && chair.photo.trim() && !isPlaceholderImage(chair.photo)) {
       return chair.photo.startsWith('http')
         ? chair.photo
         : `${window.location.origin}${chair.photo}`;
     }
+    
     return null;
   } catch (error) {
     console.error('Error in getChairImageSrc:', error);

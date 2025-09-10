@@ -138,16 +138,22 @@
             <Calendar
               showIcon
               iconDisplay="input"
-              placeholder="Select date"
+              placeholder="Select date within event range"
               v-model="eventForm.date"
               :class="[
                 'w-full mt-1 bg-gray-100 p-3 rounded-2xl',
                 getFieldError('date') ? 'border-red-500 border-2' : ''
               ]"
               dateFormat="dd/mm/yy"
+              :minDate="eventDateRange.minDate"
+              :maxDate="eventDateRange.maxDate"
+              :disabledDates="disabledDates"
               @date-select="handleDateChange"
             />
             <small v-if="getFieldError('date')" class="text-red-500">{{ getFieldError('date') }}</small>
+            <small v-if="eventDateRange.minDate && eventDateRange.maxDate" class="text-gray-500 text-xs mt-1 block">
+              Available dates: {{ formatDateRange(eventDateRange.minDate, eventDateRange.maxDate) }}
+            </small>
           </div>
 
           <!-- Time -->
@@ -401,6 +407,66 @@ const eventForm = ref({
 const eventStartDate = ref(null)
 const eventEndDate = ref(null)
 
+// Computed property for date range restrictions
+const eventDateRange = computed(() => {
+  if (!eventStartDate.value || !eventEndDate.value) {
+    return {
+      minDate: null,
+      maxDate: null,
+      isValid: false
+    }
+  }
+  
+  const startDate = new Date(eventStartDate.value)
+  const endDate = new Date(eventEndDate.value)
+  
+  // Ensure dates are valid
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    return {
+      minDate: null,
+      maxDate: null,
+      isValid: false
+    }
+  }
+  
+  return {
+    minDate: startDate,
+    maxDate: endDate,
+    isValid: true
+  }
+})
+
+// Computed property for disabled dates (all dates outside event range)
+const disabledDates = computed(() => {
+  if (!eventDateRange.value.isValid) {
+    return []
+  }
+  
+  // This will disable all dates outside the event range
+  // PrimeVue Calendar will handle this automatically with minDate and maxDate
+  return []
+})
+
+// Helper function to format date range for display
+const formatDateRange = (startDate, endDate) => {
+  if (!startDate || !endDate) return 'No date range set'
+  
+  const options = { 
+    month: 'short', 
+    day: 'numeric',
+    year: startDate.getFullYear() !== endDate.getFullYear() ? 'numeric' : undefined
+  }
+  
+  const start = startDate.toLocaleDateString('en-US', options)
+  const end = endDate.toLocaleDateString('en-US', options)
+  
+  if (startDate.toDateString() === endDate.toDateString()) {
+    return start // Same day event
+  }
+  
+  return `${start} - ${end}`
+}
+
 // Computed property for organizing agenda items by days with dynamic labels
 const agendaDays = computed(() => {
   if (!eventStartDate.value || !eventEndDate.value) {
@@ -511,16 +577,46 @@ const getDayNumber = (date) => {
 
 // Handle date change to auto-determine day
 const handleDateChange = (selectedDate) => {
-  if (!selectedDate || !eventStartDate.value) {
+  if (!selectedDate) {
     return
   }
-
-  // toast.add({
-  //   severity: 'warn',
-  //   summary: 'Invalid Date',
-  //   detail: 'Please select a valid date within the event range.',
-  //   life: 3000
-  // });
+  
+  // Validate that selected date is within event range
+  if (eventDateRange.value.isValid) {
+    const selected = new Date(selectedDate)
+    const minDate = eventDateRange.value.minDate
+    const maxDate = eventDateRange.value.maxDate
+    
+    // Normalize dates for comparison (remove time component)
+    selected.setHours(0, 0, 0, 0)
+    const min = new Date(minDate)
+    min.setHours(0, 0, 0, 0)
+    const max = new Date(maxDate)
+    max.setHours(0, 0, 0, 0)
+    
+    if (selected < min || selected > max) {
+      toast.add({
+        severity: 'warn',
+        summary: 'Invalid Date',
+        detail: `Please select a date within the event range: ${formatDateRange(minDate, maxDate)}`,
+        life: 4000
+      })
+      
+      // Clear the invalid date
+      eventForm.value.date = null
+      return
+    }
+  }
+  
+  if (!eventStartDate.value) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Event Dates Required',
+      detail: 'Please set event start and end dates in Basic Info first.',
+      life: 3000
+    })
+    return
+  }
   
   const dayNumber = getDayNumber(selectedDate)
 
@@ -536,6 +632,9 @@ const handleDateChange = (selectedDate) => {
     // Default to first available day if calculated day doesn't exist
     activeTabIndex.value = 0
   }
+  
+  // Clear any previous date validation errors
+  clearFieldError('date')
 }
 
 // Validate agenda form
@@ -548,6 +647,25 @@ const validateAgendaForm = () => {
   if (!eventForm.value.date) {
     setFieldError('date', 'Date is required')
     errors.push('Date is required')
+  } else {
+    // Validate that date is within event range
+    if (eventDateRange.value.isValid) {
+      const selected = new Date(eventForm.value.date)
+      const minDate = eventDateRange.value.minDate
+      const maxDate = eventDateRange.value.maxDate
+      
+      // Normalize dates for comparison
+      selected.setHours(0, 0, 0, 0)
+      const min = new Date(minDate)
+      min.setHours(0, 0, 0, 0)
+      const max = new Date(maxDate)
+      max.setHours(0, 0, 0, 0)
+      
+      if (selected < min || selected > max) {
+        setFieldError('date', `Date must be within event range: ${formatDateRange(minDate, maxDate)}`)
+        errors.push(`Date must be within event range: ${formatDateRange(minDate, maxDate)}`)
+      }
+    }
   }
 
   if (!eventForm.value.time_start) {

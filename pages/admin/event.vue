@@ -127,7 +127,7 @@
         field="name"
         header="Event"
         sortable
-        class="w-[23%] text-[14px] border-b border-gray-300 khmer-text"
+        class="w-[23%] text-[12px] border-b border-gray-300 khmer-text"
       >
         <template #body="slotProps">
           <div class="text-black font-medium capitalize">
@@ -142,14 +142,14 @@
         field="date"
         header="Date"
         sortable
-        class="text-[12px] border-b border-gray-300"
+        class="text-[12px] w-[15%] border-b border-gray-300"
       >
         <template #body="slotProps">
           <span>{{ formatDate(slotProps.data) }}</span>
         </template>
       </Column>
 
-    <Column field="venue" header="Venue" class="text-[12px] border-b border-gray-300 khmer-text" />
+    <Column field="venue" header="Venue" class="text-[12px] w-[15%] border-b border-gray-300 khmer-text" />
       <Column field="type" header="Event Type" class="text-[12px] border-b border-gray-300" />
 
       <Column
@@ -543,12 +543,12 @@ const formatCurrency = (value) => `$${value.toLocaleString()}`
 
 const getStatusClass = (status) => {
   const classes = {
-    Active: 'bg-green-100 text-green-800 px-2 py-1 rounded-full',
-    Pending: 'bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full',
-    Completed: 'bg-gray-100 text-gray-800 px-2 py-1 rounded-full',
-    Draft: 'bg-gray-200 text-gray-700 px-2 py-1 rounded-full',
+    Active: 'bg-green-50 border border-green-400 text-green-700 px-2 rounded-full',
+    Pending: 'bg-yellow-50 border border-yellow-400 text-yellow-700 px-2 rounded-full',
+    Completed: 'bg-gray-50 border border-gray-400 text-gray-700 px-2 rounded-full',
+    Draft: 'bg-gray-50 border border-gray-400 text-gray-700 px-3 rounded-full',
   }
-  return classes[status] || 'bg-gray-100 text-gray-800 px-2 py-1 rounded-full'
+  return classes[status] || 'bg-gray-50 border border-gray-400 text-gray-700 px-3 rounded-full'
 }
 
 const toggleFilters = () => {

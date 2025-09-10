@@ -182,7 +182,7 @@
         <div
           :class="[
             'rounded-2xl lg:rounded-3xl transition-all duration-300 ease-in-out',
-            activeIndex === 1 ? '' : 'bg-white shadow-lg p-3 lg:p-4'
+            activeIndex === 1 ? '' : 'bg-white p-3 lg:p-4'
           ]"
         >
           <!-- Render all components with smooth fade transitions -->
@@ -207,7 +207,7 @@
                 <BasicInfor />
               </div>
               <div v-else-if="activeIndex === 1 && tabComponents[1]" class="tab-content">
-                <Agenda />
+                <Agenda :eventId="eventId" />
               </div>
               <div v-else-if="activeIndex === 2 && tabComponents[2]" class="tab-content">
                 <TicketPacket />
@@ -216,7 +216,7 @@
                 <BreakoutRooms />
               </div>
               <div v-else-if="activeIndex === 4 && tabComponents[4]" class="tab-content">
-                <SettingPolicy />
+                <SettingPolicy :eventId="eventId" />
               </div>
               <div v-else class="tab-content flex items-center justify-center p-8">
                 <LoadingSpinner size="lg" color="purple" text="Loading tab content..." />
@@ -549,8 +549,8 @@ const isTabAccessible = (index) => {
     case 3: // Breakout Rooms tab - LOCKED (No API implementation yet)
       return false
       
-    case 4: // Settings & Policies tab - LOCKED (No API implementation yet)
-      return false
+    case 4: // Settings & Policies tab - UNLOCKED (Has API implementation)
+      return true
       
     default:
       return false
@@ -582,8 +582,9 @@ const changeTab = async (index) => {
           summary = 'Feature Coming Soon'
           break
         case 4: // Settings
-          message = 'Settings & Policies management is coming soon. This feature is currently under development.'
-          summary = 'Feature Coming Soon'
+          // This shouldn't show since Settings is now unlocked
+          message = 'Settings & Policies is now available!'
+          summary = 'Settings Available'
           break
       }
     }
@@ -701,7 +702,10 @@ const loadTabSpecificData = async (tabIndex) => {
         break
         
       case 4: // Settings tab
-        // Load settings data if available
+        // Trigger settings data reload in the SettingPolicy component
+        window.dispatchEvent(new CustomEvent('loadSettingsData', {
+          detail: { eventId: eventId.value }
+        }))
         break
     }
   } catch (error) {

@@ -154,17 +154,38 @@ const chairData = ref({
 })
 
 
+
 // Watch for chair prop changes to populate form
 watch(() => props.chair, (newChair) => {
   if (newChair && props.isEdit) {
+    // Helper function to check if URL is a placeholder/default image
+    const isPlaceholderImage = (url) => {
+      if (!url || typeof url !== 'string') return true;
+      const trimmedUrl = url.trim();
+      if (trimmedUrl === '') return true;
+      
+      const lowercaseUrl = trimmedUrl.toLowerCase();
+      return lowercaseUrl === 'null' ||
+             lowercaseUrl === 'undefined' ||
+             lowercaseUrl.includes('default') || 
+             lowercaseUrl.includes('placeholder') || 
+             lowercaseUrl.includes('avatar.png') ||
+             lowercaseUrl.includes('no-image') ||
+             lowercaseUrl.includes('not-found') ||
+             lowercaseUrl.includes('blank') ||
+             lowercaseUrl.includes('empty');
+    };     
     chairData.value = {
       id: newChair.id,
       name: newChair.name || '',
       position: newChair.position || '',
       company: newChair.company || '',
       sort_order: newChair.sort_order || 1,
-      profile_image: newChair.profile_image || null,
-      avatar: newChair.avatar || ''
+      // FIXED: Only set profile_image if it's actually a File object
+      profile_image: newChair.profile_image instanceof File ? newChair.profile_image : null,
+      // FIXED: Preserve removal state - if avatar is empty string and profile_image_url is null, keep it that way
+      avatar: newChair.avatar === '' ? '' : (!isPlaceholderImage(newChair.avatar) ? newChair.avatar : (!isPlaceholderImage(newChair.profile_image_url) ? newChair.profile_image_url : '')),
+      profile_image_url: newChair.profile_image_url === null ? null : (!isPlaceholderImage(newChair.profile_image_url) ? newChair.profile_image_url : null)
     }
   } else {
     // Reset form for new chair
@@ -175,7 +196,8 @@ watch(() => props.chair, (newChair) => {
       company: '',
       sort_order: 1,
       profile_image: null,
-      avatar: ''
+    avatar: '',
+      profile_image_url: null
     }
   }
   clearErrors()
@@ -238,17 +260,26 @@ const saveChair = async () => {
     }
 
     // Create a clean copy of chair data for emitting
-    const chairToSave = {
-      id: chairData.value.id,
-      name: chairData.value.name,
-      position: chairData.value.position,
-      company: chairData.value.company,
-      sort_order: chairData.value.sort_order,
-      profile_image: chairData.value.profile_image,
-      // Only include avatar URL if it's from an existing image
-      avatar: chairData.value.profile_image ? null : chairData.value.avatar
-    }
+   const chairToSave = {
+  id: chairData.value.id,
+  name: chairData.value.name,
+  position: chairData.value.position,
+  company: chairData.value.company,
+  sort_order: chairData.value.sort_order,
+  profile_image: chairData.value.profile_image,
+  avatar: chairData.value.avatar,
+  profile_image_url: chairData.value.profile_image_url,
+  image_removed: chairData.value.avatar === '' && !chairData.value.profile_image // 👈 tell API to remove image
+}
 
+    console.log('💾 Saving chair data:', chairToSave)
+    console.log('🖼️ Image state:', {
+      hasFile: chairToSave.profile_image instanceof File,
+      hasAvatar: !!chairToSave.avatar,
+      hasProfileImageUrl: !!chairToSave.profile_image_url,
+      avatarValue: chairToSave.avatar,
+      profileImageUrlValue: chairToSave.profile_image_url
+    })
     emit('save', chairToSave)
     
     toast.add({
@@ -267,7 +298,8 @@ const saveChair = async () => {
         company: '',
         sort_order: 1,
         profile_image: null,
-        avatar: ''
+        avatar: '',
+        profile_image_url: null
       }
     }
 
@@ -389,8 +421,20 @@ const handleImageRemoved = () => {
   cleanupObjectUrls()
   chairData.value.profile_image = null
   chairData.value.avatar = ''
+  chairData.value.profile_image_url = null
+  chairData.value.image_removed = true   // 👈 mark removal
+  
+  cleanupObjectUrls()
+  chairData.value.profile_image = null
+  chairData.value.avatar = ''
+  chairData.value.profile_image_url = null
+  
+  console.log('📋 After removal:', {
+    profile_image: chairData.value.profile_image,
+    avatar: chairData.value.avatar,
+    profile_image_url: chairData.value.profile_image_url
+  })
 }
-
 // Safe image source getter
 const getImageSrc = () => {
   try {

@@ -24,7 +24,7 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-4 lg:grid-cols-2 gap-4 mb-6">
       <div v-if="eventCardData">
   <EventCard
     :image-src="eventCardData.imageSrc"
@@ -178,15 +178,24 @@
         {{ perm }}
       </span>
     </div>
-    <span v-else class="text-gray-400 text-xs">No permissions assigned</span>
+    <div v-else class="flex items-center gap-2">
+      <span class="text-gray-400 text-xs">No permissions assigned</span>
+      <button 
+        @click="editPermission(data)"
+        class="text-purple-600 hover:text-purple-800 text-xs underline"
+        title="Assign permissions"
+      >
+        Assign
+      </button>
+    </div>
   </template>
 </Column>
 
           <Column field="status" header="Status" class="text-[12px] border-b border-gray-300">
             <template #body="{ data }">
-              <span :class="['px-2 py-1 rounded-full text-xs font-medium', {
-                'bg-green-100 text-green-700': data.status === 'Active',
-                'bg-gray-100 text-gray-800': data.status === 'Inactive'
+              <span :class="['px-2 rounded-full text-xs', {
+                'bg-green-50 border border-green-400 text-green-700': data.status === 'Active',
+                'bg-gray-50 border border-gray-400 text-gray-700': data.status === 'Inactive'
               }]">
                 {{ data.status }}
               </span>
@@ -396,25 +405,6 @@ const updatedTeamStats = computed(() => [
     icon: 'fluent:people-team-24-filled',
     weekChange: '0'
   },
-  {
-    title: 'Team Members',
-    count: allUsers.value.length, // Total team members (not filtered)
-    icon: 'fluent:people-team-24-filled',
-    weekChange: '0'
-  }
-  ,
-  {
-    title: 'Team Members',
-    count: allUsers.value.length, // Total team members (not filtered)
-    icon: 'fluent:people-team-24-filled',
-    weekChange: '0'
-  },
-  {
-    title: 'Team Members',
-    count: allUsers.value.length, // Total team members (not filtered)
-    icon: 'fluent:people-team-24-filled',
-    weekChange: '0'
-  }
 ])
 
 // Menu state
@@ -502,7 +492,7 @@ const loadOrganizers = async () => {
         email: o.email,
         avatar: o.avatar_url || o.avatar || '', // Handle different possible avatar field names
         phoneNumber: o.phone_number || 'N/A',
-        optionalNote: o.note || 'Admin',
+        optionalNote: o.note || 'Owner',
         permissions: (o.roles || []).map(r => typeof r === 'string' ? r : r.name),
         status: o.is_active == 1 || o.is_active === true ? 'Active' : 'Inactive',
         created_at: o.created_at
