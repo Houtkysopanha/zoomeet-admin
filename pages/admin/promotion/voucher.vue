@@ -94,15 +94,10 @@
                   v-model="voucherForm.type"
                   class="select-standard"
                   required
-                  @change="handleDiscountTypeChange"
                 >
-                  <option value="fixed" disabled class="text-gray-400 opacity-50">Fixed Amount ($) - Not Available</option>
+                  <option value="fixed">Fixed Amount ($)</option>
                   <option value="percent">Percentage (%)</option>
                 </select>
-                <p v-if="voucherForm.type === 'fixed'" class="text-xs text-amber-600 mt-1">
-                  <i class="pi pi-exclamation-triangle text-xs mr-1"></i>
-                  Fixed amount is not available yet. Please use percentage instead.
-                </p>
               </div>
 
               <!-- Discount Value -->
@@ -869,7 +864,7 @@ const loadEventCard = async () => {
 const voucherForm = ref({
   event_id: '',
   code: '',
-  type: 'percent', // fixed or percent (fixed disabled)
+  type: 'percent', // fixed or percent - both available
   value: '',
   usage_limit: '',
   valid_from: '',
@@ -1115,15 +1110,6 @@ const showDeleteUnavailableToast = () => {
   setTimeout(() => {
     showErrorToast.value = false
   }, 4000)
-}
-
-// Handle discount type change - prevent fixed amount selection
-const handleDiscountTypeChange = () => {
-  if (voucherForm.value.type === 'fixed') {
-    // Automatically switch to percentage and show warning
-    voucherForm.value.type = 'percent'
-    showError('Fixed amount is not available yet. Switched to percentage type.')
-  }
 }
 
 // Edit promotion functionality
@@ -1443,6 +1429,12 @@ const updateVoucherData = async () => {
       return
     }
 
+    // Additional validation for percentage type
+    if (voucherForm.value.type === 'percent' && (value > 100)) {
+      showError('Percentage value cannot be more than 100%')
+      return
+    }
+
     // Validate usage limit (must be positive integer)
     const usageLimit = parseInt(voucherForm.value.usage_limit)
     if (isNaN(usageLimit) || usageLimit <= 0) {
@@ -1571,6 +1563,12 @@ const generateVoucher = async () => {
   const value = parseFloat(voucherForm.value.value)
   if (isNaN(value) || value <= 0) {
     showError('Value must be a positive number')
+    return
+  }
+
+  // Additional validation for percentage type
+  if (voucherForm.value.type === 'percent' && (value > 100)) {
+    showError('Percentage value cannot be more than 100%')
     return
   }
 
