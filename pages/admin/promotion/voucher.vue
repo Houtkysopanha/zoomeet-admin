@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50 p-4 md:p-6">
+  <div class="min-h-screen p-4 md:p-6">
     <!-- Breadcrumb -->
     
     <!-- Header -->
@@ -94,10 +94,15 @@
                   v-model="voucherForm.type"
                   class="select-standard"
                   required
+                  @change="handleDiscountTypeChange"
                 >
-                  <option value="fixed">Fixed Amount ($)</option>
+                  <option value="fixed" disabled class="text-gray-400 opacity-50">Fixed Amount ($) - Not Available</option>
                   <option value="percent">Percentage (%)</option>
                 </select>
+                <p v-if="voucherForm.type === 'fixed'" class="text-xs text-amber-600 mt-1">
+                  <i class="pi pi-exclamation-triangle text-xs mr-1"></i>
+                  Fixed amount is not available yet. Please use percentage instead.
+                </p>
               </div>
 
               <!-- Discount Value -->
@@ -408,7 +413,7 @@
 
       <!-- Right Side - Voucher Rules -->
       <div>
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 h-fit">
+        <div class="bg-white rounded-2xl p-6 h-fit">
           <div class="flex items-center justify-between mb-2">
             <h3 class="text-xl font-semibold text-gray-800">
               {{ activeTab === 'voucher' ? 'Voucher Rules' : 'Active Promotion Rules' }}
@@ -449,7 +454,7 @@
                     <span>{{ type.label }}</span>
                     <span class="text-xs bg-red-50 text-red-700 px-2 py-1 border border-red-200 rounded-full">{{ type.count }}</span>
                   </div>
-                  <div class="text-xs mt-1">Num. of voucher: 100</div>
+                  <div class="text-xs mt-1">Num. of voucher: {{ vouchers.length }}</div>
                 </div>
               </button>
             </div>
@@ -543,11 +548,11 @@
                   </div>
                   
                   <div class="flex items-center space-x-4">
-                    <span class="text-sm text-gray-600 font-medium">Voucher code: {{ voucher.code }}</span>
-                    <span class="text-xs bg-gray-50 text-gray-700 px-3 py-1 border border-gray-200 rounded-full">
+                    <span class="text-[12px] text-gray-600 font-medium">Voucher code: {{ voucher.code }}</span>
+                    <span class="text-[10px] bg-gray-50 text-gray-700 px-3 py-1 border border-gray-200 rounded-full">
                       Discount {{ voucher.coupon_type === 'percent' ? voucher.discount + '%' : '$' + voucher.discount }}
                     </span>
-                    <span class="text-xs bg-blue-50 text-blue-700 px-3 py-1 border border-blue-200 rounded-full">
+                    <span class="text-[10px] bg-blue-50 text-blue-700 px-3 py-1 border border-blue-200 rounded-full">
                       {{ voucher.usage_limit }} uses left
                     </span>
                   </div>
@@ -576,7 +581,7 @@
                   <input 
                     type="checkbox" 
                     v-model="voucher.selected" 
-                    class="checkbox-standard mt-2 w-5 h-5"
+                    class="checkbox-standard w-5 h-5"
                   >
                 </div>
               </div>
@@ -699,8 +704,8 @@
         </div>
         <div class="mt-4">
           <button
-            @click="deleteSelected"
-            class="w-full py-3 bg-red-100 text-red-600 rounded-2xl font-medium hover:bg-red-200 transition-colors flex items-center justify-center space-x-2"
+            @click="showDeleteUnavailableToast"
+            class="w-full py-3 bg-gray-100 text-gray-400 rounded-2xl font-medium cursor-not-allowed flex items-center justify-center space-x-2"
           >
             <i class="pi pi-trash"></i>
             <span>{{ activeTab === 'voucher' ? 'Delete Voucher' : 'Delete Promotion' }}</span>
@@ -864,7 +869,7 @@ const loadEventCard = async () => {
 const voucherForm = ref({
   event_id: '',
   code: '',
-  type: 'fixed', // fixed or percent
+  type: 'percent', // fixed or percent (fixed disabled)
   value: '',
   usage_limit: '',
   valid_from: '',
@@ -1105,6 +1110,24 @@ const showError = (message) => {
   }, 5000)
 }
 
+// Show delete unavailable toast
+const showDeleteUnavailableToast = () => {
+  toastMessage.value = 'Delete functionality is not available yet. This feature will be implemented soon.'
+  showErrorToast.value = true
+  setTimeout(() => {
+    showErrorToast.value = false
+  }, 4000)
+}
+
+// Handle discount type change - prevent fixed amount selection
+const handleDiscountTypeChange = () => {
+  if (voucherForm.value.type === 'fixed') {
+    // Automatically switch to percentage and show warning
+    voucherForm.value.type = 'percent'
+    showError('Fixed amount is not available yet. Switched to percentage type.')
+  }
+}
+
 // Edit promotion functionality
 const startEditPromotion = (promotion) => {
   // Find the original ticket types to get their IDs
@@ -1341,10 +1364,17 @@ const fetchPromotions = async (forceRefresh = false) => {
         }
       })
       
+      // Update promotion types for filtering
+      updatePromotionTypes()
     }
   } catch (error) {
     console.error('❌ Failed to fetch promotions:', error)
     promotionsError.value = error.message || 'Failed to load promotions'
+    
+    // Reset promotion types to default
+    promotionTypes.value = [
+      { label: 'All Promotions', value: 'all', count: '0' }
+    ]
   } finally {
     isLoadingPromotions.value = false
   }
@@ -1382,7 +1412,7 @@ const cancelEditVoucher = () => {
   voucherForm.value = {
     event_id: eventId.value || '',
     code: '',
-    type: 'fixed',
+    type: 'percent',
     value: '',
     usage_limit: '',
     valid_from: today,
@@ -1630,7 +1660,7 @@ const generateVoucher = async () => {
       voucherForm.value = {
         event_id: eventId.value,
         code: '',
-        type: 'fixed',
+        type: 'percent',
         value: '',
         usage_limit: '',
         valid_from: new Date(), // Today
@@ -1693,6 +1723,43 @@ const updateVoucherTypes = () => {
   })
   
   voucherTypes.value = types
+}
+
+// Update promotion types for filtering based on actual data
+const updatePromotionTypes = () => {
+  const typeMap = new Map()
+  
+  // Count promotions by type
+  promotions.value.forEach(promotion => {
+    const key = promotion.type
+    const label = `Buy ${promotion.buyQuantity} Get ${promotion.getQuantity}`
+    
+    if (typeMap.has(key)) {
+      typeMap.get(key).count++
+    } else {
+      typeMap.set(key, {
+        label: label,
+        value: key,
+        count: 1
+      })
+    }
+  })
+  
+  // Convert to array and add 'All' option
+  const types = [
+    { label: 'All Promotions', value: 'all', count: `${promotions.value.length}` }
+  ]
+  
+  // Add individual types
+  typeMap.forEach(type => {
+    types.push({
+      label: type.label,
+      value: type.value,
+      count: `${type.count}`
+    })
+  })
+  
+  promotionTypes.value = types
 }
 
 // Debug function to help troubleshoot coupon fetching
@@ -2006,7 +2073,7 @@ onMounted(async () => {
     voucherForm.value = {
       event_id: eventId.value,
       code: '',
-      type: 'fixed',
+      type: 'percent',
       value: '',
       usage_limit: '',
       valid_from: today, // Date object for Calendar component

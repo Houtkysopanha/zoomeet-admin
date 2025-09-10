@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50 p-6 md:p-10 font-sans">
+  <div class="min-h-screen p-6 md:p-10 font-sans">
     <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
       <!-- Left Panel: List of Created Agenda -->
       <div class="bg-white rounded-xl shadow-lg p-6">

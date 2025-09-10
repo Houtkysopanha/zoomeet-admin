@@ -4,7 +4,7 @@
     <!-- Top section: Image and Event Details -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
       <!-- Left side: Image with overlay text -->
-      <div class="relative w-full rounded-xl overflow-hidden shadow-md h-48 sm:h-52 md:h-[8rem] md:mb-5 ">
+      <div class="relative w-full rounded-xl overflow-hidden shadow-md h-[8rem] md:mb-5 ">
         <img
           :src="displayImageSrc"
           :alt="altText"

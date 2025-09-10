@@ -81,7 +81,7 @@
                   v-model="phoneNumber"
                   placeholder="+855 93984640"
                   :class="[
-                    'w-full p-3 rounded-lg border focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800 transition-all duration-200',
+                    'w-full p-3 rounded-lg border focus:ring-1 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800 transition-all duration-200',
                     formErrors.phone ? 'border-red-300 bg-red-50' : 'border-gray-300'
                   ]"
                 />
@@ -99,7 +99,7 @@
                     :disabled="!!ticketId"
                     placeholder="ZM2025001"
                     :class="[
-                      'w-full p-3 rounded-lg border focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800 transition-all duration-200',
+                      'w-full p-3 rounded-lg border focus:ring-1 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800 transition-all duration-200',
                       formErrors.bookingRef ? 'border-red-300 bg-red-50' : 'border-gray-300',
                       !!ticketId ? 'disabled:bg-gray-100 disabled:cursor-not-allowed' : ''
                     ]"
@@ -117,7 +117,7 @@
                     :disabled="!!bookingReference"
                     placeholder="Ticket ID"
                     :class="[
-                      'w-full p-3 rounded-lg border focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800 transition-all duration-200',
+                      'w-full p-3 rounded-lg border focus:ring-1 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800 transition-all duration-200',
                       formErrors.ticketId ? 'border-red-300 bg-red-50' : 'border-gray-300',
                       !!bookingReference ? 'disabled:bg-gray-100 disabled:cursor-not-allowed' : ''
                     ]"
@@ -139,7 +139,7 @@
                   v-model="email"
                   placeholder="example@email.com"
                   :class="[
-                    'w-full p-3 rounded-lg border focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800 transition-all duration-200',
+                    'w-full p-3 rounded-lg border focus:ring-1 focus:ring-purple-500 focus:border-purple-500 focus:outline-none text-gray-800 transition-all duration-200',
                     formErrors.email ? 'border-red-300 bg-red-50' : 'border-gray-300'
                   ]"
                 />
@@ -306,14 +306,14 @@
       <!-- Left: Event Image and Info -->
       <div class="flex flex-col md:flex-row flex-1">
         <!-- Event Poster -->
-        <div class="relative w-full md:w-56 lg:w-64 overflow-hidden">
+        <div class="relative w-full md:w-56 lg:w-64 mt-5 overflow-hidden">
           <img 
             :src="result.image" 
             :alt="result.eventTitle"
             class="w-full object-cover"
           />
           <!-- Status Badge -->
-          <div class="absolute top-3 left-3">
+          <div class="absolute top-[0.5rem] left-[0.5rem]">
             <span 
               v-if="result.status === 'Check-in'"
               class="bg-purple-600 text-white px-3 py-1 rounded-full text-xs font-medium"

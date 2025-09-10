@@ -166,12 +166,6 @@ const toggleUserMenu = () => {
   showUserMenu.value = !showUserMenu.value
 }
 
-const handleClickOutside = (event) => {
-  if (!event.target.closest('.relative')) {
-    showUserMenu.value = false
-  }
-}
-
 const logoutWithToast = () => {
   showUserMenu.value = false
 
@@ -288,10 +282,6 @@ async function fetchUserInfo() {
   }
 }
 
-onMounted(() => {
-  fetchUserInfo()
-})
-
 const updateDateTime = () => {
   const now = new Date()
   currentDate.value = now.toLocaleDateString('en-US', {
@@ -306,14 +296,29 @@ const updateDateTime = () => {
     hour12: true,
   })
 }
-onMounted(() => {
+
+// Handle click outside
+const handleClickOutside = (event) => {
+  if (!event.target.closest('.relative')) {
+    showUserMenu.value = false
+  }
+}
+
+// Setup lifecycle hooks
+let interval = null
+
+onMounted(async () => {
+  await fetchUserInfo()
   updateDateTime()
+  interval = setInterval(updateDateTime, 1000)
   document.addEventListener('click', handleClickOutside)
-  const interval = setInterval(updateDateTime, 1000)
-  onUnmounted(() => {
-    document.removeEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  if (interval) {
     clearInterval(interval)
-  })
+  }
+  document.removeEventListener('click', handleClickOutside)
 })
 
 definePageMeta({
