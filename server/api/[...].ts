@@ -75,10 +75,9 @@ export default defineEventHandler(async (event) => {
       headers: headers,
     })
 
-    console.log(`Server-side generic API response for ${method} /${path}:`, response)
+
     return response
   } catch (error: any) {
-    console.error(`Server-side generic API error:`, error)
     throw createError({
       statusCode: error.statusCode || 500,
       statusMessage: error.data?.message || error.message || 'API request failed'

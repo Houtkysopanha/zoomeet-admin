@@ -1,5 +1,5 @@
 export default defineNuxtPlugin(async (nuxtApp) => {
-  console.log('🔐 Initializing auth plugin...');
+
   
   try {
     // Import useAuth from the composables
@@ -11,7 +11,6 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     // Verify auth state
     const token = getToken();
     if (token) {
-      console.log('✅ Token found during initialization');
       
       // Start token monitoring for production
       if (process.client) {
@@ -40,7 +39,6 @@ function startTokenMonitoring() {
     
     try {
       if (isTokenExpired()) {
-        console.log('🔒 Token expired during monitoring, redirecting to login...');
         clearAuth();
         if (tokenCheckInterval) {
           clearInterval(tokenCheckInterval);
@@ -69,7 +67,6 @@ function startTokenMonitoring() {
         
         // Force logout when 30 minutes or less remains (more generous)
         if (hoursLeft === 0 && minutesLeft <= 30) {
-          console.log('🔒 Token expiring in 30 minutes, forcing logout...');
           clearAuth();
           if (tokenCheckInterval) {
             clearInterval(tokenCheckInterval);
@@ -110,7 +107,6 @@ function showExpirationWarning(hoursLeft: number, minutesLeft: number = 0) {
     
     if (shouldStay) {
       // Here you could implement token refresh logic
-      console.log('🔄 User wants to extend session - implement refresh logic here');
       // refreshToken(); // Implement this if you have refresh token functionality
     }
   }

@@ -48,7 +48,6 @@ export default defineEventHandler(async (event) => {
       }
     })
 
-    console.log('✅ Successfully fetched events from external API')
     return response
 
   } catch (error: any) {

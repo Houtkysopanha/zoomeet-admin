@@ -96,7 +96,6 @@ export function useAuth() {
       if (ss) {
         try {
           auth = JSON.parse(ss)
-          console.log('📍 Found auth in sessionStorage')
         } catch {}
       }
     }
@@ -152,7 +151,7 @@ export function useAuth() {
 
   async function refreshToken() {
     try {
-      console.log('🔄 Starting token refresh...')
+
       
       const currentRefreshToken = getRefreshToken()
       if (!currentRefreshToken) {
@@ -182,10 +181,7 @@ export function useAuth() {
       }
 
       setAuth(refreshedAuthData)
-      console.log('✅ Token refreshed successfully', {
-        newTokenLength: tokens.access_token?.length,
-        expiresAt: expiresAt
-      })
+
       
       return true
 

@@ -204,7 +204,6 @@ async function fetchUserInfo() {
 
     // Check if token is expired and try to refresh if needed
     if (isTokenExpired()) {
-      console.log('🔄 Token expired, attempting refresh before API call')
       try {
         const refreshSuccess = await refreshToken()
         if (refreshSuccess) {

@@ -94,15 +94,10 @@
                   v-model="voucherForm.type"
                   class="select-standard"
                   required
-                  @change="handleDiscountTypeChange"
                 >
-                  <option value="fixed" disabled class="text-gray-400 opacity-50">Fixed Amount ($) - Not Available</option>
+                  <option value="fixed">Fixed Amount ($)</option>
                   <option value="percent">Percentage (%)</option>
                 </select>
-                <p v-if="voucherForm.type === 'fixed'" class="text-xs text-amber-600 mt-1">
-                  <i class="pi pi-exclamation-triangle text-xs mr-1"></i>
-                  Fixed amount is not available yet. Please use percentage instead.
-                </p>
               </div>
 
               <!-- Discount Value -->
@@ -869,7 +864,7 @@ const loadEventCard = async () => {
 const voucherForm = ref({
   event_id: '',
   code: '',
-  type: 'percent', // fixed or percent (fixed disabled)
+  type: 'percent', // fixed or percent - both available
   value: '',
   usage_limit: '',
   valid_from: '',
@@ -992,7 +987,6 @@ const fetchTicketTypes = async (retryCount = 0) => {
     
     // Retry logic for network errors
     if (retryCount < 2 && (error.message.includes('fetch') || error.message.includes('network'))) {
-      console.log(`🔄 Retrying ticket types fetch (attempt ${retryCount + 1}/3)...`)
       setTimeout(() => fetchTicketTypes(retryCount + 1), 1000 * (retryCount + 1))
       return
     }
@@ -1016,7 +1010,6 @@ const fetchCoupons = async (forceRefresh = false) => {
   }
 
   if (forceRefresh) {
-    console.log('🔄 Force refreshing coupons for event:', eventId.value)
   }
 
   isLoadingCoupons.value = true
@@ -1075,7 +1068,7 @@ const fetchCoupons = async (forceRefresh = false) => {
       updateVoucherTypes()
     } else {
       vouchers.value = []
-      console.log('ℹ️ No coupons found for this event')
+
       
       // Reset voucher types to default
       voucherTypes.value = [
@@ -1117,15 +1110,6 @@ const showDeleteUnavailableToast = () => {
   setTimeout(() => {
     showErrorToast.value = false
   }, 4000)
-}
-
-// Handle discount type change - prevent fixed amount selection
-const handleDiscountTypeChange = () => {
-  if (voucherForm.value.type === 'fixed') {
-    // Automatically switch to percentage and show warning
-    voucherForm.value.type = 'percent'
-    showError('Fixed amount is not available yet. Switched to percentage type.')
-  }
 }
 
 // Edit promotion functionality
@@ -1319,7 +1303,6 @@ const fetchPromotions = async (forceRefresh = false) => {
   }
 
   if (forceRefresh) {
-    console.log('🔄 Force refreshing promotions...')
   }
 
   isLoadingPromotions.value = true
@@ -1382,7 +1365,6 @@ const fetchPromotions = async (forceRefresh = false) => {
 
 // Voucher editing functions
 const startEditVoucher = (voucher) => {
-  console.log('✏️ Starting to edit voucher:', voucher)
   
   editingVoucher.value = { ...voucher }
   
@@ -1447,6 +1429,12 @@ const updateVoucherData = async () => {
       return
     }
 
+    // Additional validation for percentage type
+    if (voucherForm.value.type === 'percent' && (value > 100)) {
+      showError('Percentage value cannot be more than 100%')
+      return
+    }
+
     // Validate usage limit (must be positive integer)
     const usageLimit = parseInt(voucherForm.value.usage_limit)
     if (isNaN(usageLimit) || usageLimit <= 0) {
@@ -1484,7 +1472,6 @@ const updateVoucherData = async () => {
       is_active: voucherForm.value.is_active !== undefined ? voucherForm.value.is_active : true
     }
 
-    console.log('🔄 Updating voucher with data:', couponData)
 
     const response = await updateCoupon(editingVoucher.value.id, couponData)
 
@@ -1576,6 +1563,12 @@ const generateVoucher = async () => {
   const value = parseFloat(voucherForm.value.value)
   if (isNaN(value) || value <= 0) {
     showError('Value must be a positive number')
+    return
+  }
+
+  // Additional validation for percentage type
+  if (voucherForm.value.type === 'percent' && (value > 100)) {
+    showError('Percentage value cannot be more than 100%')
     return
   }
 
@@ -1935,7 +1928,7 @@ const deleteSelected = async () => {
     try {
       // Delete each selected voucher
       for (const voucher of selectedVouchers) {
-        console.log('🗑️ Deleting voucher:', voucher.id)
+
         await deleteCoupon(voucher.id)
       }
       
@@ -2007,10 +2000,8 @@ const debugEventIsolation = async () => {
 
       Object.keys(eventGroups).forEach(eid => {
         const isCurrentEvent = eid === eventId.value
-        console.log(`  Event ${eid} ${isCurrentEvent ? '(CURRENT)' : ''}: ${eventGroups[eid].length} coupons - [${eventGroups[eid].join(', ')}]`)
       })
       
-      alert(`Debug complete! Check console for details.\n\nCurrent Event: ${eventId.value}\nTotal API Coupons: ${rawCoupons.length}\nFiltered for Current Event: ${(eventGroups[eventId.value] || []).length}`)
     }
   } catch (error) {
     console.error('❌ Debug API call failed:', error)

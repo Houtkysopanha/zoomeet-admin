@@ -61,6 +61,7 @@
                 type="text"
                 placeholder="Search"
                 class="w-full pl-12 lg:pl-14 border-0 focus:ring-0 focus:outline-none bg-transparent p-2 lg:p-3 rounded-full text-sm lg:text-base"
+                @keyup.escape="clearSearch"
               />
             </div>
             <div class="relative">
@@ -106,7 +107,7 @@
         </div>
 
         <span class="text-xs lg:text-lg text-gray-700 border-l pl-2 border-gray-500 whitespace-nowrap">
-          Show {{ currentPage * itemsPerPage - (itemsPerPage - 1) }} to {{ Math.min(currentPage * itemsPerPage, totalItems) }} of {{ totalItems }}
+          {{ searchQuery ? `Filtered: ${totalItems} results` : `Show ${currentPage * itemsPerPage - (itemsPerPage - 1)} to ${Math.min(currentPage * itemsPerPage, totalItems)} of ${totalItems}` }}
         </span>
       </div>
     </div>
@@ -205,9 +206,13 @@
             @click="(event) => toggleActionMenu(event, slotProps.data)"
             :title="`Actions for ${slotProps.data.name}`"
           />
-          <!-- FIXED: Menu with proper event data isolation -->
+          <!-- FIXED: Menu with proper event data isolation and better ref handling -->
           <Menu
-            :ref="el => actionMenus[slotProps.data.id] = el"
+            :ref="el => {
+              if (el) {
+                actionMenus[slotProps.data.id] = el
+              }
+            }"
             :model="actionItems(slotProps.data)"
             :popup="true"
             class="rounded-xl shadow-md"
@@ -220,7 +225,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import Button from 'primevue/button'
 import IconnButton from '~/components/ui/IconnButton.vue'
 import Breadcrumb from '~/components/common/Breadcrumb.vue'
@@ -382,7 +387,7 @@ const loadEvents = async () => {
       
       // Handle authentication errors specifically
       if (status === 401) {
-        console.log('🔐 401 error in events page - redirecting to login')
+
         // Clear auth and redirect
         const { clearAuth } = useAuth()
         clearAuth()
@@ -415,7 +420,6 @@ const loadEvents = async () => {
     
     // Handle authentication errors in catch block too
     if (error.message && error.message.includes('401')) {
-      console.log('🔐 401 error caught - redirecting to login')
       const { clearAuth } = useAuth()
       clearAuth()
       
@@ -469,6 +473,14 @@ onMounted(() => {
   loadEvents()
 })
 
+// Watch search query
+watch(searchQuery, (newQuery, oldQuery) => {
+  // Reset to first page when searching
+  if (newQuery !== oldQuery) {
+    currentPage.value = 1
+  }
+})
+
 const applySort = () => {
   // Parse sortOption and update sortField and sortOrder accordingly
   const [field, order] = sortOption.value.split('-')
@@ -484,10 +496,16 @@ const applyPageChange = () => {
 const filteredEvents = computed(() => {
   let result = [...events.value]
 
-  // Search filter
+  // Enhanced search filter - search multiple fields
   if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase()
     result = result.filter(ev =>
-      ev.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+      ev.name.toLowerCase().includes(query) ||
+      ev.organizer.toLowerCase().includes(query) ||
+      ev.venue.toLowerCase().includes(query) ||
+      ev.type.toLowerCase().includes(query) ||
+      ev.status.toLowerCase().includes(query) ||
+      (ev.description && ev.description.toLowerCase().includes(query))
     )
   }
 
@@ -516,6 +534,24 @@ const filteredEvents = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   return result.slice(start, start + itemsPerPage.value)
 })
+
+// Watch for filtered events changes to clean up menu refs
+watch(() => filteredEvents.value, (newFilteredEvents, oldFilteredEvents) => {
+  // Use nextTick to ensure DOM has updated
+  nextTick(() => {
+    const currentEventIds = new Set(newFilteredEvents.map(e => e.id))
+    const oldEventIds = oldFilteredEvents ? new Set(oldFilteredEvents.map(e => e.id)) : new Set()
+  
+    
+    // Clean up menu refs for events that are no longer visible
+    Object.keys(actionMenus.value).forEach(eventId => {
+      if (!currentEventIds.has(eventId)) {
+        delete actionMenus.value[eventId]
+
+      }
+    })
+  })
+}, { flush: 'post' })
 
 import { formatSingleDate, formatEventDateRange } from '~/utils/dateFormatter'
 
@@ -555,18 +591,78 @@ const toggleFilters = () => {
   toast.add({ severity: 'info', summary: 'Filters', detail: 'Filter functionality to be implemented', life: 3000 })
 }
 
+// Clear search function
+const clearSearch = () => {
+  searchQuery.value = ''
+  currentPage.value = 1
+}
+
 const actionMenu = ref(null)
 const currentEvent = ref(null)
 const actionMenus = ref({})
 const toggleActionMenu = (event, data) => {
   currentEvent.value = data
-  const menu = actionMenus.value[data.id]
-
-  if (menu) {
-    menu.toggle(event)  // open menu for this row
-  } else {
-    console.error('Menu ref not found for row', data)
+  
+  // Validate data
+  if (!data || !data.id) {
+    console.error('❌ Invalid event data for action menu:', data)
+    toast.add({
+      severity: 'error',
+      summary: 'Action Error',
+      detail: 'Invalid event data. Please refresh the page.',
+      life: 3000
+    })
+    return
   }
+
+  // Function to attempt menu toggle
+  const attemptToggle = (attempt = 1, maxAttempts = 3) => {
+    const menu = actionMenus.value[data.id]
+    
+
+    if (menu && typeof menu.toggle === 'function') {
+      try {
+        menu.toggle(event)
+        return true
+      } catch (error) {
+        console.error('❌ Error toggling menu:', error)
+        toast.add({
+          severity: 'error',
+          summary: 'Menu Error',
+          detail: 'Failed to open action menu. Please try again.',
+          life: 3000
+        })
+        return false
+      }
+    } else if (attempt < maxAttempts) {
+      // Retry with increasing delay
+      const delay = attempt * 50
+      setTimeout(() => attemptToggle(attempt + 1, maxAttempts), delay)
+      return false
+    } else {
+      console.error('❌ Menu ref not found after all attempts:', { 
+        eventId: data.id, 
+        finalMenuRef: menu,
+        allAvailableMenus: Object.keys(actionMenus.value)
+      })
+      
+      toast.add({
+        severity: 'warn',
+        summary: 'Menu Unavailable',
+        detail: 'Action menu is not available. The page will refresh automatically.',
+        life: 3000
+      })
+      
+      // Auto-refresh after 3 seconds as last resort
+      setTimeout(() => {
+        window.location.reload()
+      }, 3000)
+      return false
+    }
+  }
+
+  // Start the toggle attempt
+  attemptToggle()
 }
 
 // Helper function to validate UUID

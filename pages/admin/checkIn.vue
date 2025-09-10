@@ -532,8 +532,10 @@
                 <span class="text-sm font-medium whitespace-nowrap">+855</span>
               </div>
               <InputText
-                v-model="assignForm.phone_number"
+                v-model="localPhoneNumber"
+                @input="formatLocalPhoneNumber"
                 placeholder="97 6028 424"
+                type="tel"
                 :class="[
                   'flex-1 p-3 border rounded-r-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:outline-none min-w-0 phone-input',
                   assignFormErrors.phone_number ? 'border-red-300 bg-red-50' : 'border-gray-300'
@@ -622,7 +624,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import InputText from 'primevue/inputtext'
 import Button from 'primevue/button'
 import { definePageMeta } from '#imports'
@@ -694,6 +696,36 @@ const isValidPhoneNumber = (phone) => {
   return phoneRegex.test(cleanPhone)
 }
 
+// Function to format local phone number (without +855) and update assignForm
+const formatLocalPhoneNumber = () => {
+  // Remove all non-digit characters
+  let value = localPhoneNumber.value.replace(/\D/g, '')
+  
+  // Limit to 9 digits (Cambodia local numbers are typically 8-9 digits)
+  if (value.length > 9) {
+    value = value.substring(0, 9)
+  }
+  
+  // Format the number with spaces for better readability
+  if (value.length >= 6) {
+    value = value.replace(/(\d{2})(\d{4})(\d+)/, '$1 $2 $3')
+  } else if (value.length >= 2) {
+    value = value.replace(/(\d{2})(\d+)/, '$1 $2')
+  }
+  
+  localPhoneNumber.value = value
+  
+  // Update the phone number in assignForm (ONLY the number, no +855 prefix)
+  const cleanValue = value.replace(/\s/g, '') // Remove spaces
+  assignForm.value.phone_number = cleanValue // Store only the number without +855
+}
+
+// Function to validate local phone numbers (8-9 digits)
+const isValidLocalPhoneNumber = (localPhone) => {
+  const cleanPhone = localPhone.replace(/\s/g, '') // Remove spaces
+  return /^[1-9]\d{7,8}$/.test(cleanPhone) // 8-9 digits starting with 1-9
+}
+
 const validateForm = () => {
   clearErrors()
   let isValid = true
@@ -740,6 +772,136 @@ const validateForm = () => {
 // Modal states
 const showAssignModal = ref(false)
 const selectedTicket = ref(null)
+
+// Watch for check-in status changes and show toast alerts
+watch(searchResults, (newResults, oldResults) => {
+  if (!oldResults || oldResults.length === 0) return
+  
+  // Compare each ticket to detect status changes
+  newResults.forEach((newTicket) => {
+    const oldTicket = oldResults.find(old => old.id === newTicket.id)
+    
+    if (oldTicket) {
+      // Check if status changed from "Not Check-in" to "Check-in"
+      if (oldTicket.status === 'Not Check-in' && newTicket.status === 'Check-in') {
+        // Get ticket holder name for personalized message
+        const holderName = newTicket.ticketHolder && newTicket.ticketHolder !== '-' 
+          ? newTicket.ticketHolder 
+          : 'Guest'
+        
+        // Show success toast alert
+        toast.success(`🎉 Check-in successful! Welcome ${holderName}!`, {
+          position: toast.POSITION.TOP_RIGHT,
+          timeout: 4000,
+          autoClose: 4000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true
+        })
+        
+      }
+      
+      // Also handle reverse case (check-out) if needed
+      else if (oldTicket.status === 'Check-in' && newTicket.status === 'Not Check-in') {
+        const holderName = newTicket.ticketHolder && newTicket.ticketHolder !== '-' 
+          ? newTicket.ticketHolder 
+          : 'Guest'
+        
+        toast.info(`ℹ️ ${holderName} has been checked out`, {
+          position: toast.POSITION.TOP_RIGHT,
+          timeout: 3000
+        })
+        
+      }
+    }
+  })
+}, { deep: true })
+
+// Polling function to refresh ticket status periodically
+const pollTicketStatus = async () => {
+  if (!searchPerformed.value || loading.value || searchResults.value.length === 0) {
+    return
+  }
+  
+  try {
+    // Re-run the search quietly to get updated statuses
+    const { searchCheckIns } = await import('@/composables/api')
+    
+    // Get current search parameters
+    const currentPhone = activeTab.value === 'phone' ? phoneNumber.value.trim() : ''
+    const currentEmail = activeTab.value === 'email' ? email.value.trim() : ''
+    const currentBookingRef = activeTab.value === 'phone' ? bookingReference.value.trim() : bookingReferenceEmail.value.trim()
+    const currentTicketId = activeTab.value === 'phone' ? ticketId.value.trim() : ticketIdEmail.value.trim()
+    
+    if (!currentPhone && !currentEmail && !currentBookingRef && !currentTicketId) {
+      return // No search criteria to poll with
+    }
+    
+    const searchParams = {}
+    if (currentPhone) searchParams.phone_number = currentPhone
+    if (currentEmail) searchParams.email = currentEmail
+    if (currentTicketId) searchParams.ticket_no = currentTicketId
+    if (currentBookingRef) searchParams.order_number = currentBookingRef
+    
+    const response = await searchCheckIns(searchParams, currentPage.value, perPage.value)
+    
+    if (response.success && response.data) {
+      // Store old results for comparison
+      const oldResults = [...searchResults.value]
+      
+      // Update search results with new data (this will trigger the watcher)
+      searchResults.value = response.data.map(ticket => ({
+        id: ticket.id,
+        assignmentId: ticket.id,
+        status: ticket.attendance?.checked_in ? 'Check-in' : 'Not Check-in',
+        isAssigned: ticket.is_assigned || !!(ticket.name || ticket.email || ticket.phone_number),
+        image: ticket.event?.cover_image_url || img,
+        eventTitle: ticket.event?.name || '-',
+        owner: ticket.event?.company || '-',
+        ticketHolder: ticket.name || '-',
+        bookingRef: ticket.order?.order_number || '-',
+        phoneNumberOrEmail: ticket.phone_number 
+          ? (ticket.phone_number.startsWith('+855') ? ticket.phone_number : `+855${ticket.phone_number}`)
+          : (ticket.email || '-'),
+        ticketId: ticket.ticket_no || '-',
+        location: ticket.event?.location || '-',
+        ticketType: ticket.ticket_type?.name || '-',
+        date: ticket.event?.start_date && ticket.event?.end_date 
+          ? formatEventDateRange(ticket.event.start_date, ticket.event.end_date)
+          : ticket.event?.start_date 
+            ? formatSingleDate(ticket.event.start_date)
+            : '-',
+        gate: ticket.gate || '-',
+        time: ticket.event?.start_date ? formatTime(ticket.event.start_date) : '-',
+        seatNumber: ticket.seat_number || '-',
+        price: ticket.ticket_type?.price || '-',
+        qrCode: ticket.qr_code || '-',
+        checkedInTime: ticket.attendance?.time || '-',
+        idCardNo: ticket.id_card_no || '-',
+        passportNo: ticket.passport_no || '-',
+      }))
+    }
+  } catch (error) {
+    // Silently handle polling errors to avoid disrupting user experience
+    console.warn('⚠️ Status polling failed:', error.message)
+  }
+}
+
+// Set up polling interval when component mounts
+let pollingInterval = null
+
+onMounted(() => {
+  // Start polling every 3 seconds when search results are displayed
+  pollingInterval = setInterval(pollTicketStatus, 3000)
+})
+
+onUnmounted(() => {
+  // Clean up polling when component unmounts
+  if (pollingInterval) {
+    clearInterval(pollingInterval)
+  }
+})
 
 // Form fields
 const phoneNumber = ref('')
@@ -806,6 +968,9 @@ const assignForm = ref({
   id_card_no: ''
 })
 
+// Local phone number for display (without +855 prefix)
+const localPhoneNumber = ref('')
+
 const assignFormErrors = ref({
   name: '',
   phone_number: '',
@@ -835,7 +1000,7 @@ const validateAssignForm = () => {
   }
 
   // Phone OR Email validation (at least one is required)
-  const hasPhone = assignForm.value.phone_number.trim()
+  const hasPhone = localPhoneNumber.value.trim() // Use local phone number
   const hasEmail = assignForm.value.email.trim()
   
   if (!hasPhone && !hasEmail) {
@@ -843,9 +1008,9 @@ const validateAssignForm = () => {
     isValid = false
   }
 
-  // Phone number validation (if provided)
-  if (hasPhone && !isValidPhoneNumber(assignForm.value.phone_number)) {
-    assignFormErrors.value.phone_number = 'Please enter a valid phone number'
+  // Phone number validation (if provided) - validate local number
+  if (hasPhone && !isValidLocalPhoneNumber(localPhoneNumber.value)) {
+    assignFormErrors.value.phone_number = 'Please enter a valid phone number (8-9 digits, e.g., 97 6028 424)'
     isValid = false
   }
 
@@ -916,14 +1081,11 @@ const performDetailedSearch = async (page = 1) => {
     if (currentTicketId) searchParams.ticket_no = currentTicketId
     if (currentBookingRef) searchParams.order_number = currentBookingRef
     
-    console.log('🔍 Search parameters:', searchParams)
-    console.log('📄 Searching page:', page)
     
     // Use the API function from composables with pagination
     const { searchCheckIns } = await import('@/composables/api')
     const response = await searchCheckIns(searchParams, page, perPage.value)
     
-    console.log('✅ API Response:', response)
     
     if (response.success && response.data) {
       // Update pagination state
@@ -942,7 +1104,9 @@ const performDetailedSearch = async (page = 1) => {
         owner: ticket.event?.company|| '-',
         ticketHolder: ticket.name || '-',
         bookingRef: ticket.order?.order_number || '-',
-        phoneNumberOrEmail: ticket.phone_number || ticket.email || '-',
+        phoneNumberOrEmail: ticket.phone_number 
+          ? (ticket.phone_number.startsWith('+855') ? ticket.phone_number : `+855${ticket.phone_number}`)
+          : (ticket.email || '-'),
         ticketId: ticket.ticket_no || '-',
         location: ticket.event?.location || '-',
         ticketType: ticket.ticket_type?.name || '-',
@@ -961,7 +1125,6 @@ const performDetailedSearch = async (page = 1) => {
         passportNo: ticket.passport_no || '-',
       }))
       
-      console.log('✅ Transformed results:', searchResults.value)
       
       // Show message if no results found but search was successful
       if (searchResults.value.length === 0) {
@@ -1059,9 +1222,33 @@ const openAssignModal = (ticket) => {
   if (ticket.isAssigned) {
     assignForm.value = {
       name: ticket.ticketHolder || '',
-      phone_number: ticket.phoneNumberOrEmail && ticket.phoneNumberOrEmail.includes('+') ? ticket.phoneNumberOrEmail : '',
+      phone_number: '', // Will be set by formatLocalPhoneNumber
       email: ticket.phoneNumberOrEmail && ticket.phoneNumberOrEmail.includes('@') ? ticket.phoneNumberOrEmail : '',
       id_card_no: ticket.idCardNo !== '-' ? ticket.idCardNo : ''
+    }
+    
+    // Extract local phone number if it's a phone number
+    if (ticket.phoneNumberOrEmail && !ticket.phoneNumberOrEmail.includes('@')) {
+      // It's a phone number (not email)
+      let localNumber = ticket.phoneNumberOrEmail
+      
+      // Remove +855 prefix if it exists
+      if (localNumber.startsWith('+855')) {
+        localNumber = localNumber.replace('+855', '').trim()
+      }
+      
+      // Format the local number for display
+      if (localNumber.length >= 6) {
+        localPhoneNumber.value = localNumber.replace(/(\d{2})(\d{4})(\d+)/, '$1 $2 $3')
+      } else if (localNumber.length >= 2) {
+        localPhoneNumber.value = localNumber.replace(/(\d{2})(\d+)/, '$1 $2')
+      } else {
+        localPhoneNumber.value = localNumber
+      }
+      // Update the assignForm phone number (without +855)
+      formatLocalPhoneNumber()
+    } else {
+      localPhoneNumber.value = ''
     }
   } else {
     // Reset form for new assignment
@@ -1071,6 +1258,7 @@ const openAssignModal = (ticket) => {
       email: '',
       id_card_no: ''
     }
+    localPhoneNumber.value = ''
   }
   
   // Reset errors
@@ -1086,6 +1274,7 @@ const openAssignModal = (ticket) => {
 const closeAssignModal = () => {
   showAssignModal.value = false
   selectedTicket.value = null
+  localPhoneNumber.value = '' // Reset local phone number
 }
 
 const completeAssignment = async () => {
@@ -1102,18 +1291,18 @@ const completeAssignment = async () => {
   try {
     // Show loading state (you can add a loading indicator here)
     const isReassignment = selectedTicket.value.isAssigned
-    console.log('🎫 Starting ticket assignment for:', selectedTicket.value.assignmentId)
     
     // Import and call the API function
     const { assignTicket } = await import('@/composables/api')
     
     // Implement phone priority logic: if both phone and email are provided, prioritize phone
-    const hasPhone = assignForm.value.phone_number.trim()
+    const hasPhone = localPhoneNumber.value.trim() // Use local phone number for checking
     const hasEmail = assignForm.value.email.trim()
     
     let contactMethod = ''
     if (hasPhone) {
-      contactMethod = assignForm.value.phone_number.trim()
+      // For display, show with +855 prefix
+      contactMethod = `+855${assignForm.value.phone_number}`
     } else if (hasEmail) {
       contactMethod = assignForm.value.email.trim()
     }
@@ -1125,7 +1314,8 @@ const completeAssignment = async () => {
     
     // Add contact information based on priority (phone first)
     if (hasPhone) {
-      formData.phone_number = assignForm.value.phone_number.trim()
+      // Send only the number without +855 to server
+      formData.phone_number = assignForm.value.phone_number // This contains only the number
       // Also include email if provided, but phone takes priority for display
       if (hasEmail) {
         formData.email = assignForm.value.email.trim()
@@ -1139,7 +1329,6 @@ const completeAssignment = async () => {
       formData.id_card_no = assignForm.value.id_card_no.trim()
     }
     
-    console.log('📋 Assignment data:', formData)
     
     const response = await assignTicket(selectedTicket.value.assignmentId, formData)
 
@@ -1150,13 +1339,7 @@ const completeAssignment = async () => {
       selectedTicket.value.phoneNumberOrEmail = contactMethod
       selectedTicket.value.idCardNo = assignForm.value.id_card_no.trim() || '-'
       selectedTicket.value.isAssigned = true
-      
-      console.log('✅ Ticket assigned successfully:', {
-        ticket: selectedTicket.value.bookingRef,
-        holder: assignForm.value.name,
-        contact: contactMethod,
-        isReassignment: isReassignment
-      })
+
       
       closeAssignModal()
       
@@ -1215,10 +1398,8 @@ const assignTicket = (ticket) => {
   // Toggle ticket status
   if (ticket.status === 'Check-in') {
     ticket.status = 'Not Check-in'
-    console.log('Ticket unassigned:', ticket.bookingRef)
   } else {
     ticket.status = 'Check-in'
-    console.log('Ticket assigned:', ticket.bookingRef)
   }
 }
 

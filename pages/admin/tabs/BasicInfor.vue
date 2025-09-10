@@ -44,16 +44,29 @@
           </div>
           <div class="mt-4">
             <label class="block text-sm font-medium text-gray-700">Event Description <span class="text-red-500">*</span></label>
-            <Textarea
-              v-model="formData.description"
-              :class="[
-                'w-full p-2 mt-1 bg-gray-100 rounded-2xl',
-                getFieldError('description') ? 'border-red-500 border-2' : ''
-              ]"
-              placeholder="Describe your event..."
-              rows="4"
-            />
-            <small v-if="getFieldError('description')" class="text-red-500">{{ getFieldError('description') }}</small>
+            <div class="mt-1">
+              <ClientOnly>
+                <QuillEditor
+                  v-model="formData.description"
+                  :contentType="'text'"
+                  placeholder="Describe your event..."
+                  :error="getFieldError('description')"
+                  min-height="120px"
+                />
+                <template #fallback>
+                  <Textarea
+                    v-model="formData.description"
+                    :class="[
+                      'w-full p-2 bg-gray-100 rounded-2xl',
+                      getFieldError('description') ? 'border-red-500 border-2' : ''
+                    ]"
+                    placeholder="Describe your event..."
+                    rows="4"
+                  />
+                </template>
+              </ClientOnly>
+              <span class="text-xs text-gray-400"> <small class="text-red-500">*</small> Text Editor will abvailable later.</span>
+            </div>
           </div>
         </div>
         <div class="mb-6">
@@ -390,6 +403,7 @@ import ConfirmDialog from 'primevue/confirmdialog'
 // Import custom components
 import ChairForm from '~/components/common/ChairForm.vue'
 import UploadPhoto from '~/components/common/UploadPhoto.vue'
+import QuillEditor from '~/components/common/QuillEditor.vue'
 
 // UUID generator with fallback for older browsers
 const generateUUID = () => {
@@ -1270,9 +1284,6 @@ const handleChairSaved = (chairData) => {
            (existing?.profile_image_url || existing?.avatar);
     
     if (wasRemoved) {
-      console.log('🗑️ Image removal detected for chair:', chairData.name)
-      console.log('📋 Chair data:', chairData)
-      console.log('📋 Existing data:', existing)
     }
     
     return wasRemoved;
@@ -1355,7 +1366,7 @@ const deleteChair = async (index) => {
       try {
         // If chair has an ID and we have an event ID, delete from server first
         if (chair.id && eventStore.currentEvent?.id) {
-          console.log(`🗑️ Deleting chair ${chair.id} from event ${eventStore.currentEvent.id}`)
+
           
           await deleteChairAPI(eventStore.currentEvent.id, chair.id)
           
@@ -1438,7 +1449,6 @@ const getChairImageSrc = (chair) => {
     // Priority 3: File object (newly uploaded) - create object URL
     // This should only happen for new uploads before saving
     if (chair.profile_image instanceof File && process.client) {
-      console.warn('Creating object URL in getChairImageSrc - consider using pre-created avatar URL');
       return URL.createObjectURL(chair.profile_image);
     }
 
