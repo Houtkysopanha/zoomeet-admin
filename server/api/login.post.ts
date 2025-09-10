@@ -4,14 +4,12 @@ export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
 
   try {
-    console.log('Server-side login attempt:', { identifier: body.identifier })
 
     // Use the actual external API URL, not the proxy URL
     const externalApiUrl = process.env.NODE_ENV === 'production'
       ? 'https://dev-gateway.prestigealliance.co/api/v1'
       : 'https://gateway.etickets.asia/api/v1'
 
-    console.log('Server-side API URL:', externalApiUrl)
 
     // Try multiple possible login endpoints
     const possibleEndpoints = [
@@ -26,7 +24,6 @@ export default defineEventHandler(async (event) => {
 
     for (const endpoint of possibleEndpoints) {
       try {
-        console.log(`Trying login endpoint: ${endpoint}`)
         response = await $fetch(endpoint, {
           method: 'POST',
           body: body,

@@ -1270,9 +1270,6 @@ const handleChairSaved = (chairData) => {
            (existing?.profile_image_url || existing?.avatar);
     
     if (wasRemoved) {
-      console.log('🗑️ Image removal detected for chair:', chairData.name)
-      console.log('📋 Chair data:', chairData)
-      console.log('📋 Existing data:', existing)
     }
     
     return wasRemoved;
@@ -1355,7 +1352,7 @@ const deleteChair = async (index) => {
       try {
         // If chair has an ID and we have an event ID, delete from server first
         if (chair.id && eventStore.currentEvent?.id) {
-          console.log(`🗑️ Deleting chair ${chair.id} from event ${eventStore.currentEvent.id}`)
+
           
           await deleteChairAPI(eventStore.currentEvent.id, chair.id)
           
@@ -1438,7 +1435,6 @@ const getChairImageSrc = (chair) => {
     // Priority 3: File object (newly uploaded) - create object URL
     // This should only happen for new uploads before saving
     if (chair.profile_image instanceof File && process.client) {
-      console.warn('Creating object URL in getChairImageSrc - consider using pre-created avatar URL');
       return URL.createObjectURL(chair.profile_image);
     }
 

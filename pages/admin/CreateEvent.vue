@@ -739,7 +739,6 @@ const changeTab = async (index) => {
       }
       
     } catch (error) {
-      console.error('Tab change error:', error)
       toast.add({
         severity: 'error',
         summary: 'Tab Switch Error',

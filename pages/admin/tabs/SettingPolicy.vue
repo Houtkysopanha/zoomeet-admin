@@ -234,7 +234,6 @@ const loadSettingsFromAPI = async () => {
   if (!currentEventId.value || !isEditMode.value) return
 
   try {
-    console.log('🔄 Loading settings from API for event:', currentEventId.value)
     const response = await getEventSettings(currentEventId.value)
     
     if (response && response.data) {
@@ -298,7 +297,6 @@ const loadSettingsFromAPI = async () => {
               []) : [])
       }
       
-      console.log('✅ Settings loaded from API:', settings.value)
     }
   } catch (error) {
     console.error('❌ Failed to load settings from API:', error)
@@ -321,7 +319,7 @@ const saveSettingsToAPI = async () => {
   isSaving.value = true
 
   try {
-    console.log('💾 Saving settings to API for event:', currentEventId.value)
+
     
     // Helper function to safely convert dates to API format
     const formatDateForAPI = (dateValue) => {
@@ -383,28 +381,6 @@ const saveSettingsToAPI = async () => {
         settings.value.requiredIdentityDocuments : []
     }
 
-    console.log('📊 Original settings values:', {
-      registrationDeadline: settings.value.registrationDeadline,
-      registrationDeadlineType: typeof settings.value.registrationDeadline,
-      registrationDeadlineValid: settings.value.registrationDeadline instanceof Date ? !isNaN(settings.value.registrationDeadline.getTime()) : 'not a Date',
-      ticketTransferDeadline: settings.value.ticketTransferDeadline,
-      ticketTransferDeadlineType: typeof settings.value.ticketTransferDeadline,
-      ticketTransferDeadlineValid: settings.value.ticketTransferDeadline instanceof Date ? !isNaN(settings.value.ticketTransferDeadline.getTime()) : 'not a Date'
-    })
-    
-    console.log('📤 Sending to API:', apiData)
-    console.log('🔍 Age verification logic:', {
-      requireAgeVerification: settings.value.requireAgeVerification,
-      minimumAgeOptions: settings.value.minimumAgeOptions,
-      is_required_age_verification: settings.value.requireAgeVerification ? 1 : 0,
-      maximum_age: settings.value.requireAgeVerification && settings.value.minimumAgeOptions ? 
-        parseInt(settings.value.minimumAgeOptions.replace(/\D/g, '')) : null
-    })
-    console.log('🆔 Identity documents:', {
-      requiredIdentityDocuments: settings.value.requiredIdentityDocuments,
-      sent_as_array: Array.isArray(settings.value.requiredIdentityDocuments) && settings.value.requiredIdentityDocuments.length > 0 ? 
-        settings.value.requiredIdentityDocuments : []
-    })
 
     const response = await saveEventSettings(currentEventId.value, apiData)
     
@@ -426,7 +402,6 @@ const saveSettingsToAPI = async () => {
         life: 3000
       })
       
-      console.log('✅ Settings saved to API successfully')
     }
   } catch (error) {
     console.error('❌ Failed to save settings to API:', error)
@@ -534,7 +509,6 @@ onUnmounted(() => {
 
 // Watch for event ID changes to load settings (consistent with Agenda tab)
 watch(() => props.eventId || eventCreationState.eventId.value, async (newEventId) => {
-  console.log('👁️ EventId changed to:', newEventId)
   currentEventId.value = newEventId
   
   if (newEventId && isEditMode.value) {
@@ -543,7 +517,7 @@ watch(() => props.eventId || eventCreationState.eventId.value, async (newEventId
     // Load any saved tab data for new events
     const tabData = tabsStore.getTabData(4)
     if (tabData && tabData.eventId === newEventId) {
-      console.log('📥 Loading saved tab data for event:', newEventId)
+
       
       // Safe date parsing helper
       const safeParseDateFromTab = (dateValue) => {
@@ -580,8 +554,6 @@ onMounted(async () => {
   // Set initial currentEventId from props or injected context
   currentEventId.value = props.eventId || eventCreationState.eventId.value
   
-  console.log('🔧 SettingPolicy mounted, currentEventId:', currentEventId.value, 'isEditMode:', isEditMode.value)
-  
   // Load saved settings data from localStorage first (for offline support)
   const savedSettings = localStorage.getItem('settingsPolicyData')
   if (savedSettings) {
@@ -615,7 +587,6 @@ onMounted(async () => {
         requiredIdentityDocuments: Array.isArray(settingsData.requiredIdentityDocuments) ? 
           settingsData.requiredIdentityDocuments : []
       }
-      console.log('📥 Loaded settings from localStorage:', settings.value)
     } catch (error) {
       console.error('Failed to load saved settings from localStorage:', error)
     }
@@ -623,7 +594,6 @@ onMounted(async () => {
 
   // If in edit mode and have event ID, load from API
   if (currentEventId.value && isEditMode.value) {
-    console.log('🔄 Loading settings from API because we have eventId and are in edit mode')
     await loadSettingsFromAPI()
   }
 

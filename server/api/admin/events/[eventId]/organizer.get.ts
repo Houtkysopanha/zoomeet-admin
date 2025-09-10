@@ -23,8 +23,6 @@ export default defineEventHandler(async (event) => {
     const externalApiUrl = config.public.apiAdminBaseUrl.replace('/admin', '')
     
     const apiUrl = `${externalApiUrl}/admin/events/${eventId}/organizer`
-    console.log('🔗 Organizer API URL from config:', apiUrl)
-    console.log('🔗 Environment:', config.public.environment)
     
     const response = await $fetch(apiUrl, {
       method: 'GET',

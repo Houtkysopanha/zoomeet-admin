@@ -77,7 +77,7 @@ export function useTokenManager() {
     }
     
     refreshAttempts++
-    console.log(`🔄 Attempting token refresh (attempt ${refreshAttempts}/${MAX_REFRESH_ATTEMPTS})`)
+
     
     try {
       const { refreshToken, getToken, getRefreshToken } = useAuth()
@@ -92,7 +92,6 @@ export function useTokenManager() {
       const refreshSuccess = await refreshToken()
       
       if (refreshSuccess) {
-        console.log('✅ Token refresh successful')
         refreshAttempts = 0 // Reset attempts on success
         
         // Verify the new token is valid
@@ -115,7 +114,7 @@ export function useTokenManager() {
           window.location.href = '/login?session_expired=true&reason=refresh_failed'
         }
       } else {
-        console.log(`⏳ Will retry refresh in next check (${MAX_REFRESH_ATTEMPTS - refreshAttempts} attempts remaining)`)
+        
       }
     }
   }

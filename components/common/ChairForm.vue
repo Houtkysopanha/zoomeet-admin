@@ -272,14 +272,6 @@ const saveChair = async () => {
   image_removed: chairData.value.avatar === '' && !chairData.value.profile_image // 👈 tell API to remove image
 }
 
-    console.log('💾 Saving chair data:', chairToSave)
-    console.log('🖼️ Image state:', {
-      hasFile: chairToSave.profile_image instanceof File,
-      hasAvatar: !!chairToSave.avatar,
-      hasProfileImageUrl: !!chairToSave.profile_image_url,
-      avatarValue: chairToSave.avatar,
-      profileImageUrlValue: chairToSave.profile_image_url
-    })
     emit('save', chairToSave)
     
     toast.add({
@@ -429,11 +421,6 @@ const handleImageRemoved = () => {
   chairData.value.avatar = ''
   chairData.value.profile_image_url = null
   
-  console.log('📋 After removal:', {
-    profile_image: chairData.value.profile_image,
-    avatar: chairData.value.avatar,
-    profile_image_url: chairData.value.profile_image_url
-  })
 }
 // Safe image source getter
 const getImageSrc = () => {

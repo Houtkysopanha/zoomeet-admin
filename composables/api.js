@@ -600,10 +600,9 @@ if (eventData.chairs && Array.isArray(eventData.chairs)) {
       const eventId = response.data?.id || response.id
       if (eventId) {
         try {
-          console.log('🔑 Auto-assigning event creator as owner...')
           const ownerAssignment = await assignEventCreatorAsOwner(eventId)
           if (ownerAssignment.success) {
-            console.log('✅ Creator successfully assigned as owner with all permissions')
+         
           } else {
             console.warn('⚠️ Failed to assign creator as owner:', ownerAssignment.message)
           }
@@ -2139,8 +2138,7 @@ if (!normalizedData.required_identity_document) {
       }
     }
 
-    console.log('💾 Saving event settings:', { eventId, normalizedData })
-    console.log('📤 Final payload being sent to API:', JSON.stringify(normalizedData, null, 2))
+
 
     const headers = await createAuthHeaders()
     if (!headers) {
@@ -2153,7 +2151,6 @@ if (!normalizedData.required_identity_document) {
       headers
     })
 
-    console.log('✅ Settings saved successfully:', response)
 
     return response
   } catch (error) {
@@ -2472,7 +2469,7 @@ export async function createCoupon(eventId, couponData) {
     const headers = await createAuthHeaders()
     if (!headers) throw new Error('Authentication required')
 
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/coupons`, {
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/coupons?event_id=${eventId}`, {
       method: 'POST',
       headers,
       body: couponData
@@ -2527,7 +2524,7 @@ export async function getCoupons(eventId) {
       headers
     })
 
-    console.log('✅ Coupons fetched successfully:', response)
+
 
     return {
       success: true,
@@ -2572,7 +2569,7 @@ export async function updateCoupon(couponId, couponData) {
     const headers = await createAuthHeaders()
     if (!headers) throw new Error('Authentication required')
 
-    console.log('🔄 Updating coupon:', couponId, couponData)
+
 
     const response = await $fetch(`${API_ADMIN_BASE_URL}/coupons/${couponId}`, {
       method: 'PUT',
@@ -2580,7 +2577,7 @@ export async function updateCoupon(couponId, couponData) {
       body: couponData
     })
 
-    console.log('✅ Coupon updated successfully:', response)
+
 
     return {
       success: true,
@@ -2626,14 +2623,12 @@ export async function deleteCoupon(couponId) {
     const headers = await createAuthHeaders()
     if (!headers) throw new Error('Authentication required')
 
-    console.log('🗑️ Deleting coupon:', couponId)
 
     const response = await $fetch(`${API_ADMIN_BASE_URL}/coupons/${couponId}`, {
       method: 'DELETE',
       headers
     })
 
-    console.log('✅ Coupon deleted successfully:', response)
 
     return {
       success: true,
@@ -2685,16 +2680,11 @@ export async function searchCheckIns(searchParams, page = 1, perPage = 20) {
     queryParams.append('page', page.toString())
     queryParams.append('per_page', perPage.toString())
 
-    console.log('🔍 Searching check-ins with params:', searchParams)
-    console.log('� Pagination - Page:', page, 'Per Page:', perPage)
-    console.log('�🔗 API URL:', `${API_ADMIN_BASE_URL}/check-ins?${queryParams.toString()}`)
-
     const response = await $fetch(`${API_ADMIN_BASE_URL}/check-ins?${queryParams.toString()}`, {
       method: 'GET',
       headers
     })
 
-    console.log('✅ Check-ins search response:', response)
 
     // Ensure consistent response structure with pagination
     if (response && response.data && Array.isArray(response.data)) {
@@ -2819,8 +2809,7 @@ export async function assignTicket(assignmentId, formData) {
       requestFormData.append('passport_no', formData.passport_no.trim())
     }
 
-    console.log('🎫 Assigning ticket with assignment ID:', assignmentId)
-    console.log('📝 Form data fields:', Object.fromEntries(requestFormData.entries()))
+
 
     // Remove Content-Type from headers to let browser set it for FormData
     const formDataHeaders = { ...headers }
@@ -2832,7 +2821,6 @@ export async function assignTicket(assignmentId, formData) {
       headers: formDataHeaders
     })
 
-    console.log('✅ Ticket assignment response:', response)
 
     return {
       success: true,
@@ -2908,7 +2896,6 @@ export async function refreshAccessToken(refreshToken) {
   }
 
   try {
-    console.log('🔄 Calling refresh token API...')
     
     // Create FormData to match the curl format: --form 'refresh_token="..."'
     const formData = new FormData()
@@ -2922,7 +2909,6 @@ export async function refreshAccessToken(refreshToken) {
       // Don't include Authorization header for refresh token endpoint
     })
 
-    console.log('✅ Refresh token API response received')
 
     // Validate response structure
     if (!response || !response.tokens || !response.tokens.access_token) {

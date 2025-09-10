@@ -464,7 +464,7 @@ const loadPermissions = async () => {
         }
       })
       
-      console.log('Loaded permissions:', availablePermissions.value)
+
     } else {
       console.error('API Error Response:', data)
       toast.add({
@@ -493,7 +493,7 @@ const loadCurrentOrganizers = async () => {
   
   loadingOrganizers.value = true
   try {
-    console.log('🔒 Loading ALL team members (active + inactive) for comprehensive protection...')
+   
     const response = await fetchEventOrganizers(eventId.value)
     
     if (response.status === 200 && response.data.success) {
@@ -791,10 +791,10 @@ const inviteUser = async () => {
   }
 
   // ADDITIONAL PROTECTION: Final check before API call
-  console.log('🔒 Final protection check before invitation...')
+
   const finalCheck = selectedUsers.value.filter(user => isUserAlreadyInvited(user))
   if (finalCheck.length > 0) {
-    console.error('🚫 Protection triggered: Users already invited detected at final stage')
+  
     toast.add({
       severity: 'error',
       summary: 'Protection Error',
@@ -958,13 +958,12 @@ const handlePhoneSearch = () => {
 // Handle phone number component change event (gets more detailed info)
 const handlePhoneNumberChange = (phoneData) => {
   // phoneData contains: { countryCode, phoneNumber, fullNumber, country }
-  console.log('📞 PhoneNumber component data:', phoneData)
+  
   
   // We can use the phoneData to get better search terms
   if (phoneData && phoneData.phoneNumber) {
     // Extract just the local number part
     const localNumber = phoneData.phoneNumber.replace(phoneData.countryCode, '').replace(/[^\d]/g, '')
-    console.log('📞 Extracted local number:', localNumber)
     
     // Update search phone to trigger search with local number
     if (localNumber.length >= 3) {
@@ -1052,7 +1051,6 @@ const getPhoneSearchFormats = (inputPhone) => {
     }
   }
   
-  console.log('📞 Generated phone search formats for', inputPhone, '(prioritized):', uniqueFormats)
   return uniqueFormats
 }
 

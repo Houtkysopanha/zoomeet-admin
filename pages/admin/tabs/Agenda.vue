@@ -900,7 +900,6 @@ const loadAgendaItems = async () => {
     
     if (agendaData && Array.isArray(agendaData)) {
       agendaItems.value = agendaData
-      console.log('✅ Loaded agenda items:', agendaData.length)
     } else {
       agendaItems.value = []
     
@@ -951,7 +950,6 @@ const deleteAgendaAction = (event, agendaId) => {
         )
         
         if (isSuccess) {
-          console.log('✅ Agenda deleted successfully')
           
           toast.add({
             severity: 'success',

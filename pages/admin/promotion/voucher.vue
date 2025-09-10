@@ -992,7 +992,6 @@ const fetchTicketTypes = async (retryCount = 0) => {
     
     // Retry logic for network errors
     if (retryCount < 2 && (error.message.includes('fetch') || error.message.includes('network'))) {
-      console.log(`🔄 Retrying ticket types fetch (attempt ${retryCount + 1}/3)...`)
       setTimeout(() => fetchTicketTypes(retryCount + 1), 1000 * (retryCount + 1))
       return
     }
@@ -1016,7 +1015,6 @@ const fetchCoupons = async (forceRefresh = false) => {
   }
 
   if (forceRefresh) {
-    console.log('🔄 Force refreshing coupons for event:', eventId.value)
   }
 
   isLoadingCoupons.value = true
@@ -1075,7 +1073,7 @@ const fetchCoupons = async (forceRefresh = false) => {
       updateVoucherTypes()
     } else {
       vouchers.value = []
-      console.log('ℹ️ No coupons found for this event')
+
       
       // Reset voucher types to default
       voucherTypes.value = [
@@ -1319,7 +1317,6 @@ const fetchPromotions = async (forceRefresh = false) => {
   }
 
   if (forceRefresh) {
-    console.log('🔄 Force refreshing promotions...')
   }
 
   isLoadingPromotions.value = true
@@ -1382,7 +1379,6 @@ const fetchPromotions = async (forceRefresh = false) => {
 
 // Voucher editing functions
 const startEditVoucher = (voucher) => {
-  console.log('✏️ Starting to edit voucher:', voucher)
   
   editingVoucher.value = { ...voucher }
   
@@ -1484,7 +1480,6 @@ const updateVoucherData = async () => {
       is_active: voucherForm.value.is_active !== undefined ? voucherForm.value.is_active : true
     }
 
-    console.log('🔄 Updating voucher with data:', couponData)
 
     const response = await updateCoupon(editingVoucher.value.id, couponData)
 
@@ -1935,7 +1930,7 @@ const deleteSelected = async () => {
     try {
       // Delete each selected voucher
       for (const voucher of selectedVouchers) {
-        console.log('🗑️ Deleting voucher:', voucher.id)
+
         await deleteCoupon(voucher.id)
       }
       
@@ -2007,10 +2002,8 @@ const debugEventIsolation = async () => {
 
       Object.keys(eventGroups).forEach(eid => {
         const isCurrentEvent = eid === eventId.value
-        console.log(`  Event ${eid} ${isCurrentEvent ? '(CURRENT)' : ''}: ${eventGroups[eid].length} coupons - [${eventGroups[eid].join(', ')}]`)
       })
       
-      alert(`Debug complete! Check console for details.\n\nCurrent Event: ${eventId.value}\nTotal API Coupons: ${rawCoupons.length}\nFiltered for Current Event: ${(eventGroups[eventId.value] || []).length}`)
     }
   } catch (error) {
     console.error('❌ Debug API call failed:', error)

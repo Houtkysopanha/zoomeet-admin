@@ -51,12 +51,10 @@ const createNewRoom = () => ({
 
 const addRoom = () => {
   rooms.value.push(createNewRoom())
-  console.log('New breakout room added. Total rooms:', rooms.value.length)
 }
 
 const removeRoom = (index) => {
   rooms.value.splice(index, 1)
-  console.log('Breakout room removed. Total rooms:', rooms.value.length)
 }
 
 // Auto-save functionality
@@ -89,7 +87,7 @@ watch(areRoomsValid, async (newValue) => {
         life: 3000
       })
     } catch (error) {
-      console.error('Auto-save rooms failed:', error)
+
     } finally {
       setTimeout(() => {
         isAutoSaving.value = false

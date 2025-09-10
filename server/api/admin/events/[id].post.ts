@@ -61,7 +61,6 @@ export default defineEventHandler(async (event) => {
       }
     })
 
-    console.log('✅ Event updated successfully:', eventId)
     return response
 
   } catch (error: any) {
