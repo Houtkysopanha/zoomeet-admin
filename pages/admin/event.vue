@@ -127,12 +127,12 @@
         field="name"
         header="Event"
         sortable
-        class="w-[23%] text-[14px] border-b border-gray-300 "
+        class="w-[23%] text-[14px] border-b border-gray-300 khmer-text"
       >
         <template #body="slotProps">
           <div class="text-black font-medium capitalize">
             <span>{{ slotProps.data.name }}</span>
-            <p class="text-[12px] text-gray-600 text-justify pr-6">
+            <p class="text-[12px] text-gray-600 text-justify pr-6 khmer-text">
               <span> Owner: {{ slotProps.data.organizer }}</span>
             </p>
           </div>
@@ -145,11 +145,11 @@
         class="text-[12px] border-b border-gray-300"
       >
         <template #body="slotProps">
-          <span>{{ formatDate(slotProps.data.date) }}</span>
+          <span>{{ formatDate(slotProps.data) }}</span>
         </template>
       </Column>
 
-    <Column field="venue" header="Venue" class="text-[12px] border-b border-gray-300" />
+    <Column field="venue" header="Venue" class="text-[12px] border-b border-gray-300 khmer-text" />
       <Column field="type" header="Event Type" class="text-[12px] border-b border-gray-300" />
 
       <Column
@@ -173,7 +173,7 @@
       </Column>
       <Column
          field="bookings"
-        header="Number of Booking"
+        header="Tickets"
         class="text-[12px] text-start border-b border-gray-300"
       >
       <template #body="slotProps">
@@ -379,6 +379,30 @@ const loadEvents = async () => {
       }
     } else {
       console.error('API Error Response:', data)
+      
+      // Handle authentication errors specifically
+      if (status === 401) {
+        console.log('🔐 401 error in events page - redirecting to login')
+        // Clear auth and redirect
+        const { clearAuth } = useAuth()
+        clearAuth()
+        
+        // Show specific auth error message
+        toast.add({
+          severity: 'warn',
+          summary: 'Session Expired',
+          detail: 'Your session has expired. Redirecting to login...',
+          life: 2000
+        })
+        
+        // Redirect after a short delay
+        setTimeout(() => {
+          navigateTo('/login?session_expired=true&reason=token_expired')
+        }, 2000)
+        
+        return
+      }
+      
       toast.add({
         severity: 'error',
         summary: 'API Error',
@@ -387,6 +411,28 @@ const loadEvents = async () => {
       })
     }
   } catch (error) {
+    console.error('❌ Load events catch block error:', error)
+    
+    // Handle authentication errors in catch block too
+    if (error.message && error.message.includes('401')) {
+      console.log('🔐 401 error caught - redirecting to login')
+      const { clearAuth } = useAuth()
+      clearAuth()
+      
+      toast.add({
+        severity: 'warn',
+        summary: 'Session Expired',
+        detail: 'Your session has expired. Redirecting to login...',
+        life: 2000
+      })
+      
+      setTimeout(() => {
+        navigateTo('/login?session_expired=true&reason=token_expired')
+      }, 2000)
+      
+      return
+    }
+    
     toast.add({
       severity: 'error',
       summary: 'Fetch Error',
@@ -471,12 +517,27 @@ const filteredEvents = computed(() => {
   return result.slice(start, start + itemsPerPage.value)
 })
 
+import { formatSingleDate, formatEventDateRange } from '~/utils/dateFormatter'
+
 const onPage = (event) => {
   currentPage.value = event.page + 1
 }
 
-const formatDate = (date) =>
-  date.toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' })
+const formatDate = (eventData) => {
+  // Use date range formatting if we have both start and end dates
+  if (eventData.start_date && eventData.end_date) {
+    return formatEventDateRange(eventData.start_date, eventData.end_date)
+  }
+  // Fallback to single date if only start_date exists
+  else if (eventData.start_date) {
+    return formatSingleDate(eventData.start_date)
+  }
+  // Final fallback to the date field if it exists
+  else if (eventData.date) {
+    return formatSingleDate(eventData.date)
+  }
+  return 'Date not available'
+}
 
 const formatCurrency = (value) => `$${value.toLocaleString()}`
 
@@ -516,11 +577,6 @@ function validateUUID(uuid) {
 
 // FIXED: Enhanced edit event handler with proper event isolation
 const handleEditEvent = (eventData) => {
-  console.log('🎯 Edit event handler called with:', {
-    eventId: eventData.id,
-    eventName: eventData.name,
-    source: 'action-menu'
-  })
   
   // Use the existing editEvent function which is better implemented
   editEvent(eventData);
@@ -533,13 +589,30 @@ const actionItems = (eventData) => [
     icon: 'pi pi-pencil',
     // CRITICAL FIX: Pass the specific eventData, not the global currentEvent
     command: () => {
-      console.log('🎯 Edit command triggered for event:', {
-        eventId: eventData.id,
-        eventName: eventData.name,
-        actionSource: 'edit-menu-item'
-      })
       handleEditEvent(eventData)
     },
+  },
+  {
+    label: 'Promotion Rules',
+    icon: 'pi pi-ticket',
+    command: () => {
+      router.push({
+        path: '/admin/promotion/voucher',
+        query: { eventId: eventData.id }
+      });
+    },
+    visible: true,
+  },
+  {
+    label: 'Manage Team',
+    icon: 'pi pi-users',
+    command: () => {
+      router.push({
+        path: '/admin/role/ManageTeam',
+        query: { eventId: eventData.id }
+      });
+    },
+    visible: true,
   },
   // Disabled actions - no API support yet
   {
@@ -552,6 +625,8 @@ const actionItems = (eventData) => [
         detail: 'Booking management is currently under development.',
         life: 3000
       });
+       router.push('/ManageTeam');
+      return;
     },
     visible: false, // Disabled
   },
@@ -565,6 +640,7 @@ const actionItems = (eventData) => [
         detail: 'End event functionality is currently under development.',
         life: 3000
       });
+
     },
     visible: false, // Disabled
   },
@@ -573,11 +649,6 @@ const actionItems = (eventData) => [
     icon: 'pi pi-trash text-red-500',
     // FIXED: Pass the specific eventData, not the global currentEvent
     command: () => {
-      console.log('🎯 Delete command triggered for event:', {
-        eventId: eventData.id,
-        eventName: eventData.name,
-        actionSource: 'delete-menu-item'
-      })
       removeEvent(eventData)
     },
   },

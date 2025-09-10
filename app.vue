@@ -14,13 +14,20 @@
 </template>
 
 <script setup>
-// Global app configuration
+const { initAuth } = useAuth()
+
+// Document head
 useHead({
   titleTemplate: '%s - Event Management System',
   meta: [
     { name: 'description', content: 'eTicketsAsia - Event Management System' },
     { name: 'viewport', content: 'width=device-width, initial-scale=1' }
   ]
+})
+
+// Initialize auth once on client mount
+onMounted(() => {
+  initAuth()
 })
 
 // Handle global errors

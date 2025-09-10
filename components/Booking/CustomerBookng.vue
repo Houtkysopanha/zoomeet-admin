@@ -252,7 +252,6 @@ const selectEvent = (event) => {
 }
 
 const handleBookNowClick = (event) => {
-  console.log('Book Now clicked for event:', event.title);
   // You can add further logic here, e.g., navigate to a booking page
   // or open a booking form modal.
   visible.value = false; // Close the sidebar after clicking book now

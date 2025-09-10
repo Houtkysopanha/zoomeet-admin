@@ -45,10 +45,10 @@
           <div class="w-72 absolute px-6 py-4 bg-white shadow-sm rounded-2xl z-10  gap-2.5">
             <div class="flex items-center gap-5 relative z-1">
               <img src="../assets/image/checking-service.png" alt="" class="w-12">
-              <div class="text-center justify-start text-violet-700 text-xl font-bold leading-7">Event Service</div>            
+              <div class="text-center justify-start text-violet-700 text-xl font-bold leading-7">Check-in Service</div>            
             </div>            
               <div class="justify-start text-neutral-400 text-base font-normal leading-normal py-2">
-                Create and manage events with <br/>customizable options
+               Fast and seamless attendee <br> check-in at events
               </div>
           </div>
           <div class="absolute top-[120px] left-[-10px] w-40 h-10 px-6 py-4 opacity-60 bg-violet-700 rounded-2xl blur-[32px] inline-flex flex-col justify-center items-center gap-2.5">
@@ -61,16 +61,24 @@
           <div class="w-72 absolute px-6 py-4 bg-white shadow-sm rounded-2xl z-10  gap-2.5">
             <div class="flex items-center gap-5 relative z-1">
               <img src="../assets/image/report.png" alt="" class="w-12">
-              <div class="text-center justify-start text-violet-700 text-xl font-bold leading-7">Booking Service</div>            
+              <div class="text-center justify-start text-violet-700 text-xl font-bold leading-7">Report</div>            
             </div>            
               <div class="justify-start text-neutral-400 text-base font-normal leading-normal py-2">
-                 Simplify ticket reservations and <br/>secure payments
+                Track sales, attendance, and  <br> performance insights
               </div>
           </div>
           <div class="absolute top-[120px] left-[-10px] w-40 h-10 px-6 py-4 opacity-60 bg-violet-700 rounded-2xl blur-[32px] inline-flex flex-col justify-center items-center gap-2.5">
             <div class="flex-1 flex flex-col justify-start items-start gap-6">
               <div class="w-40 h-16"></div>
             </div>
+          </div>
+        </div>
+      </div>
+       <div class="grid grid-cols-1 gap-15 text-center mt-10" style="padding-top: 200px;">
+        <div class="relative">
+          <div class="w-auto z-10  gap-2.5">
+              <p class="text-xl">If you have any questions, please contact our support <br> team via <span class="font-bold">info@etickets.asia</span>
+              </p>
           </div>
         </div>
       </div>
@@ -199,7 +207,7 @@ import { useToast } from "primevue/usetoast";
 import Toast from 'primevue/toast';
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue';
 import { classicLoader } from '~/composables/useClassicLoader.js';
-import { Icon } from '@iconify/vue'
+import { Icon } from '@iconify/vue';
 // Images
 import logo1 from '@/assets/image/eticketsasia.png';
 import PhoneNumber from "~/components/PhoneNumber.vue";
@@ -215,6 +223,30 @@ const currentTab = ref("phone");
 const isLoading = ref(false);
 const formRef = ref(null);
 const toast = useToast();
+
+// Check for session expiration messages
+onMounted(() => {
+  const route = useRoute();
+  
+  if (route.query.session_expired === 'true') {
+    const reason = route.query.reason;
+    let message = 'Your session has expired. Please log in again.';
+    
+    if (reason === 'token_expired') {
+      message = 'Your session has expired. Please log in again to continue.';
+    } else if (reason === 'about_to_expire') {
+      message = 'Your session was about to expire. Please log in again.';
+    }
+    
+    toast.add({
+      severity: "warn",
+      summary: "Session Expired",
+      detail: message,
+      life: 5000,
+    });
+  }
+});
+
 const { apply: applyMotion, set: setMotion } = useMotion(formRef, {
   initial: { x: 0 },
   shake: {
@@ -246,32 +278,52 @@ async function handleLogin() {
     classicLoader.updateProgress(25, 'Authenticating credentials...')
     const data = await login(identifier, password.value)
     classicLoader.updateProgress(60, 'Verifying account...')
+    
+    
     let token = null;
+    let refreshToken = null;
     let userData = {};
+    
+    // Extract tokens from different possible response formats
     if (data?.tokens?.access_token) {
       token = data.tokens.access_token;
+      refreshToken = data.tokens.refresh_token;
       userData = data.user || {};
     } else if (data?.access_token) {
       token = data.access_token;
+      refreshToken = data.refresh_token;
       userData = data.user || {};
     } else if (data?.token) {
       token = data.token;
+      refreshToken = data.refreshToken || data.refresh_token;
       userData = data.user || {};
     } else {
       throw new Error('Invalid server response. Missing access token.')
     }
+    
     const user = {
       username: identifier,
       message: data.message || 'Login successful',
       loginTime: new Date().toISOString(),
       ...userData
     }
+    
     if (!token) {
       throw new Error("Missing access token in login response. Please check your credentials.");
     }
+  
+    
     classicLoader.updateProgress(85, 'Loading dashboard...')
     const { setAuth, getToken } = useAuth();
-    setAuth({ token, user });
+    
+    // Store both access token and refresh token
+    const authData = { 
+     access_token: token,             // ✅ must match useAuth
+  refresh_token: refreshToken || null, // ✅ must match useAuth
+  user
+    };
+    
+    setAuth(authData);
     const savedToken = getToken();
     if (!savedToken) {
       throw new Error('Failed to save authentication token');
@@ -304,6 +356,4 @@ async function handleLogin() {
     classicLoader.hide()
   }
 }
-
-
 </script>

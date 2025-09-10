@@ -6,10 +6,9 @@
         <p class="text-gray-400">Create and manage different ticket types</p>
       </div>
       <div v-if="currentEventId" class="text-right">
-        <p class="px-3 py-1 rounded-full text-xs font-medium text-green-500">Basic Info Saved</p>
+        <p class="py-1 rounded-full text-xs font-medium text-purple-500">Basic Info Saved</p>
         <p class="text-xs text-gray-500">{{ currentEventName }}</p>
         <p v-if="shouldShowEditMode" class="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-500">Click Icon for update and click Update before save draft</p>
-        <p v-else class="text-xs text-purple-600 font-medium">🆕 Create Mode</p>
       </div>
     </div>
 
@@ -106,7 +105,7 @@
         :disabled="!currentEventId"
       >
         <Icon name="heroicons:plus" class="mr-2" />
-        Create Ticket
+        Add Ticket
       </Button>
       
       <!-- PHASE 2: Save Draft (New tickets exist but not saved) -->
@@ -117,10 +116,10 @@
           :disabled="!currentEventId"
         >
           <Icon name="heroicons:plus" class="mr-2" />
-          Add Another Ticket
+          Add Ticket
         </Button>
         
-        <Button
+        <!-- <Button
           @click="saveDraft"
           class="save-draft-btn"
           :disabled="!currentEventId || loading || !isValidTicketData"
@@ -128,7 +127,7 @@
         >
           <Icon name="heroicons:document-plus" class="mr-2" />
           {{ loading ? 'Saving...' : 'Save Draft' }}
-        </Button>
+        </Button> -->
       </template>
       
       <!-- PHASE 3: After Draft Saved - Show Add + Save Changes (like Agenda) -->
@@ -329,26 +328,12 @@ const editTicket = async (ticketTypeId, index) => {
   
   loading.value = true
   try {
-    console.log('✏️ Loading individual ticket from server for editing:', {
-      eventId: currentEventId.value,
-      ticketTypeId: ticketTypeId,
-      method: 'GET',
-      endpoint: `/admin/events/${currentEventId.value}/ticket-types/${ticketTypeId}`
-    })
     
     // FIXED: Use getTicketTypeDetails to get individual ticket data (like Agenda pattern)
     const response = await getTicketTypeDetails(currentEventId.value, ticketTypeId)
     
     if (response?.success && response?.data) {
       const serverTicket = response.data
-      
-      console.log('✅ Loaded individual ticket data from server:', {
-        ticketId: serverTicket.id,
-        name: serverTicket.name,
-        price: serverTicket.price,
-        inventoryTotal: serverTicket.inventory?.total,
-        tag: serverTicket.tag
-      })
       
       // FIXED: Load fresh data from server with correct field mapping
       tickets.value[index] = {
@@ -423,12 +408,6 @@ const deleteTicket = async (ticketTypeId, index) => {
   
   loading.value = true
   try {
-    console.log('🗑️ Deleting ticket:', {
-      eventId: currentEventId.value,
-      ticketTypeId: ticketTypeId,
-      method: 'DELETE'
-    })
-    
     // DELETE request to remove ticket from server
     const { deleteTicketType } = await import('@/composables/api')
     const response = await deleteTicketType(currentEventId.value, ticketTypeId)
@@ -674,12 +653,6 @@ const saveTicketsInternal = async (mode = 'create') => {
   loading.value = true
 
   try {
-    console.log('🎫 Starting ticket save operation:', {
-      mode: mode,
-      eventId: currentEventId.value,
-      ticketCount: tickets.value.length,
-      method: mode === 'create' ? 'POST' : 'PUT'
-    })
 
     const ticketUpdates = []
     const promises = []
@@ -715,21 +688,17 @@ const saveTicketsInternal = async (mode = 'create') => {
             is_active: 1
           }
         })
-
-        console.log('📝 Creating new tickets:', ticketsData.length)
         
         const createPromise = createTicketTypes(currentEventId.value, ticketsData)
           .then((response) => {
-            console.log('✅ Tickets created successfully:', response)
+
             
             // FIXED: Handle new API response structure with ticket_types array
             let createdTickets = []
             if (response?.data?.ticket_types && Array.isArray(response.data.ticket_types)) {
               createdTickets = response.data.ticket_types
-              console.log('✅ Using ticket_types array from new API structure')
             } else if (response?.data && Array.isArray(response.data)) {
               createdTickets = response.data
-              console.log('✅ Using legacy API structure')
             }
             
             // Update local tickets with API IDs
@@ -783,20 +752,13 @@ const saveTicketsInternal = async (mode = 'create') => {
           is_active: 1
         }
 
-        console.log('📝 Updating ticket:', {
-          ticketTypeId: ticket.ticket_type_id,
-          data: ticketData
-        })
-
         const updatePromise = updateTicketType(currentEventId.value, ticket.ticket_type_id, ticketData)
           .then(() => {
-            console.log('✅ Ticket updated successfully:', ticket.name)
             ticketUpdates.push(`Updated: ${name}`)
             // Clear editing state
             ticket.isEditing = false
           })
           .catch((error) => {
-            console.error('❌ Failed to update ticket:', error)
             ticketUpdates.push(`Failed to update: ${name}`)
             throw error
           })
@@ -925,23 +887,19 @@ const loadExistingTickets = async () => {
 
   loading.value = true
   try {
-    console.log('🎫 Loading existing tickets for event:', eventId)
+
     const response = await getEventTicketTypes(eventId)
     
     // Handle new API response structure with ticket_types array
     let existingTickets = []
     if (response && response.success && response.data && response.data.ticket_types && Array.isArray(response.data.ticket_types)) {
       existingTickets = response.data.ticket_types
-      console.log('✅ Found existing tickets in new API structure:', existingTickets.length)
     } else if (response && response.data && Array.isArray(response.data)) {
       // Fallback for old API structure
       existingTickets = response.data
-      console.log('✅ Found existing tickets in legacy API structure:', existingTickets.length)
     }
     
-    if (existingTickets.length > 0) {
-      console.log('✅ Processing existing tickets:', existingTickets.length)
-      
+    if (existingTickets.length > 0) {      
       // Clear current tickets and load existing ones with event validation
       tickets.value = existingTickets.map((ticket, index) => {
         const loadedTicket = {
@@ -959,15 +917,6 @@ const loadExistingTickets = async () => {
           eventId: eventId // Ensure event ID is set
         }
         
-        console.log('📝 Loaded ticket from API:', {
-          index,
-          eventId: eventId,
-          original: ticket,
-          loaded: loadedTicket,
-          inventoryTotal: ticket.inventory?.total,
-          finalQuantity: loadedTicket.quantity
-        })
-        
         return loadedTicket
       })
       
@@ -975,13 +924,6 @@ const loadExistingTickets = async () => {
       hasExistingTickets.value = true
       isEditMode.value = true
       
-      console.log('📝 Loaded tickets for event:', {
-        eventId: eventId,
-        ticketCount: tickets.value.length,
-        isEditMode: isEditMode.value,
-        hasExistingTickets: hasExistingTickets.value,
-        allTicketsHaveIds: tickets.value.every(t => t.ticket_type_id)
-      })
       
       toast.add({
         severity: 'success',
@@ -990,13 +932,11 @@ const loadExistingTickets = async () => {
         life: 3000
       })
     } else {
-      console.log('📝 No existing tickets found, starting fresh')
       hasExistingTickets.value = false
       tickets.value = []
       isEditMode.value = false
     }
   } catch (error) {
-    console.error('❌ Failed to load existing tickets:', error)
     toast.add({
       severity: 'error',
       summary: 'Load Failed',
@@ -1014,7 +954,6 @@ const loadExistingTickets = async () => {
 // Watch tickets array for changes
 watch(tickets, (newTickets) => {
   if (currentEventId.value) {
-    console.log('🎫 Tickets changed, saving to tab store:', newTickets.length)
     const tabsStore = useEventTabsStore()
     
     // Save current ticket data immediately
@@ -1039,7 +978,6 @@ watch(tickets, (newTickets) => {
 
 // ENHANCED: Initialization with event isolation
 onMounted(async () => {
-  console.log('🎫 Initializing TicketPacket component with event isolation...')
   
   // Initialize data loading function
   const loadTicketData = async (eventId) => {
@@ -1048,14 +986,13 @@ onMounted(async () => {
     
     // Validate event context
     if (!validateEventContext(eventId)) {
-      console.warn('⚠️ Invalid event context for ticket loading')
+
       return
     }
     
     // Get current event data
     const currentEvent = eventStore.currentEvent
     if (!currentEvent || currentEvent.id !== eventId) {
-      console.warn('⚠️ Event store mismatch')
       return
     }
     
@@ -1064,13 +1001,6 @@ onMounted(async () => {
     eventData.value = currentEvent
     isEditMode.value = !!currentEvent.id
     
-    console.log('📋 Loading tickets for event:', {
-      id: eventId,
-      name: currentEventName.value,
-      isEditMode: isEditMode.value,
-      status: currentEvent.status,
-      isPublished: currentEvent.is_published
-    })
     
     // Check basic info completion
     const basicInfoData = tabsStore.getTabData(0)
@@ -1083,7 +1013,6 @@ onMounted(async () => {
     )
     
     if (!hasBasicInfo) {
-      console.log("⚠️ Basic info not complete.")
       toast.add({
         severity: 'warn',
         summary: 'Basic Info Required',
@@ -1128,7 +1057,6 @@ onMounted(async () => {
 
 // ENHANCED: Ticket loading with priority system and event isolation
 const loadTicketsWithPriority = async (eventId, currentEvent, tabsStore) => {
-  console.log('🎫 Loading tickets with priority system for event:', eventId)
   
   let ticketsRestored = false
   
@@ -1138,7 +1066,6 @@ const loadTicketsWithPriority = async (eventId, currentEvent, tabsStore) => {
       ticketTabData.ticketTypes.length > 0 &&
       ticketTabData.eventId === eventId) {
     
-    console.log('📋 Restoring tickets from tab store for same event')
     tickets.value = ticketTabData.ticketTypes.map((ticket, index) => ({
       id: ticket.id || Date.now() + Math.random() + index,
       ticket_type_id: ticket.ticket_type_id || ticket.id,
@@ -1158,15 +1085,9 @@ const loadTicketsWithPriority = async (eventId, currentEvent, tabsStore) => {
     ticketsRestored = true
     tabsStore.markTabComplete(2)
     
-    console.log('✅ Restored tickets from tab store:', {
-      totalTickets: tickets.value.length,
-      savedTickets: savedTicketsCount,
-      hasExistingTickets: hasExistingTickets.value
-    })
   }
   // Priority 2: Event store (loaded from API)
   else if (currentEvent.ticket_types?.length > 0) {
-    console.log('📋 Loading tickets from event store')
     tickets.value = currentEvent.ticket_types.map((ticket, index) => ({
       id: ticket.id || Date.now() + Math.random() + index,
       ticket_type_id: ticket.id,
@@ -1183,13 +1104,7 @@ const loadTicketsWithPriority = async (eventId, currentEvent, tabsStore) => {
     
     hasExistingTickets.value = true
     ticketsRestored = true
-    
-    console.log('✅ Loaded tickets from event store:', {
-      totalTickets: tickets.value.length,
-      allHaveIds: tickets.value.every(t => t.ticket_type_id),
-      hasExistingTickets: hasExistingTickets.value
-    })
-    
+  
     // Save to tab persistence for future use
     handleSaveCurrentTab()
     tabsStore.markTabComplete(2)
@@ -1197,7 +1112,6 @@ const loadTicketsWithPriority = async (eventId, currentEvent, tabsStore) => {
   
   // Priority 3: Load fresh from API if nothing in stores
   if (!ticketsRestored) {
-    console.log('📋 Loading fresh tickets from API')
     await loadExistingTickets()
   }
   

@@ -1,5 +1,4 @@
 export default defineNuxtPlugin(() => {
-  console.log('🌐 Initializing API plugin...')
   
   const config = useRuntimeConfig()
   
@@ -12,9 +11,4 @@ export default defineNuxtPlugin(() => {
     console.warn('⚠️ API admin base URL not configured')
   }
   
-  console.log('✅ API plugin initialized', {
-    hasApiBaseUrl: !!config.public.apiBaseUrl,
-    hasApiAdminBaseUrl: !!config.public.apiAdminBaseUrl,
-    environment: config.public.environment || 'development'
-  })
 })

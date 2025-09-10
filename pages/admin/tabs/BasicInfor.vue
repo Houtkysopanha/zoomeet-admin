@@ -66,7 +66,7 @@
                 placeholder="31/07/2025 09:00"
                 v-model="formData.startDate"
                 :class="[
-                  'w-full p-3 mt-1 bg-gray-100 rounded-2xl',
+                  'w-full p-3 mt-1 bg-gray-100 ring-0 rounded-2xl',
                   getFieldError('start_date') ? 'border-red-500 border-2' : ''
                 ]"
                 dateFormat="dd/mm/yy"
@@ -236,66 +236,73 @@
         </div>
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div class="">
-            <DataTable :value="formData.chairs" :loading="isLoadingData" stripedRows responsiveLayout="scroll" class="custom-datatable" :emptyMessage="'No chairs added yet'">
-              <Column field="name" header="Name" class="name-column">
-                <template #body="slotProps">
-                  <div class="flex items-center gap-4 py-2">
-                    <div class="relative">
-                      <img
-                        v-if="getChairImageSrc(slotProps.data)"
-                        :src="getChairImageSrc(slotProps.data)"
-                        :alt="slotProps.data.name"
-                        class="w-12 h-12 rounded-full object-cover shadow-md hover:shadow-lg transition-shadow duration-200 border-2 border-gray-200"
-                        @error="handleChairImageError"
-                      />
-                      <Avatar
-                        v-else
-                        :label="slotProps.data.name.charAt(0)"
-                        shape="circle"
-                        size="large"
-                        class="shadow-md hover:shadow-lg transition-shadow duration-200 bg-purple-600 text-white"
-                      />
+            <ClientOnly>
+              <DataTable :value="formData.chairs" :loading="isLoadingData" stripedRows responsiveLayout="scroll" class="custom-datatable" :emptyMessage="'No chairs added yet'">
+                <Column field="name" header="Name" class="name-column">
+                  <template #body="slotProps">
+                    <div class="flex items-center gap-4 py-2">
+                      <div class="relative">
+                        <img
+                          v-if="getChairImageSrc(slotProps.data)"
+                          :src="getChairImageSrc(slotProps.data)"
+                          :alt="slotProps.data.name"
+                          class="w-12 h-12 rounded-full object-cover shadow-md hover:shadow-lg transition-shadow duration-200 border-2 border-gray-200"
+                          @error="handleChairImageError"
+                        />
+                        <Avatar
+                          v-else
+                          :label="slotProps.data.name.charAt(0)"
+                          shape="circle"
+                          size="large"
+                          class="shadow-md hover:shadow-lg transition-shadow duration-200 bg-purple-600 text-white"
+                        />
+                      </div>
+                      <div>
+                        <h3 class="font-semibold text-gray-900 hover:text-purple-600 transition-colors duration-200">
+                          {{ slotProps.data.name }}</h3>
+                        <p class="text-sm text-gray-500">{{ slotProps.data.position }}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 class="font-semibold text-gray-900 hover:text-purple-600 transition-colors duration-200">
-                        {{ slotProps.data.name }}</h3>
-                      <p class="text-sm text-gray-500">{{ slotProps.data.position }}</p>
+                  </template>
+                </Column>
+                <Column field="company" header="Ministry/Company" class="company-column">
+                  <template #body="slotProps">
+                    <span class="text-gray-700 font-medium">{{ slotProps.data.company }}</span>
+                  </template>
+                </Column>
+                <Column header="Action" class="action-column">
+                  <template #body="slotProps">
+                    <div class="flex items-center justify-center gap-2">
+                      <Button icon="pi pi-pencil" text rounded size="small" class="action-btn edit-btn" @click="openChairDialog(slotProps.data, slotProps.index)" title="Edit Chair" />
+                      <span class="text-gray-300">|</span>
+                      <Button icon="pi pi-trash" text rounded size="small" class="action-btn delete-btn" @click="deleteChair(slotProps.index)" title="Delete Chair" />
                     </div>
+                  </template>
+                </Column>
+                <template #empty>
+                  <div class="text-center py-12">
+                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <i class="pi pi-users text-2xl text-gray-400"></i>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">No chairs added yet</h3>
+                    <p class="text-gray-500 mb-6">Add your first chair to get started with event management.</p>
+                    <Button @click="openChairDialog()" class="add-chair-btn">
+                      <i class="pi pi-plus mr-2"></i>
+                      Add First Chair</Button>
                   </div>
                 </template>
-              </Column>
-              <Column field="company" header="Ministry/Company" class="company-column">
-                <template #body="slotProps">
-                  <span class="text-gray-700 font-medium">{{ slotProps.data.company }}</span>
-                </template>
-              </Column>
-              <Column header="Action" class="action-column">
-                <template #body="slotProps">
-                  <div class="flex items-center justify-center gap-2">
-                    <Button icon="pi pi-pencil" text rounded size="small" class="action-btn edit-btn" @click="openChairDialog(slotProps.data, slotProps.index)" title="Edit Chair" />
-                    <span class="text-gray-300">|</span>
-                    <Button icon="pi pi-trash" text rounded size="small" class="action-btn delete-btn" @click="deleteChair(slotProps.index)" title="Delete Chair" />
+                <template #loading>
+                  <div class="flex items-center justify-center py-8">
+                    <ProgressSpinner size="50" strokeWidth="4" fill="transparent" animationDuration="1s" />
                   </div>
                 </template>
-              </Column>
-              <template #empty>
-                <div class="text-center py-12">
-                  <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="pi pi-users text-2xl text-gray-400"></i>
-                  </div>
-                  <h3 class="text-lg font-medium text-gray-900 mb-2">No chairs added yet</h3>
-                  <p class="text-gray-500 mb-6">Add your first chair to get started with event management.</p>
-                  <Button @click="openChairDialog()" class="add-chair-btn">
-                    <i class="pi pi-plus mr-2"></i>
-                    Add First Chair</Button>
-                </div>
-              </template>
-              <template #loading>
+              </DataTable>
+              <template #fallback>
                 <div class="flex items-center justify-center py-8">
-                  <ProgressSpinner size="50" strokeWidth="4" fill="transparent" animationDuration="1s" />
+                  <div class="text-gray-500">Loading chairs...</div>
                 </div>
               </template>
-            </DataTable>
+            </ClientOnly>
           </div>
         </div>
       </section>
@@ -369,6 +376,20 @@ import ProgressSpinner from 'primevue/progressspinner'
 import ChairForm from '~/components/common/ChairForm.vue'
 import UploadPhoto from '~/components/common/UploadPhoto.vue'
 
+// UUID generator with fallback for older browsers
+const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  
+  // Fallback UUID v4 generator
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 const toast = useToast()
 const eventStore = useEventStore()
 const tabsStore = useEventTabsStore()
@@ -438,6 +459,20 @@ onMounted(async () => {
   window.addEventListener('saveCurrentTab', handleSaveCurrentTab)
 })
 
+function parseLocalDate(dateString) {
+  if (!dateString) return null;
+
+  // Take only date + time (ignore timezone part if present)
+  const [datePart, timePart] = dateString.split("T");
+  if (!timePart) return new Date(dateString); // fallback
+
+  const [year, month, day] = datePart.split("-").map(Number);
+  const [hour, minute, second] = timePart.split(":").map(Number);
+
+  // Construct Date in local timezone (no UTC shift)
+  return new Date(year, month - 1, day, hour, minute, second || 0);
+}
+
 // Enhanced data loading with comprehensive source checking and File object restoration
 const loadExistingData = async () => {
   if (isLoadingData.value) return
@@ -449,11 +484,6 @@ const loadExistingData = async () => {
     const tabData = tabsStore.getTabData(0) // Basic Info tab
     
     if (tabData && Object.keys(tabData).length > 0 && tabData.eventName) {
-      console.log('📋 Loading data from tabs store:', {
-        hasChairs: !!tabData.chairs,
-        chairCount: tabData.chairs?.length || 0,
-        hasFileObjects: !!tabData.chairFileObjects
-      })
       
       // Load data from tabs store
       Object.assign(formData, {
@@ -496,21 +526,17 @@ const loadExistingData = async () => {
         }
       }
 
-      console.log('🗃️ Initialized chairFileObjects Map:', {
-        isMap: chairFileObjects instanceof Map,
-        size: chairFileObjects.size
-      });
-
-      // Restore File objects and create avatars
+      // Restore File objects and create avatars (client-side only)
       formData.chairs.forEach(chair => {
         const fileObject = chairFileObjects.get(chair.id);
         if (fileObject instanceof File) {
           chair.profile_image = fileObject;
-          chair.avatar = URL.createObjectURL(fileObject);
-          console.log(`🪑 Restored File object for chair ${chair.name} with ID ${chair.id}`);
+          // Only create object URLs on client-side
+          if (process.client) {
+            chair.avatar = URL.createObjectURL(fileObject);
+          }
         } else if (chair.profile_image_url) {
           chair.avatar = chair.profile_image_url;
-          console.log(`🪑 Using profile_image_url for chair ${chair.name}`);
         }
       });
 
@@ -531,8 +557,8 @@ const loadExistingData = async () => {
         eventName: event.name || '',
         category: event.category_id || null,
         description: event.description || '',
-        startDate: event.start_date ? new Date(event.start_date) : null,
-        endDate: event.end_date ? new Date(event.end_date) : null,
+        startDate: event.start_date ? parseLocalDate(event.start_date) : null,
+        endDate: event.end_date ? parseLocalDate(event.end_date) : null,
         location: event.location || '',
         mapUrl: event.map_url || '',
         company: event.company || '',
@@ -566,8 +592,9 @@ const loadExistingData = async () => {
             eventName: event.name || '',
             category: event.category_id || null,
             description: event.description || '',
-            startDate: event.start_date ? new Date(event.start_date) : null,
-            endDate: event.end_date ? new Date(event.end_date) : null,
+            startDate: event.start_date ? parseLocalDate(event.start_date) : null,
+endDate: event.end_date ? parseLocalDate(event.end_date) : null,
+
             location: event.location || '',
             mapUrl: event.map_url || '',
             company: event.company || '',
@@ -829,14 +856,30 @@ const handleSaveDraft = async () => {
       })
       return
     }
-    
+    function toLocalISOString(date) {
+  if (!date) return null;
+  const pad = (n) => String(n).padStart(2, "0");
+  return (
+    date.getFullYear() +
+    "-" +
+    pad(date.getMonth() + 1) +
+    "-" +
+    pad(date.getDate()) +
+    "T" +
+    pad(date.getHours()) +
+    ":" +
+    pad(date.getMinutes()) +
+    ":" +
+    pad(date.getSeconds())
+  );
+}
     // FIXED: Prepare data for API with explicit chair IDs and profile images
 const eventData = {
   name: formData.eventName,
   category_id: formData.category,
   description: formData.description,
-  start_date: formData.startDate?.toISOString(),
-  end_date: formData.endDate?.toISOString(),
+start_date: toLocalISOString(formData.startDate),
+end_date: toLocalISOString(formData.endDate),
   location: formData.location,
   map_url: formData.mapUrl || null,
   company: formData.company || null,
@@ -854,10 +897,6 @@ const tabData = tabsStore.getTabData(0);
 const chairFileObjects = tabData?.chairFileObjects instanceof Map ? 
   tabData.chairFileObjects : new Map();
 
-console.log('📝 Preparing chairs for API:', {
-  totalChairs: formData.chairs.length,
-  chairFileObjectsSize: chairFileObjects.size
-});
 
 // Prepare chair data with ID preservation and proper image handling
 eventData.chairs = formData.chairs.map((chair, index) => {
@@ -883,34 +922,15 @@ eventData.chairs = formData.chairs.map((chair, index) => {
   // Handle profile image with explicit checks
   if (chair.profile_image instanceof File) {
     chairData.profile_image = chair.profile_image;
-    console.log(`📤 Chair ${chairData.name}: Using direct File object`, {
-      id: chairId,
-      fileName: chair.profile_image.name
-    });
   } else if (storedFile instanceof File) {
     chairData.profile_image = storedFile;
-    console.log(`📤 Chair ${chairData.name}: Using stored File object`, {
-      id: chairId,
-      fileName: storedFile.name
-    });
   } else if (chair.profile_image_url) {
     chairData.profile_image_url = chair.profile_image_url;
-    console.log(`📤 Chair ${chairData.name}: Using existing URL`, {
-      id: chairId,
-      url: chair.profile_image_url
-    });
   }
-
-  console.log(`📦 Chair data prepared:`, {
-    id: chairId,
-    name: chairData.name,
-    hasImage: !!(chairData.profile_image || chairData.profile_image_url)
-  });
 
   return chairData;
 });
-    
-    console.log('📝 Preparing event data for API...')
+  
 
     // CRITICAL: Enhanced chair data handling with improved file preservation
     if (formData.chairs && Array.isArray(formData.chairs)) {
@@ -929,17 +949,13 @@ eventData.chairs = formData.chairs.map((chair, index) => {
         if (fileObject instanceof File) {
           // Priority 1: File object from chairFileObjects
           profileImage = fileObject
-          console.log(`✅ Using stored File object for chair ${chair.name}:`, fileObject.name)
         } else if (chair.profile_image instanceof File) {
           // Priority 2: Direct File object on chair
           profileImage = chair.profile_image
-          console.log(`✅ Using direct File object for chair ${chair.name}:`, chair.profile_image.name)
         } else if (chair.profile_image_url) {
           // Priority 3: Existing image URL from API
           profileImageUrl = chair.profile_image_url
-          console.log(`✅ Using existing API URL for chair ${chair.name}:`, profileImageUrl)
         } else {
-          console.log(`⚪ No image found for chair ${chair.name}`)
         }
         
         return {
@@ -958,17 +974,7 @@ eventData.chairs = formData.chairs.map((chair, index) => {
       })
     }
     
-    console.log('💾 Preparing event data for save:', {
-      chairsCount: eventData.chairs.length,
-      chairsWithFiles: eventData.chairs.filter(c => c.profile_image instanceof File).length,
-      chairsWithUrls: eventData.chairs.filter(c => c.profile_image_url).length,
-      chairDetails: eventData.chairs.map(c => ({
-        name: c.name,
-        hasFile: c.profile_image instanceof File,
-        hasUrl: !!c.profile_image_url,
-        fileName: c.profile_image instanceof File ? c.profile_image.name : null
-      }))
-    })
+
 
     // Only include event_slug if it's new or has changed (to avoid "already taken" error)
     if (!isEditMode.value || (isEditMode.value && formData.eventSlug && formData.eventSlug !== eventStore.currentEvent?.event_slug)) {
@@ -1224,7 +1230,7 @@ const openChairDialog = (chair = null, index = -1) => {
 }
 
 const ensureLocalKey = (chair) => {
-  if (!chair.localKey) chair.localKey = crypto.randomUUID();
+  if (!chair.localKey) chair.localKey = generateUUID();
   return chair;
 };
 
@@ -1235,7 +1241,7 @@ const handleChairSaved = (chairData) => {
   const existing = isEdit ? formData.chairs[editingChairIndex.value] : null;
 
   // Keep a stable localKey for mapping (do NOT send to API)
-  const localKey = existing?.localKey || crypto.randomUUID();
+  const localKey = existing?.localKey || generateUUID();
 
   const processed = {
     // server id – only if we really have one
@@ -1256,7 +1262,7 @@ const handleChairSaved = (chairData) => {
       : (chairData.profile_image_url ?? existing?.profile_image_url ?? null),
 
     // for preview only
-    avatar: chairData.profile_image instanceof File
+    avatar: chairData.profile_image instanceof File && process.client
       ? URL.createObjectURL(chairData.profile_image)
       : (chairData.avatar ?? existing?.avatar ?? chairData.profile_image_url ?? null),
   };
@@ -1310,43 +1316,39 @@ const deleteChair = (index) => {
 // Get chair image source with proper handling - FIXED for profile_image_url
 const getChairImageSrc = (chair) => {
   if (!chair) {
-    console.warn('🖼️ No chair provided to getChairImageSrc');
     return null;
   }
 
   try {
-    // Priority 1: File object (newly uploaded)
-    if (chair.profile_image instanceof File) {
-      console.log(`🖼️ Chair ${chair.name}: Using profile_image File object`);
-      return URL.createObjectURL(chair.profile_image);
+    // Priority 1: Avatar URL (pre-created object URL or existing image URL)
+    // This is set during chair creation and should be used first
+    if (chair.avatar && typeof chair.avatar === 'string' && chair.avatar.trim()) {
+      return chair.avatar;
     }
 
     // Priority 2: profile_image_url from API
     if (chair.profile_image_url && typeof chair.profile_image_url === 'string' && chair.profile_image_url.trim()) {
-      console.log(`🖼️ Chair ${chair.name}: Using profile_image_url from API: ${chair.profile_image_url}`);
       return chair.profile_image_url.startsWith('http')
         ? chair.profile_image_url
         : `${window.location.origin}${chair.profile_image_url}`;
     }
 
-    // Priority 3: Avatar URL (existing or generated)
-    if (chair.avatar && typeof chair.avatar === 'string' && chair.avatar.trim()) {
-      console.log(`🖼️ Chair ${chair.name}: Using avatar URL`);
-      return chair.avatar;
+    // Priority 3: File object (newly uploaded) - only as fallback
+    // We should avoid creating new object URLs here for performance and consistency
+    if (chair.profile_image instanceof File && process.client) {
+      console.warn('Creating object URL in getChairImageSrc - consider using pre-created avatar URL');
+      return URL.createObjectURL(chair.profile_image);
     }
 
     // Priority 4: Legacy photo field
     if (chair.photo && typeof chair.photo === 'string' && chair.photo.trim()) {
-      console.log(`🖼️ Chair ${chair.name}: Using photo URL string`);
       return chair.photo.startsWith('http')
         ? chair.photo
         : `${window.location.origin}${chair.photo}`;
     }
-
-    console.warn(`🖼️ Chair ${chair.name}: No image source found`);
     return null;
   } catch (error) {
-    console.error(`🖼️ Chair ${chair.name}: Error getting image source:`, error);
+    console.error('Error in getChairImageSrc:', error);
     return null;
   }
 };
@@ -1573,21 +1575,55 @@ const validateSlug = () => {
 }
 
 const generateSlug = () => {
-  if (formData.eventName) {
-    formData.eventSlug = formData.eventName
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, '')
-      .replace(/--+/g, '-')
-      .replace(/^-|-$/g, '');
-    toast.add({ severity: 'success', summary: 'Slug Generated', detail: 'Slug generated from event name!', life: 3000 });
-  } else {
-    const adjectives = ['awesome', 'amazing', 'fantastic', 'incredible', 'spectacular', 'wonderful']
-    const nouns = ['event', 'conference', 'summit', 'meetup', 'workshop', 'seminar']
-    const numbers = Math.floor(Math.random() * 999) + 1
-    const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)]
-    const randomNoun = nouns[Math.floor(Math.random() * nouns.length)]
-    formData.eventSlug = `${randomAdjective}-${randomNoun}-${numbers}`
-    toast.add({ severity: 'success', summary: 'Slug Generated', detail: 'Random slug generated!', life: 3000 });
+  try {
+    let newSlug = ''
+    
+    if (formData.eventName && formData.eventName.trim()) {
+      newSlug = formData.eventName
+        .toLowerCase()
+        .trim()
+        // Replace spaces and special characters with hyphens
+        .replace(/\s+/g, '-')
+        // Remove non-ASCII characters (including Khmer) and keep only letters, numbers, hyphens
+        .replace(/[^\x00-\x7F]/g, '') // Remove non-ASCII characters
+        .replace(/[^a-z0-9-]/g, '')
+        .replace(/--+/g, '-')
+        .replace(/^-|-$/g, '')
+    }
+    
+    // If the event name only contains non-ASCII characters (like Khmer), generate a random slug
+    if (!newSlug || newSlug.length === 0) {
+      const adjectives = ['awesome', 'amazing', 'fantastic', 'incredible', 'spectacular', 'wonderful']
+      const nouns = ['event', 'conference', 'summit', 'meetup', 'workshop', 'seminar']
+      const numbers = Math.floor(Math.random() * 999) + 1
+      const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)]
+      const randomNoun = nouns[Math.floor(Math.random() * nouns.length)]
+      newSlug = `${randomAdjective}-${randomNoun}-${numbers}`
+      
+      toast.add({ 
+        severity: 'info', 
+        summary: 'Slug Generated', 
+        detail: 'Generated random slug (original name contains special characters)', 
+        life: 3000 
+      })
+    } else {
+      toast.add({ 
+        severity: 'success', 
+        summary: 'Slug Generated', 
+        detail: 'Slug generated from event name!', 
+        life: 3000 
+      })
+    }
+    
+    formData.eventSlug = newSlug
+  } catch (error) {
+    console.error('Error generating slug:', error)
+    toast.add({ 
+      severity: 'error', 
+      summary: 'Slug Generation Failed', 
+      detail: 'Could not generate slug. Please enter manually.', 
+      life: 4000 
+    })
   }
 }
 
@@ -1618,12 +1654,31 @@ watch(formData, () => {
   })
 }, { deep: true })
 
-// Watch for event name changes to suggest slug
+// Watch for event name changes to suggest slug with debouncing
+let slugGenerationTimeout = null
+let lastProcessedName = ''
+
 watch(() => formData.eventName, (newName) => {
-  if (newName && !formData.eventSlug) {
-    generateSlug(); // Auto-generate slug if event name is entered and slug is empty
+  // Clear previous timeout
+  if (slugGenerationTimeout) {
+    clearTimeout(slugGenerationTimeout)
   }
-});
+  
+  // Only generate slug if:
+  // 1. Event name exists and has changed significantly
+  // 2. Slug field is empty (user hasn't manually entered one)
+  // 3. It's different from the last processed name
+  if (newName && 
+      newName.trim() !== lastProcessedName && 
+      (!formData.eventSlug || formData.eventSlug.trim() === '')) {
+    
+    // Debounce the slug generation to avoid multiple triggers
+    slugGenerationTimeout = setTimeout(() => {
+      lastProcessedName = newName.trim()
+      generateSlug()
+    }, 800) // Wait 800ms after user stops typing
+  }
+})
 
 // Cleanup on unmount
 onBeforeUnmount(() => {
@@ -1633,7 +1688,18 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+
 :deep(.p-calendar .p-inputtext) {
-  @apply bg-transparent border-0;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
+
+:deep(.p-calendar .p-inputtext:focus) {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
 </style>

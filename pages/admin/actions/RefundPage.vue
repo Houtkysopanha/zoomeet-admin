@@ -328,7 +328,9 @@ const onPage = (event) => {
   currentPage.value = event.page + 1
 }
 
-const formatDate = (date) => new Date(date).toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' })
+import { formatSingleDate } from '~/utils/dateFormatter'
+
+const formatDate = (date) => formatSingleDate(date)
 const formatCurrency = (value) => `$${value.toLocaleString()}`
 
 const getStatusClass = (status) => {

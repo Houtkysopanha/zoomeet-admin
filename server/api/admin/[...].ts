@@ -9,22 +9,40 @@ export default defineEventHandler(async (event) => {
     
     console.log(`Server-side admin API request: ${method} /admin/${path}`)
 
-    // Use the actual external admin API URL
-    const externalApiUrl = process.env.NODE_ENV === 'development'
-      ? 'https://dev-apiticket.prestigealliance.co/api/v1/admin'
-      : 'https://api-ticket.etickets.asia/api/v1/admin'
+    // Use runtime config instead of hardcoded URLs
+    const externalApiUrl = config.public.apiAdminBaseUrl.replace('/admin', '')
 
-    const fullUrl = `${externalApiUrl}/${path}`
-    console.log('Server-side admin API URL:', fullUrl)
+    const fullUrl = `${externalApiUrl}/admin/${path}`
+    console.log('Server-side admin API URL from config:', fullUrl)
+    console.log('🔗 Environment:', config.public.environment)
 
-    // Get authorization header from the request
-    const authHeader = getHeader(event, 'authorization')
+    // Get authorization header from the request (try multiple formats)
+    const allHeaders = getHeaders(event)
+    let authHeader = getHeader(event, 'authorization') || getHeader(event, 'Authorization')
+    
     if (!authHeader) {
+      for (const [key, value] of Object.entries(allHeaders)) {
+        if (key.toLowerCase() === 'authorization') {
+          authHeader = value as string
+          break
+        }
+      }
+    }
+    
+    if (!authHeader) {
+      console.error('❌ No authorization header found in catch-all handler')
       throw createError({
         statusCode: 401,
         statusMessage: 'Authorization header required'
       })
     }
+
+    // Ensure Bearer format
+    if (!authHeader.startsWith('Bearer ')) {
+      authHeader = `Bearer ${authHeader}`
+    }
+
+    console.log('🔑 Auth header found in catch-all:', authHeader.substring(0, 30) + '...')
 
     // Prepare headers
     const headers: Record<string, string> = {
@@ -39,7 +57,6 @@ export default defineEventHandler(async (event) => {
       
       if (contentType?.includes('multipart/form-data')) {
         // For FormData, we need to handle it properly
-        console.log('📎 Handling FormData request')
         
         // Get the raw body as FormData
         const formData = await readMultipartFormData(event)
@@ -54,7 +71,7 @@ export default defineEventHandler(async (event) => {
               const uint8Array = new Uint8Array(field.data)
               const blob = new Blob([uint8Array], { type: field.type || 'application/octet-stream' })
               newFormData.append(field.name || 'file', blob, field.filename)
-              console.log(`📎 Added file field: ${field.name} = ${field.filename} (${field.data.length} bytes)`)
+
             } else {
               // This is a text field
               const value = field.data.toString()
@@ -62,21 +79,18 @@ export default defineEventHandler(async (event) => {
               
               // Special logging for chair data
               if (field.name && field.name.includes('chairs[')) {
-                console.log(`🪑 Chair field processed: ${field.name} = ${value}`)
+               
               } else {
-                console.log(`📝 Added text field: ${field.name} = ${value}`)
+              
               }
             }
           }
           
           // Log all FormData entries for debugging
-          console.log('📋 Complete FormData being sent to external API:')
           for (const [key, value] of newFormData.entries()) {
             if (typeof value === 'object' && value !== null && 'size' in value) {
               const fileValue = value as any
-              console.log(`  ${key}: [File/Blob] ${fileValue.name || 'unnamed'} (${fileValue.size} bytes)`)
             } else {
-              console.log(`  ${key}: ${value}`)
             }
           }
           
@@ -90,7 +104,6 @@ export default defineEventHandler(async (event) => {
         // For JSON data
         body = await readBody(event)
         headers['Content-Type'] = 'application/json'
-        console.log('📝 Handling JSON request:', body)
       }
     }
 
@@ -100,21 +113,11 @@ export default defineEventHandler(async (event) => {
       ? '?' + new URLSearchParams(query as Record<string, string>).toString()
       : ''
 
-    console.log('📤 Making request to external API:', {
-      url: `${fullUrl}${queryString}`,
-      method,
-      hasBody: !!body,
-      bodyType: body instanceof FormData ? 'FormData' : typeof body,
-      headers: Object.keys(headers)
-    })
-
     const response = await $fetch(`${fullUrl}${queryString}`, {
       method: method as any,
       body: body,
       headers: headers,
     })
-
-    console.log(`✅ Server-side admin API response for ${method} /admin/${path}:`, response)
     return response
   } catch (error: any) {
     const currentMethod = getMethod(event)

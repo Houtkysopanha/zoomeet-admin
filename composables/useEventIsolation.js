@@ -30,12 +30,6 @@ export function useEventIsolation() {
   
   // Clear all data for event switch
   const clearDataForEventSwitch = async (newEventId) => {
-    console.log('🧹 Event Isolation: Clearing data for event switch', {
-      from: currentEventId.value,
-      to: newEventId,
-      timestamp: new Date().toISOString()
-    })
-    
     isEventSwitching.value = true
     
     try {
@@ -55,7 +49,6 @@ export function useEventIsolation() {
       previousEventId.value = currentEventId.value
       currentEventId.value = newEventId
       
-      console.log('✅ Event Isolation: Data cleared successfully')
       
     } catch (error) {
       console.error('❌ Event Isolation: Error clearing data:', error)
@@ -68,11 +61,6 @@ export function useEventIsolation() {
   const initializeEventContext = (eventId) => {
     const newId = eventId?.toString()
     if (!newId) return
-    
-    console.log('🎯 Event Isolation: Initializing context', {
-      eventId: newId,
-      isFirstLoad: !currentEventId.value
-    })
     
     if (detectEventChange(newId)) {
       clearDataForEventSwitch(newId)
@@ -119,8 +107,6 @@ export function useEventIsolation() {
   // Force refresh current event data
   const refreshCurrentEventData = async () => {
     if (!currentEventId.value) return
-    
-    console.log('🔄 Event Isolation: Refreshing current event data')
     
     try {
       // Clear and reload from API
@@ -182,11 +168,6 @@ export function useTabEventIsolation(tabIndex, componentName = 'Unknown') {
   
   // Clear component data
   const clearComponentData = (newEventId = null) => {
-    console.log(`🧹 ${componentName}: Clearing component data`, {
-      tabIndex,
-      newEventId,
-      previousEventId: lastLoadedEventId.value
-    })
     
     // Clear tab store data for this tab
     tabsStore.clearTabData(tabIndex, newEventId)
@@ -202,13 +183,6 @@ export function useTabEventIsolation(tabIndex, componentName = 'Unknown') {
   const loadDataForCurrentEvent = async (loadFunction) => {
     const eventId = currentEventId.value
     if (!eventId) return false
-    
-    console.log(`📥 ${componentName}: Loading data for event`, {
-      tabIndex,
-      eventId,
-      componentName
-    })
-    
     try {
       // Validate event context
       if (!validateEventContext(eventId)) {
@@ -224,8 +198,7 @@ export function useTabEventIsolation(tabIndex, componentName = 'Unknown') {
       // Mark as loaded
       isDataLoaded.value = true
       lastLoadedEventId.value = eventId
-      
-      console.log(`✅ ${componentName}: Data loaded successfully`)
+  
       return true
       
     } catch (error) {
@@ -252,11 +225,6 @@ export function useTabEventIsolation(tabIndex, componentName = 'Unknown') {
   onMounted(() => {
     window.addEventListener('clearEventData', handleClearEventData)
     window.addEventListener('refreshEventData', handleRefreshEventData)
-    
-    console.log(`🎯 ${componentName}: Event isolation initialized`, {
-      tabIndex,
-      currentEventId: currentEventId.value
-    })
   })
   
   onUnmounted(() => {
@@ -267,11 +235,6 @@ export function useTabEventIsolation(tabIndex, componentName = 'Unknown') {
   // Watch for event changes
   watch(currentEventId, (newEventId, oldEventId) => {
     if (newEventId !== oldEventId) {
-      console.log(`🔄 ${componentName}: Event changed`, {
-        from: oldEventId,
-        to: newEventId,
-        tabIndex
-      })
       
       clearComponentData(newEventId)
     }

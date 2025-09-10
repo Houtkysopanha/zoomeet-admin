@@ -262,41 +262,38 @@ const loadEventData = async () => {
       return
     }
 
-    console.log('Loading event data for ID:', eventId)
     const response = await fetchEventById(eventId)
     
     if (response && response.data && response.data.success) {
       eventData.value = response.data.data
-      console.log('Event data loaded:', eventData.value)
     } else {
       error.value = 'Failed to load event data'
     }
   } catch (err) {
-    console.error('Error loading event:', err)
+
     error.value = err.message || 'Failed to load event'
   } finally {
     loading.value = false
   }
 }
 
+import { formatSingleDate } from '~/utils/dateFormatter'
+
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A'
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
+  return formatSingleDate(dateString)
 }
 
 const formatDateTime = (dateString) => {
   if (!dateString) return 'N/A'
-  return new Date(dateString).toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+  const date = new Date(dateString)
+  const formattedDate = formatSingleDate(dateString)
+  const time = date.toLocaleString('en-US', {
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    hour12: true
   })
+  return `${formattedDate} at ${time}`
 }
 
 const goBack = () => {

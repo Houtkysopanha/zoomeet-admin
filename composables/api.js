@@ -1,54 +1,57 @@
 // Auto-imported by Nuxt: useRuntimeConfig, $fetch
-
+import axios from 'axios'
+// Get auth token using proper Nuxt 3 pattern with automatic refresh
+// Auto-imported by Nuxt: useRuntimeConfig, $fetch
 // Get auth token using proper Nuxt 3 pattern
 const getAuthToken = () => {
   try {
-    // Use the useAuth composable consistently for token management
-    const { getToken, isTokenExpired } = useAuth()
+    const { getToken, isTokenExpired, clearAuth } = useAuth()
     let token = getToken()
 
-    // If no token from composable, try direct storage access as fallback
+    // If expired, clear and return null
+    if (token && isTokenExpired()) {
+      console.warn('⚠️ Attempted to use expired token, clearing auth...')
+      clearAuth()
+      return null
+    }
+
+    // If no token from composable, try storage fallback
     if (!token && process.client) {
-      
-      // Try localStorage first
-      const stored = localStorage.getItem('auth')
+      let stored = localStorage.getItem('auth')
       if (stored) {
         try {
           const authData = JSON.parse(stored)
           token = authData?.token
-        } catch (e) {
-        }
+        } catch (e) {}
       }
-      
-      // Try sessionStorage as backup
+
       if (!token) {
-        const sessionStored = sessionStorage.getItem('auth')
+        let sessionStored = sessionStorage.getItem('auth')
         if (sessionStored) {
           try {
             const authData = JSON.parse(sessionStored)
             token = authData?.token
-          } catch (e) {
-          }
+          } catch (e) {}
         }
+      }
+
+      // Extra safety: check again
+      if (token && isTokenExpired()) {
+        console.warn('⚠️ Fallback token is expired, clearing auth...')
+        clearAuth()
+        return null
       }
     }
 
-    if (!token) {
-      return null
-    }
-
-
-
-    // Log token info without sensitive data
-
-    return token
+    return token || null
   } catch (error) {
     return null
   }
 }
 
+
 // Create authenticated fetch headers
-const createAuthHeaders = (includeContentType = true) => {
+const createAuthHeaders = async (includeContentType = true) => {
   const headers = {}
 
   if (includeContentType) {
@@ -59,7 +62,9 @@ const createAuthHeaders = (includeContentType = true) => {
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
   } else {
+    console.error('❌ No token found, redirecting to login')
     handleAuthRedirect()
+    return null
   }
 
   return headers
@@ -134,30 +139,17 @@ export async function fetchEvents() {
   const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
 
-  if (!API_ADMIN_BASE_URL) {
-    return { status: 500, data: { success: false, data: [], message: 'API admin base URL is not configured.' } }
-  }
-
   try {
-    const eventsUrl = normalizeApiUrl(API_ADMIN_BASE_URL, 'events')
     
-    // Use consistent token handling
-    const token = getAuthToken()
-    if (!token) {
+    // Create headers with authenticated token using async refresh
+    const headers = await createAuthHeaders()
+    if (!headers) {
       return { status: 401, data: { success: false, data: [], message: 'Authentication required' } }
     }
 
-    // Create headers with the token
-    const headers = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      'Accept': 'application/json'
-    }
-    
-
-    const response = await $fetch(eventsUrl, {
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events`, {
       method: 'GET',
-      headers: headers,
+      headers
     })
 
     // Validate and log each event ID
@@ -245,9 +237,11 @@ export async function fetchUserInfo() {
 
   try {
     const userInfoUrl = normalizeApiUrl(API_BASE_URL, 'info')
+    const headers = await createAuthHeaders()
+    
     const response = await $fetch(userInfoUrl, {
       method: 'GET',
-      headers: createAuthHeaders(),
+      headers,
     })
 
     return response
@@ -275,7 +269,6 @@ function validateUUID(uuid) {
 export async function getEventDetails(eventId) {
   const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
-
   if (!eventId) {
     throw new Error('Event ID is required')
   }
@@ -292,11 +285,15 @@ export async function getEventDetails(eventId) {
   }
 
   try {
-    const eventDetailsUrl = normalizeApiUrl(API_ADMIN_BASE_URL, `events/${cleanUUID}`)
-    const response = await $fetch(eventDetailsUrl, {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${cleanUUID}`, {
       method: 'GET',
-      headers: createAuthHeaders()
+      headers
     })
+
 
     if (!response) {
       throw new Error('Empty response from server')
@@ -341,14 +338,8 @@ export async function getEventDetails(eventId) {
 export async function createEvent(eventData, isDraft = true) {
   const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
-
-  if (!API_ADMIN_BASE_URL) {
-    return {
-      success: false,
-      message: 'API admin base URL is not configured.',
-      error: new Error('Missing API configuration')
-    }
-  }
+  
+  // Use server proxy route to avoid CORS issues
 
   if (!eventData) {
     return {
@@ -482,7 +473,7 @@ if (eventData.chairs && Array.isArray(eventData.chairs)) {
 
     // --- Profile image handling ---
     if (chair.profile_image instanceof File) {
-      console.log(`✅ Adding chair ${index + 1} profile image:`, chair.profile_image.name);
+
       formData.append(`chairs[${index}][profile_image]`, chair.profile_image);
     } else if (chair.profile_image_url) {
       // Preserve existing server URL (so backend doesn’t overwrite with null)
@@ -584,15 +575,14 @@ if (eventData.chairs && Array.isArray(eventData.chairs)) {
       const hasField = formDataEntries.hasOwnProperty(field) && formDataEntries[field] !== null && formDataEntries[field] !== undefined && formDataEntries[field] !== ''
     })
 
-    // Use the correct API endpoint without duplicate admin prefix
-    // Make the actual API call
+    // Use server proxy route to avoid CORS issues
     try {
-      const createEventUrl = normalizeApiUrl(API_ADMIN_BASE_URL, 'events')
-      const response = await $fetch(createEventUrl, {
+      const headers = await createAuthHeaders(false) // Don't include Content-Type for FormData
+      const response = await $fetch(`${API_ADMIN_BASE_URL}/events`, {
         method: 'POST',
         body: formData,
         headers: {
-          ...createAuthHeaders(false), // Don't include Content-Type for FormData
+          ...headers,
         },
       })
 
@@ -718,25 +708,10 @@ if (eventData.chairs && Array.isArray(eventData.chairs)) {
 
 // Update event
 export async function updateEvent(eventId, eventData) {
+  
+  // Use server proxy route to avoid CORS issues
   const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
-
-  if (!eventId || !eventData) {
-    return {
-      success: false,
-      message: 'Event ID and data are required',
-      error: new Error('Missing required data')
-    }
-  }
-
-  // Validate UUID format
-  if (!validateUUID(eventId)) {
-    return {
-      success: false,
-      message: 'Invalid event ID format. Expected UUID format.',
-      error: new Error('Invalid UUID')
-    }
-  }
 
   try {
     // Prepare FormData for Laravel update with _method approach
@@ -834,18 +809,13 @@ export async function updateEvent(eventId, eventData) {
             );
           }
 
-          console.log(`✅ Updating chair ${index + 1} with new image:`, file.name);
           formData.append(`chairs[${index}][profile_image]`, file);
         } else if (chair.profile_image_url && chair.profile_image_url.trim() !== '') {
           // ✅ Preserve existing server image URL
-          console.log(`✅ Preserving chair ${index + 1} existing image:`, chair.profile_image_url);
+       
           formData.append(`chairs[${index}][profile_image_url]`, chair.profile_image_url);
         } else if (chair.profile_image) {
-          console.log(
-            `⚠️ Chair ${index + 1} profile_image is not a valid File:`,
-            typeof chair.profile_image,
-            chair.profile_image.constructor?.name
-          );
+
         }
       });
     }
@@ -868,20 +838,20 @@ export async function updateEvent(eventId, eventData) {
       }
     }
 
-    const updateEventUrl = normalizeApiUrl(API_ADMIN_BASE_URL, `events/${eventId}`)
+    // Use server proxy route to avoid CORS issues
+    const headers = await createAuthHeaders(false) // Don't include Content-Type for FormData
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
     
-    // Use POST method with _method override for Laravel compatibility
-    const response = await $fetch(updateEventUrl, {
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}`, {
       method: 'POST',
       body: formData,
-      headers: {
-        ...createAuthHeaders(false), // Don't include Content-Type for FormData
-      },
+      headers,
     })
 
     // Validate response
     if (!response || typeof response !== 'object') {
-      console.error('❌ Invalid response format:', response)
       return {
         success: false,
         message: 'Invalid response from server',
@@ -982,7 +952,7 @@ export async function updateEvent(eventId, eventData) {
 // Update ticket type - UPDATED: Match exact API specification
 export async function updateTicketType(eventId, ticketTypeId, ticketData) {
   const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl // FIXED: Use admin base URL for consistency
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
 
   if (!eventId || !ticketTypeId) {
     throw new Error('Event ID and Ticket Type ID are required')
@@ -1006,29 +976,17 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
     if (!normalizedData.name) throw new Error('Ticket name is required')
     if (isNaN(normalizedData.price) || normalizedData.price < 0) throw new Error('Price must be 0 or greater')
     if (isNaN(normalizedData.total) || normalizedData.total < 1) throw new Error('Quantity must be at least 1')
-
-    console.log('🎫 Updating ticket via PUT with JSON body:', {
-      eventId,
-      ticketTypeId,
-      endpoint: `/admin/events/${eventId}/ticket-types/${ticketTypeId}`,
-      method: 'PUT',
-      data: normalizedData
-    })
     
-    // FIXED: API: PUT /admin/events/:event_id/ticket-types/:ticket_type_id (use admin endpoint for consistency)
-    // Body: raw JSON as specified by user
+    // Use server proxy endpoint for ticket type update
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types/${ticketTypeId}`, {
       method: 'PUT',
       body: normalizedData,
-      headers: createAuthHeaders() // Use JSON Content-Type
-    })
-
-    console.log('✅ Ticket updated successfully:', {
-      eventId,
-      ticketTypeId,
-      ticketName: normalizedData.name,
-      success: response?.success,
-      message: response?.message
+      headers // Use JSON Content-Type
     })
 
     return response
@@ -1048,9 +1006,8 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
 
 // Create ticket types
 export async function createTicketTypes(eventId, ticketTypesData) {
-  const config = useRuntimeConfig()
+    const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
-
   if (!eventId || !ticketTypesData) {
     throw new Error('Event ID and ticket types data are required')
   }
@@ -1099,12 +1056,14 @@ export async function createTicketTypes(eventId, ticketTypesData) {
     }
 
 
-    // Send tickets in proper structure to admin endpoint
+    // Send tickets in proper structure to server proxy endpoint
+    const serverUrl = `/api/admin/events/${eventId}/ticket-types`
+    const headers = await createAuthHeaders()
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types`, {
       method: 'POST',
       body: requestBody,
       headers: {
-        ...createAuthHeaders(),
+        ...headers,
         'Accept': 'application/json'
       }
     })
@@ -1151,23 +1110,14 @@ export async function getEventTicketTypes(eventId) {
 
   try {
     // API: GET /admin/events/:event_id/ticket-types
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types`, {
       method: 'GET',
-      headers: createAuthHeaders()
-    })
-
-    console.log('🎫 Retrieved ticket types:', {
-      eventId,
-      success: response?.success,
-      count: response?.data?.ticket_types?.length || 0,
-      endpoint: `/admin/events/${eventId}/ticket-types`,
-      responseStructure: {
-        hasSuccess: !!response?.success,
-        hasMessage: !!response?.message,
-        hasData: !!response?.data,
-        hasTicketTypes: !!response?.data?.ticket_types,
-        hasOrganizers: !!response?.data?.organizers
-      }
+      headers
     })
 
     return response
@@ -1192,24 +1142,16 @@ export async function getTicketTypeDetails(eventId, ticketTypeId) {
 
   try {
     // API: GET /admin/events/:event_id/ticket-types/:ticket_type_id
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types/${ticketTypeId}`, {
       method: 'GET',
-      headers: createAuthHeaders()
+      headers
     })
 
-    console.log('🎫 Retrieved ticket type details:', {
-      eventId,
-      ticketTypeId,
-      success: response?.success,
-      hasData: !!response?.data,
-      endpoint: `/admin/events/${eventId}/ticket-types/${ticketTypeId}`,
-      ticketData: response?.data ? {
-        id: response.data.id,
-        name: response.data.name,
-        price: response.data.price,
-        inventoryTotal: response.data.inventory?.total
-      } : null
-    })
 
     return response
   } catch (error) {
@@ -1225,7 +1167,6 @@ export async function getTicketTypeDetails(eventId, ticketTypeId) {
 export async function deleteEvent(eventId) {
   const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
-
   if (!eventId) {
     throw new Error('Event ID is required')
   }
@@ -1236,9 +1177,14 @@ export async function deleteEvent(eventId) {
   }
 
   try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}`, {
       method: 'DELETE',
-      headers: createAuthHeaders()
+      headers
     })
 
     return response
@@ -1259,9 +1205,8 @@ export async function deleteEvent(eventId) {
 
 // Delete ticket type - UPDATED: Match exact API specification
 export async function deleteTicketType(eventId, ticketTypeId) {
-  const config = useRuntimeConfig()
-  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl // FIXED: Use admin base URL
-
+   const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
   if (!eventId || !ticketTypeId) {
     throw new Error('Event ID and Ticket Type ID are required')
   }
@@ -1272,18 +1217,15 @@ export async function deleteTicketType(eventId, ticketTypeId) {
   }
 
   try {
-    // FIXED: API: DELETE /admin/events/:event_id/ticket-types/:ticket_type_id (use admin base URL)
+    // Use server proxy endpoint for ticket type deletion
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/ticket-types/${ticketTypeId}`, {
       method: 'DELETE',
-      headers: createAuthHeaders()
-    })
-
-    console.log('🗑️ Deleted ticket type:', {
-      eventId,
-      ticketTypeId,
-      success: response?.success,
-      message: response?.message,
-      endpoint: `/admin/events/${eventId}/ticket-types/${ticketTypeId}`
+      headers
     })
 
     return response
@@ -1315,10 +1257,15 @@ export async function createAgendaItems(eventId, agendaData) {
   }
 
   try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/agendas`, {
       method: 'POST',
       body: agendaData,
-      headers: createAuthHeaders()
+      headers
     })
 
     return response
@@ -1337,14 +1284,17 @@ export async function updateAgendaItem(eventId, agendaId, agendaData) {
   }
 
   try {
-    console.log('📅 Updating agenda item:', { eventId, agendaId })
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/agendas/${agendaId}`, {
       method: 'PUT',
       body: agendaData,
-      headers: createAuthHeaders()
+      headers
     })
 
-    console.log('✅ Agenda item updated:', response)
     return response
   } catch (error) {
     console.error('❌ Failed to update agenda item:', error)
@@ -1362,9 +1312,14 @@ export async function getEventAgenda(eventId) {
   }
 
   try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/agendas`, {
       method: 'GET',
-      headers: createAuthHeaders()
+      headers
     })
 
     return response
@@ -1392,9 +1347,14 @@ export async function deleteAgenda(eventId, agendaId) {
   }
 
   try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/agendas/${agendaId}`, {
       method: 'DELETE',
-      headers: createAuthHeaders()
+      headers
     })
 
     return response
@@ -1428,7 +1388,6 @@ export async function publishEvent(eventId) {
   }
 
   try {
-    console.log('🚀 Publishing event:', eventId)
     
     // CRITICAL FIX: Get current event data from both API and local state to preserve chair File objects
     const { getEventDetails } = await import('@/composables/api')
@@ -1444,7 +1403,6 @@ export async function publishEvent(eventId) {
         eventStore.currentEvent.chairs.forEach((chair, index) => {
           if (chair.profile_image instanceof File) {
             localChairFiles.set(chair.name, chair.profile_image)
-            console.log(`💾 Preserved File object for chair: ${chair.name}`)
           }
         })
       }
@@ -1458,7 +1416,6 @@ export async function publishEvent(eventId) {
         basicInfoData.chairs.forEach((chair) => {
           if (chair.profile_image instanceof File) {
             localChairFiles.set(chair.name, chair.profile_image)
-            console.log(`💾 Preserved File object from tab store for chair: ${chair.name}`)
           }
         })
       }
@@ -1467,18 +1424,6 @@ export async function publishEvent(eventId) {
     try {
       const eventResponse = await getEventDetails(eventId)
       currentEventData = eventResponse.data
-      console.log('📋 Current event data loaded for publish:', {
-        id: currentEventData?.id,
-        chairsCount: currentEventData?.chairs?.length || 0,
-        chairsWithImages: currentEventData?.chairs?.filter(c => c.profile_image_url).length || 0,
-        localFileObjects: localChairFiles.size,
-        chairsData: currentEventData?.chairs?.map(c => ({
-          name: c.name,
-          hasImageUrl: !!c.profile_image_url,
-          hasLocalFile: localChairFiles.has(c.name),
-          imageUrl: c.profile_image_url
-        })) || []
-      })
     } catch (error) {
       console.warn('Failed to get current event data for publishing:', error)
     }
@@ -1496,7 +1441,6 @@ export async function publishEvent(eventId) {
     
     // FIXED: Preserve chairs data with File objects taking priority
     if (currentEventData?.chairs && Array.isArray(currentEventData.chairs)) {
-      console.log('📋 Processing chairs for publish:', currentEventData.chairs.length)
       
      currentEventData.chairs.forEach((chair, index) => {
   if (chair.name && chair.position && chair.company) {
@@ -1517,39 +1461,26 @@ export async function publishEvent(eventId) {
     if (localChairFiles.has(chair.name)) {
       const fileObject = localChairFiles.get(chair.name)
       formData.append(`chairs[${index}][profile_image]`, fileObject)
-      console.log(`🔥 Using local File object for chair ${index + 1}: ${chair.name} (${fileObject.name})`)
     } else if (chair.profile_image_url && chair.profile_image_url.trim() !== '') {
       formData.append(`chairs[${index}][profile_image_url]`, chair.profile_image_url)
-      console.log(`✅ Preserving existing image URL for chair ${index + 1}: ${chair.profile_image_url}`)
     } else if (chair.profile_image instanceof File) {
       formData.append(`chairs[${index}][profile_image]`, chair.profile_image)
-      console.log(`✅ Using chair File object for chair ${index + 1}: ${chair.profile_image.name}`)
     } else {
-      console.log(`⚪ No image for chair ${index + 1}: ${chair.name}`)
     }
   }
 })
 
     }
     
-    console.log('📤 Sending publish request with preserved chair images and File objects')
+    const headers = await createAuthHeaders(false) // Don't include Content-Type for FormData
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
     
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}`, {
       method: 'POST',
       body: formData,
-      headers: createAuthHeaders(false) // Don't include Content-Type for FormData
-    })
-
-    console.log('✅ Event published successfully')
-    console.log('📥 Publish API response:', {
-      success: !!response,
-      hasData: !!response?.data,
-      chairsInResponse: response?.data?.chairs?.length || response?.chairs?.length || 0,
-      chairsData: (response?.data?.chairs || response?.chairs || []).map(c => ({
-        name: c.name,
-        hasImageUrl: !!c.profile_image_url,
-        imageUrl: c.profile_image_url
-      }))
+      headers
     })
     
     return response
@@ -1575,9 +1506,14 @@ export async function unpublishEvent(eventId) {
   }
 
   try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/unpublish`, {
       method: 'POST',
-      headers: createAuthHeaders()
+      headers
     })
 
     return response
@@ -1598,19 +1534,15 @@ export async function fetchCategories() {
   try {
     const categoriesUrl = normalizeApiUrl(API_BASE_URL, 'events/categories')
     
-    // Use the same authentication pattern as other admin API calls
-    const token = getAuthToken()
-    if (!token) {
+    // Use async headers with token refresh
+    const headers = await createAuthHeaders()
+    if (!headers) {
       throw new Error('Authentication required')
     }
 
     const response = await $fetch(categoriesUrl, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers,
     })
 
     return response
@@ -1655,9 +1587,14 @@ export async function checkSlugAvailability(slug, currentEventId = null) {
     }
     queryParams.append('slug', normalizedSlug)
 
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/check-slug?${queryParams}`, {
       method: 'GET',
-      headers: createAuthHeaders()
+      headers
     })
 
     return {
@@ -1673,6 +1610,680 @@ export async function checkSlugAvailability(slug, currentEventId = null) {
       success: false,
       isAvailable: false,
       message: error.message || 'Failed to check slug availability'
+    }
+  }
+}
+// Fetch List organizer
+export async function fetchEventOrganizers(eventId) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  try {
+    // Build API URL using env base
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/organizer`, {
+      method: 'GET',
+      headers
+    })
+
+    if (response && response.success && Array.isArray(response.data)) {
+      return {
+        status: 200,
+        data: {
+          success: true,
+          data: response.data,
+          message: response.message || 'Organizers retrieved successfully'
+        }
+      }
+    } else {
+      return {
+        status: 200,
+        data: {
+          success: false,
+          data: [],
+          message: 'Unexpected API response format'
+        }
+      }
+    }
+  } catch (error) {
+    console.error('❌ Failed to fetch event organizers:', error)
+
+    if (error.status === 401) {
+      const { clearAuth } = useAuth()
+      clearAuth()
+      handleAuthRedirect()
+      return {
+        status: 401,
+        data: { success: false, data: [], message: 'Session expired. Please login again.' }
+      }
+    }
+
+    if (error.status === 404) {
+      return {
+        status: 404,
+        data: { success: false, data: [], message: 'Event not found or no organizers assigned' }
+      }
+    }
+
+    if (error.status === 403) {
+      return {
+        status: 403,
+        data: { success: false, data: [], message: 'Access denied. Please check your permissions.' }
+      }
+    }
+
+    return {
+      status: error?.status || 500,
+      data: { success: false, data: [], message: 'Failed to load team members. Please try again.' }
+    }
+  }
+}
+
+//fetch role permission from api
+export const fetchOrganizerPermissions = async () => {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
+    const response = await axios.get(`${API_ADMIN_BASE_URL}/events/permission/organizer`, {
+      method: 'GET',
+      headers
+    })
+    return { status: response.status, data: response.data }
+  } catch (error) {
+    console.error('❌ API Error (fetchOrganizerPermissions):', error)
+    return {
+      status: error.response?.status || 500,
+      data: error.response?.data || { success: false, message: error.message }
+    }
+  }
+}
+
+// composables/api.js
+//seearch user
+export const searchUsers = async (keyword) => {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!keyword || keyword.length < 1) {
+    return []
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
+    const response = await axios.get(
+      `${API_ADMIN_BASE_URL}/users/search`,
+      {
+        params: { keyword },
+        method: 'GET',
+        headers
+      }
+    )
+
+    if (response.status === 200 && response.data.success) {
+      return response.data.data
+    }
+    return []
+  } catch (error) {
+    console.error("❌ Failed to search users:", error)
+    return []
+  }
+}
+
+
+export const inviteUserAPI = async ({ eventId, selectedUsers, permissions, token }) => {
+  if (!selectedUsers || selectedUsers.length === 0) {
+    throw new Error('Please select at least one user')
+  }
+
+  const enabledRoles = Object.entries(permissions)
+    .filter(([category, perm]) => perm.enabled)
+    .map(([category, perm]) => ({
+      role_name: category,
+      permissions: perm.items
+    }))
+
+  if (enabledRoles.length === 0) {
+    throw new Error('Please select at least one permission for the user')
+  }
+
+  const userIds = selectedUsers.map(u => u.id)
+  const payload = {
+    user_ids: userIds,
+    roles: enabledRoles,
+    note: selectedUsers[0]?.note || null
+
+  }
+
+  try {
+    const config = useRuntimeConfig()
+    const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+    
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+
+    const response = await axios.post(
+      `${API_ADMIN_BASE_URL}/events/${eventId}/organizer/invite/user`,
+      payload,
+      {
+        method: 'POST',
+        headers
+      }
+    )
+
+    return response.data
+  } catch (error) {
+    console.error('❌ Invite API Error:', error)
+    throw error
+  }
+}
+
+
+export const fetchUserRoles = async ({ eventId, userId, token }) => {
+  try {
+    const config = useRuntimeConfig()
+    const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+    
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+
+    const response = await axios.get(
+      `${API_ADMIN_BASE_URL}/events/${eventId}/organizer/${userId}/detail`,
+      {
+        method: 'GET',
+        headers
+      }
+    )
+
+    if (response.status === 200 && response.data.success) {
+      return response.data.data
+    } else {
+      throw new Error(response.data.message || 'Failed to fetch user roles')
+    }
+  } catch (error) {
+    console.error('❌ Fetch User Roles Error:', error)
+    throw error
+  }
+}
+
+
+
+export const updateOrganizerPermissions = async ({ eventId, userId, roles, token }) => {
+  const url = `${useRuntimeConfig().public.apiAdminBaseUrl}/events/${eventId}/organizer/update`
+  
+  const headers = await createAuthHeaders()
+  if (!headers) {
+    throw new Error('Authentication required')
+  }
+
+  const { data, status } = await axios.post(
+    url,
+    {
+      user_id: userId,
+      roles
+    },
+    {
+      method: 'POST',
+      headers
+    }
+  )
+
+  return { data, status }
+}
+
+
+export const disableEventOrganizer = async (eventId, userId, token) => {
+  const config = useRuntimeConfig()
+  
+  const headers = await createAuthHeaders()
+  if (!headers) {
+    throw new Error('Authentication required')
+  }
+  
+  return await axios.post(
+    `${config.public.apiAdminBaseUrl}/events/${eventId}/organizer/disable`,
+    { user_id: userId },
+    {
+      method: 'POST',
+      headers
+    }
+  )
+}
+
+export const removeOrganizer = async ({ eventId, userId, token }) => {
+  const config = useRuntimeConfig()
+  
+  const headers = await createAuthHeaders()
+  if (!headers) {
+    throw new Error('Authentication required')
+  }
+  
+  return await axios.post(
+    `${config.public.apiAdminBaseUrl}/events/${eventId}/organizer/remove`,
+    { user_id: userId },
+    {
+      method: 'POST',
+      headers
+    }
+  )
+}
+
+export const getEventDetail = async (eventId) => {
+  try {
+    const config = useRuntimeConfig()
+    const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+    
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+
+    const response = await axios.get(
+      `${API_ADMIN_BASE_URL}/events/${eventId}`,
+      { headers }
+    )
+
+    if (response.status === 200 && response.data.success) {
+      return response.data.data
+    } else {
+      throw new Error(response.data.message || 'Failed to fetch event details')
+    }
+  } catch (error) {
+    console.error('❌ Fetch Event Detail Error:', error)
+    throw error
+  }
+}
+
+// Create promotion (Buy X Get Y)
+export async function createPromotion(eventId, promotionData) {
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  if (!promotionData) {
+    throw new Error('Promotion data is required')
+  }
+
+  // Validate UUID format
+  if (!validateUUID(eventId)) {
+    throw new Error('Invalid event ID format. Expected UUID format.')
+  }
+
+  try {
+    const config = useRuntimeConfig()
+    const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+    // Validate required fields
+    const requiredFields = ['ticket_type_id', 'free_ticket_type_id', 'name', 'description', 'buy_quantity', 'free_quantity']
+    const missingFields = requiredFields.filter(field => {
+      const value = promotionData[field]
+      return value === null || value === undefined || value === '' || 
+             (typeof value === 'string' && value.trim() === '')
+    })
+    
+    if (missingFields.length > 0) {
+      throw new Error(`Missing required fields: ${missingFields.join(', ')}`)
+    }
+
+    // 📅 IMPORTANT: Ensure dates are in correct YYYY-MM-DD format for server  
+    const formatDateForServer = (dateInput) => {
+      if (!dateInput) return new Date().toISOString().split('T')[0]
+      
+      // If it's already a string in YYYY-MM-DD format, return as-is
+      if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+        return dateInput
+      }
+      
+      // Convert Date object or other formats to YYYY-MM-DD
+      const date = new Date(dateInput)
+      if (isNaN(date.getTime())) {
+        console.warn('⚠️ Invalid date in create API, using today:', dateInput)
+        return new Date().toISOString().split('T')[0]
+      }
+      
+      return date.toISOString().split('T')[0]
+    }
+
+    // Prepare promotion data according to API specification
+    const requestData = {
+      event_id: eventId,
+      ticket_type_id: promotionData.ticket_type_id,
+      free_ticket_type_id: promotionData.free_ticket_type_id,
+      name: promotionData.name.trim(),
+      description: promotionData.description.trim(),
+      buy_quantity: parseInt(promotionData.buy_quantity),
+      free_quantity: parseInt(promotionData.free_quantity),
+      is_active: promotionData.is_active !== undefined ? promotionData.is_active : true,
+      start_date: formatDateForServer(promotionData.start_date),
+      end_date: formatDateForServer(promotionData.end_date)
+    }
+
+    // 📅 Validate dates
+    const startDateObj = new Date(requestData.start_date)
+    const endDateObj = new Date(requestData.end_date)
+    
+    if (endDateObj <= startDateObj) {
+      throw new Error('End date must be after start date')
+    }
+
+    // Validate quantities
+    if (isNaN(requestData.buy_quantity) || requestData.buy_quantity < 1) {
+      throw new Error('Buy quantity must be at least 1')
+    }
+    if (isNaN(requestData.free_quantity) || requestData.free_quantity < 1) {
+      throw new Error('Free quantity must be at least 1')
+    }
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/promotions/events/${eventId}`, {
+      method: 'POST',
+      body: requestData,
+      headers
+    })
+
+
+    return {
+      success: true,
+      message: 'Promotion created successfully',
+      data: response.data || response
+    }
+  } catch (error) {
+    console.error('❌ Failed to create promotion:', error)
+    
+    // Handle specific error cases
+    if (error.status === 422) {
+      let detailedMessage = 'Validation failed:'
+      if (error.data?.errors) {
+        const errorMessages = []
+        Object.entries(error.data.errors).forEach(([field, messages]) => {
+          if (Array.isArray(messages)) {
+            errorMessages.push(`${field}: ${messages.join(', ')}`)
+          } else {
+            errorMessages.push(`${field}: ${messages}`)
+          }
+        })
+        detailedMessage = `Validation failed:\n${errorMessages.join('\n')}`
+      } else if (error.data?.message) {
+        detailedMessage = error.data.message
+      }
+      
+      throw new Error(detailedMessage)
+    }
+    
+    if (error.status === 404) {
+      throw new Error('Event or ticket type not found')
+    }
+    
+    if (error.status === 403) {
+      throw new Error('You do not have permission to create promotions for this event')
+    }
+    
+    throw new Error(error.message || 'Failed to create promotion')
+  }
+}
+
+// Get promotions for an event
+export async function getEventPromotions(eventId) {
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  // Validate UUID format
+  if (!validateUUID(eventId)) {
+    throw new Error('Invalid event ID format. Expected UUID format.')
+  }
+
+  try {
+    const config = useRuntimeConfig()
+    const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+    
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/promotions/events/${eventId}`, {
+      method: 'GET',
+      headers
+    })
+
+    return {
+      success: true,
+      data: response.data || response
+    }
+  } catch (error) {
+    console.error('❌ Failed to fetch promotions:', error)
+    
+    if (error.status === 404) {
+      return {
+        success: true,
+        data: []
+      }
+    }
+    
+    throw new Error(error.message || 'Failed to fetch promotions')
+  }
+}
+
+// Update promotion
+export async function updatePromotion(eventId, promotionId, promotionData) {
+  if (!eventId || !promotionId) {
+    throw new Error('Event ID and Promotion ID are required')
+  }
+
+  if (!validateUUID(eventId)) {
+    throw new Error('Invalid event ID format. Expected UUID format.')
+  }
+  if (!validateUUID(promotionId)) {
+    throw new Error('Invalid promotion ID format. Expected UUID format.')
+  }
+
+  try {
+    const config = useRuntimeConfig()
+    const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+    const headers = await createAuthHeaders()
+    if (!headers) throw new Error('Authentication required')
+
+    // 🔑 Build requestData same as in createPromotion
+    const requestData = {
+      ticket_type_id: promotionData.ticket_type_id,
+      free_ticket_type_id: promotionData.free_ticket_type_id,
+      name: promotionData.name?.trim(),
+      description: promotionData.description?.trim(),
+      buy_quantity: parseInt(promotionData.buy_quantity),
+      free_quantity: parseInt(promotionData.free_quantity),
+      is_active: promotionData.is_active !== undefined ? promotionData.is_active : true,
+      start_date: promotionData.start_date,
+      end_date: promotionData.end_date
+    }
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/promotions/events/${eventId}/${promotionId}`, {
+      method: 'PUT',
+      headers,
+      body: requestData
+    })
+
+    return {
+      success: true,
+      message: 'Promotion updated successfully',
+      data: response.data || response
+    }
+  } catch (error) {
+    console.error('❌ Failed to update promotion:', error)
+    if (error.status === 404) {
+      throw new Error('Promotion not found')
+    }
+    if (error.status === 403) {
+      throw new Error('You do not have permission to update this promotion')
+    }
+    throw new Error(error.message || 'Failed to update promotion')
+  }
+}
+// ============= PROMOTION API FUNCTIONS =============
+
+// Delete promotion
+export async function deletePromotion(eventId, promotionId) {
+  if (!eventId || !promotionId) {
+    throw new Error('Event ID and Promotion ID are required')
+  }
+
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+  const headers = await createAuthHeaders()
+  if (!headers) throw new Error('Authentication required')
+
+  try {
+    const response = await $fetch(
+      `${API_ADMIN_BASE_URL}/events/${eventId}/promotions/${promotionId}`,
+      {
+        method: 'DELETE',
+        headers
+      }
+    )
+
+
+    return {
+      success: true,
+      message: 'Promotion deleted successfully',
+      data: response.data || response
+    }
+  } catch (error) {
+    console.error('❌ Failed to delete promotion:', error)
+
+    let userMessage = 'Failed to delete promotion. Please try again.'
+    if (error.status === 401) {
+      userMessage = 'Authentication required. Please log in again.'
+    } else if (error.status === 403) {
+      userMessage = 'You don’t have permission to delete promotions.'
+    } else if (error.status === 404) {
+      userMessage = 'Promotion not found.'
+    }
+
+    throw new Error(userMessage)
+  }
+}
+
+// ============= VOUCHER/COUPON API FUNCTIONS =============
+
+// Create voucher/coupon
+export async function createCoupon(eventId, couponData) {
+  if (!eventId) throw new Error('Event ID is required')
+  if (!couponData) throw new Error('Coupon data is required')
+  if (!validateUUID(eventId)) throw new Error('Invalid event ID format')
+
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) throw new Error('Authentication required')
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/coupons`, {
+      method: 'POST',
+      headers,
+      body: couponData
+    })
+
+    return {
+      success: true,
+      data: response,
+      message: 'Coupon created successfully'
+    }
+  } catch (error) {
+    console.error('❌ Failed to create coupon:', error)
+
+    let userMessage = 'Failed to create coupon. Please try again.'
+    if (error.status === 400) {
+      userMessage = 'Invalid coupon data. Please check your inputs.'
+    } else if (error.status === 401) {
+      userMessage = 'Authentication required. Please log in again.'
+    } else if (error.status === 403) {
+      userMessage = 'You don’t have permission to create coupons.'
+    } else if (error.status === 422) {
+      if (error.data?.errors) {
+        const errorMessages = []
+        Object.entries(error.data.errors).forEach(([field, messages]) => {
+          errorMessages.push(`${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
+        })
+        userMessage = `Validation failed:\n${errorMessages.join('\n')}`
+      } else if (error.data?.message) {
+        userMessage = error.data.message
+      }
+    }
+
+    throw new Error(userMessage)
+  }
+}
+
+// Get coupons list for an event
+export async function getCoupons(eventId) {
+  if (!eventId) throw new Error('Event ID is required')
+  if (!validateUUID(eventId)) throw new Error('Invalid event ID format')
+
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) throw new Error('Authentication required')
+
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/coupons`, {
+      method: 'GET',
+      headers
+    })
+
+    console.log('✅ Coupons fetched successfully:', response)
+
+    return {
+      success: true,
+      data: response.data || response,
+      message: 'Coupons loaded successfully'
+    }
+  } catch (error) {
+    console.error('❌ Failed to fetch coupons:', error)
+
+    if (error.status === 404) {
+      return {
+        success: true,
+        data: [],
+        message: 'No coupons found for this event.'
+      }
+    }
+
+    let userMessage = 'Failed to load coupons. Please try again.'
+    if (error.status === 401) {
+      userMessage = 'Authentication required. Please log in again.'
+    } else if (error.status === 403) {
+      userMessage = 'You don’t have permission to view coupons.'
+    }
+
+    return {
+      success: false,
+      data: [],
+      message: userMessage
     }
   }
 }

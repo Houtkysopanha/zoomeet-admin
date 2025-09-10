@@ -26,7 +26,8 @@
             :showIcon="true"
             :showButtonBar="true"
             :dateFormat="'dd MM, yy'"
-            class="w-full sm:max-w-xs p-inputtext-lg rounded-xl border border-gray-200 p-2 lg:p-3 text-center text-blue-950 font-medium text-sm lg:text-lg focus:ring-0 focus:outline-none"
+            class="w-full border border-gray-200 rounded-2xl sm:max-w-xs"
+            inputClass="input-standard text-start text-blue-950 font-medium text-sm lg:text-lg"
             placeholder="Select Date Range"
             @date-select="updateDisplay"
           />
@@ -59,7 +60,6 @@
               class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
             >
               <NuxtLink
-                to="/admin/profile"
                 class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
               >
                 <Icon name="i-heroicons-user-circle" class="mr-3 text-gray-400" />
@@ -84,14 +84,14 @@
       </div>
 
       <div class="border border-gray-200 mt-4 lg:mt-5 mb-6 lg:mb-10"></div>
-       <div class="mb-6 p-6 bg-yellow-50 border border-yellow-200 rounded-2xl">
+       <div class="mb-6 p-6 bg-[#E6F2FF] border border-purple-600 rounded-2xl">
       <div class="flex items-center">
         <Icon name="heroicons:exclamation-triangle" class="w-8 h-8 text-yellow-600 mr-4" />
         <div>
-          <h3 class="text-lg font-semibold text-yellow-800 mb-2">Dashboard Temporarily Unavailable</h3>
-          <p class="text-yellow-700">The dashboard feature is currently under development and will be available soon. Please use other sections of the admin panel.</p>
+          <h3 class="text-lg font-semibold text-purple-600 mb-2">Dashboard Temporarily Unavailable</h3>
+          <p class="text-purple-600">The dashboard feature is currently under development and will be available soon. Please use other sections of the admin panel.</p>
           <div class="mt-4">
-            <NuxtLink to="/admin/event" class="inline-flex items-center px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors">
+            <NuxtLink to="/admin/event" class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
               <Icon name="heroicons:calendar" class="w-4 h-4 mr-2" />
               Go to Events
             </NuxtLink>
@@ -140,6 +140,7 @@ import CardCommon from '~/components/common/CardCommon.vue'
 import { useToast } from 'primevue/usetoast'
 import RecentEvent from './RecentEvent.vue'
 import ComingEvent from './ComingEvent.vue'
+const { clearAuth } = useAuth()
 const config = useRuntimeConfig() // add this at the top of script setup
 
 const router = useRouter()
@@ -173,14 +174,20 @@ const handleClickOutside = (event) => {
 
 const logoutWithToast = () => {
   showUserMenu.value = false
+
+  // Clear auth from all storage (cookie, localStorage, sessionStorage)
+  clearAuth()
+
+  // Show toast
   toast.add({
     severity: 'info',
     summary: 'Logged out',
     detail: 'You have been logged out successfully.',
-    life: 3000,
+    life: 2000,
   })
-  localStorage.removeItem('auth')
-  setTimeout(() => router.push('/login'), 1500)
+
+  // Redirect immediately
+  router.push('/login')
 }
 
 const updateDisplay = () => {
@@ -192,20 +199,40 @@ const updateDisplay = () => {
 }
 async function fetchUserInfo() {
   try {
-    const { getToken, isTokenExpired, clearAuth } = useAuth()
-    const token = getToken()
+    const { getToken, isTokenExpired, clearAuth, refreshToken } = useAuth()
+    let token = getToken()
     
     if (!token) {
-      router.push('/login')
+      console.log('🔒 No token found, redirecting to login')
+      router.push('/login?redirect=/admin/dashboard')
       return
     }
 
+    // Check if token is expired and try to refresh if needed
     if (isTokenExpired()) {
-      clearAuth()
-      router.push('/login')
-      return
+      console.log('🔄 Token expired, attempting refresh before API call')
+      try {
+        const refreshSuccess = await refreshToken()
+        if (refreshSuccess) {
+          token = getToken() // Get refreshed token
+        } else {
+          throw new Error('Token refresh failed')
+        }
+      } catch (refreshError) {
+        console.warn('❌ Token refresh failed:', refreshError)
+        clearAuth()
+        toast.add({
+          severity: 'warn',
+          summary: 'Session Expired',
+          detail: 'Please login again',
+          life: 3000,
+        })
+        router.push('/login?session_expired=true&redirect=/admin/dashboard')
+        return
+      }
     }
 
+    // Make API call with better error handling
     const res = await fetch(`${config.public.apiBaseUrl}/info`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -213,9 +240,9 @@ async function fetchUserInfo() {
         'Content-Type': 'application/json'
       },
     })
-
     
     if (res.status === 401) {
+      console.log('🔒 API returned 401, clearing auth and redirecting')
       clearAuth()
       toast.add({
         severity: 'warn',
@@ -223,31 +250,41 @@ async function fetchUserInfo() {
         detail: 'Please login again',
         life: 3000,
       })
-      router.push('/login')
+      router.push('/login?session_expired=true&redirect=/admin/dashboard')
       return
     }
     
     if (!res.ok) {
       const errorText = await res.text()
+      console.error(`❌ API Error ${res.status}:`, errorText)
       throw new Error(`HTTP ${res.status}: Failed to fetch user info`)
     }
 
     const data = await res.json()
-    userName.value = data.name || data.preferred_username || 'No Name'
-    userRole.value = data.role || 'No Role'
+    userName.value = data.name || data.preferred_username || data.email || 'No Name'
+    userRole.value = data.role || 'Admin'
   } catch (error) {
+    console.error('❌ fetchUserInfo error:', error)
     
-    // Don't show error toast for auth issues (already handled above)
-    if (!error.message.includes('401')) {
+    // More specific error handling
+    if (error.message.includes('fetch')) {
+      toast.add({
+        severity: 'error',
+        summary: 'Connection Error',
+        detail: 'Unable to connect to server. Please check your internet connection.',
+        life: 5000,
+      })
+    } else if (!error.message.includes('401')) {
       toast.add({
         severity: 'error',
         summary: 'Error',
-        detail: 'Unable to fetch user info',
-        life: 3000,
+        detail: 'Unable to fetch user info. Some features may not work properly.',
+        life: 5000,
       })
     }
     
     userName.value = 'Unknown User'
+    userRole.value = 'User'
   }
 }
 
