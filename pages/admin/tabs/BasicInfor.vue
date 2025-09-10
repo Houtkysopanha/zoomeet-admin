@@ -44,16 +44,28 @@
           </div>
           <div class="mt-4">
             <label class="block text-sm font-medium text-gray-700">Event Description <span class="text-red-500">*</span></label>
-            <Textarea
-              v-model="formData.description"
-              :class="[
-                'w-full p-2 mt-1 bg-gray-100 rounded-2xl',
-                getFieldError('description') ? 'border-red-500 border-2' : ''
-              ]"
-              placeholder="Describe your event..."
-              rows="4"
-            />
-            <small v-if="getFieldError('description')" class="text-red-500">{{ getFieldError('description') }}</small>
+            <div class="mt-1">
+              <ClientOnly>
+                <QuillEditor
+                  v-model="formData.description"
+                  :contentType="'text'"
+                  placeholder="Describe your event..."
+                  :error="getFieldError('description')"
+                  min-height="120px"
+                />
+                <template #fallback>
+                  <Textarea
+                    v-model="formData.description"
+                    :class="[
+                      'w-full p-2 bg-gray-100 rounded-2xl',
+                      getFieldError('description') ? 'border-red-500 border-2' : ''
+                    ]"
+                    placeholder="Describe your event..."
+                    rows="4"
+                  />
+                </template>
+              </ClientOnly>
+            </div>
           </div>
         </div>
         <div class="mb-6">
@@ -390,6 +402,7 @@ import ConfirmDialog from 'primevue/confirmdialog'
 // Import custom components
 import ChairForm from '~/components/common/ChairForm.vue'
 import UploadPhoto from '~/components/common/UploadPhoto.vue'
+import QuillEditor from '~/components/common/QuillEditor.vue'
 
 // UUID generator with fallback for older browsers
 const generateUUID = () => {

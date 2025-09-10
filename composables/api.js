@@ -2469,7 +2469,7 @@ export async function createCoupon(eventId, couponData) {
     const headers = await createAuthHeaders()
     if (!headers) throw new Error('Authentication required')
 
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/coupons?event_id=${eventId}`, {
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/coupons`, {
       method: 'POST',
       headers,
       body: couponData
@@ -2519,7 +2519,7 @@ export async function getCoupons(eventId) {
     if (!headers) throw new Error('Authentication required')
 
 
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/coupons`, {
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/coupons?event_id=${eventId}`, {
       method: 'GET',
       headers
     })

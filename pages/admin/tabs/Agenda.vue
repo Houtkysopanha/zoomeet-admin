@@ -81,7 +81,7 @@
                       </div>
                     </div>
                     <h3 class="text-lg font-normal text-gray-800 mb-2 whitespace-pre-line">{{ item.title || 'Untitled Session' }}</h3>
-                    <div v-if="item.description" class="text-sm text-gray-600 mb-2">{{ item.description }}</div>
+                    <div v-if="item.description" class="text-sm text-gray-600 mb-2 whitespace-pre-line">{{ item.description }}</div>
                     <div v-if="item.venu || item.room_no" class="text-sm text-gray-500 mb-2">
                       <Icon name="heroicons:map-pin" class="w-4 h-4 inline mr-1" />
                       {{ item.venu }}{{ item.venu && item.room_no ? ', ' : '' }}{{ item.room_no ? `Room ${item.room_no}` : '' }}
@@ -192,17 +192,28 @@
           <!-- Session Title -->
           <div>
             <label for="session-title" class="block text-sm font-medium text-gray-700 mb-1">Session Title <span class="text-red-500">*</span></label>
-            <Textarea
-              id="session-title"
-              v-model="eventForm.title"
-              placeholder="Enter session title"
-              rows="4"
-              :class="[
-                'w-full bg-gray-100 p-3 rounded-2xl border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-gray-800 placeholder-gray-400',
-                getFieldError('title') ? 'border-red-500 border-2' : ''
-              ]"
-            />
-            <small v-if="getFieldError('title')" class="text-red-500">{{ getFieldError('title') }}</small>
+            <ClientOnly>
+              <QuillEditor
+                id="session-title"
+                v-model="eventForm.title"
+                :contentType="'text'"
+                placeholder="Enter session title"
+                :error="getFieldError('title')"
+                min-height="100px"
+              />
+              <template #fallback>
+                <Textarea
+                  id="session-title"
+                  v-model="eventForm.title"
+                  placeholder="Enter session title"
+                  rows="3"
+                  :class="[
+                    'w-full bg-gray-100 p-3 rounded-2xl border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-gray-800 placeholder-gray-400',
+                    getFieldError('title') ? 'border-red-500 border-2' : ''
+                  ]"
+                />
+              </template>
+            </ClientOnly>
           </div>
 
           <!-- Venue -->
@@ -230,13 +241,24 @@
           <!-- Description -->
           <div>
             <label for="event-description" class="block text-sm font-medium text-gray-700 mb-1">Event Description</label>
-            <Textarea
-              id="event-description"
-              v-model="eventForm.description"
-              placeholder="Brief description of this session"
-              rows="4"
-              class="w-full bg-gray-100 p-3 rounded-2xl border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-gray-800 placeholder-gray-400"
-            />
+            <ClientOnly>
+              <QuillEditor
+                id="event-description"
+                v-model="eventForm.description"
+                :contentType="'text'"
+                placeholder="Brief description of this session"
+                min-height="120px"
+              />
+              <template #fallback>
+                <Textarea
+                  id="event-description"
+                  v-model="eventForm.description"
+                  placeholder="Brief description of this session"
+                  rows="4"
+                  class="w-full bg-gray-100 p-3 rounded-2xl border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-gray-800 placeholder-gray-400"
+                />
+              </template>
+            </ClientOnly>
           </div>
 
           <!-- Speakers -->
@@ -349,6 +371,7 @@ import TabView from 'primevue/tabview';
 import TabPanel from 'primevue/tabpanel';
 import Button from 'primevue/button';
 import SpeakerInput from '~/components/common/SpeakerInput.vue';
+import QuillEditor from '~/components/common/QuillEditor.vue';
 import { useToast } from "primevue/usetoast";
 import { useConfirm } from "primevue/useconfirm";
 import { getEventAgenda, createAgendaItems, updateAgendaItem, deleteAgenda } from '@/composables/api'
@@ -681,6 +704,13 @@ const validateAgendaForm = () => {
   if (!eventForm.value.title || !eventForm.value.title.trim()) {
     setFieldError('title', 'Session title is required')
     errors.push('Session title is required')
+  } else {
+    // Additional validation for Quill editor content
+    const titleText = eventForm.value.title.trim()
+    if (titleText === '' || titleText === '\n' || titleText === '\r\n') {
+      setFieldError('title', 'Session title is required')
+      errors.push('Session title is required')
+    }
   }
 
   // Validate time range - allow same time
@@ -794,12 +824,15 @@ const createOrUpdateAgenda = async () => {
       date: eventForm.value.date ? formatDateLocal(eventForm.value.date) : null,
       time_start: eventForm.value.time_start,
       time_end: eventForm.value.time_end,
-      title: eventForm.value.title?.trim(),
+      title: eventForm.value.title?.trim() || '',
       venu: eventForm.value.venu?.trim() || '',
       room_no: eventForm.value.room_no?.trim() || '',
       description: eventForm.value.description?.trim() || '',
       is_break: false
     }
+
+    // Debug: Log the agenda data to check for issues
+    console.log('Agenda Data Being Sent:', agendaData)
 
     // Handle speakers separately - only include valid speakers
     const validSpeakers = eventForm.value.speakers.filter(speaker =>
@@ -851,6 +884,7 @@ const createOrUpdateAgenda = async () => {
       // Reset form and fetch updated agenda list
       resetForm();
       await loadAgendaItems()
+      console.log('🔄 Agenda list refreshed after save:', agendaItems.value.length, 'items')
       
       // Update tab store and mark tab as completed
       handleSaveCurrentTab()
@@ -1176,16 +1210,15 @@ onMounted(async () => {
     eventStartDate.value = eventStore.currentEvent.start_date
     eventEndDate.value = eventStore.currentEvent.end_date
     
-    // Load existing agenda data
+    // Always load fresh agenda data from API to ensure latest updates are reflected
+    // Only check tab store for skip status
     const agendaTabData = tabsStore.getTabData(1)
     if (agendaTabData.isSkipped) {
       isSkipped.value = true
-    } else if (agendaTabData.sessions && agendaTabData.sessions.length > 0) {
-      agendaItems.value = agendaTabData.sessions
-    } else if (eventStore.currentEvent.agendas && eventStore.currentEvent.agendas.length > 0) {
-      agendaItems.value = eventStore.currentEvent.agendas
+      console.log('📋 Agenda tab is skipped')
     } else {
-      // Load from API
+      // Always load from API to get latest data after saves/updates
+      console.log('🔄 Loading fresh agenda data from API...')
       await loadAgendaItems()
     }
     

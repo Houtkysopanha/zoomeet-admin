@@ -800,7 +800,6 @@ watch(searchResults, (newResults, oldResults) => {
           draggable: true
         })
         
-        console.log(`✅ Check-in detected for ticket ${newTicket.ticketId} - ${holderName}`)
       }
       
       // Also handle reverse case (check-out) if needed

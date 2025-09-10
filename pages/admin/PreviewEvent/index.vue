@@ -83,7 +83,7 @@
             
             <div>
               <label class="text-sm font-medium text-gray-500">Description</label>
-              <p class="text-gray-900 leading-relaxed">{{ eventData.description }}</p>
+              <p class="text-gray-900 leading-relaxed whitespace-pre-line">{{ eventData.description }}</p>
             </div>
             
             <div>
