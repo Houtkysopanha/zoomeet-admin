@@ -32,7 +32,6 @@ onMounted(() => {
 
 // Handle global errors
 onErrorCaptured((error) => {
-  console.error('Global error captured:', error)
   return false
 })
 </script>

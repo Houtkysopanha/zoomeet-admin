@@ -1,0 +1,93 @@
+/* Global Quill Content Styling - Using Tailwind CSS Classes */
+/* This ensures consistent formatting across all components that display Quill content */
+
+.quill-content {
+  word-wrap: break-word;
+}
+
+.quill-content p {
+  margin: 0 0 0.5em 0;
+}
+
+.quill-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* Enhanced list styling with Tailwind classes */
+.quill-content ul.list-disc {
+  list-style-type: disc;
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.quill-content ol.list-decimal {
+  list-style-type: decimal;
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.quill-content li {
+  margin: 0.25em 0;
+  display: list-item;
+}
+
+/* Enhanced text formatting with Tailwind classes */
+.quill-content .font-bold {
+  font-weight: bold;
+}
+
+.quill-content .italic {
+  font-style: italic;
+}
+
+.quill-content .underline {
+  text-decoration: underline;
+}
+
+/* Enhanced link styling with Tailwind classes */
+.quill-content .text-purple-600 {
+  color: #9333ea;
+  text-decoration: underline;
+  transition: color 0.2s ease;
+}
+
+.quill-content .text-purple-600:hover,
+.quill-content .hover\:text-purple-800:hover {
+  color: #7c3aed;
+}
+
+/* Better spacing for nested lists */
+.quill-content ol ol,
+.quill-content ul ul,
+.quill-content ol ul,
+.quill-content ul ol {
+  margin: 0.25em 0;
+  padding-left: 1.5em;
+}
+
+/* Support for space-y utility classes */
+.quill-content .space-y-1 > * + * {
+  margin-top: 0.25rem;
+}
+
+/* Ensure proper display for mixed content */
+.quill-content .font-bold.italic {
+  font-weight: bold;
+  font-style: italic;
+}
+
+.quill-content .font-bold.underline {
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+.quill-content .italic.underline {
+  font-style: italic;
+  text-decoration: underline;
+}
+
+.quill-content .font-bold.italic.underline {
+  font-weight: bold;
+  font-style: italic;
+  text-decoration: underline;
+}

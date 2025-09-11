@@ -48,7 +48,7 @@
               <ClientOnly>
                 <QuillEditor
                   v-model="formData.description"
-                  :contentType="'text'"
+                  :sendHtml="true"
                   placeholder="Describe your event..."
                   :error="getFieldError('description')"
                   min-height="120px"

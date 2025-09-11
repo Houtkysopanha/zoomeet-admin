@@ -80,8 +80,10 @@
                         </button>
                       </div>
                     </div>
-                    <h3 class="text-lg font-normal text-gray-800 mb-2 whitespace-pre-line">{{ item.title || 'Untitled Session' }}</h3>
-                    <div v-if="item.description" class="text-sm text-gray-600 mb-2 whitespace-pre-line">{{ item.description }}</div>
+                    <h3 class="text-lg font-normal text-gray-800 mb-2 quill-content prose prose-sm max-w-none" v-html="normalizeQuillHtml(item.title).replace(/ql-ordered-list/g, 'list-decimal list-inside')
+                  .replace(/ql-bullet/g, 'list-disc list-inside') || 'Untitled Session'"></h3>
+                    <div v-if="item.description" class="text-sm text-gray-600 mb-2 quill-content prose prose-sm max-w-none" v-html="normalizeQuillHtml(item.description).replace(/ql-ordered-list/g, 'list-decimal list-inside')
+                  .replace(/ql-bullet/g, 'list-disc list-inside')"></div>
                     <div v-if="item.venu || item.room_no" class="text-sm text-gray-500 mb-2">
                       <Icon name="heroicons:map-pin" class="w-4 h-4 inline mr-1" />
                       {{ item.venu }}{{ item.venu && item.room_no ? ', ' : '' }}{{ item.room_no ? `Room ${item.room_no}` : '' }}
@@ -196,7 +198,7 @@
               <QuillEditor
                 id="session-title"
                 v-model="eventForm.title"
-                :contentType="'text'"
+                :sendHtml="true"
                 placeholder="Enter session title"
                 :error="getFieldError('title')"
                 min-height="100px"
@@ -246,7 +248,7 @@
               <QuillEditor
                 id="event-description"
                 v-model="eventForm.description"
-                :contentType="'text'"
+                :sendHtml="true"
                 placeholder="Brief description of this session"
                 min-height="120px"
               />
@@ -374,6 +376,7 @@ import TabPanel from 'primevue/tabpanel';
 import Button from 'primevue/button';
 import SpeakerInput from '~/components/common/SpeakerInput.vue';
 import QuillEditor from '~/components/common/QuillEditor.vue';
+import { normalizeQuillHtml } from '~/utils/htmlUtils'
 import { useToast } from "primevue/usetoast";
 import { useConfirm } from "primevue/useconfirm";
 import { getEventAgenda, createAgendaItems, updateAgendaItem, deleteAgenda } from '@/composables/api'
@@ -886,7 +889,6 @@ const createOrUpdateAgenda = async () => {
       // Reset form and fetch updated agenda list
       resetForm();
       await loadAgendaItems()
-      console.log('🔄 Agenda list refreshed after save:', agendaItems.value.length, 'items')
       
       // Update tab store and mark tab as completed
       handleSaveCurrentTab()
@@ -1217,10 +1219,8 @@ onMounted(async () => {
     const agendaTabData = tabsStore.getTabData(1)
     if (agendaTabData.isSkipped) {
       isSkipped.value = true
-      console.log('📋 Agenda tab is skipped')
     } else {
       // Always load from API to get latest data after saves/updates
-      console.log('🔄 Loading fresh agenda data from API...')
       await loadAgendaItems()
     }
     
@@ -1307,4 +1307,73 @@ const removeSpeakerField = (index) => {
   border: none !important;
 }
 
+/* Simplified Quill Content Display Styles */
+.quill-content {
+  word-wrap: break-word;
+}
+
+.quill-content p {
+  margin: 0 0 0.5em 0;
+}
+
+.quill-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* Standard list styling - using Tailwind CSS classes */
+.quill-content ol,
+.quill-content .list-decimal {
+  list-style-type: decimal;
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.quill-content ul,
+.quill-content .list-disc {
+  list-style-type: disc;
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.quill-content li {
+  margin: 0.25em 0;
+  display: list-item;
+}
+
+/* Text formatting with Tailwind CSS classes */
+.quill-content strong,
+.quill-content .font-bold {
+  font-weight: bold;
+}
+
+.quill-content em,
+.quill-content .italic {
+  font-style: italic;
+}
+
+.quill-content u,
+.quill-content .underline {
+  text-decoration: underline;
+}
+
+/* Links with Tailwind CSS classes */
+.quill-content a,
+.quill-content .text-purple-600 {
+  color: #a855f7;
+  text-decoration: underline;
+}
+
+.quill-content a:hover,
+.quill-content .text-purple-600:hover {
+  color: #9333ea;
+}
+
+/* Better spacing for nested lists */
+.quill-content ol ol,
+.quill-content ul ul,
+.quill-content ol ul,
+.quill-content ul ol {
+  margin: 0.25em 0;
+  padding-left: 1.5em;
+}
 </style>

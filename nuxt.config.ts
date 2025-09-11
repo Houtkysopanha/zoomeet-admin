@@ -4,6 +4,7 @@ export default defineNuxtConfig({
   devtools: { enabled: process.env.NODE_ENV === 'production' },
   css: [
     '~/assets/css/tailwind.css',
+    '~/assets/css/quill-global.css',
     'primevue/resources/themes/saga-blue/theme.css',
     'primevue/resources/primevue.min.css',
     'primeicons/primeicons.css',
