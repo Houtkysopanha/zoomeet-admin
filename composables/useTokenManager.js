@@ -30,13 +30,22 @@ export function useTokenManager() {
   
   // Check token and refresh if needed
   async function checkAndRefreshToken() {
-    const { isTokenExpired, getTimeUntilExpiry, clearAuth, user } = useAuth()
+    const { isTokenExpired, isRefreshTokenExpired, getTimeUntilExpiry, clearAuth, user } = useAuth()
     
     if (!user.value?.token) {
       return
     }
     
     try {
+      // First check if refresh token is expired
+      if (isRefreshTokenExpired()) {
+        clearAuth()
+        if (process.client) {
+          window.location.href = '/login?refresh_expired=true'
+        }
+        return
+      }
+      
       const timeUntilExpiry = getTimeUntilExpiry()
       
       // If token expires in less than 10 minutes, try to refresh

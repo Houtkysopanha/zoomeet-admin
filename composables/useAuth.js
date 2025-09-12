@@ -11,8 +11,31 @@ export function useAuth() {
   function setAuth(authData) {
     if (!authData?.access_token) throw new Error('Missing access token')
 
-    const expiresAt = authData.expiresAt || getTokenExpirationSafe(authData.access_token)
-    const enhanced = { ...authData, expiresAt, loginTime: authData.loginTime || new Date().toISOString() }
+    // Use server's expires_in if provided, otherwise parse JWT
+    let expiresAt
+    if (authData.expires_in) {
+      // Server provided expires_in (in seconds), convert to ISO string
+      expiresAt = new Date(Date.now() + authData.expires_in * 1000).toISOString()
+    } else if (authData.expiresAt) {
+      // Already have expiresAt
+      expiresAt = authData.expiresAt
+    } else {
+      // Fall back to JWT parsing
+      expiresAt = getTokenExpirationSafe(authData.access_token)
+    }
+    
+    // Handle refresh token expiration
+    let refreshExpiresAt = null
+    if (authData.refresh_expires_in) {
+      refreshExpiresAt = new Date(Date.now() + authData.refresh_expires_in * 1000).toISOString()
+    }
+    
+    const enhanced = { 
+      ...authData, 
+      expiresAt, 
+      refreshExpiresAt,
+      loginTime: authData.loginTime || new Date().toISOString() 
+    }
 
     state.value = enhanced
     if (process.client) {
@@ -41,6 +64,10 @@ export function useAuth() {
     if (!state.value?.expiresAt) return true
     return new Date() >= new Date(state.value.expiresAt)
   }
+  function isRefreshTokenExpired() {
+    if (!state.value?.refreshExpiresAt) return true
+    return new Date() >= new Date(state.value.refreshExpiresAt)
+  }
   function shouldRefreshToken() {
     if (!state.value?.expiresAt) return false
     return new Date(state.value.expiresAt) - Date.now() < 5 * 60 * 1000
@@ -50,6 +77,12 @@ export function useAuth() {
     try {
       const currentRefresh = getRefreshToken()
       if (!currentRefresh) return false
+      
+      // Check if refresh token itself is expired
+      if (isRefreshTokenExpired()) {
+        clearAuth()
+        return false
+      }
 
       const { refreshAccessToken } = await import('@/composables/api')
       const result = await refreshAccessToken(currentRefresh)
@@ -58,11 +91,16 @@ export function useAuth() {
 
       const tokens = result.data.tokens
       const expiresIn = tokens.expires_in || 3600
+      const refreshExpiresIn = tokens.refresh_expires_in
       const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString()
+      
+      // Debug logging for token refresh analysis
 
       setAuth({
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token || currentRefresh,
+        expires_in: expiresIn,
+        refresh_expires_in: refreshExpiresIn,
         user: state.value?.user,
         expiresAt
       })
@@ -85,7 +123,7 @@ export function useAuth() {
           if (authData?.access_token && !isTokenExpiredCheck(authData)) {
             state.value = authData
             cookie.value = authData
-            console.log('✅ Auth initialized from localStorage')
+
           } else {
             console.log('⚠️ Stored token expired, clearing auth')
             clearAuth()
@@ -121,9 +159,10 @@ export function useAuth() {
     getRefreshToken, 
     refreshToken, 
     isTokenExpired, 
+    isRefreshTokenExpired,  // ← Add this
     shouldRefreshToken,
-    initAuth,           // ← Add this
-    getTimeUntilExpiry  // ← Add this
+    initAuth,           
+    getTimeUntilExpiry  
   }
 }
 
