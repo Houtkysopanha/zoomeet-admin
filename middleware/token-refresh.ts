@@ -24,7 +24,7 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
 
   // Check if we should refresh the token (less than 5 minutes remaining)
   if (shouldRefreshToken()) {
-    console.log('🔄 Token refresh needed, attempting refresh...')
+
     
     try {
       const refreshSuccess = await refreshToken()

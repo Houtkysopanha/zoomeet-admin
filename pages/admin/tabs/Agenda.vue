@@ -80,8 +80,10 @@
                         </button>
                       </div>
                     </div>
-                    <h3 class="text-lg font-normal text-gray-800 mb-2 whitespace-pre-line">{{ item.title || 'Untitled Session' }}</h3>
-                    <div v-if="item.description" class="text-sm text-gray-600 mb-2">{{ item.description }}</div>
+                    <h3 class="text-lg font-normal text-gray-800 mb-2 quill-content prose prose-sm max-w-none" v-html="normalizeQuillHtml(item.title).replace(/ql-ordered-list/g, 'list-decimal list-inside')
+                  .replace(/ql-bullet/g, 'list-disc list-inside') || 'Untitled Session'"></h3>
+                    <div v-if="item.description" class="text-sm text-gray-600 mb-2 quill-content prose prose-sm max-w-none" v-html="normalizeQuillHtml(item.description).replace(/ql-ordered-list/g, 'list-decimal list-inside')
+                  .replace(/ql-bullet/g, 'list-disc list-inside')"></div>
                     <div v-if="item.venu || item.room_no" class="text-sm text-gray-500 mb-2">
                       <Icon name="heroicons:map-pin" class="w-4 h-4 inline mr-1" />
                       {{ item.venu }}{{ item.venu && item.room_no ? ', ' : '' }}{{ item.room_no ? `Room ${item.room_no}` : '' }}
@@ -138,16 +140,22 @@
             <Calendar
               showIcon
               iconDisplay="input"
-              placeholder="Select date"
+              placeholder="Select date within event range"
               v-model="eventForm.date"
               :class="[
                 'w-full mt-1 bg-gray-100 p-3 rounded-2xl',
                 getFieldError('date') ? 'border-red-500 border-2' : ''
               ]"
               dateFormat="dd/mm/yy"
+              :minDate="eventDateRange.minDate"
+              :maxDate="eventDateRange.maxDate"
+              :disabledDates="disabledDates"
               @date-select="handleDateChange"
             />
             <small v-if="getFieldError('date')" class="text-red-500">{{ getFieldError('date') }}</small>
+            <small v-if="eventDateRange.minDate && eventDateRange.maxDate" class="text-gray-500 text-xs mt-1 block">
+              Available dates: {{ formatDateRange(eventDateRange.minDate, eventDateRange.maxDate) }}
+            </small>
           </div>
 
           <!-- Time -->
@@ -186,17 +194,29 @@
           <!-- Session Title -->
           <div>
             <label for="session-title" class="block text-sm font-medium text-gray-700 mb-1">Session Title <span class="text-red-500">*</span></label>
-            <Textarea
-              id="session-title"
-              v-model="eventForm.title"
-              placeholder="Enter session title"
-              rows="4"
-              :class="[
-                'w-full bg-gray-100 p-3 rounded-2xl border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-gray-800 placeholder-gray-400',
-                getFieldError('title') ? 'border-red-500 border-2' : ''
-              ]"
-            />
-            <small v-if="getFieldError('title')" class="text-red-500">{{ getFieldError('title') }}</small>
+            <ClientOnly>
+              <QuillEditor
+                id="session-title"
+                v-model="eventForm.title"
+                :sendHtml="true"
+                placeholder="Enter session title"
+                :error="getFieldError('title')"
+                min-height="100px"
+              />
+              <template #fallback>
+                <Textarea
+                  id="session-title"
+                  v-model="eventForm.title"
+                  placeholder="Enter session title"
+                  rows="3"
+                  :class="[
+                    'w-full bg-gray-100 p-3 rounded-2xl border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-gray-800 placeholder-gray-400',
+                    getFieldError('title') ? 'border-red-500 border-2' : ''
+                  ]"
+                />
+              </template>
+            </ClientOnly>
+             <span class="text-xs text-gray-400"> <small class="text-red-500">*</small> Text Editor will abvailable later.</span>
           </div>
 
           <!-- Venue -->
@@ -224,13 +244,25 @@
           <!-- Description -->
           <div>
             <label for="event-description" class="block text-sm font-medium text-gray-700 mb-1">Event Description</label>
-            <Textarea
-              id="event-description"
-              v-model="eventForm.description"
-              placeholder="Brief description of this session"
-              rows="4"
-              class="w-full bg-gray-100 p-3 rounded-2xl border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-gray-800 placeholder-gray-400"
-            />
+            <ClientOnly>
+              <QuillEditor
+                id="event-description"
+                v-model="eventForm.description"
+                :sendHtml="true"
+                placeholder="Brief description of this session"
+                min-height="120px"
+              />
+              <template #fallback>
+                <Textarea
+                  id="event-description"
+                  v-model="eventForm.description"
+                  placeholder="Brief description of this session"
+                  rows="4"
+                  class="w-full bg-gray-100 p-3 rounded-2xl border-gray-300 focus:border-purple-500 focus:ring-purple-500 text-gray-800 placeholder-gray-400"
+                />
+              </template>
+            </ClientOnly>
+             <span class="text-xs text-gray-400"> <small class="text-red-500">*</small> Text Editor will abvailable later.</span>
           </div>
 
           <!-- Speakers -->
@@ -343,6 +375,8 @@ import TabView from 'primevue/tabview';
 import TabPanel from 'primevue/tabpanel';
 import Button from 'primevue/button';
 import SpeakerInput from '~/components/common/SpeakerInput.vue';
+import QuillEditor from '~/components/common/QuillEditor.vue';
+import { normalizeQuillHtml } from '~/utils/htmlUtils'
 import { useToast } from "primevue/usetoast";
 import { useConfirm } from "primevue/useconfirm";
 import { getEventAgenda, createAgendaItems, updateAgendaItem, deleteAgenda } from '@/composables/api'
@@ -400,6 +434,66 @@ const eventForm = ref({
 // Get event start and end dates for day calculation
 const eventStartDate = ref(null)
 const eventEndDate = ref(null)
+
+// Computed property for date range restrictions
+const eventDateRange = computed(() => {
+  if (!eventStartDate.value || !eventEndDate.value) {
+    return {
+      minDate: null,
+      maxDate: null,
+      isValid: false
+    }
+  }
+  
+  const startDate = new Date(eventStartDate.value)
+  const endDate = new Date(eventEndDate.value)
+  
+  // Ensure dates are valid
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    return {
+      minDate: null,
+      maxDate: null,
+      isValid: false
+    }
+  }
+  
+  return {
+    minDate: startDate,
+    maxDate: endDate,
+    isValid: true
+  }
+})
+
+// Computed property for disabled dates (all dates outside event range)
+const disabledDates = computed(() => {
+  if (!eventDateRange.value.isValid) {
+    return []
+  }
+  
+  // This will disable all dates outside the event range
+  // PrimeVue Calendar will handle this automatically with minDate and maxDate
+  return []
+})
+
+// Helper function to format date range for display
+const formatDateRange = (startDate, endDate) => {
+  if (!startDate || !endDate) return 'No date range set'
+  
+  const options = { 
+    month: 'short', 
+    day: 'numeric',
+    year: startDate.getFullYear() !== endDate.getFullYear() ? 'numeric' : undefined
+  }
+  
+  const start = startDate.toLocaleDateString('en-US', options)
+  const end = endDate.toLocaleDateString('en-US', options)
+  
+  if (startDate.toDateString() === endDate.toDateString()) {
+    return start // Same day event
+  }
+  
+  return `${start} - ${end}`
+}
 
 // Computed property for organizing agenda items by days with dynamic labels
 const agendaDays = computed(() => {
@@ -511,16 +605,46 @@ const getDayNumber = (date) => {
 
 // Handle date change to auto-determine day
 const handleDateChange = (selectedDate) => {
-  if (!selectedDate || !eventStartDate.value) {
+  if (!selectedDate) {
     return
   }
-
-  // toast.add({
-  //   severity: 'warn',
-  //   summary: 'Invalid Date',
-  //   detail: 'Please select a valid date within the event range.',
-  //   life: 3000
-  // });
+  
+  // Validate that selected date is within event range
+  if (eventDateRange.value.isValid) {
+    const selected = new Date(selectedDate)
+    const minDate = eventDateRange.value.minDate
+    const maxDate = eventDateRange.value.maxDate
+    
+    // Normalize dates for comparison (remove time component)
+    selected.setHours(0, 0, 0, 0)
+    const min = new Date(minDate)
+    min.setHours(0, 0, 0, 0)
+    const max = new Date(maxDate)
+    max.setHours(0, 0, 0, 0)
+    
+    if (selected < min || selected > max) {
+      toast.add({
+        severity: 'warn',
+        summary: 'Invalid Date',
+        detail: `Please select a date within the event range: ${formatDateRange(minDate, maxDate)}`,
+        life: 4000
+      })
+      
+      // Clear the invalid date
+      eventForm.value.date = null
+      return
+    }
+  }
+  
+  if (!eventStartDate.value) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Event Dates Required',
+      detail: 'Please set event start and end dates in Basic Info first.',
+      life: 3000
+    })
+    return
+  }
   
   const dayNumber = getDayNumber(selectedDate)
 
@@ -536,6 +660,9 @@ const handleDateChange = (selectedDate) => {
     // Default to first available day if calculated day doesn't exist
     activeTabIndex.value = 0
   }
+  
+  // Clear any previous date validation errors
+  clearFieldError('date')
 }
 
 // Validate agenda form
@@ -548,6 +675,25 @@ const validateAgendaForm = () => {
   if (!eventForm.value.date) {
     setFieldError('date', 'Date is required')
     errors.push('Date is required')
+  } else {
+    // Validate that date is within event range
+    if (eventDateRange.value.isValid) {
+      const selected = new Date(eventForm.value.date)
+      const minDate = eventDateRange.value.minDate
+      const maxDate = eventDateRange.value.maxDate
+      
+      // Normalize dates for comparison
+      selected.setHours(0, 0, 0, 0)
+      const min = new Date(minDate)
+      min.setHours(0, 0, 0, 0)
+      const max = new Date(maxDate)
+      max.setHours(0, 0, 0, 0)
+      
+      if (selected < min || selected > max) {
+        setFieldError('date', `Date must be within event range: ${formatDateRange(minDate, maxDate)}`)
+        errors.push(`Date must be within event range: ${formatDateRange(minDate, maxDate)}`)
+      }
+    }
   }
 
   if (!eventForm.value.time_start) {
@@ -563,6 +709,13 @@ const validateAgendaForm = () => {
   if (!eventForm.value.title || !eventForm.value.title.trim()) {
     setFieldError('title', 'Session title is required')
     errors.push('Session title is required')
+  } else {
+    // Additional validation for Quill editor content
+    const titleText = eventForm.value.title.trim()
+    if (titleText === '' || titleText === '\n' || titleText === '\r\n') {
+      setFieldError('title', 'Session title is required')
+      errors.push('Session title is required')
+    }
   }
 
   // Validate time range - allow same time
@@ -676,12 +829,15 @@ const createOrUpdateAgenda = async () => {
       date: eventForm.value.date ? formatDateLocal(eventForm.value.date) : null,
       time_start: eventForm.value.time_start,
       time_end: eventForm.value.time_end,
-      title: eventForm.value.title?.trim(),
+      title: eventForm.value.title?.trim() || '',
       venu: eventForm.value.venu?.trim() || '',
       room_no: eventForm.value.room_no?.trim() || '',
       description: eventForm.value.description?.trim() || '',
       is_break: false
     }
+
+    // Debug: Log the agenda data to check for issues
+    console.log('Agenda Data Being Sent:', agendaData)
 
     // Handle speakers separately - only include valid speakers
     const validSpeakers = eventForm.value.speakers.filter(speaker =>
@@ -782,7 +938,6 @@ const loadAgendaItems = async () => {
     
     if (agendaData && Array.isArray(agendaData)) {
       agendaItems.value = agendaData
-      console.log('✅ Loaded agenda items:', agendaData.length)
     } else {
       agendaItems.value = []
     
@@ -833,7 +988,6 @@ const deleteAgendaAction = (event, agendaId) => {
         )
         
         if (isSuccess) {
-          console.log('✅ Agenda deleted successfully')
           
           toast.add({
             severity: 'success',
@@ -1060,16 +1214,13 @@ onMounted(async () => {
     eventStartDate.value = eventStore.currentEvent.start_date
     eventEndDate.value = eventStore.currentEvent.end_date
     
-    // Load existing agenda data
+    // Always load fresh agenda data from API to ensure latest updates are reflected
+    // Only check tab store for skip status
     const agendaTabData = tabsStore.getTabData(1)
     if (agendaTabData.isSkipped) {
       isSkipped.value = true
-    } else if (agendaTabData.sessions && agendaTabData.sessions.length > 0) {
-      agendaItems.value = agendaTabData.sessions
-    } else if (eventStore.currentEvent.agendas && eventStore.currentEvent.agendas.length > 0) {
-      agendaItems.value = eventStore.currentEvent.agendas
     } else {
-      // Load from API
+      // Always load from API to get latest data after saves/updates
       await loadAgendaItems()
     }
     
@@ -1156,4 +1307,73 @@ const removeSpeakerField = (index) => {
   border: none !important;
 }
 
+/* Simplified Quill Content Display Styles */
+.quill-content {
+  word-wrap: break-word;
+}
+
+.quill-content p {
+  margin: 0 0 0.5em 0;
+}
+
+.quill-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* Standard list styling - using Tailwind CSS classes */
+.quill-content ol,
+.quill-content .list-decimal {
+  list-style-type: decimal;
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.quill-content ul,
+.quill-content .list-disc {
+  list-style-type: disc;
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.quill-content li {
+  margin: 0.25em 0;
+  display: list-item;
+}
+
+/* Text formatting with Tailwind CSS classes */
+.quill-content strong,
+.quill-content .font-bold {
+  font-weight: bold;
+}
+
+.quill-content em,
+.quill-content .italic {
+  font-style: italic;
+}
+
+.quill-content u,
+.quill-content .underline {
+  text-decoration: underline;
+}
+
+/* Links with Tailwind CSS classes */
+.quill-content a,
+.quill-content .text-purple-600 {
+  color: #a855f7;
+  text-decoration: underline;
+}
+
+.quill-content a:hover,
+.quill-content .text-purple-600:hover {
+  color: #9333ea;
+}
+
+/* Better spacing for nested lists */
+.quill-content ol ol,
+.quill-content ul ul,
+.quill-content ol ul,
+.quill-content ul ol {
+  margin: 0.25em 0;
+  padding-left: 1.5em;
+}
 </style>

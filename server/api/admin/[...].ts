@@ -42,7 +42,6 @@ export default defineEventHandler(async (event) => {
       authHeader = `Bearer ${authHeader}`
     }
 
-    console.log('🔑 Auth header found in catch-all:', authHeader.substring(0, 30) + '...')
 
     // Prepare headers
     const headers: Record<string, string> = {

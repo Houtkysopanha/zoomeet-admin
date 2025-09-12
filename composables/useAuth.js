@@ -96,7 +96,6 @@ export function useAuth() {
       if (ss) {
         try {
           auth = JSON.parse(ss)
-          console.log('📍 Found auth in sessionStorage')
         } catch {}
       }
     }
@@ -152,10 +151,57 @@ export function useAuth() {
 
   async function refreshToken() {
     try {
-      console.log('🔄 Token refresh not implemented yet')
-      return false
-    } catch (e) {
-      console.error('❌ Refresh failed:', e)
+
+      
+      const currentRefreshToken = getRefreshToken()
+      if (!currentRefreshToken) {
+        console.warn('⚠️ No refresh token available')
+        return false
+      }
+
+      // Use the dedicated refresh token API function
+      const { refreshAccessToken } = await import('@/composables/api')
+      const result = await refreshAccessToken(currentRefreshToken)
+
+      if (!result.success || !result.data?.tokens?.access_token) {
+        throw new Error('Invalid refresh response')
+      }
+
+      const tokens = result.data.tokens
+      const expiresIn = tokens.expires_in || 518400 // Default to 6 days if not provided
+      const expiresAt = new Date(Date.now() + (expiresIn * 1000)).toISOString()
+
+      // Update auth state with new tokens, preserving existing user data
+      const refreshedAuthData = {
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        user: state.value?.user, // Preserve existing user data
+        loginTime: state.value?.loginTime || new Date().toISOString(),
+        expiresAt: expiresAt
+      }
+
+      setAuth(refreshedAuthData)
+
+      
+      return true
+
+    } catch (error) {
+      console.error('❌ Token refresh failed:', error)
+      
+      // Handle specific error cases
+      if (error.message?.includes('expired') || error.message?.includes('invalid')) {
+        console.warn('🔒 Refresh token expired or invalid, clearing auth')
+        clearAuth()
+        if (process.client) {
+          window.location.href = '/login?session_expired=true&reason=refresh_token_expired'
+        }
+      } else if (error.message?.includes('Too many')) {
+        console.warn('⚠️ Too many refresh attempts, temporary cooldown')
+        // Don't clear auth immediately for rate limiting
+      } else {
+        console.error('❌ Unexpected refresh error:', error.message)
+      }
+      
       return false
     }
   }

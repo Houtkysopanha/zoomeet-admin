@@ -70,7 +70,19 @@
 
   <div class="col-span-1 flex flex-col items-center justify-center p-4 rounded-lg">
     <p class="text-gray-600 text-sm mb-2">Scan to Enter</p>
-    <img :src="qrcode" alt="QR Code" class="w-32 h-32 object-contain mb-4" />
+    <QRCodeGenerator 
+      :value="result.qrCode || result.ticketId || `ticket-${result.id}`"
+      :size="128"
+      container-class="mb-4"
+      :options="{
+        errorCorrectionLevel: 'M',
+        margin: 1,
+        color: {
+          dark: '#374151',
+          light: '#FFFFFF'
+        }
+      }"
+    />
     <Button
       label="Assign Ticket"
       class="w-44 bg-gray-400 rounded-full text-white py-3 hover:from-blue-700 hover:to-purple-700 transition-colors duration-200 flex items-center justify-center gap-2"
@@ -85,8 +97,7 @@
 <script setup>
 import Button from 'primevue/button'
 import Divider from 'primevue/divider' // Import Divider
-import qrcode from '@/assets/image/qr-code.png'
-
+import QRCodeGenerator from '~/components/common/QRCodeGenerator.vue'
 
 const props = defineProps({
   result: {

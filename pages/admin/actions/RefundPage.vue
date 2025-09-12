@@ -290,12 +290,10 @@ const applySort = () => {
   const [field, order] = sortOption.value.split('-')
   sortField.value = field === 'Sort' ? 'purchaseDate' : field
   sortOrder.value = order === 'asc' ? 1 : -1
-  console.log('Sort applied:', sortOption.value)
 }
 
 const applyPageChange = () => {
   currentPage.value = 1 // Reset to first page on items per page change
-  console.log('Items per page changed:', itemsPerPage.value)
 }
 
 const filteredEvents = computed(() => {

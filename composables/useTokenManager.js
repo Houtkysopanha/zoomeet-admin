@@ -71,27 +71,50 @@ export function useTokenManager() {
       const { clearAuth } = useAuth()
       clearAuth()
       if (process.client) {
-        window.location.href = '/login?session_expired=true'
+        window.location.href = '/login?session_expired=true&reason=max_refresh_attempts'
       }
       return
     }
     
     refreshAttempts++
+
     
     try {
-      // You would implement your token refresh logic here
-      // For now, we'll just log and reset attempts on success
-      refreshAttempts = 0
+      const { refreshToken, getToken, getRefreshToken } = useAuth()
+      
+      // Check if we have required tokens
+      const currentRefreshToken = getRefreshToken()
+      if (!currentRefreshToken) {
+        throw new Error('No refresh token available')
+      }
+
+      // Attempt the refresh
+      const refreshSuccess = await refreshToken()
+      
+      if (refreshSuccess) {
+        refreshAttempts = 0 // Reset attempts on success
+        
+        // Verify the new token is valid
+        const newToken = getToken()
+        if (!newToken) {
+          throw new Error('No token after refresh')
+        }
+      } else {
+        throw new Error('Token refresh returned false')
+      }
       
     } catch (error) {
-      console.error('❌ Token refresh failed:', error)
+      console.error(`❌ Token refresh attempt ${refreshAttempts} failed:`, error)
       
       if (refreshAttempts >= MAX_REFRESH_ATTEMPTS) {
+        console.error('❌ All refresh attempts exhausted, forcing logout')
         const { clearAuth } = useAuth()
         clearAuth()
         if (process.client) {
-          window.location.href = '/login?refresh_failed=true'
+          window.location.href = '/login?session_expired=true&reason=refresh_failed'
         }
+      } else {
+        
       }
     }
   }

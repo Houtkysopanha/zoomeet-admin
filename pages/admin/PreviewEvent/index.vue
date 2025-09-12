@@ -83,7 +83,7 @@
             
             <div>
               <label class="text-sm font-medium text-gray-500">Description</label>
-              <p class="text-gray-900 leading-relaxed">{{ eventData.description }}</p>
+              <p class="text-gray-900 leading-relaxed whitespace-pre-line">{{ eventData.description }}</p>
             </div>
             
             <div>
@@ -168,12 +168,11 @@ const loadEventData = async () => {
       return
     }
 
-    console.log('Loading event data for ID:', eventId)
     const response = await fetchEventById(eventId)
     
     if (response && response.data && response.data.success) {
       eventData.value = response.data.data
-      console.log('Event data loaded:', eventData.value)
+
     } else {
       toast.add({
         severity: 'error',
@@ -183,7 +182,7 @@ const loadEventData = async () => {
       })
     }
   } catch (err) {
-    console.error('Error loading event:', err)
+
     toast.add({
       severity: 'error',
       summary: 'Error',

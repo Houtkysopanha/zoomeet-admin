@@ -182,9 +182,11 @@ const statusSteps = computed(() => {
   const basicInfoData = tabsStore.getTabData(0)
   const agendaData = tabsStore.getTabData(1)
   const ticketData = tabsStore.getTabData(2)
+  const settingsData = tabsStore.getTabData(4)
   
   const isBasicInfoComplete = eventCreationState?.isBasicInfoCompleted?.value || false
   const hasEventId = eventCreationState?.eventId?.value || props.eventId
+  const isPublished = eventStore.currentEvent?.is_published
   
   return [
     {
@@ -196,7 +198,8 @@ const statusSteps = computed(() => {
       lastUpdated: basicInfoData.lastSaved,
       action: () => emit('switchTab', 0),
       actionText: isBasicInfoComplete ? 'Edit' : 'Complete',
-      actionEnabled: true
+      actionEnabled: true,
+      isRequired: true
     },
     {
       title: 'Event Agenda',
@@ -213,7 +216,8 @@ const statusSteps = computed(() => {
       lastUpdated: agendaData.lastSaved,
       action: () => emit('switchTab', 1),
       actionText: agendaData.isSkipped ? 'Add Agenda' : agendaData.sessions?.length > 0 ? 'Edit' : 'Create',
-      actionEnabled: hasEventId
+      actionEnabled: hasEventId,
+      isRequired: false
     },
     {
       title: 'Ticket Packages',
@@ -226,38 +230,66 @@ const statusSteps = computed(() => {
       lastUpdated: ticketData.lastSaved,
       action: () => emit('switchTab', 2),
       actionText: ticketData.ticketTypes?.length > 0 ? 'Edit' : 'Create',
-      actionEnabled: hasEventId
+      actionEnabled: hasEventId,
+      isRequired: true
+    },
+    {
+      title: 'Settings & Policies',
+      description: (settingsData.termsAndConditions || settingsData.registrationDeadline)
+        ? 'Event policies and settings configured successfully'
+        : 'Configure registration policies, terms and conditions',
+      status: (settingsData.termsAndConditions || settingsData.registrationDeadline)
+        ? 'completed' 
+        : hasEventId ? 'in-progress' : 'blocked',
+      lastUpdated: settingsData.lastSaved,
+      action: () => emit('switchTab', 4),
+      actionText: (settingsData.termsAndConditions || settingsData.registrationDeadline) ? 'Edit' : 'Configure',
+      actionEnabled: hasEventId,
+      isRequired: false
     },
     {
       title: 'Event Publishing',
-      description: eventStore.currentEvent?.is_published
+      description: isPublished
         ? 'Event is live and visible to attendees'
         : 'Publish event to make it available for booking',
-      status: eventStore.currentEvent?.is_published 
+      status: isPublished 
         ? 'completed' 
         : (isBasicInfoComplete && ticketData.ticketTypes?.length > 0) 
           ? 'in-progress' 
           : 'blocked',
       lastUpdated: eventStore.currentEvent?.updated_at,
       action: () => emit('publishEvent'),
-      actionText: eventStore.currentEvent?.is_published ? 'Published' : 'Publish',
-      actionEnabled: isBasicInfoComplete && ticketData.ticketTypes?.length > 0 && !eventStore.currentEvent?.is_published
+      actionText: isPublished ? 'Published' : 'Publish',
+      actionEnabled: isBasicInfoComplete && ticketData.ticketTypes?.length > 0 && !isPublished,
+      isRequired: true
     }
   ]
 })
 
 // Overall status computation
 const overallStatus = computed(() => {
-  const steps = statusSteps.value
-  const completedSteps = steps.filter(s => s.status === 'completed' || s.status === 'skipped').length
-  const totalSteps = steps.length
+  const isPublished = eventStore.currentEvent?.is_published
   
+  // If event is published, it's considered complete regardless of other steps
+  if (isPublished) return 'complete'
+  
+  const steps = statusSteps.value
+  // Only consider functional steps that are released (exclude blocked steps)
+  const functionalSteps = steps.filter(s => s.status !== 'blocked')
+  const completedSteps = functionalSteps.filter(s => s.status === 'completed' || s.status === 'skipped').length
+  const totalSteps = functionalSteps.length
+  
+  if (totalSteps === 0) return 'pending'
   if (completedSteps === totalSteps) return 'complete'
   if (completedSteps > 0) return 'in-progress'
   return 'pending'
 })
 
 const overallStatusText = computed(() => {
+  const isPublished = eventStore.currentEvent?.is_published
+  
+  if (isPublished) return 'Published & Complete'
+  
   switch (overallStatus.value) {
     case 'complete': return 'Ready to Publish'
     case 'in-progress': return 'In Progress'
@@ -266,9 +298,16 @@ const overallStatusText = computed(() => {
 })
 
 const progressPercentage = computed(() => {
+  const isPublished = eventStore.currentEvent?.is_published
+  
+  // If event is published, always show 100% progress
+  if (isPublished) return 100
+  
   const steps = statusSteps.value
-  const completedSteps = steps.filter(s => s.status === 'completed' || s.status === 'skipped').length
-  return Math.round((completedSteps / steps.length) * 100)
+  // Only consider functional steps that are released (exclude blocked steps)
+  const functionalSteps = steps.filter(s => s.status !== 'blocked')
+  const completedSteps = functionalSteps.filter(s => s.status === 'completed' || s.status === 'skipped').length
+  return functionalSteps.length > 0 ? Math.round((completedSteps / functionalSteps.length) * 100) : 0
 })
 
 // Quick actions
@@ -276,6 +315,7 @@ const quickActions = computed(() => {
   const actions = []
   const basicInfoComplete = eventCreationState?.isBasicInfoCompleted?.value || false
   const hasTickets = tabsStore.getTabData(2).ticketTypes?.length > 0
+  const hasSettings = tabsStore.getTabData(4).termsAndConditions || tabsStore.getTabData(4).registrationDeadline
   const isPublished = eventStore.currentEvent?.is_published
   
   if (!basicInfoComplete) {
@@ -300,6 +340,17 @@ const quickActions = computed(() => {
     })
   }
   
+  if (basicInfoComplete && !hasSettings) {
+    actions.push({
+      key: 'configure-settings',
+      text: 'Configure Settings',
+      icon: 'heroicons:cog-6-tooth',
+      handler: () => emit('switchTab', 4),
+      enabled: true,
+      primary: false
+    })
+  }
+  
   if (basicInfoComplete && hasTickets && !isPublished) {
     actions.push({
       key: 'publish-event',
@@ -317,6 +368,17 @@ const quickActions = computed(() => {
       text: 'Save Draft',
       icon: 'heroicons:document-arrow-down',
       handler: () => emit('saveTab'),
+      enabled: true,
+      primary: false
+    })
+  }
+  
+  if (basicInfoComplete && eventCreationState?.eventId?.value) {
+    actions.push({
+      key: 'add-agenda',
+      text: 'Add Agenda',
+      icon: 'heroicons:calendar-days',
+      handler: () => emit('switchTab', 1),
       enabled: true,
       primary: false
     })

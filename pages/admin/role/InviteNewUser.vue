@@ -253,7 +253,7 @@
 
       <div class="bg-white rounded-2xl p-10">
         <h2 class="text-xl font-semibold mb-2">Role Assignment</h2>
-        <p class="text-sm text-gray-500 mb-6">Pick a permission for the team to access the team coordinator.</p>
+        <p class="text-sm text-gray-500 mb-6">Pick permissions for the team to access the team coordinator. You can also invite users without roles and assign them later.</p>
 
         <!-- Loading state for permissions -->
         <div v-if="permissionsLoading" class="flex justify-center items-center py-8">
@@ -464,7 +464,7 @@ const loadPermissions = async () => {
         }
       })
       
-      console.log('Loaded permissions:', availablePermissions.value)
+
     } else {
       console.error('API Error Response:', data)
       toast.add({
@@ -493,7 +493,7 @@ const loadCurrentOrganizers = async () => {
   
   loadingOrganizers.value = true
   try {
-    console.log('🔒 Loading ALL team members (active + inactive) for comprehensive protection...')
+   
     const response = await fetchEventOrganizers(eventId.value)
     
     if (response.status === 200 && response.data.success) {
@@ -779,23 +779,22 @@ const inviteUser = async () => {
     return
   }
 
-  // Validation: Check if permissions are selected
+  // Note: Permissions are now optional - users can be invited without roles and assigned later
   const hasPermissions = Object.values(permissions.value).some(perm => perm.enabled)
   if (!hasPermissions) {
     toast.add({
-      severity: 'error',
-      summary: 'Validation Error',
-      detail: 'Please select at least one permission for the user',
-      life: 4000
+      severity: 'info',
+      summary: 'Inviting Without Permissions',
+      detail: 'User will be invited without specific permissions. You can assign roles later from the Manage Team page.',
+      life: 5000
     })
-    return
   }
 
   // ADDITIONAL PROTECTION: Final check before API call
-  console.log('🔒 Final protection check before invitation...')
+
   const finalCheck = selectedUsers.value.filter(user => isUserAlreadyInvited(user))
   if (finalCheck.length > 0) {
-    console.error('🚫 Protection triggered: Users already invited detected at final stage')
+  
     toast.add({
       severity: 'error',
       summary: 'Protection Error',
@@ -815,16 +814,21 @@ const inviteUser = async () => {
     note: newUser.value.note || null
   })),
   permissions: permissions.value,
+  hasPermissions: hasPermissions,  // Pass permission status to API
   token
 })
 
 
     if (data.success) {
+      const successMessage = hasPermissions 
+        ? `Invitation sent to ${selectedUsers.value.map(u => u.name).join(', ')} with assigned permissions`
+        : `Invitation sent to ${selectedUsers.value.map(u => u.name).join(', ')}. You can assign permissions later from Manage Team.`
+        
       toast.add({
         severity: 'success',
         summary: 'Invitation Sent Successfully',
-        detail: `Invitation sent to ${selectedUsers.value.map(u => u.name).join(', ')}`,
-        life: 4000
+        detail: successMessage,
+        life: 5000
       })
       
       // Reset all form data
@@ -838,13 +842,7 @@ const inviteUser = async () => {
       
       // Clear search results to force fresh search with new protection data
       users.value = []
-      
-      toast.add({
-        severity: 'info',
-        summary: 'Protection Updated',
-        detail: 'Team member list refreshed for protection',
-        life: 2000
-      })
+    
     } else {
       toast.add({
         severity: 'error',
@@ -960,13 +958,12 @@ const handlePhoneSearch = () => {
 // Handle phone number component change event (gets more detailed info)
 const handlePhoneNumberChange = (phoneData) => {
   // phoneData contains: { countryCode, phoneNumber, fullNumber, country }
-  console.log('📞 PhoneNumber component data:', phoneData)
+  
   
   // We can use the phoneData to get better search terms
   if (phoneData && phoneData.phoneNumber) {
     // Extract just the local number part
     const localNumber = phoneData.phoneNumber.replace(phoneData.countryCode, '').replace(/[^\d]/g, '')
-    console.log('📞 Extracted local number:', localNumber)
     
     // Update search phone to trigger search with local number
     if (localNumber.length >= 3) {
@@ -1054,7 +1051,6 @@ const getPhoneSearchFormats = (inputPhone) => {
     }
   }
   
-  console.log('📞 Generated phone search formats for', inputPhone, '(prioritized):', uniqueFormats)
   return uniqueFormats
 }
 
