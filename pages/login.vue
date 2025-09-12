@@ -282,20 +282,28 @@ async function handleLogin() {
     
     let token = null;
     let refreshToken = null;
+    let expiresIn = null;
+    let refreshExpiresIn = null;
     let userData = {};
     
     // Extract tokens from different possible response formats
     if (data?.tokens?.access_token) {
       token = data.tokens.access_token;
       refreshToken = data.tokens.refresh_token;
+      expiresIn = data.tokens.expires_in;
+      refreshExpiresIn = data.tokens.refresh_expires_in;
       userData = data.user || {};
     } else if (data?.access_token) {
       token = data.access_token;
       refreshToken = data.refresh_token;
+      expiresIn = data.expires_in;
+      refreshExpiresIn = data.refresh_expires_in;
       userData = data.user || {};
     } else if (data?.token) {
       token = data.token;
       refreshToken = data.refreshToken || data.refresh_token;
+      expiresIn = data.expires_in || data.expiresIn;
+      refreshExpiresIn = data.refresh_expires_in || data.refreshExpiresIn;
       userData = data.user || {};
     } else {
       throw new Error('Invalid server response. Missing access token.')
@@ -316,11 +324,13 @@ async function handleLogin() {
     classicLoader.updateProgress(85, 'Loading dashboard...')
     const { setAuth, getToken } = useAuth();
     
-    // Store both access token and refresh token
+    // Store auth data with server's expires_in value
     const authData = { 
-     access_token: token,             // ✅ must match useAuth
-  refresh_token: refreshToken || null, // ✅ must match useAuth
-  user
+     access_token: token,
+     refresh_token: refreshToken || null,
+     expires_in: expiresIn, // ✅ Pass server's expires_in value
+     refresh_expires_in: refreshExpiresIn, // ✅ Pass server's refresh_expires_in value
+     user
     };
     
     setAuth(authData);

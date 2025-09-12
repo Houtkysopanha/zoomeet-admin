@@ -10,7 +10,6 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     // Verify auth state
     const token = getToken(); // Now properly imported
     if (token) {
-      console.log('✅ Token found during initialization');
       
       // Start token monitoring for production
       if (process.client) {
