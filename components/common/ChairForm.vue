@@ -1,137 +1,228 @@
 <template>
-  <Dialog :visible="visible" @update:visible="$emit('update:visible', $event)" modal :header="isEdit ? 'Edit Chair' : 'Add Chair'" :style="{ width: '50rem' }" :breakpoints="{ '1199px': '75vw', '575px': '90vw' }">
-    <div class="space-y-6">
-      <!-- Chair Information -->
-      <div class="grid grid-cols-1 gap-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Name <span class="text-red-500">*</span></label>
-          <InputText
-            v-model="chairData.name"
-            @blur="handleNameBlur"
-            @input="handleNameInput"
-            :class="[
-              'w-full p-3 rounded-lg border',
-              getFieldError('name') ? 'border-red-500' : 'border-gray-300'
-            ]"
-            placeholder="Enter chair name"
-          />
-          <small v-if="getFieldError('name')" class="text-red-500">{{ getFieldError('name') }}</small>
+  <div v-if="visible" class="fixed inset-0 z-50 overflow-y-auto">
+    <!-- Backdrop -->
+    <div class="fixed inset-0 bg-black bg-opacity-50" @click="closeDialog"></div>
+    
+    <!-- Modal Container -->
+    <div class="flex min-h-full items-center justify-center p-4">
+      <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-lg">
+        <!-- Modal Header -->
+        <div class="flex items-center justify-between p-6">
+          <h3 class="text-lg font-semibold text-gray-900">{{ isEdit ? 'Edit Chair' : 'Add Chair' }}</h3>
+          <button
+            @click="closeDialog"
+            class="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Position <span class="text-red-500">*</span></label>
-          <InputText
-            v-model="chairData.position"
-            @blur="handlePositionBlur"
-            @input="handlePositionInput"
-            :class="[
-              'w-full p-3 rounded-lg border',
-              getFieldError('position') ? 'border-red-500' : 'border-gray-300'
-            ]"
-            placeholder="Enter position"
-          />
-          <small v-if="getFieldError('position')" class="text-red-500">{{ getFieldError('position') }}</small>
+        <!-- Modal Body -->
+        <div class="p-6">
+          <div class="flex gap-6">
+            <!-- Left Side - Chair Profile Image -->
+            <div class="flex-shrink-0">
+              <div class="text-center">
+                <div class="relative">
+                  <!-- Profile Image Circle -->
+                  <div class="w-24 h-24 bg-gray-100 rounded-full border-2 border-gray-200 flex items-center justify-center overflow-hidden mb-2 cursor-pointer group hover:bg-gray-50 transition-colors"
+                       @click="triggerImageUpload">
+                    <!-- Display uploaded or existing image -->
+                    <img 
+                      v-if="getImageSrc()"
+                      :src="getImageSrc()"
+                    alt="Current profile"
+                  class="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
+                   @error="handleImageError"
+                    />
+                    <!-- Camera icon when no image -->
+                    <div v-else class="text-gray-400 group-hover:text-gray-500 transition-colors">
+                      <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                              d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                              d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                      </svg>
+                    </div>
+                    
+                    <!-- Remove image button -->
+                    <!-- <button 
+                      v-if="getImageSrc()"
+                      @click.stop="handleImageRemoved"
+                      class="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                    >
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                      </svg>
+                    </button> -->
+                  </div>
+                </div>
+                
+                <!-- Chair Profile Label -->
+                <p class="text-sm font-medium text-gray-900">Chair Profile</p>
+                
+                <!-- Hidden file input -->
+                <input
+                  ref="fileInput"
+                  type="file"
+                  accept="image/*"
+                  @change="handleFileSelect"
+                  class="hidden"
+                  :multiple="false"
+                />
+              </div>
+            </div>
+
+            <!-- Right Side - Form Fields -->
+            <div class="flex-1">
+              <div class="space-y-4">
+                <!-- Chair Name Field -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Chair Name</label>
+                  <input
+                    v-model="chairData.name"
+                    @blur="handleNameBlur"
+                    @input="handleNameInput"
+                    type="text"
+                    placeholder="Enter full name"
+                    :class="[
+                      'w-full px-3 py-2 border rounded-xl text-sm bg-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors',
+                      getFieldError('name') ? 'border-red-500' : 'border-gray-300'
+                    ]"
+                  />
+                  <p v-if="getFieldError('name')" class="mt-1 text-sm text-red-500">{{ getFieldError('name') }}</p>
+                </div>
+
+                <!-- Position Field -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Position</label>
+                  <input
+                    v-model="chairData.position"
+                    @blur="handlePositionBlur"
+                    @input="handlePositionInput"
+                    type="text"
+                    placeholder="position"
+                    :class="[
+                      'w-full px-3 py-2 border rounded-xl text-sm bg-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors',
+                      getFieldError('position') ? 'border-red-500' : 'border-gray-300'
+                    ]"
+                  />
+                  <p v-if="getFieldError('position')" class="mt-1 text-sm text-red-500">{{ getFieldError('position') }}</p>
+                </div>
+
+                <!-- Ministry/Company Field -->
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">Ministry/Company</label>
+                  <input
+                    v-model="chairData.company"
+                    @blur="handleCompanyBlur"
+                    @input="handleCompanyInput"
+                    type="text"
+                    placeholder="position"
+                    :class="[
+                      'w-full px-3 py-2 border rounded-xl text-sm bg-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors',
+                      getFieldError('company') ? 'border-red-500' : 'border-gray-300'
+                    ]"
+                  />
+                  <p v-if="getFieldError('company')" class="mt-1 text-sm text-red-500">{{ getFieldError('company') }}</p>
+                </div>
+              </div>
+
+              <!-- Advanced Options Section (collapsed by default) -->
+              <!-- <div v-if="showAdvanced" class="mt-6 pt-4 border-t border-gray-100">
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Sort Order</label>
+                    <input
+                      v-model="chairData.sort_order"
+                      type="number"
+                      :min="1"
+                      :max="100"
+                      placeholder="Enter sort order (optional)"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    />
+                    <p class="mt-1 text-xs text-gray-500">Order in which chairs will be displayed (1 = first)</p>
+                  </div>
+                </div>
+              </div> -->
+
+              <!-- Advanced Options Toggle -->
+              <!-- <button
+                @click="showAdvanced = !showAdvanced"
+                class="mt-4 text-sm text-blue-600 hover:text-blue-800 transition-colors flex items-center gap-1"
+              >
+                <span>{{ showAdvanced ? 'Hide' : 'Show' }} Advanced Options</span>
+                <svg 
+                  :class="['w-4 h-4 transition-transform', showAdvanced ? 'rotate-180' : '']" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </button> -->
+            </div>
+          </div>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Company/Ministry <span class="text-red-500">*</span></label>
-          <InputText
-            v-model="chairData.company"
-            @blur="handleCompanyBlur"
-            @input="handleCompanyInput"
-            :class="[
-              'w-full p-3 rounded-lg border',
-              getFieldError('company') ? 'border-red-500' : 'border-gray-300'
-            ]"
-            placeholder="Enter company or ministry"
-          />
-          <small v-if="getFieldError('company')" class="text-red-500">{{ getFieldError('company') }}</small>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Sort Order</label>
-          <InputNumber
-            v-model="chairData.sort_order"
-            :class="[
-              'w-full p-3 rounded-lg border border-gray-300'
-            ]"
-            placeholder="Enter sort order (optional)"
-            :min="1"
-            :max="100"
-          />
-          <small class="text-gray-500">Order in which chairs will be displayed (1 = first)</small>
-        </div>
-      </div>
-
-      <!-- Profile Image Upload -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Profile Image</label>
-        <UploadPhoto
-          label="Chair Profile Image (Optional)"
-          :multiple="false"
-          :existing-image-url="getImageSrc()"
-          @file-selected="handleImageSelected"
-          @file-removed="handleImageRemoved"
-          @existing-image-removed="handleImageRemoved"
-        />
-        <!-- Display current image if editing -->
-        <div v-if="(chairData.avatar || chairData.profile_image) && isEdit" class="mt-3">
-          <p class="text-sm text-gray-600 mb-2">Current Image:</p>
-          <img
-            :src="getImageSrc()"
-            alt="Current profile"
-            class="w-20 h-20 rounded-full object-cover border-2 border-gray-200"
-            @error="handleImageError"
-          />
+        <!-- Modal Footer -->
+        <div class="flex justify-end gap-3 px-6 py-4 ">
+          <button
+            @click="closeDialog"
+            class="px-4 py-2 text-sm font-medium text-purple-700 bg-white border border-purple-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            @click="saveChair"
+            :disabled="loading"
+            class="px-4 py-2 text-sm font-medium text-white bg-purple-600 border border-transparent rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+          >
+            <svg v-if="loading" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            {{ isEdit ? 'Update' : 'Add' }}
+          </button>
         </div>
       </div>
     </div>
-
-    <template #footer>
-      <div class="flex justify-end gap-3">
-        <Button label="Cancel" icon="pi pi-times" text @click="closeDialog" />
-        <Button 
-          :label="isEdit ? 'Update Chair' : 'Add Chair'" 
-          icon="pi pi-check" 
-          @click="saveChair"
-          :loading="loading"
-        />
-      </div>
-    </template>
-  </Dialog>
+  </div>
 </template>
-
 <script setup>
 import { ref, watch, onBeforeUnmount } from 'vue'
-import Dialog from 'primevue/dialog'
-import InputText from 'primevue/inputtext'
-import InputNumber from 'primevue/inputnumber'
-import Button from 'primevue/button'
-import UploadPhoto from '~/components/common/UploadPhoto.vue'
 import { useFormValidation } from '~/composables/useFormValidation'
 import { useToast } from 'primevue/usetoast'
 
 const props = defineProps({
-  visible: {
-    type: Boolean,
-    default: false
-  },
-  chair: {
-    type: Object,
-    default: null
-  },
-  isEdit: {
-    type: Boolean,
-    default: false
-  }
+  visible: { type: Boolean, default: false },
+  chair: { type: Object, default: null },
+  isEdit: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['update:visible', 'save'])
 
 const toast = useToast()
 const loading = ref(false)
+const fileInput = ref(null)
+const objectUrls = ref([])
 
-// Form validation
+// ✅ Chair form state
+const chairData = ref({
+  id: null,
+  name: '',
+  position: '',
+  company: '',
+  sort_order: 1,
+  profile_image: null,   // File if new upload
+  avatar: '',            // Preview (object URL or server URL)
+  profile_image_url: null,
+  image_removed: false
+})
+
+// ✅ Validation composable
 const {
   errors,
   clearErrors,
@@ -142,53 +233,38 @@ const {
   validateRequired
 } = useFormValidation()
 
-// Chair data
-const chairData = ref({
-  id: null,
-  name: '',
-  position: '',
-  company: '',
-  sort_order: 1,
-  profile_image: null,
-  avatar: ''
-})
+// ✅ Check if an image is placeholder
+const isPlaceholderImage = (url) => {
+  if (!url || typeof url !== 'string') return true
+  const trimmedUrl = url.trim()
+  if (trimmedUrl === '') return true
+  const lowercaseUrl = trimmedUrl.toLowerCase()
+  return lowercaseUrl === 'null' ||
+         lowercaseUrl === 'undefined' ||
+         lowercaseUrl.includes('default') || 
+         lowercaseUrl.includes('placeholder') || 
+         lowercaseUrl.includes('avatar.png') ||
+         lowercaseUrl.includes('no-image') ||
+         lowercaseUrl.includes('not-found') ||
+         lowercaseUrl.includes('blank') ||
+         lowercaseUrl.includes('empty')
+}
 
-
-
-// Watch for chair prop changes to populate form
+// ✅ Watch for chair prop changes
 watch(() => props.chair, (newChair) => {
   if (newChair && props.isEdit) {
-    // Helper function to check if URL is a placeholder/default image
-    const isPlaceholderImage = (url) => {
-      if (!url || typeof url !== 'string') return true;
-      const trimmedUrl = url.trim();
-      if (trimmedUrl === '') return true;
-      
-      const lowercaseUrl = trimmedUrl.toLowerCase();
-      return lowercaseUrl === 'null' ||
-             lowercaseUrl === 'undefined' ||
-             lowercaseUrl.includes('default') || 
-             lowercaseUrl.includes('placeholder') || 
-             lowercaseUrl.includes('avatar.png') ||
-             lowercaseUrl.includes('no-image') ||
-             lowercaseUrl.includes('not-found') ||
-             lowercaseUrl.includes('blank') ||
-             lowercaseUrl.includes('empty');
-    };     
     chairData.value = {
       id: newChair.id,
       name: newChair.name || '',
       position: newChair.position || '',
       company: newChair.company || '',
       sort_order: newChair.sort_order || 1,
-      // FIXED: Only set profile_image if it's actually a File object
-      profile_image: newChair.profile_image instanceof File ? newChair.profile_image : null,
-      // FIXED: Preserve removal state - if avatar is empty string and profile_image_url is null, keep it that way
-      avatar: newChair.avatar === '' ? '' : (!isPlaceholderImage(newChair.avatar) ? newChair.avatar : (!isPlaceholderImage(newChair.profile_image_url) ? newChair.profile_image_url : '')),
-      profile_image_url: newChair.profile_image_url === null ? null : (!isPlaceholderImage(newChair.profile_image_url) ? newChair.profile_image_url : null)
+      profile_image: null,
+      avatar: !isPlaceholderImage(newChair.profile_image_url) ? newChair.profile_image_url : '',
+      profile_image_url: newChair.profile_image_url,
+      image_removed: false
     }
   } else {
-    // Reset form for new chair
     chairData.value = {
       id: null,
       name: '',
@@ -196,25 +272,24 @@ watch(() => props.chair, (newChair) => {
       company: '',
       sort_order: 1,
       profile_image: null,
-    avatar: '',
-      profile_image_url: null
+      avatar: '',
+      profile_image_url: null,
+      image_removed: false
     }
   }
   clearErrors()
 }, { immediate: true })
 
-// Watch visible prop
+// ✅ Watch visible state
 watch(() => props.visible, (newVisible) => {
-  if (!newVisible) {
-    clearErrors()
-  }
+  if (!newVisible) clearErrors()
 })
 
+// ✅ Validate before save
 const validateChairData = () => {
   clearErrors()
   let isValid = true
 
-  // Validate required fields
   const requiredFields = [
     { field: 'name', value: chairData.value.name, label: 'Name' },
     { field: 'position', value: chairData.value.position, label: 'Position' },
@@ -231,49 +306,35 @@ const validateChairData = () => {
 
   return isValid
 }
-
 const saveChair = async () => {
-  if (!validateChairData()) {
-    toast.add({
-      severity: 'error',
-      summary: 'Validation Error',
-      detail: 'Please fill all required fields.',
-      life: 3000
-    })
-    return
-  }
+  if (!validateChairData()) return
 
   loading.value = true
-  
   try {
-    // Generate ID for new chairs
     if (!props.isEdit || !chairData.value.id) {
       chairData.value.id = Date.now()
     }
 
-    // Validate profile_image is a File object before trying to use it
-    if (chairData.value.profile_image) {
-      if (!(chairData.value.profile_image instanceof File)) {
-        // Clear invalid profile image
-        chairData.value.profile_image = null
-      }
+    // ✅ Build payload
+    const chairToSave = {
+      id: chairData.value.id,
+      name: chairData.value.name,
+      position: chairData.value.position,
+      company: chairData.value.company,
+      sort_order: chairData.value.sort_order,
+      profile_image: chairData.value.profile_image instanceof File ? chairData.value.profile_image : null,
+      image_removed: chairData.value.image_removed
     }
 
-    // Create a clean copy of chair data for emitting
-   const chairToSave = {
-  id: chairData.value.id,
-  name: chairData.value.name,
-  position: chairData.value.position,
-  company: chairData.value.company,
-  sort_order: chairData.value.sort_order,
-  profile_image: chairData.value.profile_image,
-  avatar: chairData.value.avatar,
-  profile_image_url: chairData.value.profile_image_url,
-  image_removed: chairData.value.avatar === '' && !chairData.value.profile_image // 👈 tell API to remove image
-}
-
     emit('save', chairToSave)
-    
+
+    // ✅ If user removed the image, clear preview after save
+    if (chairData.value.image_removed) {
+      chairData.value.profile_image = null
+      chairData.value.avatar = ''
+      chairData.value.profile_image_url = null
+    }
+
     toast.add({
       severity: 'success',
       summary: props.isEdit ? 'Chair Updated' : 'Chair Added',
@@ -281,7 +342,6 @@ const saveChair = async () => {
       life: 3000
     })
 
-    // ✅ Reset only if adding new chair
     if (!props.isEdit) {
       chairData.value = {
         id: null,
@@ -291,251 +351,139 @@ const saveChair = async () => {
         sort_order: 1,
         profile_image: null,
         avatar: '',
-        profile_image_url: null
+        profile_image_url: null,
+        image_removed: false
       }
     }
 
     closeDialog()
   } catch (error) {
     console.error('Error saving chair:', error)
-    toast.add({
-      severity: 'error',
-      summary: 'Save Failed',
-      detail: 'Unable to save chair information. Please check your input and try again.',
-      life: 4000
-    })
+    toast.add({ severity: 'error', summary: 'Save Failed', detail: 'Unable to save chair.', life: 4000 })
   } finally {
     loading.value = false
   }
 }
 
 
-const closeDialog = () => {
-  emit('update:visible', false)
-  clearErrors()
+// ✅ File handling
+const triggerImageUpload = () => {
+  fileInput.value?.click()
 }
 
-// Store object URLs to clean them up later
-const objectUrls = ref([])
-
-// Clean up any existing object URLs
-const cleanupObjectUrls = () => {
-  objectUrls.value.forEach(url => {
-    try {
-      URL.revokeObjectURL(url)
-    } catch (error) {
-      console.warn('Failed to revoke object URL:', url, error)
-    }
-  })
-  objectUrls.value = []
+const handleFileSelect = (event) => {
+  const file = event.target.files[0]
+  handleImageSelected(file)
 }
 
-// Handle image selection
 const handleImageSelected = (file) => {
-  try {
-    // Clean up any existing object URLs first
-    cleanupObjectUrls()
+  cleanupObjectUrls()
 
-    if (!file) {
-      chairData.value.profile_image = null
-      chairData.value.avatar = ''
+  if (!file) {
+    chairData.value.profile_image = null
+    chairData.value.avatar = ''
+    chairData.value.image_removed = false
+    return
+  }
+
+  if (file instanceof File) {
+    const maxSize = 2 * 1024 * 1024
+    if (file.size > maxSize) {
+      toast.add({ severity: 'warn', summary: 'File too large', detail: 'Max size is 2MB', life: 3000 })
       return
     }
 
-    // Validate that we have a proper File object
-    if (file instanceof File) {
-      // Check file size (2MB limit)
-      const maxSize = 2 * 1024 * 1024 // 2MB in bytes
-      if (file.size > maxSize) {
-        toast.add({
-          severity: 'error',
-          summary: 'Image Too Large',
-          detail: `Image size (${(file.size / 1024 / 1024).toFixed(2)}MB) exceeds 2MB limit. Please compress the image.`,
-          life: 5000
-        })
-        return
-      }
-
-      // Check file type
-      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-      if (!allowedTypes.includes(file.type.toLowerCase())) {
-        toast.add({
-          severity: 'error',
-          summary: 'Invalid File Type',
-          detail: 'Only JPEG, PNG, and WebP images are allowed.',
-          life: 5000
-        })
-        return
-      }
-
-      // File is valid, process it
-      chairData.value.profile_image = file
-      // Create and store the object URL
-      const objectUrl = URL.createObjectURL(file)
-      objectUrls.value.push(objectUrl)
-      chairData.value.avatar = objectUrl
-
-      // Show success message with file info
-      toast.add({
-        severity: 'success',
-        summary: 'Image Selected',
-        detail: `Image size: ${(file.size / 1024 / 1024).toFixed(2)}MB`,
-        life: 3000
-      })
-    } else {
-      console.warn('Invalid file object received:', file)
-      chairData.value.profile_image = null
-      chairData.value.avatar = ''
-      
-      toast.add({
-        severity: 'error',
-        summary: 'Invalid File',
-        detail: 'Failed to process the selected file. Please try again.',
-        life: 4000
-      })
+    const allowedTypes = ['image/jpeg','image/jpg','image/png','image/webp']
+    if (!allowedTypes.includes(file.type.toLowerCase())) {
+      toast.add({ severity: 'warn', summary: 'Invalid file', detail: 'Only JPG, PNG, WEBP allowed', life: 3000 })
+      return
     }
-  } catch (error) {
-    console.error('Error handling image selection:', error)
-    chairData.value.profile_image = null
-    chairData.value.avatar = ''
-    
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to process image. Please try again.',
-      life: 4000
-    })
+
+    chairData.value.profile_image = file
+    chairData.value.avatar = URL.createObjectURL(file)
+    objectUrls.value.push(chairData.value.avatar)
+    chairData.value.image_removed = false
   }
 }
 
-// Handle image removal
 const handleImageRemoved = () => {
   cleanupObjectUrls()
   chairData.value.profile_image = null
   chairData.value.avatar = ''
   chairData.value.profile_image_url = null
-  chairData.value.image_removed = true   // 👈 mark removal
-  
-  cleanupObjectUrls()
-  chairData.value.profile_image = null
-  chairData.value.avatar = ''
-  chairData.value.profile_image_url = null
-  
-}
-// Safe image source getter
-const getImageSrc = () => {
-  try {
-    // If we have a profile_image File object and it's valid
-    if (chairData.value.profile_image instanceof File) {
-      const objectUrl = URL.createObjectURL(chairData.value.profile_image)
-      objectUrls.value.push(objectUrl)
-      return objectUrl
-    }
-    
-    // If we have an avatar URL (from existing image)
-    if (chairData.value.avatar) {
-      return chairData.value.avatar
-    }
-
-    // No image
-    return ''
-  } catch (error) {
-    console.error('Error getting image source:', error)
-    return ''
-  }
+  chairData.value.image_removed = true
 }
 
-// Cleanup on dialog close and component unmount
+const getImageSrc = () => chairData.value.avatar || ''
+
+// ✅ Cleanup URLs
+const cleanupObjectUrls = () => {
+  objectUrls.value.forEach(url => URL.revokeObjectURL(url))
+  objectUrls.value = []
+}
+
 onBeforeUnmount(() => {
   cleanupObjectUrls()
 })
 
-// Handle image load errors
+// ✅ Handle image load errors
 const handleImageError = (event) => {
   event.target.style.display = 'none'
 }
 
-// Enhanced input handlers with proper error handling
-const handleNameBlur = () => {
-  try {
-    if (validateField && typeof validateField === 'function') {
-      validateField('name', chairData.value.name, 'required')
-    }
-  } catch (e) {
-    console.error('Name validation error:', e)
-  }
-}
+// ✅ Input handlers
+const handleNameBlur = () => { try { validateField('name', chairData.value.name, 'required') } catch {} }
+const handleNameInput = () => { try { clearFieldError('name') } catch {} }
 
-const handleNameInput = () => {
-  try {
-    if (clearFieldError && typeof clearFieldError === 'function') {
-      clearFieldError('name')
-    }
-  } catch (e) {
-    console.error('Clear name error:', e)
-  }
-}
+const handlePositionBlur = () => { try { validateField('position', chairData.value.position, 'required') } catch {} }
+const handlePositionInput = () => { try { clearFieldError('position') } catch {} }
 
-const handlePositionBlur = () => {
-  try {
-    if (validateField && typeof validateField === 'function') {
-      validateField('position', chairData.value.position, 'required')
-    }
-  } catch (e) {
-    console.error('Position validation error:', e)
-  }
-}
+const handleCompanyBlur = () => { try { validateField('company', chairData.value.company, 'required') } catch {} }
+const handleCompanyInput = () => { try { clearFieldError('company') } catch {} }
 
-const handlePositionInput = () => {
-  try {
-    if (clearFieldError && typeof clearFieldError === 'function') {
-      clearFieldError('position')
-    }
-  } catch (e) {
-    console.error('Clear position error:', e)
-  }
-}
-
-const handleCompanyBlur = () => {
-  try {
-    if (validateField && typeof validateField === 'function') {
-      validateField('company', chairData.value.company, 'required')
-    }
-  } catch (e) {
-    console.error('Company validation error:', e)
-  }
-}
-
-const handleCompanyInput = () => {
-  try {
-    if (clearFieldError && typeof clearFieldError === 'function') {
-      clearFieldError('company')
-    }
-  } catch (e) {
-    console.error('Clear company error:', e)
-  }
+// ✅ Close modal
+const closeDialog = () => {
+  emit('update:visible', false)
 }
 </script>
 
 <style scoped>
-:deep(.p-dialog .p-dialog-header) {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+/* Custom modal animations */
+.modal-enter-active {
+  transition: all 0.3s ease-out;
 }
 
-:deep(.p-dialog .p-dialog-title) {
-  color: white;
-  font-weight: 600;
+.modal-leave-active {
+  transition: all 0.3s cubic-bezier(1, 0.5, 0.8, 1);
 }
 
-:deep(.p-dialog .p-dialog-header-icon) {
-  color: white;
+.modal-enter-from,
+.modal-leave-to {
+  transform: scale(0.9);
+  opacity: 0;
 }
 
-:deep(.p-inputnumber input) {
-  width: 100%;
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-  border: 1px solid #d1d5db;
+/* Focus styles for inputs */
+input:focus {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Button hover animations */
+button {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Loading spinner animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
 }
 </style>

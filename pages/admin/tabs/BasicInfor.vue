@@ -294,7 +294,7 @@
                 </Column>
                 <Column header="Action" class="action-column">
                   <template #body="slotProps">
-                    <div class="flex items-center justify-center gap-2">
+                    <div class="flex items-center justify-start gap-2">
                       <Button icon="pi pi-pencil" text rounded size="small" class="action-btn edit-btn" @click="openChairDialog(slotProps.data, slotProps.index)" title="Edit Chair" />
                       <span class="text-gray-300">|</span>
                       <Button icon="pi pi-trash" text rounded size="small" class="action-btn delete-btn" @click="deleteChair(slotProps.index)" title="Delete Chair" />
