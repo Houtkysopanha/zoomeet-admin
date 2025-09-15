@@ -159,6 +159,41 @@
             <small v-if="getFieldError('organizer')" class="text-red-500">{{ getFieldError('organizer') }}</small>
           </div>
         </div>
+        
+        <!-- Tag Section -->
+        <div class="mt-6">
+          <label class="block text-sm font-medium text-gray-700">Tag</label>
+          <div class="flex items-center gap-2 mt-2">
+            <InputText
+              v-model="currentTag"
+              class="flex-1 p-3 bg-gray-100 rounded-2xl"
+              placeholder="Enter tag"
+              @keyup.enter="addTag"
+            />
+            <Button 
+              label="Add Tag" 
+              class="bg-gray-200 text-gray-700 px-4 py-3 rounded-2xl border-0 hover:bg-gray-300"
+              @click="addTag"
+            />
+          </div>
+          <!-- Display tags -->
+          <div v-if="formData.tags && formData.tags.length > 0" class="flex flex-wrap gap-2 mt-3">
+            <span 
+              v-for="(tag, index) in formData.tags" 
+              :key="index"
+              class="inline-flex items-center gap-1 px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded-full"
+            >
+              <span>#{{ tag }}</span>
+              <button 
+                @click="removeTag(index)"
+                class="ml-1 text-gray-500 hover:text-red-500 focus:outline-none"
+                type="button"
+              >
+                <Icon name="heroicons:x-mark" class="w-4 h-4" />
+              </button>
+            </span>
+          </div>
+        </div>
       </section>
 
       <section class="evenurl-slug">
@@ -241,21 +276,41 @@
         </div>
       </section>
 
+      <!-- Label Title Section -->
       <section class="chair">
-        <div class="flex items-center justify-between mb-5">
-          <div class="flex items-center gap-3">
-            <div class="w-6 h-6 bg-purple-600 rounded-lg flex items-center justify-center">
-            <Icon name="heroicons:megaphone" class="text-sm text-white" />
-            </div>
-            <h2 class="text-lg font-semibold text-purple-700">Chair</h2>
-          </div>
-          <Button @click="openChairDialog()" class="add-chair-btn">
-            <template #default>
-              <i class="pi pi-plus mr-2"></i>
-              <span class="font-medium">Add Chair</span>
-            </template>
-          </Button>
-        </div>
+       <div class="flex items-center justify-between mb-5">
+  <!-- Left Side: Label with icon and edit button -->
+  <div class="flex items-center gap-3">
+    <!-- Icon -->
+    <div class="w-6 h-6 bg-purple-600 rounded flex items-center justify-center">
+      <Icon name="heroicons:tag" class="text-sm text-white" />
+    </div>
+    <span class="text-lg font-semibold text-purple-700">Label Title</span>
+
+    <!-- Label text with edit -->
+    <div class="flex items-center justify-center gap-14 bg-gray-100 rounded-lg px-3 py-1">
+      <h3 class="text-sm">
+        {{ formData.labelTitle }}
+      </h3>
+      <button
+        @click="openLabelDialog"
+        class="text-gray-400 hover:text-purple-600 transition-colors duration-200 "
+        title="Change label title"
+      >
+        <Icon name="heroicons:pencil" class="w-4 h-4" />
+      </button>
+    </div>
+  </div>
+
+  <!-- Right Side: Add button -->
+  <Button @click="openChairDialog()" class="add-chair-btn">
+    <template #default>
+      <i class="pi pi-plus mr-2"></i>
+      <span class="font-medium">Add {{ formData.labelTitle }}</span>
+    </template>
+  </Button>
+</div>
+
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div class="">
             <ClientOnly>
@@ -295,9 +350,9 @@
                 <Column header="Action" class="action-column">
                   <template #body="slotProps">
                     <div class="flex items-center justify-start gap-2">
-                      <Button icon="pi pi-pencil" text rounded size="small" class="action-btn edit-btn" @click="openChairDialog(slotProps.data, slotProps.index)" title="Edit Chair" />
+                      <Button icon="pi pi-pencil" text rounded size="small" class="action-btn edit-btn" @click="openChairDialog(slotProps.data, slotProps.index)" :title="`Edit ${formData.labelTitle}`" />
                       <span class="text-gray-300">|</span>
-                      <Button icon="pi pi-trash" text rounded size="small" class="action-btn delete-btn" @click="deleteChair(slotProps.index)" title="Delete Chair" />
+                      <Button icon="pi pi-trash" text rounded size="small" class="action-btn delete-btn" @click="deleteChair(slotProps.index)" :title="`Delete ${formData.labelTitle}`" />
                     </div>
                   </template>
                 </Column>
@@ -306,11 +361,11 @@
                     <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <i class="pi pi-users text-2xl text-gray-400"></i>
                     </div>
-                    <h3 class="text-lg font-medium text-gray-900 mb-2">No chairs added yet</h3>
-                    <p class="text-gray-500 mb-6">Add your first chair to get started with event management.</p>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">No {{ formData.labelTitle.toLowerCase() }}s added yet</h3>
+                    <p class="text-gray-500 mb-6">Add your first {{ formData.labelTitle.toLowerCase() }} to get started with event management.</p>
                     <Button @click="openChairDialog()" class="add-chair-btn">
                       <i class="pi pi-plus mr-2"></i>
-                      Add First Chair</Button>
+                      Add First {{ formData.labelTitle }}</Button>
                   </div>
                 </template>
                 <template #loading>
@@ -321,7 +376,7 @@
               </DataTable>
               <template #fallback>
                 <div class="flex items-center justify-center py-8">
-                  <div class="text-gray-500">Loading chairs...</div>
+                  <div class="text-gray-500">Loading {{ formData.labelTitle.toLowerCase() }}s...</div>
                 </div>
               </template>
             </ClientOnly>
@@ -373,6 +428,44 @@
     
     <!-- Confirmation Dialog -->
     <ConfirmDialog />
+
+    <!-- Change Label Title Dialog -->
+    <Dialog
+      v-model:visible="showLabelDialog"
+      :style="{ width: '450px' }"
+      header="Change Label Title"
+      :modal="true"
+      :closable="true"
+      class="label-dialog"
+    >
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Label Title
+        </label>
+        <InputText
+          v-model="tempLabelTitle"
+          class="w-full p-3 rounded-2xl bg-gray-100 border-2 border-purple-100 focus:border-gray-100 focus:ring-1 focus:ring-gray-100 focus:ring-opacity-50"
+          placeholder="Enter label title"
+          autofocus
+          @keyup.enter="updateLabelTitle"
+        />
+      </div>
+      
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <Button
+            label="Cancel"
+            class="p-button-text border border-purple-300 text-purple-700 px-4 py-2 rounded-lg hover:bg-purple-50"
+            @click="closeLabelDialog"
+          />
+          <Button
+            label="Update"
+            class="bg-purple-600 text-white px-4 py-2 rounded-lg border-0 hover:bg-purple-700"
+            @click="updateLabelTitle"
+          />
+        </div>
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -398,6 +491,7 @@ import Column from 'primevue/column'
 import Avatar from 'primevue/avatar'
 import ProgressSpinner from 'primevue/progressspinner'
 import ConfirmDialog from 'primevue/confirmdialog'
+import Dialog from 'primevue/dialog'
 
 // Import custom components
 import ChairForm from '~/components/common/ChairForm.vue'
@@ -457,7 +551,9 @@ const formData = reactive({
   eventBackgroundFile: null,
   cardBackgroundFile: null,
   chairs: [],
-  members: []
+  members: [],
+  tags: [],
+  labelTitle: 'Chair'
 })
 
 // UI state
@@ -468,6 +564,9 @@ const showChairDialog = ref(false)
 const editingChair = ref(null)
 const editingChairIndex = ref(-1)
 const isLoadingData = ref(false)
+const currentTag = ref('')
+const showLabelDialog = ref(false)
+const tempLabelTitle = ref('')
 
 // Computed properties
 const isEditMode = computed(() => eventCreationState?.isEditMode?.value || false)
@@ -482,6 +581,11 @@ const generatedUrl = computed(() => {
 onMounted(async () => {
   await loadCategories()
   await loadExistingData()
+  
+  // Initialize with sample tags if no tags are loaded from existing data
+  if (formData.tags.length === 0) {
+    formData.tags = ['Conference', 'Technology']
+  }
   
   // Listen for save events
   window.addEventListener('saveDraft', handleSaveDraft)
@@ -528,7 +632,9 @@ const loadExistingData = async () => {
         onlineLinkMeeting: tabData.onlineLinkMeeting || null,
         eventSlug: tabData.eventSlug || '',
         chairs: tabData.chairs || [],
-        members: tabData.members || []
+        members: tabData.members || [],
+        tags: tabData.tags || [],
+        labelTitle: tabData.labelTitle || 'Chair'
       })
       
       // Initialize or get chairFileObjects Map
@@ -595,7 +701,9 @@ const loadExistingData = async () => {
         onlineLinkMeeting: event.online_link_meeting || null,
         eventSlug: event.event_slug || '',
         chairs: event.chairs || [],
-        members: event.members || []
+        members: event.members || [],
+        tags: event.tags || [],
+        labelTitle: event.label_title || 'Chair'
       })
       
       // Save this data to tabs store for future use
@@ -622,8 +730,7 @@ const loadExistingData = async () => {
             category: event.category_id || null,
             description: event.description || '',
             startDate: event.start_date ? parseLocalDate(event.start_date) : null,
-endDate: event.end_date ? parseLocalDate(event.end_date) : null,
-
+            endDate: event.end_date ? parseLocalDate(event.end_date) : null,
             location: event.location || '',
             mapUrl: event.map_url || '',
             company: event.company || '',
@@ -631,7 +738,9 @@ endDate: event.end_date ? parseLocalDate(event.end_date) : null,
             onlineLinkMeeting: event.online_link_meeting || null,
             eventSlug: event.event_slug || '',
             chairs: event.chairs || [],
-            members: event.members || []
+            members: event.members || [],
+            tags: event.tags || [],
+            labelTitle: event.label_title || 'Chair'
           })
           
           // Save to tabs store
@@ -907,8 +1016,8 @@ const eventData = {
   name: formData.eventName,
   category_id: formData.category,
   description: formData.description,
-start_date: toLocalISOString(formData.startDate),
-end_date: toLocalISOString(formData.endDate),
+  start_date: toLocalISOString(formData.startDate),
+  end_date: toLocalISOString(formData.endDate),
   location: formData.location,
   map_url: formData.mapUrl || null,
   company: formData.company || null,
@@ -916,6 +1025,8 @@ end_date: toLocalISOString(formData.endDate),
   online_link_meeting: formData.onlineLinkMeeting || null,
   chairs: [],
   members: formData.members || [],
+  tags: formData.tags || [],
+  label_title: formData.labelTitle || 'Chair',
   cover_image: formData.coverImageFile || null,
   event_background: formData.eventBackgroundFile || null,
   card_background: formData.cardBackgroundFile || null
@@ -1249,6 +1360,93 @@ eventData.chairs = formData.chairs.map((chair, index) => {
 // Handle update draft (for edit mode)
 const handleUpdateDraft = async () => {
   await handleSaveDraft()
+}
+
+// Tag management functions
+const addTag = () => {
+  const tag = currentTag.value.trim()
+  if (tag && !formData.tags.includes(tag)) {
+    formData.tags.push(tag)
+    currentTag.value = ''
+    
+    // Mark tab as modified and save to tabs store
+    tabsStore.markTabModified(0)
+    tabsStore.saveTabData(0, {
+      ...formData,
+      lastSaved: new Date().toISOString(),
+      hasUnsavedChanges: true
+    })
+    
+    toast.add({
+      severity: 'success',
+      summary: 'Tag Added',
+      detail: `Tag "${tag}" has been added successfully.`,
+      life: 2000
+    })
+  } else if (formData.tags.includes(tag)) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Duplicate Tag',
+      detail: 'This tag already exists.',
+      life: 2000
+    })
+  }
+}
+
+const removeTag = (index) => {
+  const removedTag = formData.tags[index]
+  formData.tags.splice(index, 1)
+  
+  // Mark tab as modified and save to tabs store
+  tabsStore.markTabModified(0)
+  tabsStore.saveTabData(0, {
+    ...formData,
+    lastSaved: new Date().toISOString(),
+    hasUnsavedChanges: true
+  })
+  
+  toast.add({
+    severity: 'info',
+    summary: 'Tag Removed',
+    detail: `Tag "${removedTag}" has been removed.`,
+    life: 2000
+  })
+}
+
+// Label Title management functions
+const openLabelDialog = () => {
+  tempLabelTitle.value = formData.labelTitle
+  showLabelDialog.value = true
+}
+
+const closeLabelDialog = () => {
+  showLabelDialog.value = false
+  tempLabelTitle.value = ''
+}
+
+const updateLabelTitle = () => {
+  const newTitle = tempLabelTitle.value.trim()
+  if (newTitle && newTitle !== formData.labelTitle) {
+    const oldTitle = formData.labelTitle
+    formData.labelTitle = newTitle
+    
+    // Mark tab as modified and save to tabs store
+    tabsStore.markTabModified(0)
+    tabsStore.saveTabData(0, {
+      ...formData,
+      lastSaved: new Date().toISOString(),
+      hasUnsavedChanges: true
+    })
+    
+    toast.add({
+      severity: 'success',
+      summary: 'Label Updated',
+      detail: `Label changed from "${oldTitle}" to "${newTitle}"`,
+      life: 3000
+    })
+  }
+  
+  closeLabelDialog()
 }
 
 // Chair management functions
@@ -1814,4 +2012,26 @@ onBeforeUnmount(() => {
   border: none !important;
 }
 
+/* Label Dialog Styling */
+:deep(.label-dialog .p-dialog) {
+  border-radius: 1rem !important; /* rounded-2xl */
+  border: 2px solid rgb(196 181 253) !important; /* purple-300 */
+  box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.1) !important; /* purple ring */
+}
+
+:deep(.label-dialog .p-dialog-header) {
+  border-radius: 1rem 1rem 0 0 !important;
+  background: linear-gradient(135deg, rgb(249 250 251), rgb(243 244 246)) !important;
+  border-bottom: 1px solid rgb(196 181 253) !important;
+}
+
+:deep(.label-dialog .p-dialog-content) {
+  border-radius: 0 0 1rem 1rem !important;
+}
+
+:deep(.label-dialog .p-dialog-footer) {
+  border-top: 1px solid rgb(229 231 235) !important;
+  background: rgb(249 250 251) !important;
+  border-radius: 0 0 1rem 1rem !important;
+}
 </style>
