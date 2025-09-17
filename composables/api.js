@@ -488,7 +488,7 @@ export async function createEvent(eventData, isDraft = true) {
     })
     
     // Add optional text fields if they have values
-    const optionalFields = ['map_url', 'company', 'organizer', 'online_link_meeting']
+    const optionalFields = ['map_url', 'company', 'organizer', 'online_link_meeting', 'chair_label']
     optionalFields.forEach(key => {
       if (eventData[key] !== null && eventData[key] !== undefined && eventData[key] !== '') {
         const value = eventData[key]?.trim()
@@ -497,6 +497,16 @@ export async function createEvent(eventData, isDraft = true) {
         }
       }
     })
+    
+    // Add tags array if provided
+    if (eventData.tags && Array.isArray(eventData.tags) && eventData.tags.length > 0) {
+      const filteredTags = eventData.tags.filter(tag => tag && tag.trim().length > 0)
+      if (filteredTags.length > 0) {
+        filteredTags.forEach((tag, index) => {
+          formData.append(`tags[${index}]`, tag.trim())
+        })
+      }
+    }
     
     // Handle chairs array - API expects individual FormData fields format
 if (eventData.chairs && Array.isArray(eventData.chairs)) {
@@ -896,6 +906,18 @@ export async function updateEvent(eventId, eventData) {
     }
   }
   break;
+
+              case 'tags':
+                // Handle tags array
+                if (Array.isArray(value) && value.length > 0) {
+                  const filteredTags = value.filter(tag => tag && tag.trim().length > 0);
+                  if (filteredTags.length > 0) {
+                    filteredTags.forEach((tag, index) => {
+                      formData.append(`tags[${index}]`, tag.trim());
+                    });
+                  }
+                }
+                break;
 
               break;
               

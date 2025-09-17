@@ -29,6 +29,8 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       chairs: [],
       chairFileObjects: new Map(), // Store chair file objects separately
       members: [],
+      tags: [],
+      labelTitle: 'Chair',
       lastSaved: null,
       isComplete: false
     },
@@ -150,6 +152,8 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       chairs: [],
       chairFileObjects: existingChairFileObjects || reactive(new Map()), // Preserve existing chairFileObjects
       members: [],
+      tags: [],
+      labelTitle: 'Chair',
       lastSaved: null,
       isComplete: false
     }
@@ -440,6 +444,8 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       })),
       chairFileObjects: tabData.basicInfo?.chairFileObjects || reactive(new Map()), // Preserve existing chairFileObjects
       members: eventData.members || [],
+      tags: eventData.tags ? (Array.isArray(eventData.tags) ? eventData.tags : []) : [],
+      labelTitle: eventData.chair_label || eventData.label_title || 'Chair',
       // Additional metadata for CRUD operations
       eventId: eventData.id,
       isPublished: eventData.is_published || false,

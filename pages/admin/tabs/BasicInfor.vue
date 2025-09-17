@@ -582,11 +582,6 @@ onMounted(async () => {
   await loadCategories()
   await loadExistingData()
   
-  // Initialize with sample tags if no tags are loaded from existing data
-  if (formData.tags.length === 0) {
-    formData.tags = ['Conference', 'Technology']
-  }
-  
   // Listen for save events
   window.addEventListener('saveDraft', handleSaveDraft)
   window.addEventListener('saveCurrentTab', handleSaveCurrentTab)
@@ -702,8 +697,8 @@ const loadExistingData = async () => {
         eventSlug: event.event_slug || '',
         chairs: event.chairs || [],
         members: event.members || [],
-        tags: event.tags || [],
-        labelTitle: event.label_title || 'Chair'
+        tags: event.tags ? (Array.isArray(event.tags) ? event.tags : []) : [],
+        labelTitle: event.chair_label || event.label_title || 'Chair'
       })
       
       // Save this data to tabs store for future use
@@ -739,8 +734,8 @@ const loadExistingData = async () => {
             eventSlug: event.event_slug || '',
             chairs: event.chairs || [],
             members: event.members || [],
-            tags: event.tags || [],
-            labelTitle: event.label_title || 'Chair'
+            tags: event.tags ? (Array.isArray(event.tags) ? event.tags : []) : [],
+            labelTitle: event.chair_label || event.label_title || 'Chair'
           })
           
           // Save to tabs store
@@ -1025,8 +1020,8 @@ const eventData = {
   online_link_meeting: formData.onlineLinkMeeting || null,
   chairs: [],
   members: formData.members || [],
-  tags: formData.tags || [],
-  label_title: formData.labelTitle || 'Chair',
+  tags: formData.tags && formData.tags.length > 0 ? formData.tags : null,
+  chair_label: formData.labelTitle || 'Chair',
   cover_image: formData.coverImageFile || null,
   event_background: formData.eventBackgroundFile || null,
   card_background: formData.cardBackgroundFile || null
