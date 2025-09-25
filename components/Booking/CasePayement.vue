@@ -1,5 +1,5 @@
 <template>
-  <div class="flex h-full bg-gray-50">
+  <div class="flex h-ful">
     <!-- Left Column: Booking List -->
     <div class="flex-1 pr-8 overflow-y-auto">
       <h1 class="text-2xl font-bold text-gray-800">Cash Payment Bookings</h1>

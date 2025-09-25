@@ -79,7 +79,7 @@ export default defineNuxtConfig({
   },
   icon: {
     serverBundle: {
-      collections: ['heroicons', 'mdi', 'ep', 'fluent', 'icon-park-solid'],
+      collections: ['heroicons', 'mdi', 'ep', 'fluent', 'icon-park-solid', 'ic', 'clarity', 'material-symbols-light', 'lets-icons', 'mingcute', 'mynaui', 'bxs', 'lsicon', 'mage', 'majesticons'],
       // Ensure collections are properly resolved
       remote: false
     },

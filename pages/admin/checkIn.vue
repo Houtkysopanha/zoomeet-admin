@@ -17,18 +17,20 @@
       </p>
       <div class="absolute -bottom-8 left-1/2 -translate-x-1/2 z-20 w-full max-w-5xl">
         <div class="flex w-full bg-[#F8F8FF] rounded-xl shadow-lg overflow-hidden">
-          <div class="flex-1 p-5 bg-[#F8F8FF] text-lg border-none rounded-l-xl text-gray-400 cursor-default select-none text-left">
-            Search identity tickets
-          </div>
           <Button
+            class="flex-1 p-5 bg-[#F8F8FF] text-lg border-none rounded-l-xl text-gray-400 hover:text-purple-600 hover:border-1  hover:bg-gray-50 transition-all duration-200 cursor-pointer text-left"
+            @click="performGeneralSearch"
+          >
+            Search identity tickets
+          </Button>
+          <div
             v-if="!showSearchForm"
             label="Search"
-            class="bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white py-3 px-6 rounded-r-xl hover:from-purple-700 hover:to-fuchsia-700 transition-all duration-200 flex items-center gap-2 text-lg font-semibold shadow-md"
-            @click="performGeneralSearch"
+            class="bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white py-3 px-6 rounded-r-xl transition-all duration-200 flex items-center gap-2 text-lg font-semibold shadow-md"
           >
             <Icon name="heroicons:magnifying-glass" class="w-5 h-5" />
             Search
-          </Button>
+          </div>
         </div>
       </div>
     </div>

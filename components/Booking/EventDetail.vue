@@ -119,11 +119,7 @@
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- Fixed Payment Summary, Method, and Button -->
-      <div class="bg-white ">
-        <!-- Payment Summary -->
+         <!-- Payment Summary -->
         <div class="mb-6">
           <h3 class="text-lg font-semibold text-gray-800 mb-4">Payment Summary</h3>
           <div class="space-y-3 text-gray-700">
@@ -164,6 +160,11 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Fixed Payment Summary, Method, and Button -->
+      <div class="bg-white ">
+
 
         <!-- Footer Button -->
         <Button

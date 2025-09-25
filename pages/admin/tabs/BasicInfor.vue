@@ -125,7 +125,7 @@
                 v-model="formData.mapUrl"
                 :class="[
                   'w-full p-3 mt-1 bg-gray-100 rounded-2xl',
-                  getFieldError('map_url') ? 'border-red-500 border-2' : ''
+                  getFieldError('map_url') ? '' : ''
                 ]"
                 placeholder="https://maps.google.com/... (optional)"
               />
@@ -518,6 +518,23 @@ const eventStore = useEventStore()
 const tabsStore = useEventTabsStore()
 const { getToken } = useAuth()
 
+// Toast deduplication helper
+const showUniqueToast = (toastConfig) => {
+  // Remove any existing toasts with the same key or similar content
+  const existingToasts = document.querySelectorAll('.p-toast-message');
+  existingToasts.forEach(toastEl => {
+    const summaryEl = toastEl.querySelector('.p-toast-summary');
+    if (summaryEl && summaryEl.textContent === toastConfig.summary) {
+      toastEl.remove();
+    }
+  });
+
+  // Add the new toast after a small delay
+  setTimeout(() => {
+    toast.add(toastConfig);
+  }, 50);
+};
+
 // Form validation
 const {
   errors,
@@ -676,6 +693,10 @@ const loadExistingData = async () => {
         chairFileObjects
       });
       
+      // Re-validate form after loading data
+      await nextTick()
+      revalidateForm()
+      
       return
     }
     
@@ -708,6 +729,10 @@ const loadExistingData = async () => {
         isComplete: true,
         lastSaved: new Date().toISOString()
       })
+      
+      // Re-validate form after loading data
+      await nextTick()
+      revalidateForm()
       
       return
     }
@@ -745,6 +770,10 @@ const loadExistingData = async () => {
             isComplete: true,
             lastSaved: new Date().toISOString()
           })
+          
+          // Re-validate form after loading data
+          await nextTick()
+          revalidateForm()
           
         }
       } catch (error) {
@@ -868,7 +897,19 @@ const handleSaveCurrentTab = async (event) => {
 }
 
 // Enhanced save draft function with better error handling and update support
+let saveDraftTimeout = null;
 const handleSaveDraft = async () => {
+  // Debounce to prevent multiple simultaneous calls
+  if (saveDraftTimeout) {
+    clearTimeout(saveDraftTimeout);
+  }
+  
+  saveDraftTimeout = setTimeout(async () => {
+    await performSaveDraft();
+  }, 100);
+};
+
+const performSaveDraft = async () => {
   if (isSubmitting.value) return
   
   isSubmitting.value = true
@@ -879,14 +920,14 @@ const handleSaveDraft = async () => {
     
     // Validate required fields (added Company and Organizer as required)
     const requiredFields = [
-      { field: 'eventName', label: 'Event Name' },
-      { field: 'category', label: 'Category' },
-      { field: 'description', label: 'Description' },
-      { field: 'startDate', label: 'Start Date' },
-      { field: 'endDate', label: 'End Date' },
-      { field: 'location', label: 'Location' },
-      { field: 'company', label: 'Company' },
-      { field: 'organizer', label: 'Organizer' }
+      { field: 'eventName', apiField: 'name', label: 'Event Name' },
+      { field: 'category', apiField: 'category_id', label: 'Category' },
+      { field: 'description', apiField: 'description', label: 'Description' },
+      { field: 'startDate', apiField: 'start_date', label: 'Start Date' },
+      { field: 'endDate', apiField: 'end_date', label: 'End Date' },
+      { field: 'location', apiField: 'location', label: 'Location' },
+      { field: 'company', apiField: 'company', label: 'Company' },
+      { field: 'organizer', apiField: 'organizer', label: 'Organizer' }
     ]
     
     const missingFields = requiredFields.filter(({ field }) => {
@@ -904,28 +945,39 @@ const handleSaveDraft = async () => {
     
     
     if (missingFields.length > 0) {
-      // Set field-specific errors
-      missingFields.forEach(({ field, label }) => {
-        setFieldError(field, `${label} is required`);
+      // Set field-specific errors using the correct field names for UI
+      missingFields.forEach(({ field, apiField, label }) => {
+        // Use apiField for UI error display (matches getFieldError calls in template)
+        setFieldError(apiField, `${label} is required`);
       });
 
-      // Show a single toast with clear guidance
+      // Clear any existing toasts first to prevent duplicates
+      const existingToasts = document.querySelectorAll('.p-toast-message');
+      existingToasts.forEach(toast => {
+        if (toast.textContent?.includes('Required Fields Missing') || 
+            toast.textContent?.includes('Required Field Missing')) {
+          toast.remove();
+        }
+      });
+
+      // Show a single toast with clear guidance using the helper
       if (missingFields.length === 1) {
-        toast.add({
+        showUniqueToast({
           severity: 'warn',
           summary: 'Required Field Missing',
           detail: `Please fill in the ${missingFields[0].label.toLowerCase()} field to continue.`,
-          life: 3000
+          life: 4000
         });
       } else {
         const fieldCount = missingFields.length;
-        toast.add({
+        showUniqueToast({
           severity: 'warn',
           summary: 'Required Fields Missing',
           detail: `Please fill in all ${fieldCount} required fields to continue.`,
-          life: 3000
+          life: 4000
         });
       }
+      
       return;
     }
     
@@ -1131,6 +1183,9 @@ eventData.chairs = formData.chairs.map((chair, index) => {
     if (result && result.success !== false && (result.id || result.data?.id)) {
       // Handle both direct response and wrapped response
       const eventData = result.data || result
+      
+      // Clear form validation errors after successful save
+      clearErrors()
       
       // Update local state
       const updatedEvent = {
@@ -1349,6 +1404,7 @@ eventData.chairs = formData.chairs.map((chair, index) => {
     })
   } finally {
     isSubmitting.value = false
+    saveDraftTimeout = null
   }
 }
 
@@ -1372,13 +1428,9 @@ const addTag = () => {
       hasUnsavedChanges: true
     })
     
-    toast.add({
-      severity: 'success',
-      summary: 'Tag Added',
-      detail: `Tag "${tag}" has been added successfully.`,
-      life: 2000
-    })
+    // Removed toast - silent operation for better UX
   } else if (formData.tags.includes(tag)) {
+    // Only show toast for duplicate tags (important feedback)
     toast.add({
       severity: 'warn',
       summary: 'Duplicate Tag',
@@ -1400,12 +1452,7 @@ const removeTag = (index) => {
     hasUnsavedChanges: true
   })
   
-  toast.add({
-    severity: 'info',
-    summary: 'Tag Removed',
-    detail: `Tag "${removedTag}" has been removed.`,
-    life: 2000
-  })
+  // Removed toast - silent operation for better UX
 }
 
 // Label Title management functions
@@ -1433,12 +1480,7 @@ const updateLabelTitle = () => {
       hasUnsavedChanges: true
     })
     
-    toast.add({
-      severity: 'success',
-      summary: 'Label Updated',
-      detail: `Label changed from "${oldTitle}" to "${newTitle}"`,
-      life: 3000
-    })
+    // Removed toast - silent operation for better UX
   }
   
   closeLabelDialog()
@@ -1534,12 +1576,8 @@ const handleChairSaved = (chairData) => {
   editingChair.value = null;
   editingChairIndex.value = -1;
 
-  toast.add({
-    severity: 'success',
-    summary: isEdit ? 'Chair Updated' : 'Chair Added',
-    detail: `${processed.name} has been ${isEdit ? 'updated' : 'added'} successfully.`,
-    life: 3000
-  });
+  // Removed toast - silent operation for better UX
+  // User can see the chair was added/updated in the table
 };
 
 
@@ -1905,19 +1943,9 @@ const generateSlug = () => {
       const randomNoun = nouns[Math.floor(Math.random() * nouns.length)]
       newSlug = `${randomAdjective}-${randomNoun}-${numbers}`
       
-      toast.add({ 
-        severity: 'info', 
-        summary: 'Slug Generated', 
-        detail: 'Generated random slug (original name contains special characters)', 
-        life: 3000 
-      })
+      // Removed toast - slug generation is visible in the URL field
     } else {
-      toast.add({ 
-        severity: 'success', 
-        summary: 'Slug Generated', 
-        detail: 'Slug generated from event name!', 
-        life: 3000 
-      })
+      // Removed toast - slug generation is visible in the URL field
     }
     
     formData.eventSlug = newSlug
@@ -1943,7 +1971,7 @@ const copyUrl = async () => {
 
 const openUrl = () => {
   window.open(generatedUrl.value, '_blank')
-  toast.add({ severity: 'info', summary: 'Opening URL', detail: 'Opening URL in new tab', life: 3000 })
+  // Removed toast - opening URL is self-evident to user
 }
 
 // Watch for form changes to mark tab as modified and save changes
@@ -1958,6 +1986,66 @@ watch(formData, () => {
     hasUnsavedChanges: true
   })
 }, { deep: true })
+
+// Real-time validation for required fields (silent - no toast alerts)
+const validateRequiredField = (fieldName, apiFieldName, value, showToast = false) => {
+  if (!value || (typeof value === 'string' && value.trim() === '') || 
+      (Array.isArray(value) && value.length === 0) || 
+      value === null || value === undefined) {
+    setFieldError(apiFieldName, `${fieldName} is required`)
+  } else {
+    clearFieldError(apiFieldName)
+  }
+}
+
+// Re-validate entire form (used after data loading) - silent validation
+const revalidateForm = () => {
+  // Clear all errors first
+  clearErrors()
+  
+  // Validate all required fields silently (no toast alerts)
+  validateRequiredField('Event Name', 'name', formData.eventName, false)
+  validateRequiredField('Category', 'category_id', formData.category, false)
+  validateRequiredField('Event Description', 'description', formData.description, false)
+  validateRequiredField('Start Date', 'start_date', formData.startDate, false)
+  validateRequiredField('End Date', 'end_date', formData.endDate, false)
+  validateRequiredField('Location', 'location', formData.location, false)
+  validateRequiredField('Company', 'company', formData.company, false)
+  validateRequiredField('Organizer', 'organizer', formData.organizer, false)
+}
+
+// Watch required fields for real-time validation (silent - no toast alerts)
+watch(() => formData.eventName, (newValue) => {
+  validateRequiredField('Event Name', 'name', newValue, false)
+})
+
+watch(() => formData.category, (newValue) => {
+  validateRequiredField('Category', 'category_id', newValue, false)
+})
+
+watch(() => formData.description, (newValue) => {
+  validateRequiredField('Event Description', 'description', newValue, false)
+})
+
+watch(() => formData.startDate, (newValue) => {
+  validateRequiredField('Start Date', 'start_date', newValue, false)
+})
+
+watch(() => formData.endDate, (newValue) => {
+  validateRequiredField('End Date', 'end_date', newValue, false)
+})
+
+watch(() => formData.location, (newValue) => {
+  validateRequiredField('Location', 'location', newValue, false)
+})
+
+watch(() => formData.company, (newValue) => {
+  validateRequiredField('Company', 'company', newValue, false)
+})
+
+watch(() => formData.organizer, (newValue) => {
+  validateRequiredField('Organizer', 'organizer', newValue, false)
+})
 
 // Watch for event name changes to suggest slug with debouncing
 let slugGenerationTimeout = null
