@@ -59,36 +59,84 @@
       <!-- Content Area (Scrollable) -->
       <div class="flex-1 overflow-y-auto mt-6">
         <div v-if="activeDetailTab === 'ticket'">
+          <!-- Loading State for Tickets -->
+          <div v-if="ticketsLoading" class="flex justify-center items-center py-8">
+            <div class="text-center">
+              <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mb-2"></div>
+              <p class="text-gray-600 text-sm">Loading ticket types...</p>
+            </div>
+          </div>
+
+          <!-- Error State for Tickets -->
+          <div v-else-if="ticketsError" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <div class="flex items-center">
+              <Icon name="heroicons:exclamation-triangle" class="w-5 h-5 text-red-600 mr-2" />
+              <div>
+                <h4 class="text-red-800 font-medium text-sm">Failed to load ticket types</h4>
+                <p class="text-red-600 text-xs mt-1">{{ ticketsError }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- No Tickets Available -->
+          <div v-else-if="tickets.length === 0" class="text-center py-8">
+            <Icon name="heroicons:ticket" class="w-12 h-12 text-gray-400 mx-auto mb-3" />
+            <h3 class="text-lg font-medium text-gray-900 mb-1">No Tickets Available</h3>
+            <p class="text-gray-600 text-sm">This event doesn't have any ticket types configured yet.</p>
+          </div>
+
           <!-- Ticket Selection -->
-          <div class="space-y-4 mb-8">
-            <div v-for="ticket in tickets" :key="ticket.type" class="bg-white rounded-xl shadow-md p-4 relative">
+          <div v-else class="space-y-4 mb-8">
+            <div v-for="ticket in tickets" :key="ticket.id" class="bg-white rounded-xl shadow-md p-4 relative">
+              <!-- Dynamic Ticket Type Badge -->
               <div
                 :class="[
                   'absolute top-0 left-0 px-3 py-2 rounded-lg text-xs font-semibold text-white',
-                  ticket.type === 'Premium' ? 'bg-gradient-to-r from-[#FFA100] to-[#FFCA61]' : ticket.type === 'Executive' ? 'bg-gradient-to-r from-[#8E2DE2] to-[#FF6B81]' : 'bg-gradient-to-r from-[#8E2DE2] to-[#FF6B81]',
+                  getTicketTypeBadgeColor(ticket.type)
                 ]"
               >
                 {{ ticket.type }}
               </div>
+            
               <div class="pt-6">
-                <p class="text-gray-700 mb-2">{{ ticket.description }}</p>
+                <!-- Ticket Description -->
+                <p class="text-gray-700 mb-3 text-sm leading-relaxed">
+                  {{ ticket.description || 'No description available' }}
+                </p>
                 <div class="flex items-center justify-between">
-                  <span class="text-2xl font-bold" :class="[
-                    ticket.type === 'Premium' ? 'bg-custom-gradient bg-clip-text text-transparent' : ticket.type === 'Executive' ? 'bg-custom-gradient bg-clip-text text-transparent' : 'bg-custom-gradient bg-clip-text text-transparent',
-                  ]">{{ ticket.price }}$</span>
-                  <div class="flex items-center space-x-2">
+                  <!-- Price Display -->
+                  <div class="flex flex-col">
+                    <span class="text-2xl font-bold text-purple-600">
+                      ${{ formatPrice(ticket.price) }}
+                    </span>
+                  </div>
+                  
+                  <!-- Quantity Controls -->
+                  <div class="flex items-center space-x-3">
                     <Button
                       icon="pi pi-minus"
-                      class="!w-6 !h-6 !min-w-0 !min-h-0 !p-0 text-gray-600 border border-blue-300 hover:bg-gray-100"
-                      @click="updateQuantity(ticket.type, -1)"
-                      :disabled="ticket.quantity === 0"
+                      class="!w-8 !h-8 !min-w-0 !min-h-0 !p-0 text-gray-600 border border-gray-300 hover:bg-gray-50 hover:border-purple-300 transition-colors duration-200"
+                      @click="updateQuantity(ticket.id, -1)"
+                      :disabled="ticket.quantity === 0 || !isTicketAvailable(ticket)"
                     />
-                    <span class="text-lg font-medium text-gray-800 w-6 text-center">{{ ticket.quantity }}</span>
+                    <span class="text-lg font-semibold text-gray-800 w-8 text-center bg-gray-50 py-1 rounded">
+                      {{ ticket.quantity }}
+                    </span>
                     <Button
                       icon="pi pi-plus"
-                      class="!w-6 !h-6 !min-w-0 !min-h-0 !p-0 text-gray-600 border border-blue-300 hover:bg-gray-100"
-                      @click="updateQuantity(ticket.type, 1)"
+                      class="!w-8 !h-8 !min-w-0 !min-h-0 !p-0 text-white bg-purple-600 border border-purple-600 hover:bg-purple-700 transition-colors duration-200"
+                      @click="updateQuantity(ticket.id, 1)"
+                      :disabled="!canAddTicket(ticket)"
                     />
+                  </div>
+                </div>
+
+                <!-- Sold out or inactive indicator -->
+                <div v-if="!isTicketAvailable(ticket)" class="mt-3 p-2 bg-red-50 border border-red-200 rounded-lg">
+                  <div class="flex items-center text-red-700 text-sm">
+                    <Icon name="heroicons:exclamation-triangle" class="w-4 h-4 mr-2" />
+                    <span v-if="!ticket.is_active">This ticket type is currently inactive</span>
+                    <span v-else>This ticket type is currently sold out</span>
                   </div>
                 </div>
               </div>
@@ -176,102 +224,230 @@
     </div>
   </Sidebar>
 </template>
-
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import Sidebar from 'primevue/sidebar'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import RadioButton from 'primevue/radiobutton'
 
+// Import API function
+import { getEventTicketTypes } from '~/composables/api'  // adjust path if needed
+
 const props = defineProps({
-  visible: {
-    type: Boolean,
-    required: true,
-  },
-  selectedEvent: {
-    type: Object,
-    default: null,
-  },
+  visible: { type: Boolean, required: true },
+  selectedEvent: { type: Object, default: null },
 })
 
 const emit = defineEmits(['update:visible', 'complete-booking'])
 
-// Use a computed property to handle v-model for `visible` prop
+// v-model handling for sidebar
 const visible = computed({
   get: () => props.visible,
   set: (value) => emit('update:visible', value),
 })
 
-const activeDetailTab = ref('ticket') // 'ticket' or 'breakout'
+const activeDetailTab = ref('ticket')
 
-const tickets = ref([
-  { type: 'Premium', description: 'Front Seat, Free Drink, Coffee Break', price: 25, quantity: 1 },
-  { type: 'Executive', description: 'Front Seat, Free Drink, Coffee Break', price: 15, quantity: 0 },
-  { type: 'Normal', description: 'Front Seat, Free Drink, Coffee Break', price: 10, quantity: 0 },
-])
+// Tickets from API
+const tickets = ref([])
+const ticketsLoading = ref(false)
+const ticketsError = ref('')
 
-const breakoutRooms = ref([
-  {
-    id: 1,
-    title: 'AI in Cybersecurity',
-    time: '10:00 AM - 10:40 AM GMT+7',
-    speaker: 'Dr. Sarah Chen',
-    joinedPeople: 25,
-    roomNumber: 'Room 110',
-  },
-  {
-    id: 2,
-    title: 'Blockchain Defence Strategies',
-    time: '10:00 AM - 10:40 AM GMT+7',
-    speaker: 'Dr. Sarah Chen',
-    joinedPeople: 25,
-    roomNumber: 'Room 120',
-  },
-  {
-    id: 3,
-    title: 'Blockchain Technology Branding Strategies',
-    time: '10:00 AM - 10:40 AM GMT+7',
-    speaker: 'Dr. Sarah Chen',
-    joinedPeople: 25,
-    roomNumber: 'Room 100',
-  },
-])
+// Organizers from API
+const organizers = ref([])
 
-const voucherCode = ref('')
-const appliedVoucher = ref(false)
-const discountRate = ref(0) // 0% initially
-const taxRate = ref(0.05) // 5% tax
-
-const paymentMethod = ref('khqr') // Default to KHQR Payment
-
-const updateQuantity = (type, change) => {
-  const ticket = tickets.value.find((t) => t.type === type)
-  if (ticket) {
-    ticket.quantity = Math.max(0, ticket.quantity + change)
+// Helper function to get ticket type badge color
+const getTicketTypeBadgeColor = (ticketType) => {
+  const type = ticketType?.toLowerCase() || ''
+  
+  if (type.includes('premium') || type.includes('vip')) {
+    return 'bg-gradient-to-r from-[#FFA100] to-[#FFCA61]'
+  } else if (type.includes('executive') || type.includes('business')) {
+    return 'bg-gradient-to-r from-[#8E2DE2] to-[#FF6B81]'
+  } else if (type.includes('standard') || type.includes('regular')) {
+    return 'bg-gradient-to-r from-[#4F46E5] to-[#7C3AED]'
+  } else if (type.includes('early') || type.includes('bird')) {
+    return 'bg-gradient-to-r from-[#059669] to-[#10B981]'
+  } else {
+    return 'bg-gradient-to-r from-[#6B7280] to-[#9CA3AF]'
   }
 }
 
-const subtotal = computed(() => {
-  return tickets.value.reduce((sum, ticket) => sum + ticket.price * ticket.quantity, 0)
-})
+// Helper function to format price
+const formatPrice = (price) => {
+  return Number(price).toFixed(2)
+}
 
-const discount = computed(() => {
-  return subtotal.value * discountRate.value
-})
+// Helper function to calculate available tickets
+const getAvailability = (ticket) => {
+  if (!ticket.inventory) return 0
+  // Calculate available = total - sold (reserved can be negative)
+  return Math.max(0, ticket.inventory.total - ticket.inventory.sold)
+}
 
-const tax = computed(() => {
-  return (subtotal.value - discount.value) * taxRate.value
-})
+// Check if ticket is available for purchase
+const isTicketAvailable = (ticket) => {
+  if (!ticket.is_active) return false
+  return getAvailability(ticket) > 0
+}
 
-const total = computed(() => {
-  return subtotal.value - discount.value + tax.value
-})
+// Check if we can add more of this ticket type
+const canAddTicket = (ticket) => {
+  if (!isTicketAvailable(ticket)) return false
+  
+  // Check if adding one more would exceed available inventory
+  const available = getAvailability(ticket)
+  return (ticket.quantity + 1) <= available
+}
+
+// Breakout rooms (this could be fetched from API as well)
+const breakoutRooms = ref([
+  {
+    id: 1,
+    title: 'Tech Innovation Workshop',
+    time: '10:00 AM - 11:30 AM',
+    speaker: 'Dr. Sarah Chen',
+    joinedPeople: 25,
+    roomNumber: 'Room A'
+  },
+  {
+    id: 2,
+    title: 'Digital Marketing Strategies',
+    time: '2:00 PM - 3:30 PM', 
+    speaker: 'Mark Johnson',
+    joinedPeople: 18,
+    roomNumber: 'Room B'
+  }
+])
+
+// Watch event and fetch tickets when sidebar opens
+watch(
+  () => props.selectedEvent,
+  async (newEvent) => {
+    console.log('🔍 EventDetail received event:', newEvent);
+    
+    if (newEvent?.id) {
+      console.log('🎯 Loading tickets for event ID:', newEvent.id);
+      
+      ticketsLoading.value = true
+      ticketsError.value = ''
+      
+      try {
+        const res = await getEventTicketTypes(newEvent.id)
+        console.log('🎟 API Response:', res); // 🔍 log to see shape
+
+        // Handle the correct API response format
+        let ticketList = []
+        if (res?.success && res?.data?.ticket_types && Array.isArray(res.data.ticket_types)) {
+          // New API format: { success: true, data: { ticket_types: [...] } }
+          ticketList = res.data.ticket_types
+        } else if (Array.isArray(res)) {
+          // Fallback: Direct array
+          ticketList = res
+        } else if (res?.data && Array.isArray(res.data)) {
+          // Fallback: { data: [...] }
+          ticketList = res.data
+        } else if (res?.ticketTypes && Array.isArray(res.ticketTypes)) {
+          // Fallback: { ticketTypes: [...] }
+          ticketList = res.ticketTypes
+        } else {
+          console.warn('⚠️ Unexpected API response format:', res)
+          ticketList = []
+        }
+
+        console.log('📋 Processing ticket list:', ticketList);
+
+        // Extract organizers if available
+        if (res?.success && res?.data?.organizers && Array.isArray(res.data.organizers)) {
+          organizers.value = res.data.organizers
+          console.log('👥 Found organizers:', organizers.value)
+        } else {
+          organizers.value = []
+        }
+
+        tickets.value = ticketList.map((ticket) => ({
+          id: ticket.id,
+          event_id: ticket.event_id,
+          type: ticket.name || ticket.type || 'Standard',
+          description: ticket.tag || ticket.description || 'No description available',
+          price: Number(ticket.price) || 0,
+          quantity: 0,
+          is_active: ticket.is_active,
+          sort_order: ticket.sort_order,
+          breakout_room_ids: ticket.breakout_room_ids,
+          // Enhanced inventory information from the new API format
+          inventory: ticket.inventory ? {
+            id: ticket.inventory.id,
+            ticket_type_id: ticket.inventory.ticket_type_id,
+            total: ticket.inventory.total,
+            available: ticket.inventory.total - ticket.inventory.sold, // Calculate available
+            reserved: ticket.inventory.reserved,
+            sold: ticket.inventory.sold,
+            created_at: ticket.inventory.created_at,
+            updated_at: ticket.inventory.updated_at
+          } : null,
+          // Keep original ticket data for reference
+          _original: ticket
+        }))
+        
+        console.log('✅ Processed tickets:', tickets.value);
+      } catch (err) {
+        console.error('❌ Failed to load tickets:', err)
+        ticketsError.value = err.message || 'Failed to load ticket types'
+        tickets.value = [] // Clear tickets on error
+        organizers.value = [] // Clear organizers on error
+      } finally {
+        ticketsLoading.value = false
+      }
+    } else {
+      console.log('⚠️ No event ID provided, clearing tickets');
+      tickets.value = []
+      organizers.value = []
+      ticketsError.value = ''
+      ticketsLoading.value = false
+    }
+  },
+  { immediate: true }
+)
+
+
+const updateQuantity = (ticketId, change) => {
+  const ticket = tickets.value.find((t) => t.id === ticketId)
+  if (ticket) {
+    const newQuantity = ticket.quantity + change
+    
+    // Ensure we don't go below 0
+    if (newQuantity < 0) return
+    
+    // Check availability for increase
+    if (change > 0 && !canAddTicket(ticket)) {
+      console.warn('Cannot add more tickets - exceeds available inventory')
+      return
+    }
+    
+    ticket.quantity = newQuantity
+    console.log(`Updated ${ticket.type} quantity to ${ticket.quantity}`)
+  }
+}
+
+// Payment logic
+const voucherCode = ref('')
+const appliedVoucher = ref(false)
+const discountRate = ref(0)
+const taxRate = ref(0)
+const paymentMethod = ref('khqr')
+
+const subtotal = computed(() =>
+  tickets.value.reduce((sum, t) => sum + t.price * t.quantity, 0)
+)
+const discount = computed(() => subtotal.value * discountRate.value)
+const tax = computed(() => (subtotal.value - discount.value) * taxRate.value)
+const total = computed(() => subtotal.value - discount.value + tax.value)
 
 const applyVoucher = () => {
-  // Simple voucher logic for demonstration
   if (voucherCode.value.toLowerCase() === 'v0discount') {
-    discountRate.value = 0.10 // 10% discount
+    discountRate.value = 0.1
     appliedVoucher.value = true
   } else {
     discountRate.value = 0
@@ -282,28 +458,20 @@ const applyVoucher = () => {
 const handleCompleteBooking = () => {
   const bookingDetails = {
     event: props.selectedEvent,
-    tickets: tickets.value.filter(t => t.quantity > 0),
-    customerInfo: {
-      fullName: 'Seang Sovanpunhavuth', // Placeholder from UI
-      phoneNumber: '+855 12 345 678', // Placeholder from UI
-      email: 'customer@example.com' // Placeholder
-    },
+    tickets: tickets.value.filter((t) => t.quantity > 0),
     paymentSummary: {
       subtotal: subtotal.value,
       discount: discount.value,
       tax: tax.value,
       total: total.value,
       voucherCode: voucherCode.value,
-      appliedVoucher: appliedVoucher.value
+      appliedVoucher: appliedVoucher.value,
     },
     paymentMethod: paymentMethod.value,
   }
   emit('complete-booking', bookingDetails)
-  // Optionally close sidebar after booking
-  // visible.value = false;
 }
 </script>
-
 <style scoped>
 /* Custom gradient for text */
 

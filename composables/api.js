@@ -2962,3 +2962,169 @@ export async function assignTicket(assignmentId, formData) {
     throw new Error(userMessage)
   }
 }
+
+// Fetch orders with pagination and filters
+export async function fetchOrders(params = {}) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+
+    // Build query parameters
+    const queryParams = new URLSearchParams()
+    
+    // Default pagination
+    queryParams.append('per_page', params.per_page || '10')
+    queryParams.append('page', params.page || '1')
+    
+    // Optional filters
+    if (params.event_id) queryParams.append('event_id', params.event_id)
+    if (params.status) queryParams.append('status', params.status)
+    if (params.search) queryParams.append('search', params.search)
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/orders?${queryParams.toString()}`, {
+      method: 'GET',
+      headers
+    })
+
+    // Ensure consistent response structure
+    if (response && response.success) {
+      return {
+        success: true,
+        data: response.data || [],
+        pagination: response.pagination || null,
+        links: response.links || null,
+        meta: response.meta || null,
+        message: response.message || 'Orders retrieved successfully'
+      }
+    } else {
+      return {
+        success: false,
+        data: [],
+        message: 'No orders found'
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Failed to fetch orders:', error)
+    
+    // Handle authentication errors
+    if (error.status === 401) {
+      handleAuthRedirect()
+      throw new Error('Authentication required. Please log in again.')
+    }
+    
+    if (error.status === 403) {
+      throw new Error('You do not have permission to access orders.')
+    }
+    
+    // Handle not found
+    if (error.status === 404) {
+      return {
+        success: false,
+        data: [],
+        message: 'No orders found matching your criteria.'
+      }
+    }
+    
+    // Don't expose technical details to users
+    let userMessage = 'Failed to load orders. Please try again.'
+    if (error.status >= 500) {
+      userMessage = 'Server error. Please try again later.'
+    }
+    
+    throw new Error(userMessage)
+  }
+}
+
+// Update order status (for completing cash payments)
+export async function updateOrderStatus(orderId, status, paymentMethod = null) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!orderId) {
+    throw new Error('Order ID is required')
+  }
+
+  if (!status) {
+    throw new Error('Status is required')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+
+    const requestBody = {
+      status: status
+    }
+
+    if (paymentMethod) {
+      requestBody.payment_method = paymentMethod
+    }
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/orders/${orderId}/status`, {
+      method: 'PUT',
+      body: requestBody,
+      headers
+    })
+
+    return {
+      success: true,
+      data: response.data || response,
+      message: response.message || 'Order status updated successfully'
+    }
+
+  } catch (error) {
+    console.error('❌ Failed to update order status:', error)
+    
+    // Handle authentication errors
+    if (error.status === 401) {
+      handleAuthRedirect()
+      throw new Error('Authentication required. Please log in again.')
+    }
+    
+    if (error.status === 403) {
+      throw new Error('You do not have permission to update this order.')
+    }
+    
+    // Handle validation errors
+    if (error.status === 422) {
+      let errorMessage = 'Invalid status data. Please try again.'
+      
+      if (error.data?.errors) {
+        const validationErrors = []
+        Object.entries(error.data.errors).forEach(([field, messages]) => {
+          if (Array.isArray(messages)) {
+            validationErrors.push(`${field}: ${messages.join(', ')}`)
+          } else {
+            validationErrors.push(`${field}: ${messages}`)
+          }
+        })
+        errorMessage = `Validation failed:\n${validationErrors.join('\n')}`
+      } else if (error.data?.message) {
+        errorMessage = error.data.message
+      }
+      
+      throw new Error(errorMessage)
+    }
+    
+    // Handle not found
+    if (error.status === 404) {
+      throw new Error('Order not found.')
+    }
+    
+    // Don't expose technical details to users
+    let userMessage = 'Failed to update order status. Please try again.'
+    if (error.status >= 500) {
+      userMessage = 'Server error. Please try again later.'
+    }
+    
+    throw new Error(userMessage)
+  }
+}

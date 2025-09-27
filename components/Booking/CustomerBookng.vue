@@ -408,8 +408,26 @@ const loadEvents = async () => {
 };
 
 // Load events when component mounts
-onMounted(() => {
-  loadEvents();
+onMounted(async () => {
+  await loadEvents();
+  
+  // Check if there's an eventId in the URL and auto-select that event
+  if (process.client) {
+    const route = useRoute();
+    const eventId = route.query.eventId;
+    
+    if (eventId && events.value.length > 0) {
+      // Find the event with matching ID
+      const eventToSelect = events.value.find(event => 
+        event._originalData.id === eventId
+      );
+      
+      if (eventToSelect) {
+        console.log('🔗 Auto-selecting event from URL:', eventToSelect);
+        selectEvent(eventToSelect);
+      }
+    }
+  }
 });
 
 // Computed property for filtered events
@@ -428,15 +446,74 @@ const selectedEvent = ref(null);
 
 // Methods
 const selectEvent = (event) => {
-  selectedEvent.value = event;
+  // Pass the original API data which contains the proper ID and all fields
+  const eventForDetail = {
+    id: event._originalData.id,
+    title: event.title,
+    date: event.date,
+    time: event.time,
+    location: event.location,
+    image: event.image,
+    // Include any other fields that EventDetail might need
+    name: event._originalData.name,
+    event_slug: event._originalData.event_slug,
+    start_date: event._originalData.start_date,
+    end_date: event._originalData.end_date,
+    ...event._originalData // Include all original data
+  };
+  
+  selectedEvent.value = eventForDetail;
   visible.value = true;
+  
+  console.log('🎯 Selected event for detail:', eventForDetail);
+  
+  // Update URL to include event ID for proper ticket loading
+  if (process.client && event._originalData.id) {
+    const router = useRouter();
+    const route = useRoute();
+    
+    // Update the URL query parameter to include the event ID
+    router.replace({
+      ...route,
+      query: {
+        ...route.query,
+        eventId: event._originalData.id
+      }
+    });
+  }
 };
 
 const handleBookNowClick = (event) => {
   // You can add further logic here, e.g., navigate to a booking page
   // or open a booking form modal.
   visible.value = false; // Close the sidebar after clicking book now
+  clearEventFromUrl();
 };
+
+// Clear event ID from URL when sidebar is closed
+const clearEventFromUrl = () => {
+  if (process.client) {
+    const router = useRouter();
+    const route = useRoute();
+    
+    // Remove the eventId from query parameters
+    const newQuery = { ...route.query };
+    delete newQuery.eventId;
+    
+    router.replace({
+      ...route,
+      query: newQuery
+    });
+  }
+};
+
+// Watch for sidebar visibility changes
+watch(visible, (newVisible) => {
+  if (!newVisible) {
+    // Clear URL when sidebar is closed
+    clearEventFromUrl();
+  }
+});
 </script>
 
 <style scoped>
