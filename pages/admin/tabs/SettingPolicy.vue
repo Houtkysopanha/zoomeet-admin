@@ -151,7 +151,7 @@
             </label>
           </div>
 
-          <div v-if="settings.registrationDeadline">
+          <div v-if="settings.requireRegistrationBeforeCheckin">
             <label class="block text-sm font-medium text-gray-700 mb-2"
               >Registration Deadline</label
             >
@@ -197,7 +197,7 @@
         <div>
           <label class="block font-medium text-gray-700 mb-2"
             >Require Identity Document
-            <span class="text-red-600">(Can be tick only1)</span></label
+            <span class="text-gray-500">(Select multiple if needed)</span></label
           >
           <div class="grid grid-cols-2 gap-2">
             <div
@@ -247,7 +247,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted, inject } from "vue";
+import { ref, reactive, computed, watch, onMounted, onUnmounted, inject } from "vue";
 import Calendar from "primevue/calendar";
 import Dropdown from "primevue/dropdown";
 import Textarea from "primevue/textarea";
@@ -286,10 +286,11 @@ const settings = ref({
   termsAndConditions: "",
   specialInstructions: "",
   acceptCashPayment: false,
+  requireRegistrationBeforeCheckin: false,
   requireAgeVerification: false,
   minimumAgeOptions: null,
-  requiredIdentityDocuments: [],
-  provideSpecialAssistance: [],
+  requiredIdentityDocuments: reactive([]),
+  provideSpecialAssistance: reactive([]),
 });
 
 const refundPolicyOptions = ref(["Refund", "Not Refund"]);
@@ -318,10 +319,10 @@ const identityDocumentOptions = ref([
 ]);
 
 const provideSpecialAssistance = ref([
-  { label: "Wheel Chair", value: "wheelchai" },
+  { label: "Wheel Chair", value: "wheelchair" },
   { label: "Pregnancy", value: "pregnancy" },
   { label: "Family With Kids", value: "family_with_kids" },
-  { label: "Disability", value: "disabiliy" },
+  { label: "Disability", value: "disability" },
 ]);
 
 // State management
@@ -381,47 +382,50 @@ const loadSettingsFromAPI = async () => {
         }
       };
 
-      // Map API data to component format
+      // Debug: Log the arrays received from API
+      console.log("🔍 Received arrays from API:", {
+        required_identity_document: apiData.required_identity_document,
+        provide_special_assistance: apiData.provide_special_assistance
+      });
+
+      // Map API data to component formatp
       settings.value = {
-        registrationDeadline: parseAPIDate(apiData.registration_dateline),
-        refundPolicyOption:
-          apiData.refund_policy_id === 1
-            ? "Refund"
-            : apiData.refund_policy_id === 2
-            ? "Not Refund"
-            : null,
-        maxTicketPerPerson: apiData.max_ticket_per_person || 5,
-        ticketTransferDeadline: parseAPIDate(apiData.ticket_transfer_deadline),
-        qrcodeAvailableHours: (() => {
-          const hours = apiData.qrcode_available_hours || 48;
-          if (hours === 24) return "24 hours before event starts";
-          if (hours === 48) return "48 hours before event starts";
-          if (hours === 72) return "72 hours before event starts";
-          return "Custom QR code available";
-        })(),
-        customQrcodeHours: apiData.qrcode_available_hours || 168,
-        termsAndConditions: apiData.terms_and_condition || "",
-        specialInstructions: apiData.special_instructions || "",
-        acceptCashPayment: Number(apiData.accept_cash_payment) === 1,
-        requireAgeVerification:
-          Number(apiData.is_required_age_verification) === 1,
-        minimumAgeOptions:
-          Number(apiData.is_required_age_verification) === 1 &&
-          apiData.maximum_age
-            ? `${apiData.maximum_age} years old`
-            : null,
-        requiredIdentityDocuments: Array.isArray(
-          apiData.required_identity_document
-        )
-          ? apiData.required_identity_document
-          : apiData.required_identity_document
-          ? typeof apiData.required_identity_document === "string"
-            ? apiData.required_identity_document
-                .split(",")
-                .filter((doc) => doc.trim() !== "")
-            : []
-          : [],
-      };
+  registrationDeadline: parseAPIDate(apiData.registration_dateline),
+  refundPolicyOption:
+    apiData.refund_policy_id === 1
+      ? "Refund"
+      : apiData.refund_policy_id === 2
+      ? "Not Refund"
+      : null,
+  maxTicketPerPerson: apiData.max_ticket_per_person || 5,
+  ticketTransferDeadline: parseAPIDate(apiData.ticket_transfer_deadline),
+  qrcodeAvailableHours: (() => {
+    const hours = apiData.qrcode_available_hours ?? 48;
+    if (hours === 24) return "24 hours before event starts";
+    if (hours === 48) return "48 hours before event starts";
+    if (hours === 72) return "72 hours before event starts";
+    return "Custom QR code available";
+  })(),
+  customQrcodeHours: apiData.qrcode_available_hours ?? 168,
+  termsAndConditions: apiData.terms_and_condition || "",
+  specialInstructions: apiData.special_instructions || "",
+  acceptCashPayment: Boolean(apiData.is_accept_cash_payment),
+  requireRegistrationBeforeCheckin: Boolean(
+    apiData.is_required_registration_before_checkin
+  ),
+  requireAgeVerification: Boolean(apiData.is_required_age_verification), // ✅ fixed here
+  minimumAgeOptions:
+    apiData.is_required_age_verification && apiData.maximum_age
+      ? `${apiData.maximum_age} years old`
+      : null,
+  requiredIdentityDocuments: reactive(Array.isArray(apiData.required_identity_document)
+    ? apiData.required_identity_document
+    : (apiData.required_identity_document ? [apiData.required_identity_document] : [])),
+  provideSpecialAssistance: reactive(Array.isArray(apiData.provide_special_assistance)
+    ? apiData.provide_special_assistance
+    : (apiData.provide_special_assistance ? [apiData.provide_special_assistance] : [])),
+};
+
     }
   } catch (error) {
     console.error("❌ Failed to load settings from API:", error);
@@ -512,7 +516,10 @@ const saveSettingsToAPI = async () => {
       })(),
       terms_and_condition: settings.value.termsAndConditions || "",
       special_instructions: settings.value.specialInstructions || "",
-      accept_cash_payment: settings.value.acceptCashPayment ? 1 : 0,
+      is_accept_cash_payment: settings.value.acceptCashPayment,
+      is_required_registration_before_checkin: settings.value.requireRegistrationBeforeCheckin
+        ? 1
+        : 0,
       is_required_age_verification: settings.value.requireAgeVerification
         ? 1
         : 0,
@@ -523,12 +530,25 @@ const saveSettingsToAPI = async () => {
           ? parseInt(settings.value.minimumAgeOptions.replace(/\D/g, "")) ||
             null
           : null,
-      required_identity_document:
-        Array.isArray(settings.value.requiredIdentityDocuments) &&
-        settings.value.requiredIdentityDocuments.length > 0
-          ? settings.value.requiredIdentityDocuments
-          : [],
+      required_identity_document: Array.isArray(settings.value.requiredIdentityDocuments) 
+        ? settings.value.requiredIdentityDocuments.filter(doc => doc && doc.trim() !== '') 
+        : [],
+      provide_special_assistance: Array.isArray(settings.value.provideSpecialAssistance) 
+        ? settings.value.provideSpecialAssistance.filter(assistance => assistance && assistance.trim() !== '') 
+        : [],
     };
+
+    // Debug: Log the complete payload being sent to API
+    console.log("🔍 Complete API payload:", apiData);
+    console.log("🔍 Boolean fields:", {
+      is_accept_cash_payment: apiData.is_accept_cash_payment,
+      is_required_registration_before_checkin: apiData.is_required_registration_before_checkin,
+      is_required_age_verification: apiData.is_required_age_verification
+    });
+    console.log("🔍 Array fields:", {
+      required_identity_document: apiData.required_identity_document,
+      provide_special_assistance: apiData.provide_special_assistance
+    });
 
     const response = await saveEventSettings(currentEventId.value, apiData);
 
@@ -539,6 +559,12 @@ const saveSettingsToAPI = async () => {
       // Also save to localStorage for persistence
       const settingsData = {
         ...settings.value,
+        requiredIdentityDocuments: Array.isArray(settings.value.requiredIdentityDocuments) 
+          ? [...settings.value.requiredIdentityDocuments] 
+          : [],
+        provideSpecialAssistance: Array.isArray(settings.value.provideSpecialAssistance) 
+          ? [...settings.value.provideSpecialAssistance] 
+          : [],
         savedAt: new Date().toISOString(),
       };
       localStorage.setItem("settingsPolicyData", JSON.stringify(settingsData));
@@ -585,9 +611,15 @@ const handleSaveCurrentTab = (event) => {
     termsAndConditions: settings.value.termsAndConditions,
     specialInstructions: settings.value.specialInstructions,
     acceptCashPayment: settings.value.acceptCashPayment,
+    requireRegistrationBeforeCheckin: settings.value.requireRegistrationBeforeCheckin,
     requireAgeVerification: settings.value.requireAgeVerification,
     minimumAgeOptions: settings.value.minimumAgeOptions,
-    requiredIdentityDocuments: settings.value.requiredIdentityDocuments,
+    requiredIdentityDocuments: Array.isArray(settings.value.requiredIdentityDocuments) 
+      ? [...settings.value.requiredIdentityDocuments] 
+      : [],
+    provideSpecialAssistance: Array.isArray(settings.value.provideSpecialAssistance) 
+      ? [...settings.value.provideSpecialAssistance] 
+      : [],
     lastSaved: new Date().toISOString(),
     hasSettings: areSettingsComplete.value,
     eventId: currentEventId.value,
@@ -617,9 +649,15 @@ watch(
         termsAndConditions: settings.value.termsAndConditions,
         specialInstructions: settings.value.specialInstructions,
         acceptCashPayment: settings.value.acceptCashPayment,
+        requireRegistrationBeforeCheckin: settings.value.requireRegistrationBeforeCheckin,
         requireAgeVerification: settings.value.requireAgeVerification,
         minimumAgeOptions: settings.value.minimumAgeOptions,
-        requiredIdentityDocuments: settings.value.requiredIdentityDocuments,
+        requiredIdentityDocuments: Array.isArray(settings.value.requiredIdentityDocuments) 
+          ? [...settings.value.requiredIdentityDocuments] 
+          : [],
+        provideSpecialAssistance: Array.isArray(settings.value.provideSpecialAssistance) 
+          ? [...settings.value.provideSpecialAssistance] 
+          : [],
         lastSaved: new Date().toISOString(),
         hasSettings: areSettingsComplete.value,
         eventId: currentEventId.value,
@@ -701,9 +739,11 @@ watch(
           termsAndConditions: tabData.termsAndConditions || "",
           specialInstructions: tabData.specialInstructions || "",
           acceptCashPayment: tabData.acceptCashPayment || false,
+          requireRegistrationBeforeCheckin: tabData.requireRegistrationBeforeCheckin || false,
           requireAgeVerification: tabData.requireAgeVerification || false,
           minimumAgeOptions: tabData.minimumAgeOptions || null,
           requiredIdentityDocuments: tabData.requiredIdentityDocuments || [],
+          provideSpecialAssistance: tabData.provideSpecialAssistance || [],
         };
       }
     }
@@ -748,15 +788,21 @@ onMounted(async () => {
         termsAndConditions: settingsData.termsAndConditions || "",
         specialInstructions: settingsData.specialInstructions || "",
         acceptCashPayment: settingsData.acceptCashPayment || false,
+        requireRegistrationBeforeCheckin: settingsData.requireRegistrationBeforeCheckin || false,
         requireAgeVerification: settingsData.requireAgeVerification || false,
         minimumAgeOptions: settingsData.requireAgeVerification
           ? settingsData.minimumAgeOptions
           : null,
-        requiredIdentityDocuments: Array.isArray(
+        requiredIdentityDocuments: reactive(Array.isArray(
           settingsData.requiredIdentityDocuments
         )
           ? settingsData.requiredIdentityDocuments
-          : [],
+          : []),
+        provideSpecialAssistance: reactive(Array.isArray(
+          settingsData.provideSpecialAssistance
+        )
+          ? settingsData.provideSpecialAssistance
+          : []),
       };
     } catch (error) {
       console.error("Failed to load saved settings from localStorage:", error);

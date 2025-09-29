@@ -2135,10 +2135,12 @@ export async function getEventSettings(eventId) {
           ticket_transfer_deadline: null,
           terms_and_condition: '',
           special_instructions: '',
-          accept_cash_payment: 0,
+          is_accept_cash_payment: 0,
+          is_required_registration_before_checkin: 0,
           is_required_age_verification: 0,
           maximum_age: null,
-          required_identity_document: null
+          required_identity_document: [],
+          provide_special_assistance: []
         }
       }
     }
@@ -2175,30 +2177,50 @@ const normalizedData = {
   ticket_transfer_deadline: settingsData.ticket_transfer_deadline || null,
   terms_and_condition: settingsData.terms_and_condition || settingsData.termsAndConditions || '',
   special_instructions: settingsData.special_instructions || settingsData.specialInstructions || '',
+  is_accept_cash_payment: settingsData.is_accept_cash_payment !== undefined ? 
+    (settingsData.is_accept_cash_payment ? 1 : 0) : 
+    (settingsData.acceptCashPayment ? 1 : 0),
+  is_required_registration_before_checkin: settingsData.is_required_registration_before_checkin !== undefined ? 
+    (settingsData.is_required_registration_before_checkin ? 1 : 0) : 
+    (settingsData.requireRegistrationBeforeCheckin ? 1 : 0),
   is_required_age_verification: settingsData.is_required_age_verification !== undefined ? 
     (settingsData.is_required_age_verification ? 1 : 0) : 
     (settingsData.requireAgeVerification ? 1 : 0),
   maximum_age: settingsData.maximum_age || (settingsData.minimumAge ? parseInt(settingsData.minimumAge.replace(/\D/g, '')) : null)
 }
 
-// ✅ Fix required_identity_document handling here
+// ✅ Fix required_identity_document handling here - send as array
 if (Array.isArray(settingsData.required_identity_document)) {
   normalizedData.required_identity_document = settingsData.required_identity_document
     .filter(doc => ['driver_license', 'national_id_card', 'passport', 'student_card'].includes(doc))
-    .join(',')
 } else if (Array.isArray(settingsData.requiredIdentityDocuments)) {
   normalizedData.required_identity_document = settingsData.requiredIdentityDocuments
     .filter(doc => ['driver_license', 'national_id_card', 'passport', 'student_card'].includes(doc))
-    .join(',')
-} else if (typeof settingsData.required_identity_document === 'string') {
+} else if (typeof settingsData.required_identity_document === 'string' && settingsData.required_identity_document.trim()) {
+  // Handle comma-separated string input
   normalizedData.required_identity_document = settingsData.required_identity_document
+    .split(',')
+    .map(doc => doc.trim())
+    .filter(doc => ['driver_license', 'national_id_card', 'passport', 'student_card'].includes(doc))
 } else {
-  normalizedData.required_identity_document = ''
+  normalizedData.required_identity_document = []
 }
 
-// Remove field if empty string
-if (!normalizedData.required_identity_document) {
-  delete normalizedData.required_identity_document
+// ✅ Fix provide_special_assistance handling here - send as array
+if (Array.isArray(settingsData.provide_special_assistance)) {
+  normalizedData.provide_special_assistance = settingsData.provide_special_assistance
+    .filter(assistance => ['wheelchair', 'pregnancy', 'family_with_kids', 'disability'].includes(assistance))
+} else if (Array.isArray(settingsData.provideSpecialAssistance)) {
+  normalizedData.provide_special_assistance = settingsData.provideSpecialAssistance
+    .filter(assistance => ['wheelchair', 'pregnancy', 'family_with_kids', 'disability'].includes(assistance))
+} else if (typeof settingsData.provide_special_assistance === 'string' && settingsData.provide_special_assistance.trim()) {
+  // Handle comma-separated string input
+  normalizedData.provide_special_assistance = settingsData.provide_special_assistance
+    .split(',')
+    .map(assistance => assistance.trim())
+    .filter(assistance => ['wheelchair', 'pregnancy', 'family_with_kids', 'disability'].includes(assistance))
+} else {
+  normalizedData.provide_special_assistance = []
 }
 
     // Ensure maximum_age is null when age verification is disabled
