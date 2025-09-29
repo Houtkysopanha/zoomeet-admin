@@ -4,52 +4,110 @@
     <div class="w-full">
       <!-- Customer Information -->
       <div class="bg-white rounded-2xl p-6 mb-8">
-        <h2 class="text-xl font-semibold text-gray-800 mb-1">
+        <div class="flex justify-between items-center">
+          <div class="header">
+            <h2 class="text-xl font-semibold text-gray-800 mb-1">
           Customer Information
         </h2>
-        <p class="text-gray-500 mb-6">Enter customer detail for booking</p>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div class="grid-cols-1">
-            <label class="block text-sm font-medium text-gray-700 mb-2"
-              >Full Name</label
-            >
-            <InputText
-              v-model="customerInfo.fullName"
-              placeholder="ZM2025001"
-              class="w-full p-3 rounded-lg bg-gray-100"
-            />
+        <p class="text-gray-500 mb-3">Enter customer detail for booking</p>
+        
           </div>
-          <div class="grid-cols-1">
-            <label class="block text-sm font-medium text-gray-700 mb-2"
-              >Phone Number</label
-            >
-            <div class="flex">
-              <!-- Prefix section -->
-              <div class="flex items-center px-3 bg-gray-100 rounded-l-lg">
+          <div class=" button-save">
+             <Button class="bg-purple-700 text-white rounded-full p-2 px-8 mx-auto">
+              <Icon name="mingcute:save-fill" class="w-5 mr-2 h-5" />
+              Save
+              </Button>
+          </div>
+        </div>
+        <!-- Tab-like headers -->
+        <div class="flex border-b border-gray-200 mb-6">
+          <button 
+            @click="activeTab = 'phone'"
+            :class="[
+              'flex-1 px-4 py-2 font-medium transition-all duration-200',
+              activeTab === 'phone' 
+                ? 'text-purple-600 border-b-2 border-purple-600' 
+                : 'text-gray-500 hover:text-gray-700'
+            ]"
+          >
+            Phone Number
+          </button>
+          <button 
+            @click="activeTab = 'email'"
+            :class="[
+              'flex-1 px-4 py-2 font-medium transition-all duration-200',
+              activeTab === 'email' 
+                ? 'text-purple-600 border-b-2 border-purple-600' 
+                : 'text-gray-500 hover:text-gray-700'
+            ]"
+          >
+            Email
+          </button>
+        </div>
+
+        <!-- Phone Number Tab Content -->
+        <div v-if="activeTab === 'phone'" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Phone Number Input -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Phone Number
+            </label>
+            <div class="flex border border-gray-200 rounded-lg overflow-hidden bg-white">
+              <!-- Country Flag and Code -->
+              <div class="flex items-center px-3 py-3 bg-white border-r border-gray-200">
                 <img
                   :src="flat"
                   alt="Cambodia"
-                  class="w-8 h-8 mr-2 rounded-sm"
+                  class="w-5 h-5 mr-2"
                 />
-                <span class="text-gray-600 border-l-2 px-1 border-gray-600"
-                  >+855</span
-                >
+                <span class="text-gray-700 text-sm font-medium">+855</span>
               </div>
-              <!-- Input section -->
+              <!-- Phone Input -->
               <InputText
                 v-model="customerInfo.phoneNumber"
-                class="flex-1 p-3 bg-gray-100 rounded-lg !rounded-l-none"
+                placeholder=""
+                class="flex-1 p-3 border-0 focus:ring-0 bg-white"
               />
             </div>
           </div>
-          <div class="grid-cols-1">
-            <label class="block text-sm font-medium text-gray-700 mb-2"
-              >Email</label
-            >
+
+          <!-- Full Name Input -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Full Name
+            </label>
+            <InputText
+              v-model="customerInfo.fullName"
+              placeholder="Full name"
+              class="w-full p-3 border border-gray-200 rounded-lg bg-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+            />
+          </div>
+        </div>
+
+        <!-- Email Tab Content -->
+        <div v-else-if="activeTab === 'email'" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Email Input -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Email
+            </label>
             <InputText
               v-model="customerInfo.email"
-              placeholder="Email"
-              class="w-full p-3 rounded-lg bg-gray-100"
+              placeholder="Email address"
+              type="email"
+              class="w-full p-3 border border-gray-200 rounded-lg bg-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+            />
+          </div>
+
+          <!-- Full Name Input -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Full Name
+            </label>
+            <InputText
+              v-model="customerInfo.fullName"
+              placeholder="Full name"
+              class="w-full p-3 border border-gray-200 rounded-lg bg-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
             />
           </div>
         </div>
@@ -307,10 +365,13 @@ import flat from "@/assets/image/cambodia.png";
 
 // Customer information
 const customerInfo = ref({
-  fullName: "ZM2025001",
+  fullName: "",
   phoneNumber: "",
   email: "",
 });
+
+// Active tab state
+const activeTab = ref('phone');
 
 // Search functionality
 const searchQuery = ref("");
@@ -519,7 +580,17 @@ watch(visible, (newVisible) => {
 <style scoped>
 /* PrimeVue component overrides for consistent styling */
 :deep(.p-inputtext) {
-  @apply focus:ring-0 focus:ring-purple-500 focus:border-purple-500;
+  @apply focus:ring-1 focus:ring-purple-500 focus:border-purple-500 bg-white;
+}
+/* Remove border and focus styles for phone input */
+:deep(.p-inputtext.border-0) {
+  border: none !important;
+  box-shadow: none !important;
+}
+:deep(.p-inputtext.border-0:focus) {
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
 }
 /* Ensure input text next to flag is not rounded on left */
 :deep(.p-inputtext.\!rounded-l-none) {

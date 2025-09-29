@@ -104,7 +104,16 @@
     </div>
     <div class="payment-method">
       <p class="text-sm text-gray-500">Ticket Types</p>
-      <span class="font-medium text-gray-800">{{ order.customer_ticket_type || 'N/A' }}</span>
+      <div class="flex flex-wrap gap-2">
+        <span 
+          v-for="(item, index) in order.items" 
+          :key="item.id"
+          class="px-3 py-1 rounded-full text-xs font-medium"
+          :class="getTicketTypeColor(index)"
+        >
+          {{ item.name }}
+        </span>
+      </div>
     </div>
   </div>
   <div class="border-b border-gray-300 my-4"></div>
@@ -224,14 +233,32 @@
 
         <!-- Order Summary -->
         <div class="space-y-3 mb-6">
-          <div class="bg-gray-100 rounded-2xl p-3 text-gray-700">
-            <div class="flex justify-between items-center">
-              <div class="space-x-3">
-                <span class="text-sm p-1 text-black bg-white rounded-full">01</span>
-                <span class="text-sm">{{ selectedOrder.event?.name || 'Event Tickets' }}</span>
+          <div v-if="selectedOrder.items && selectedOrder.items.length > 0" class="space-y-2">
+            <div 
+              v-for="(item, index) in selectedOrder.items" 
+              :key="item.id" 
+              class="bg-gray-100 rounded-2xl p-3 text-gray-700"
+            >
+              <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                  <span class="text-sm p-1 text-black bg-white rounded-full min-w-[24px] text-center">
+                    {{ String(index + 1).padStart(2, '0') }}
+                  </span>
+                  <span class="text-sm font-medium text-gray-800">{{ item.name }}</span>
+                </div>
+                <span class="font-medium">{{ item.quantity || 1 }}</span>
+                <span class="font-medium">${{ (item.price || 0).toFixed(2) }}</span>
               </div>
-              <span class="font-medium">{{ selectedOrder.ticket_count }} tickets</span>
-              <span class="font-medium">${{ selectedOrder.total_amount.toFixed(2) }}</span>
+            </div>
+          </div>
+          <div v-else class="bg-gray-100 rounded-2xl p-3 text-gray-700">
+            <div class="flex justify-between items-center">
+              <div class="flex items-center space-x-3">
+                <span class="text-sm p-1 text-black bg-white rounded-full">01</span>
+                <span class="text-sm">Event Tickets</span>
+              </div>
+              <span class="font-medium">{{ selectedOrder.ticket_count || 0 }}</span>
+              <span class="font-medium">${{ (selectedOrder.total_amount || 0).toFixed(2) }}</span>
             </div>
           </div>
         </div>
@@ -240,24 +267,24 @@
         <div class="space-y-3 bg-gray-100 p-3 rounded-xl text-gray-700 mb-6">
           <div class="flex justify-between">
             <span>Subtotal</span>
-            <span class="font-medium">${{ selectedOrder.total_amount.toFixed(2) }}</span>
+            <span class="font-medium">${{ calculateSubtotal(selectedOrder).toFixed(2) }}</span>
           </div>
           <div class="flex justify-between">
-            <span>Tax</span>
-            <span class="font-medium">${{ selectedOrder.tax || '0' }}</span>
+            <span>Tax {{ selectedOrder.tax_rate ? `${selectedOrder.tax_rate}%` : '0%' }}</span>
+            <span class="font-medium">${{ (selectedOrder.tax_amount || 0).toFixed(2) }}</span>
           </div>
           <div class="flex justify-between">
             <span>Voucher</span>
-            <span class="font-medium">${{ selectedOrder.promotio || '0' }}</span>
+            <span class="font-medium">${{ (selectedOrder.voucher_amount || selectedOrder.promotion_amount || 0).toFixed(2) }}</span>
           </div>
-          <div class="flex justify-between pt-4 pb-10 border-t border-dashed border-gray-300 text-lg font-sermibold text-gray-800">
+          <div class="flex justify-between pt-4 pb-10 border-t border-dashed border-gray-300 text-lg font-semibold text-gray-800">
             <span>Total Amount</span>
-            <span>${{ selectedOrder.total_amount.toFixed(2) }}</span>
+            <span>${{ (selectedOrder.total_amount || 0).toFixed(2) }}</span>
           </div>
 
-          <div class="flex justify-between pt-4 border-t border-dashed border-gray-300 text-lg font-sermibold text-gray-800">
-            <span>Recived</span>
-            <span>${{ selectedOrder.total_amount.toFixed(2) }}</span>
+          <div class="flex justify-between pt-4 border-t border-dashed border-gray-300 text-lg font-semibold text-gray-800">
+            <span>Received</span>
+            <span>${{ (selectedOrder.total_amount || 0).toFixed(2) }}</span>
           </div>
         </div>
       </div>
@@ -470,6 +497,48 @@ const formatPaymentMethod = (method) => {
   }
 }
 
+// Format ticket types for display
+const formatTicketTypes = (items) => {
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return 'N/A'
+  }
+  
+  return items.map(item => item.name).join(', ')
+}
+
+// Get ticket type color - simple rotating colors like in the photo
+const getTicketTypeColor = (index) => {
+  const colors = [
+    'bg-purple-50 text-purple-800',  // Purple like "Premium" in photo
+    'bg-blue-50 text-blue-800',     // Blue like "Executive" in photo  
+    'bg-gray-50 text-gray-800'      // Gray like "Normal" in photo
+  ]
+  
+  return colors[index % colors.length]
+}
+
+// Calculate subtotal from items
+const calculateSubtotal = (order) => {
+  if (!order) return 0
+  
+  // If we have individual items with prices and quantities
+  if (order.items && Array.isArray(order.items) && order.items.length > 0) {
+    return order.items.reduce((total, item) => {
+      const price = parseFloat(item.price || 0)
+      const quantity = parseInt(item.quantity || 1)
+      return total + (price * quantity)
+    }, 0)
+  }
+  
+  // Fallback: calculate from total_amount minus tax and plus voucher
+  const total = parseFloat(order.total_amount || 0)
+  const tax = parseFloat(order.tax_amount || 0) 
+  const voucher = parseFloat(order.voucher_amount || order.promotion_amount || 0)
+  
+  // Subtotal = Total - Tax + Voucher (since voucher reduces the total)
+  return Math.max(0, total - tax + voucher)
+}
+
 // Toggle expand booking details
 const toggleExpand = (orderId) => {
   expandedBookings.value[orderId] = !expandedBookings.value[orderId]
@@ -504,10 +573,14 @@ const processPayment = async (status, method) => {
   try {
     processingOrder.value = selectedOrder.value.id
     
+    // Prepare items data for API call
+    const items = selectedOrder.value.items || []
+    
     const response = await updateOrderStatus(
       selectedOrder.value.id, 
       status, 
-      method
+      method,
+      items
     )
 
     if (response.success) {

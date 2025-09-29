@@ -1066,7 +1066,8 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
       name: String(ticketData.name || '').trim(),
       price: parseFloat(ticketData.price || 0),
       total: parseInt(ticketData.total || ticketData.quantity || 0),
-      tag: String(ticketData.tag || ticketData.description || '').trim()
+      tag: String(ticketData.tag || ticketData.description || '').trim(),
+      is_active: ticketData.is_active !== undefined ? (ticketData.is_active ? 1 : 0) : 1
     }
 
     // Validate required fields
@@ -3064,7 +3065,7 @@ export async function fetchOrders(params = {}) {
 }
 
 // Update order status (for completing cash payments)
-export async function updateOrderStatus(orderId, status, paymentMethod = null) {
+export async function updateOrderStatus(orderId, status, paymentMethod = null, ticketTypes = null) {
   const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
 
@@ -3088,6 +3089,10 @@ export async function updateOrderStatus(orderId, status, paymentMethod = null) {
 
     if (paymentMethod) {
       requestBody.payment_method = paymentMethod
+    }
+
+    if (ticketTypes && Array.isArray(ticketTypes) && ticketTypes.length > 0) {
+      requestBody.ticket_types = ticketTypes
     }
 
     const response = await $fetch(`${API_ADMIN_BASE_URL}/orders/${orderId}/status`, {
