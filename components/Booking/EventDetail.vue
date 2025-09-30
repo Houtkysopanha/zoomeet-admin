@@ -17,12 +17,32 @@
           </div>
           <div class="flex space-x-5 mb-5">
             <div>
-              <div class="text-sm font-gray-100">Booking name</div>
-              <div class="text-sm font-bold text-gray-800 leading-5">Seang Sovanpunhavuth</div>
+              <div class="text-sm text-gray-500">Booking name</div>
+              <div :class="[
+                'text-sm font-bold leading-5 flex items-center gap-1',
+                props.customerInfo?.fullName ? 'text-gray-800' : 'text-orange-600'
+              ]">
+                <Icon 
+                  v-if="!props.customerInfo?.fullName" 
+                  name="heroicons:exclamation-triangle" 
+                  class="w-4 h-4" 
+                />
+                {{ props.customerInfo?.fullName || 'Please enter customer information' }}
+              </div>
             </div>
             <div>
-              <div class="text-sm">Email/Phone Number</div>
-              <div class="text-sm font-bold text-gray-800 leading-5">+855 12 345 678</div>
+              <div class="text-sm text-gray-500">Email/Phone Number</div>
+              <div :class="[
+                'text-sm font-bold leading-5 flex items-center gap-1',
+                hasCustomerContact() ? 'text-gray-800' : 'text-orange-600'
+              ]">
+                <Icon 
+                  v-if="!hasCustomerContact()" 
+                  name="heroicons:exclamation-triangle" 
+                  class="w-4 h-4" 
+                />
+                {{ getCustomerContact() }}
+              </div>
             </div>
           </div>
           <div class="border border-gray-300 my-8"></div>
@@ -197,14 +217,30 @@
         <!-- Payment Method -->
         <div class="mb-6">
           <h3 class="text-lg font-semibold text-gray-800 mb-4">Payment Method</h3>
-          <div class="space-y-3">
+          <div class="space-y-4">
             <div class="flex items-center">
-              <RadioButton v-model="paymentMethod" inputId="khqr" value="khqr" />
-              <label for="khqr" class="ml-2 text-gray-700">KHQR Payment</label>
+              <RadioButton v-model="paymentMethod" inputId="offline" value="offline" />
+              <label for="offline" class="ml-2 text-gray-700">Cash/Offline Payment</label>
             </div>
             <div class="flex items-center">
-              <RadioButton v-model="paymentMethod" inputId="cash" value="cash" />
-              <label for="cash" class="ml-2 text-gray-700">Cash Payment</label>
+              <RadioButton v-model="paymentMethod" inputId="abapay" value="abapay" />
+              <label for="abapay" class="ml-2 text-gray-700">ABA Pay</label>
+            </div>
+            
+            <!-- Transaction ID field for ABA Pay -->
+            <div v-if="paymentMethod === 'abapay'" class="mt-3 ml-6">
+              <label class="block text-sm font-medium text-gray-700 mb-2">ABA Transaction ID *</label>
+              <InputText 
+                v-model="transactionId"
+                placeholder="Enter ABA transaction ID"
+                class="w-full p-3 border border-gray-300 rounded-lg focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+                :class="{
+                  'border-red-300 focus:border-red-500 focus:ring-red-500': paymentMethod === 'abapay' && !transactionId
+                }"
+              />
+              <p v-if="paymentMethod === 'abapay' && !transactionId" class="text-red-600 text-sm mt-1">
+                Transaction ID is required for ABA Pay
+              </p>
             </div>
           </div>
         </div>
@@ -214,12 +250,40 @@
       <div class="bg-white ">
 
 
+        <!-- Customer Info Status -->
+        <div v-if="!props.isCustomerInfoComplete" class="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
+          <div class="flex items-center">
+            <Icon name="heroicons:exclamation-triangle" class="w-4 h-4 text-orange-600 mr-2" />
+            <span class="text-orange-800 text-sm font-medium">Please complete customer information first</span>
+          </div>
+        </div>
+
+        <!-- Payment Info Status -->
+        <div v-if="!isPaymentInfoComplete" class="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
+          <div class="flex items-center">
+            <Icon name="heroicons:exclamation-triangle" class="w-4 h-4 text-orange-600 mr-2" />
+            <span class="text-orange-800 text-sm font-medium">Please enter ABA transaction ID</span>
+          </div>
+        </div>
+
         <!-- Footer Button -->
         <Button
-          label="Complete Booking"
-          class="w-full py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-purple-600 to-purple-400 hover:from-purple-700 hover:to-purple-500 transition-all duration-200"
+          :label="props.isProcessingBooking ? 'Processing...' : 'Complete Booking'"
+          :disabled="!props.isCustomerInfoComplete || props.isProcessingBooking || !hasSelectedTickets || !isPaymentInfoComplete"
+          :class="[
+            'w-full py-3 rounded-xl font-semibold transition-all duration-200',
+            props.isCustomerInfoComplete && hasSelectedTickets && isPaymentInfoComplete && !props.isProcessingBooking
+              ? 'text-white bg-gradient-to-r from-purple-600 to-purple-400 hover:from-purple-700 hover:to-purple-500'
+              : 'text-gray-500 bg-gray-300 cursor-not-allowed'
+          ]"
           @click="handleCompleteBooking"
-        />
+        >
+          <Icon 
+            v-if="props.isProcessingBooking" 
+            name="eos-icons:loading" 
+            class="w-5 h-5 mr-2 animate-spin" 
+          />
+        </Button>
       </div>
     </div>
   </Sidebar>
@@ -237,6 +301,10 @@ import { getEventTicketTypes } from '~/composables/api'  // adjust path if neede
 const props = defineProps({
   visible: { type: Boolean, required: true },
   selectedEvent: { type: Object, default: null },
+  customerInfo: { type: Object, default: () => ({}) },
+  activeCustomerTab: { type: String, default: 'phone' },
+  isCustomerInfoComplete: { type: Boolean, default: false },
+  isProcessingBooking: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['update:visible', 'complete-booking'])
@@ -436,7 +504,21 @@ const voucherCode = ref('')
 const appliedVoucher = ref(false)
 const discountRate = ref(0)
 const taxRate = ref(0)
-const paymentMethod = ref('khqr')
+const paymentMethod = ref('offline')
+const transactionId = ref('')
+
+// Check if any tickets are selected
+const hasSelectedTickets = computed(() => 
+  tickets.value.some(ticket => ticket.quantity > 0)
+)
+
+// Check if payment information is complete
+const isPaymentInfoComplete = computed(() => {
+  if (paymentMethod.value === 'abapay') {
+    return transactionId.value && transactionId.value.trim().length > 0
+  }
+  return true // offline payment doesn't require transaction ID
+})
 
 const subtotal = computed(() =>
   tickets.value.reduce((sum, t) => sum + t.price * t.quantity, 0)
@@ -455,6 +537,39 @@ const applyVoucher = () => {
   }
 }
 
+// Check if customer has contact information
+const hasCustomerContact = () => {
+  if (!props.customerInfo) return false
+  
+  // Check based on active tab
+  if (props.activeCustomerTab === 'email') {
+    return props.customerInfo.email && props.customerInfo.email.trim()
+  } else {
+    return props.customerInfo.phoneNumber && props.customerInfo.phoneNumber.trim()
+  }
+}
+
+// Get customer contact information (email or phone)
+const getCustomerContact = () => {
+  if (!props.customerInfo) {
+    return 'Please enter customer information'
+  }
+  
+  // Show based on active tab preference
+  if (props.activeCustomerTab === 'email') {
+    if (props.customerInfo.email && props.customerInfo.email.trim()) {
+      return props.customerInfo.email.trim()
+    }
+    return 'Please enter email address'
+  } else {
+    // Default to phone tab
+    if (props.customerInfo.phoneNumber && props.customerInfo.phoneNumber.trim()) {
+      return `+855 ${props.customerInfo.phoneNumber.trim()}`
+    }
+    return 'Please enter phone number'
+  }
+}
+
 const handleCompleteBooking = () => {
   const bookingDetails = {
     event: props.selectedEvent,
@@ -468,6 +583,7 @@ const handleCompleteBooking = () => {
       appliedVoucher: appliedVoucher.value,
     },
     paymentMethod: paymentMethod.value,
+    transactionId: paymentMethod.value === 'abapay' ? (transactionId.value.trim() || null) : null,
   }
   emit('complete-booking', bookingDetails)
 }

@@ -3064,6 +3064,156 @@ export async function fetchOrders(params = {}) {
   }
 }
 
+// Create order reservation (for customer booking)
+export async function createOrderReservation(orderData) {
+  const config = useRuntimeConfig()
+  // FIXED: Use the correct API endpoint for orders - dev-apiticket not dev-gateway
+  const API_BASE_URL = 'https://dev-apiticket.prestigealliance.co/api/v1'
+
+  if (!API_BASE_URL) {
+    throw new Error('API base URL is not configured')
+  }
+
+  if (!orderData) {
+    throw new Error('Order data is required')
+  }
+
+  // Validate required fields
+  if (!orderData.event_id) {
+    throw new Error('Event ID is required')
+  }
+
+  if (!orderData.ticket_types || !Array.isArray(orderData.ticket_types) || orderData.ticket_types.length === 0) {
+    throw new Error('At least one ticket type is required')
+  }
+
+  if (!orderData.payment_method) {
+    throw new Error('Payment method is required')
+  }
+
+  // Validate payment method is one of the allowed values
+  const allowedPaymentMethods = ['offline', 'abapay']
+  if (!allowedPaymentMethods.includes(orderData.payment_method)) {
+    throw new Error('Payment method must be either "offline" or "abapay"')
+  }
+
+  // Validate transaction ID for abapay
+  if (orderData.payment_method === 'abapay' && (!orderData.transaction_id || !orderData.transaction_id.toString().trim())) {
+    throw new Error('Transaction ID is required for ABA Pay payments')
+  }
+
+  // Ensure either phone_number or email is provided
+  if (!orderData.phone_number && !orderData.email) {
+    throw new Error('Either phone number or email is required')
+  }
+
+  if (!orderData.full_name) {
+    throw new Error('Full name is required')
+  }
+
+  try {
+    const payload = {
+      event_id: orderData.event_id, // CRITICAL: Include event_id
+      coupon: orderData.coupon || null,
+      ticket_types: orderData.ticket_types.map(ticket => ({
+        ticket_type_id: ticket.ticket_type_id,
+        quantity: ticket.quantity
+      })),
+      payment_method: orderData.payment_method,
+      phone_number: orderData.phone_number || null,
+      email: orderData.email || null,
+      full_name: orderData.full_name
+    }
+
+    // FIXED: Only include transaction_id field if payment method is abapay
+    if (orderData.payment_method === 'abapay') {
+      payload.transaction_id = orderData.transaction_id || null
+    }
+    // For offline payments, completely omit the transaction_id field
+
+    console.log('🎫 Creating order reservation:', {
+      endpoint: `${API_BASE_URL}/orders/reserve`,
+      payload,
+      transaction_id_included: 'transaction_id' in payload,
+      transaction_id_type: typeof payload.transaction_id,
+      transaction_id_value: payload.transaction_id
+    })
+
+    const response = await $fetch(`${API_BASE_URL}/orders/reserve`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }, // Don't include auth for public reservation
+      body: payload
+    })
+
+    console.log('✅ Order reservation created successfully:', response)
+
+    return {
+      success: true,
+      data: response.data || response,
+      message: response.message || 'Order reservation created successfully',
+      order_id: response.data?.id || response.id
+    }
+  } catch (error) {
+    console.error('❌ Failed to create order reservation:', error)
+
+    // Handle authentication errors  
+    if (error.status === 401) {
+      throw new Error('Authentication required. Please log in again.')
+    }
+    
+    if (error.status === 403) {
+      throw new Error('You do not have permission to create orders.')
+    }
+    
+    // Handle validation errors
+    if (error.status === 422) {
+      let errorMessage = 'Invalid order data. Please check your information.'
+      
+      if (error.data?.errors) {
+        const validationErrors = []
+        Object.entries(error.data.errors).forEach(([field, messages]) => {
+          if (Array.isArray(messages)) {
+            validationErrors.push(`${field}: ${messages.join(', ')}`)
+          } else {
+            validationErrors.push(`${field}: ${messages}`)
+          }
+        })
+        errorMessage = `Validation failed:\n${validationErrors.join('\n')}`
+      } else if (error.data?.message) {
+        errorMessage = error.data.message
+      }
+      
+      throw new Error(errorMessage)
+    }
+    
+    // Handle not found
+    if (error.status === 404) {
+      throw new Error('Event or ticket type not found.')
+    }
+    
+    // Handle insufficient inventory
+    if (error.status === 400 && error.data?.message?.includes('insufficient')) {
+      throw new Error(error.data.message)
+    }
+
+    // Don't expose technical details to users
+    let userMessage = 'Failed to create order reservation. Please try again.'
+    if (error?.data?.message) {
+      userMessage = error.data.message
+    } else if (error?.message) {
+      userMessage = error.message
+    }
+    
+    if (error.status >= 500) {
+      userMessage = 'Server error. Please try again later.'
+    }
+    
+    throw new Error(userMessage)
+  }
+}
+
 // Update order status (for completing cash payments)
 export async function updateOrderStatus(orderId, status, paymentMethod = null, ticketTypes = null) {
   const config = useRuntimeConfig()

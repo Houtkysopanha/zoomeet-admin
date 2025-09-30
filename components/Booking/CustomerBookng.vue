@@ -4,6 +4,28 @@
     <div class="w-full">
       <!-- Customer Information -->
       <div class="bg-white rounded-2xl p-6 mb-8">
+        <!-- Error Message -->
+        <div v-if="bookingError" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+          <div class="flex items-center">
+            <Icon name="heroicons:exclamation-triangle" class="w-5 h-5 text-red-600 mr-3" />
+            <div>
+              <h3 class="text-red-800 font-medium">Error</h3>
+              <p class="text-red-600 text-sm mt-1">{{ bookingError }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Success Message -->
+        <div v-if="bookingSuccess" class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+          <div class="flex items-center">
+            <Icon name="heroicons:check-circle" class="w-5 h-5 text-green-600 mr-3" />
+            <div>
+              <h3 class="text-green-800 font-medium">Success!</h3>
+              <p class="text-green-600 text-sm mt-1">Your booking has been completed successfully.</p>
+            </div>
+          </div>
+        </div>
+
         <div class="flex justify-between items-center">
           <div class="header">
             <h2 class="text-xl font-semibold text-gray-800 mb-1">
@@ -12,10 +34,28 @@
         <p class="text-gray-500 mb-3">Enter customer detail for booking</p>
         
           </div>
-          <div class=" button-save">
-             <Button class="bg-purple-700 text-white rounded-full p-2 px-8 mx-auto">
+          <div class="flex gap-3 button-save">
+             <Button 
+               @click="saveCustomerInfo"
+               :disabled="!isCustomerInfoComplete"
+               :class="[
+                 'rounded-full p-2 px-8 transition-all duration-200',
+                 isCustomerInfoComplete 
+                   ? 'bg-purple-700 text-white hover:bg-purple-800' 
+                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+               ]"
+             >
               <Icon name="mingcute:save-fill" class="w-5 mr-2 h-5" />
               Save
+              </Button>
+              
+              <Button 
+                @click="clearCustomerInfo"
+                v-if="customerInfo.fullName || customerInfo.phoneNumber || customerInfo.email"
+                class="rounded-full p-2 px-6 bg-gray-500 text-white hover:bg-gray-600 transition-all duration-200"
+              >
+                <Icon name="heroicons:trash" class="w-5 mr-2 h-5" />
+                Clear
               </Button>
           </div>
         </div>
@@ -345,20 +385,26 @@
     <EventDetail
       v-model:visible="visible"
       :selected-event="selectedEvent"
+      :customer-info="customerInfo"
+      :active-customer-tab="activeTab"
+      :is-customer-info-complete="isCustomerInfoComplete"
+      :is-processing-booking="isProcessingBooking"
+      @complete-booking="handleCompleteBooking"
       @book-now="handleBookNowClick"
     />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 
 import InputText from "primevue/inputtext";
 import Button from "primevue/button";
+import { useToast } from "primevue/usetoast";
 // Import the new EventDetailSidebar component
 import EventDetail from "./EventDetail.vue";
 // Import the API function for fetching events
-import { fetchEvents } from "@/composables/api";
+import { fetchEvents, createOrderReservation } from "@/composables/api";
 
 import img1 from "@/assets/image/poster-manage-booking.png";
 import flat from "@/assets/image/cambodia.png";
@@ -372,6 +418,14 @@ const customerInfo = ref({
 
 // Active tab state
 const activeTab = ref('phone');
+
+// Booking state
+const isProcessingBooking = ref(false);
+const bookingError = ref("");
+const bookingSuccess = ref(false);
+
+// PrimeVue Toast
+const toast = useToast();
 
 // Search functionality
 const searchQuery = ref("");
@@ -468,8 +522,32 @@ const loadEvents = async () => {
   }
 };
 
+// Load customer info from localStorage
+const loadCustomerInfo = () => {
+  if (process.client) {
+    try {
+      const saved = localStorage.getItem('customerInfo');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        customerInfo.value = {
+          fullName: parsed.fullName || "",
+          phoneNumber: parsed.phoneNumber || "",
+          email: parsed.email || "",
+        };
+        console.log('📋 Loaded customer info from localStorage:', customerInfo.value);
+      }
+    } catch (error) {
+      console.warn('Failed to load customer info from localStorage:', error);
+    }
+  }
+};
+
 // Load events when component mounts
 onMounted(async () => {
+  // Load customer info first
+  loadCustomerInfo();
+  
+  // Then load events
   await loadEvents();
   
   // Check if there's an eventId in the URL and auto-select that event
@@ -542,6 +620,254 @@ const selectEvent = (event) => {
       }
     });
   }
+};
+
+// Validate customer information
+const validateCustomerInfo = () => {
+  const errors = [];
+  
+  if (!customerInfo.value.fullName.trim()) {
+    errors.push('Full name is required');
+  }
+  
+  if (activeTab.value === 'phone') {
+    if (!customerInfo.value.phoneNumber.trim()) {
+      errors.push('Phone number is required');
+    } else {
+      // Basic phone number validation (should contain only digits and common separators)
+      const phoneRegex = /^[0-9\s\-\+\(\)]{8,15}$/;
+      if (!phoneRegex.test(customerInfo.value.phoneNumber.trim())) {
+        errors.push('Please enter a valid phone number');
+      }
+    }
+  } else if (activeTab.value === 'email') {
+    if (!customerInfo.value.email.trim()) {
+      errors.push('Email is required');
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerInfo.value.email)) {
+      errors.push('Please enter a valid email address');
+    }
+  }
+  
+  return errors;
+};
+
+// Check if customer info is complete
+const isCustomerInfoComplete = computed(() => {
+  const errors = validateCustomerInfo();
+  return errors.length === 0;
+});
+
+// Generate transaction ID
+const generateTransactionId = () => {
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substr(2, 5);
+  return `TXN${timestamp}${random}`.toUpperCase();
+};
+
+// Handle booking completion from EventDetail component
+const handleCompleteBooking = async (bookingDetails) => {
+  console.log('🎯 Handling complete booking:', bookingDetails);
+  console.log('🔍 Transaction ID received:', {
+    value: bookingDetails.transactionId,
+    type: typeof bookingDetails.transactionId,
+    paymentMethod: bookingDetails.paymentMethod
+  });
+  
+  // Validate customer information first
+  const validationErrors = validateCustomerInfo();
+  if (validationErrors.length > 0) {
+    bookingError.value = validationErrors.join(', ');
+    toast.add({
+      severity: 'error',
+      summary: 'Customer Information Required',
+      detail: validationErrors.join(', '),
+      life: 5000
+    });
+    return;
+  }
+  
+  // Check if an event is selected
+  if (!selectedEvent.value || !selectedEvent.value.id) {
+    bookingError.value = 'Please select an event first';
+    toast.add({
+      severity: 'error',
+      summary: 'Event Required',
+      detail: 'Please select an event first',
+      life: 5000
+    });
+    return;
+  }
+  
+  // Check if tickets are selected
+  if (!bookingDetails.tickets || bookingDetails.tickets.length === 0) {
+    bookingError.value = 'Please select at least one ticket';
+    toast.add({
+      severity: 'error',
+      summary: 'Tickets Required',
+      detail: 'Please select at least one ticket',
+      life: 5000
+    });
+    return;
+  }
+  
+  isProcessingBooking.value = true;
+  bookingError.value = "";
+  bookingSuccess.value = false;
+  
+  try {
+    // Prepare order data according to API specification
+    const orderData = {
+      event_id: selectedEvent.value?.id, // CRITICAL: Include event_id
+      coupon: bookingDetails.paymentSummary?.voucherCode || null,
+      ticket_types: bookingDetails.tickets.map(ticket => ({
+        ticket_type_id: ticket.id,
+        quantity: ticket.quantity
+      })),
+      payment_method: bookingDetails.paymentMethod,
+      transaction_id: bookingDetails.paymentMethod === 'offline' 
+        ? null 
+        : (bookingDetails.transactionId && String(bookingDetails.transactionId).trim() 
+           ? String(bookingDetails.transactionId).trim() 
+           : generateTransactionId()),
+      phone_number: activeTab.value === 'phone' ? `+855${customerInfo.value.phoneNumber.trim()}` : null,
+      email: activeTab.value === 'email' ? customerInfo.value.email.trim() : null, 
+      full_name: customerInfo.value.fullName.trim()
+    };
+
+    console.log('📋 Creating order with data:', orderData);
+    console.log('🔍 API will be called with endpoint:', '/orders/reserve');
+
+    // Create the order reservation
+    const result = await createOrderReservation(orderData);
+    
+    console.log('📨 API Response received:', result);
+    
+    if (result.success) {
+      console.log('✅ Order created successfully:', result);
+      bookingSuccess.value = true;
+      visible.value = false; // Close the sidebar
+      
+      // Optional: Show success message with order details
+      showSuccessMessage(result);
+      
+      // Reset form after successful booking
+      resetBookingForm();
+    } else {
+      throw new Error(result.error || 'Failed to create order');
+    }
+    
+  } catch (error) {
+    console.error('❌ Booking failed:', error);
+    bookingError.value = error.message || 'Failed to complete booking. Please try again.';
+    toast.add({
+      severity: 'error',
+      summary: 'Booking Failed',
+      detail: error.message || 'Failed to complete booking. Please try again.',
+      life: 8000
+    });
+  } finally {
+    isProcessingBooking.value = false;
+  }
+};
+
+// Show success message
+const showSuccessMessage = (result) => {
+  const orderInfo = result.data || {};
+  const orderId = result.order_id || orderInfo.id || 'N/A';
+  
+  toast.add({
+    severity: 'success',
+    summary: 'Booking Successful',
+    detail: `Your booking has been confirmed! Order ID: ${orderId}`,
+    life: 5000
+  });
+  
+  console.log('🎉 Booking completed successfully!', result);
+};
+
+// Reset booking form
+const resetBookingForm = () => {
+  // Clear customer info
+  customerInfo.value = {
+    fullName: "",
+    phoneNumber: "",
+    email: "",
+  };
+  
+  // Clear from localStorage as well
+  if (process.client) {
+    localStorage.removeItem('customerInfo');
+  }
+  
+  // Reset form states
+  bookingError.value = "";
+  bookingSuccess.value = false;
+  
+  // Close sidebar and clear selected event
+  selectedEvent.value = null;
+  visible.value = false;
+  clearEventFromUrl();
+  
+  console.log('🔄 Booking form reset successfully');
+};
+
+// Save customer information
+const saveCustomerInfo = () => {
+  const validationErrors = validateCustomerInfo();
+  if (validationErrors.length > 0) {
+    bookingError.value = validationErrors.join(', ');
+    toast.add({
+      severity: 'error',
+      summary: 'Validation Error',
+      detail: validationErrors.join(', '),
+      life: 5000
+    });
+    return;
+  }
+  
+  bookingError.value = "";
+  bookingSuccess.value = false;
+  
+  // Save to localStorage for persistence
+  if (process.client) {
+    localStorage.setItem('customerInfo', JSON.stringify(customerInfo.value));
+  }
+  
+  toast.add({
+    severity: 'success',
+    summary: 'Information Saved',
+    detail: 'Customer information saved successfully!',
+    life: 3000
+  });
+  
+  console.log('💾 Customer info saved:', customerInfo.value);
+};
+
+// Clear customer information
+const clearCustomerInfo = () => {
+  customerInfo.value = {
+    fullName: "",
+    phoneNumber: "",
+    email: "",
+  };
+  
+  // Clear from localStorage as well
+  if (process.client) {
+    localStorage.removeItem('customerInfo');
+  }
+  
+  // Clear any error states
+  bookingError.value = "";
+  bookingSuccess.value = false;
+  
+  toast.add({
+    severity: 'info',
+    summary: 'Information Cleared',
+    detail: 'Customer information has been cleared.',
+    life: 3000
+  });
+  
+  console.log('🗑️ Customer info cleared');
 };
 
 const handleBookNowClick = (event) => {
