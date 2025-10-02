@@ -37,16 +37,19 @@
           <div class="flex gap-3 button-save">
              <Button 
                @click="saveCustomerInfo"
-               :disabled="!isCustomerInfoComplete"
+               :disabled="!isCustomerInfoComplete || isCheckingAccount"
                :class="[
                  'rounded-full p-2 px-8 transition-all duration-200',
-                 isCustomerInfoComplete 
+                 (isCustomerInfoComplete && !isCheckingAccount)
                    ? 'bg-purple-700 text-white hover:bg-purple-800' 
                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                ]"
              >
-              <Icon name="mingcute:save-fill" class="w-5 mr-2 h-5" />
-              Save
+              <Icon 
+                :name="isCheckingAccount ? 'eos-icons:loading' : 'mingcute:save-fill'" 
+                :class="['w-5 mr-2 h-5', isCheckingAccount ? 'animate-spin' : '']" 
+              />
+              {{ isCheckingAccount ? 'Checking...' : 'Save' }}
               </Button>
               
               <Button 
@@ -62,7 +65,7 @@
         <!-- Tab-like headers -->
         <div class="flex border-b border-gray-200 mb-6">
           <button 
-            @click="activeTab = 'phone'"
+            @click="handleTabSwitch('phone')"
             :class="[
               'flex-1 px-4 py-2 font-medium transition-all duration-200',
               activeTab === 'phone' 
@@ -73,42 +76,26 @@
             Phone Number
           </button>
           <button 
-            @click="activeTab = 'email'"
+            @click="handleTabSwitch('email')"
             :class="[
-              'flex-1 px-4 py-2 font-medium transition-all duration-200',
+              'flex-1 px-4 py-2 font-medium transition-all duration-200 cursor-pointer',
               activeTab === 'email' 
                 ? 'text-purple-600 border-b-2 border-purple-600' 
                 : 'text-gray-500 hover:text-gray-700'
             ]"
+            style="pointer-events: auto; user-select: none;"
           >
             Email
           </button>
         </div>
 
         <!-- Phone Number Tab Content -->
-        <div v-if="activeTab === 'phone'" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div v-show="activeTab === 'phone'" class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <!-- Phone Number Input -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Phone Number
-            </label>
-            <div class="flex border border-gray-200 rounded-lg overflow-hidden bg-white">
-              <!-- Country Flag and Code -->
-              <div class="flex items-center px-3 py-3 bg-white border-r border-gray-200">
-                <img
-                  :src="flat"
-                  alt="Cambodia"
-                  class="w-5 h-5 mr-2"
-                />
-                <span class="text-gray-700 text-sm font-medium">+855</span>
-              </div>
-              <!-- Phone Input -->
-              <InputText
-                v-model="customerInfo.phoneNumber"
-                placeholder=""
-                class="flex-1 p-3 border-0 focus:ring-0 bg-white"
-              />
-            </div>
+            <PhoneNumber
+            v-model="customerInfo.phoneNumber"
+            />
           </div>
 
           <!-- Full Name Input -->
@@ -125,7 +112,7 @@
         </div>
 
         <!-- Email Tab Content -->
-        <div v-else-if="activeTab === 'email'" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div v-show="activeTab === 'email'" class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <!-- Email Input -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">
@@ -278,8 +265,13 @@
           <div
             v-for="event in filteredEvents"
             :key="event.id"
-            class="rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-200 cursor-pointer bg-[#fff6]"
-            @click="selectEvent(event)"
+            :class="[
+              'rounded-2xl overflow-hidden shadow-sm transition-all duration-200 bg-[#fff6]',
+              event.isEnded 
+                ? '' 
+                : 'hover:shadow-lg cursor-pointer'
+            ]"
+            @click="!event.isEnded && selectEvent(event)"
           >
             <div class="relative overflow-hidden aspect-[16/9]">
               <img
@@ -287,6 +279,15 @@
                 :alt="event.title"
                 class="w-full h-full object-cover"
               />
+              <!-- Event Ended Indicator -->
+              <div
+  v-if="event.isEnded"
+  class="absolute bottom-3 left-3 flex items-center space-x-1 bg-[#E5E6F7] text-[#333E54] px-3 py-1 rounded-full text-xs font-semibold shadow-lg"
+>
+<Icon name="radix-icons:dot-filled" class="w-5 h-5" />
+  <span>Event has Ended</span>
+</div>
+
             </div>
             <div class="p-4 flex-1 flex flex-col">
               <h3
@@ -334,8 +335,11 @@
           <div
             v-for="event in filteredEvents"
             :key="event.id"
-            class="border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer bg-white flex"
-            @click="selectEvent(event)"
+            :class="[
+              'border border-gray-200 rounded-2xl overflow-hidden transition-all duration-200 bg-white flex',
+              event.isEnded 
+            ]"
+            @click="!event.isEnded && selectEvent(event)"
           >
             <div
               class="w-48 h-36 sm:w-52 sm:h-40 md:w-[18rem] md:h-36 relative overflow-hidden flex-shrink-0"
@@ -345,6 +349,14 @@
                 :alt="event.title"
                 class="w-full h-full object-cover rounded-l-2xl"
               />
+              <!-- Event Ended Indicator -->
+              <div
+  v-if="event.isEnded"
+  class="absolute bottom-3 left-3 flex items-center space-x-1 bg-[#E5E6F7] text-[#333E54] px-3 py-1 rounded-full text-xs font-semibold shadow-lg"
+>
+<Icon name="radix-icons:dot-filled" class="w-5 h-5" />
+  <span>Event has Ended</span>
+</div>
             </div>
             <div class="flex-1 p-4 flex flex-col justify-between min-h-[144px]">
               <div>
@@ -382,32 +394,449 @@
     </div>
 
     <!-- Event Detail Sidebar Component -->
+        <!-- Event Detail Sidebar Component -->
     <EventDetail
-      v-model:visible="visible"
+      :visible="visible"
       :selected-event="selectedEvent"
       :customer-info="customerInfo"
       :active-customer-tab="activeTab"
       :is-customer-info-complete="isCustomerInfoComplete"
       :is-processing-booking="isProcessingBooking"
+      @update:visible="visible = $event"
       @complete-booking="handleCompleteBooking"
       @book-now="handleBookNowClick"
     />
+
+    <!-- Authentication Modals -->
+    
+    <!-- Account Not Found Modal - COMMENTED OUT: Now goes directly to registration -->
+    <!--
+    <div v-if="showAccountNotFoundModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4 relative">
+        <button 
+          @click="showAccountNotFoundModal = false"
+          class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+        >
+          <Icon name="heroicons:x-mark" class="w-6 h-6" />
+        </button>
+        
+        <div class="text-center">
+          <div class="mx-auto flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+            <Icon name="heroicons:exclamation-triangle" class="w-8 h-8 text-red-600" />
+          </div>
+          
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">Account Not Found</h3>
+          
+          <p class="text-gray-600 mb-6">
+            The phone number or email you entered 
+            <span class="font-medium">"{{ activeTab === 'email' ? customerInfo.email : customerInfo.phoneNumber }}"</span> 
+            is not linked to any etickets.asia account.
+          </p>
+          
+          <p class="text-gray-600 mb-8">
+            Try entering a different email or phone, or create a new account to continue booking.
+          </p>
+          
+          <div class="space-y-3">
+            <button
+              @click="handleTryAgain"
+              class="w-full py-3 px-4 border border-purple-600 text-purple-600 rounded-full hover:bg-purple-50 transition-colors"
+            >
+              Try again
+            </button>
+            
+            <button
+              @click="handleCreateAccount"
+              class="w-full py-3 px-4 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors"
+            >
+              Create account
+            </button>
+            
+            <button
+              @click="handleForgotPassword"
+              class="text-purple-600 hover:text-purple-700 text-sm underline"
+            >
+              Forgot password?
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    -->
+
+    <!-- Register Account Modal -->
+    <div v-if="showRegisterModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4 relative">
+        <button 
+          @click="handleCloseRegisterModal"
+          class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+        >
+          <Icon name="heroicons:x-mark" class="w-6 h-6" />
+        </button>
+        
+        <div class="text-center mb-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">Register account to booking</h3>
+        </div>
+        
+        <!-- Tab Headers -->
+        <div class="flex border-b border-gray-200 mb-6">
+          <button 
+            @click="handleRegisterTabSwitch('phone')"
+            :class="[
+              'flex-1 px-4 py-2 font-medium transition-all duration-200',
+              registerActiveTab === 'phone' 
+                ? 'text-purple-600 border-b-2 border-purple-600' 
+                : 'text-gray-500 hover:text-gray-700'
+            ]"
+          >
+            Phone Number
+          </button>
+          <button 
+            @click="handleRegisterTabSwitch('email')"
+            :class="[
+              'flex-1 px-4 py-2 font-medium transition-all duration-200',
+              registerActiveTab === 'email' 
+                ? 'text-purple-600 border-b-2 border-purple-600' 
+                : 'text-gray-500 hover:text-gray-700'
+            ]"
+          >
+            Email
+          </button>
+        </div>
+        
+        <!-- Form Step -->
+        <div v-if="registrationStep === 'form'" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">First name</label>
+            <input
+              v-model="registerForm.firstName"
+              type="text"
+              placeholder="Enter first name"
+              class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            />
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Last name</label>
+            <input
+              v-model="registerForm.lastName"
+              type="text"
+              placeholder="Enter last name"
+              class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            />
+          </div>
+          
+          <!-- Phone Number Field - Show when phone tab is active -->
+          <div v-show="registerActiveTab === 'phone'">
+           <PhoneNumber
+            v-model="registerForm.phoneNumber"
+            />
+          </div>
+          
+          <!-- Email Field - Show when email tab is active -->
+          <div v-show="registerActiveTab === 'email'">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input
+              v-model="registerForm.email"
+              type="email"
+              placeholder="Enter email address"
+              class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            />
+          </div>
+          
+
+          
+          <!-- Error Message -->
+          <div v-if="authError" class="text-red-600 text-sm">
+            {{ authError }}
+          </div>
+          
+          <!-- Register Button -->
+          <button
+            @click="handleRegisterAccount"
+            :disabled="isCreatingAccount || !isRegisterFormValid"
+            class="w-full py-3 px-4 bg-purple-600 text-white rounded-full hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          >
+            <Icon 
+              :name="isCreatingAccount ? 'eos-icons:loading' : 'heroicons:user-plus'" 
+              :class="['w-5 h-5 mr-2 inline', isCreatingAccount ? 'animate-spin' : '']"
+            />
+            {{ isCreatingAccount ? 'Sending OTP...' : 'Register' }}
+          </button>
+        </div>
+        
+        <!-- OTP Step -->
+        <div v-else-if="registrationStep === 'otp'" class="space-y-4">
+          <div class="text-center">
+            <p class="text-gray-600 mb-6">
+              Enter the 6-digit verification code sent to 
+              <span class="font-medium">{{ registerForm.phoneNumber }}</span>
+            </p>
+            
+            <!-- OTP Input -->
+            <div class="mb-4">
+              <input
+                v-model="registerForm.otp"
+                type="text"
+                maxlength="6"
+                placeholder="Enter 6-digit code"
+                class="w-full px-4 py-3 text-center text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              />
+            </div>
+            
+            <!-- Countdown -->
+            <div class="text-sm text-gray-500 mb-6">
+              <span v-if="registrationOTPForm.countdown > 0">
+                Resend code: {{ Math.floor(registrationOTPForm.countdown / 60) }}:{{ String(registrationOTPForm.countdown % 60).padStart(2, '0') }} Seconds
+              </span>
+              <button 
+                v-else
+                @click="handleResendRegistrationOTP"
+                :disabled="isCreatingAccount"
+                class="text-purple-600 hover:text-purple-700 disabled:opacity-50"
+              >
+                {{ isCreatingAccount ? 'Sending...' : "Didn't receive code? Resend code" }}
+              </button>
+            </div>
+            
+            <!-- Error Message -->
+            <div v-if="authError" class="text-red-600 text-sm mb-4">
+              {{ authError }}
+            </div>
+            
+            <!-- Verify Button -->
+            <button
+              @click="handleVerifyRegistrationOTP"
+              :disabled="isCreatingAccount || !registerForm.otp || registerForm.otp.length < 6"
+              class="w-full py-3 px-4 bg-purple-600 text-white rounded-full hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
+              <Icon 
+                :name="isCreatingAccount ? 'eos-icons:loading' : 'heroicons:check'" 
+                :class="['w-5 h-5 mr-2 inline', isCreatingAccount ? 'animate-spin' : '']"
+              />
+              {{ isCreatingAccount ? 'Verifying...' : 'Verify OTP' }}
+            </button>            <!-- Back Button -->
+            <button
+              @click="registrationStep = 'form'"
+              :disabled="isCreatingAccount"
+              class="w-full mt-3 py-2 px-4 text-gray-600 hover:text-gray-800 disabled:opacity-50"
+            >
+              ← Back to form
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Forgot Password Modal (OTP) -->
+    <div v-if="showForgotPasswordModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4 relative">
+        <button 
+          @click="showForgotPasswordModal = false"
+          class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+        >
+          <Icon name="heroicons:x-mark" class="w-6 h-6" />
+        </button>
+        
+        <div class="text-center">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Forget Password</h3>
+          
+          <p class="text-gray-600 mb-6">
+            Enter the 6-digit code sent to <span class="font-medium">{{ forgotPasswordForm.phoneNumber }}</span> for verification purposes
+          </p>
+          
+          <!-- OTP Input -->
+          <div class="mb-4">
+            <input
+              v-model="forgotPasswordForm.otp"
+              type="text"
+              maxlength="6"
+              placeholder="Enter 6-digit code"
+              class="w-full px-4 py-3 text-center text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            />
+          </div>
+          
+          <!-- Countdown -->
+          <div class="text-sm text-gray-500 mb-6">
+            <span v-if="forgotPasswordForm.countdown > 0">
+              Resend code: {{ Math.floor(forgotPasswordForm.countdown / 60) }}:{{ String(forgotPasswordForm.countdown % 60).padStart(2, '0') }} Seconds
+            </span>
+            <button 
+              v-else
+              @click="handleResendOTP"
+              :disabled="isSendingOTP"
+              class="text-purple-600 hover:text-purple-700 disabled:opacity-50"
+            >
+              {{ isSendingOTP ? 'Sending...' : "Didn't receive code? Resend code" }}
+            </button>
+          </div>
+          
+          <!-- Error Message -->
+          <div v-if="authError" class="text-red-600 text-sm mb-4">
+            {{ authError }}
+          </div>
+          
+          <!-- Confirm Button -->
+          <button
+            @click="handleConfirmOTP"
+            :disabled="!forgotPasswordForm.otp || forgotPasswordForm.otp.length < 6"
+            class="w-full py-3 px-4 bg-purple-600 text-white rounded-full hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          >
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create Password Modal -->
+    <div v-if="showCreatePasswordModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4 relative">
+        <button 
+          @click="showCreatePasswordModal = false"
+          class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+        >
+          <Icon name="heroicons:x-mark" class="w-6 h-6" />
+        </button>
+        
+        <div class="text-center">
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">Create password</h3>
+          
+          <p class="text-gray-600 mb-6">
+            Your phone number has been verified! Now create a secure password for your account.
+          </p>
+          
+          <div class="space-y-4 text-left">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+              <input
+                v-model="registerForm.password"
+                type="password"
+                placeholder="Enter new password"
+                class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              />
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+              <input
+                v-model="registerForm.confirmPassword"
+                type="password"
+                placeholder="Confirm new password"
+                class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              />
+            </div>
+            
+            <!-- Error Message -->
+            <div v-if="authError" class="text-red-600 text-sm">
+              {{ authError }}
+            </div>
+            
+            <!-- Create Password Button -->
+            <button
+              @click="handleCreatePasswordAfterOTP"
+              :disabled="isCreatingAccount || !registerForm.password || registerForm.password.length < 8 || registerForm.password !== registerForm.confirmPassword"
+              class="w-full py-3 px-4 bg-purple-600 text-white rounded-full hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
+              <Icon 
+                :name="isCreatingAccount ? 'eos-icons:loading' : 'heroicons:key'" 
+                :class="['w-5 h-5 mr-2 inline', isCreatingAccount ? 'animate-spin' : '']"
+              />
+              {{ isCreatingAccount ? 'Creating Account...' : 'Create Password' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+
+    <!-- Account Success Modal -->
+    <div v-if="showAccountSuccessModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4 relative">
+        <button 
+          @click="showAccountSuccessModal = false"
+          class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+        >
+          <Icon name="heroicons:x-mark" class="w-6 h-6" />
+        </button>
+        
+        <div class="text-center">
+          <div class="mx-auto flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+            <Icon name="heroicons:check" class="w-8 h-8 text-green-600" />
+          </div>
+          
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Account was created successfully!</h3>
+          
+          <p class="text-gray-600 mb-8">
+            The account has been completely registered using 
+            <span class="font-medium">{{ forgotPasswordForm.phoneNumber || registerForm.phoneNumber }}</span>. 
+            The customer has securely completed their password setup.
+          </p>
+          
+          <button
+            @click="handleSuccessComplete"
+            class="w-full py-3 px-4 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Instruct Customer Modal -->
+    <div v-if="showInstructCustomerModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4 relative">
+        <button 
+          @click="showInstructCustomerModal = false"
+          class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+        >
+          <Icon name="heroicons:x-mark" class="w-6 h-6" />
+        </button>
+        
+        <div class="text-center">
+          <div class="mx-auto flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+            <div class="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center">
+              <span class="text-white font-bold text-sm">K</span>
+            </div>
+          </div>
+          
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Instruct the customer</h3>
+          
+          <p class="text-gray-600 mb-8">
+            Please turn the screen towards the customer and hand them the keyboard so they can securely type and confirm their password.
+          </p>
+          
+          <button
+            @click="handleInstructionOK"
+            class="w-full py-3 px-4 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors"
+          >
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- reCAPTCHA container (invisible) -->
+    <div id="recaptcha-container"></div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
-
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import InputText from "primevue/inputtext";
 import Button from "primevue/button";
 import { useToast } from "primevue/usetoast";
 // Import the new EventDetailSidebar component
 import EventDetail from "./EventDetail.vue";
 // Import the API function for fetching events
-import { fetchEvents, createOrderReservation } from "@/composables/api";
-
+import { 
+  fetchEvents, 
+  createOrderReservation,
+} from "@/composables/api";
+const { sendOtp, submitOtp } = useFirebase()
 import img1 from "@/assets/image/poster-manage-booking.png";
 import flat from "@/assets/image/cambodia.png";
+import PhoneNumber from "../PhoneNumber.vue";
 
 // Customer information
 const customerInfo = ref({
@@ -423,6 +852,55 @@ const activeTab = ref('phone');
 const isProcessingBooking = ref(false);
 const bookingError = ref("");
 const bookingSuccess = ref(false);
+
+// Authentication modal states
+const showAccountNotFoundModal = ref(false);
+const showRegisterModal = ref(false);
+const showForgotPasswordModal = ref(false);
+const showCreatePasswordModal = ref(false);
+const showAccountSuccessModal = ref(false);
+const showInstructCustomerModal = ref(false);
+
+// Authentication form data
+const registerForm = ref({
+  firstName: "",
+  lastName: "",
+  phoneNumber: "",
+  email: "",
+  password: "",
+  confirmPassword: "",
+  otp: ""
+});
+
+// Register modal tab state
+const registerActiveTab = ref('phone');
+// Registration step state
+const registrationStep = ref('form'); // 'form', 'otp', 'success'
+
+// Registration OTP state
+const registrationOTPForm = ref({
+  countdown: 0,
+  countdownInterval: null
+});
+
+const forgotPasswordForm = ref({
+  phoneNumber: "",
+  otp: "",
+  countdown: 0,
+  countdownInterval: null
+});
+
+const createPasswordForm = ref({
+  password: "",
+  confirmPassword: ""
+});
+
+// Authentication processing states
+const isCheckingAccount = ref(false);
+const isCreatingAccount = ref(false);
+const isSendingOTP = ref(false);
+const isVerifyingOTP = ref(false);
+const authError = ref("");
 
 // PrimeVue Toast
 const toast = useToast();
@@ -493,6 +971,7 @@ const transformEventData = (apiEvents) => {
     date: formatEventDate(event.start_date, event.end_date),
     time: formatEventTime(event.start_date),
     image: getEventImage(event),
+    isEnded: event.is_ended || false,
     // Keep original API data for reference
     _originalData: event,
   }));
@@ -657,6 +1136,28 @@ const isCustomerInfoComplete = computed(() => {
   return errors.length === 0;
 });
 
+// Check if register form is valid
+const isRegisterFormValid = computed(() => {
+  if (!registerForm.value.firstName || !registerForm.value.lastName) {
+    return false;
+  }
+  
+  if (registerActiveTab.value === 'phone') {
+    return registerForm.value.phoneNumber && registerForm.value.phoneNumber.trim().length > 0;
+  } else if (registerActiveTab.value === 'email') {
+    return registerForm.value.email && registerForm.value.email.trim().length > 0;
+  }
+  
+  return false;
+});
+
+// Check if password is valid for final account creation
+const isPasswordValid = computed(() => {
+  return registerForm.value.password && 
+         registerForm.value.password.length >= 8 && 
+         registerForm.value.password === registerForm.value.confirmPassword;
+});
+
 // Generate transaction ID
 const generateTransactionId = () => {
   const timestamp = Date.now().toString(36);
@@ -811,10 +1312,27 @@ const resetBookingForm = () => {
   console.log('🔄 Booking form reset successfully');
 };
 
-// Save customer information
-const saveCustomerInfo = () => {
+// Save customer information (skipping account check for now)
+const saveCustomerInfo = async () => {
   const validationErrors = validateCustomerInfo();
   if (validationErrors.length > 0) {
+    // Build body for register API
+   
+
+    console.log('✅ Account registered successfully');
+
+    // Close create password modal and show success modal
+    showCreatePasswordModal.value = false;
+    showAccountSuccessModal.value = true;
+
+    // Save customer info to localStorage
+    if (process.client) {
+      localStorage.setItem('customerInfo', JSON.stringify(customerInfo.value));
+    }
+    createPasswordForm.value = {
+      password: '',
+      confirmPassword: ''
+    };
     bookingError.value = validationErrors.join(', ');
     toast.add({
       severity: 'error',
@@ -827,20 +1345,518 @@ const saveCustomerInfo = () => {
   
   bookingError.value = "";
   bookingSuccess.value = false;
+  authError.value = "";
+  isCheckingAccount.value = true;
   
-  // Save to localStorage for persistence
-  if (process.client) {
-    localStorage.setItem('customerInfo', JSON.stringify(customerInfo.value));
+  try {
+    console.log('� Saving customer info and showing registration (account check disabled)');
+    const body = ref(null)
+     let formattedPhone = customerInfo.value.phoneNumber.replace(/^\+/, ''); 
+
+    if(activeTab.value == "phone"){
+      body.value = {
+        username: formattedPhone,
+        login_type: 'phone'
+      };
+    }
+    if(activeTab.value == "email"){
+      body.value = {
+        username: customerInfo.value.email,
+        login_type: 'email'
+      };
+    }
+
+    const config = useRuntimeConfig();
+    const baseUrl = config.public.apiBaseUrl;
+
+    // Call register API
+    await $fetch(`${baseUrl}/user-exists`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: body.value,
+    });
+    registerActiveTab.value = activeTab.value;
+    
+    // Reset registration state
+    registrationStep.value = 'form';
+    
+    // Pre-populate register form with existing customer info
+    registerForm.value = {
+      firstName: customerInfo.value.fullName.split(' ')[0] || "",
+      lastName: customerInfo.value.fullName.split(' ').slice(1).join(' ') || "",
+      phoneNumber: customerInfo.value.phoneNumber || "",
+      email: customerInfo.value.email || "",
+      password: "",
+      confirmPassword: "",
+      otp: ""
+    };
+    
+    // Show registration modal directly
+    showRegisterModal.value = true;
+    
+    console.log('✅ Registration modal opened with pre-filled data');
+    
+  } catch (error) {
+    console.error('❌ Error in saveCustomerInfo:', error);
+    authError.value = error.message || 'Failed to process customer information';
+    bookingError.value = authError.value;
+    
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: authError.value,
+      life: 5000
+    });
+  } finally {
+    isCheckingAccount.value = false;
   }
+};
+
+// === TAB SWITCHING FUNCTIONS ===
+
+// Handle tab switching with debugging
+const handleTabSwitch = (tab) => {
+  console.log('🔄 Switching to tab:', tab, 'from:', activeTab.value);
+  activeTab.value = tab;
+  
+  // Clear any existing errors when switching tabs
+  bookingError.value = "";
+  authError.value = "";
+  
+  console.log('✅ Tab switched. Current tab:', activeTab.value);
+};
+
+// === AUTHENTICATION MODAL FUNCTIONS ===
+
+// Handle "Try again" action from Account Not Found modal
+const handleTryAgain = () => {
+  showAccountNotFoundModal.value = false;
+  authError.value = "";
+};
+
+// Handle "Create account" action from Account Not Found modal
+const handleCreateAccount = () => {
+  showAccountNotFoundModal.value = false;
+  
+  // Set register modal tab based on main customer form tab
+  registerActiveTab.value = activeTab.value;
+  
+  // Reset registration state
+  registrationStep.value = 'form';
+  
+  // Pre-populate register form with existing customer info
+  registerForm.value = {
+    firstName: "",
+    lastName: "",
+    phoneNumber: activeTab.value === 'phone' ? customerInfo.value.phoneNumber : "",
+    email: activeTab.value === 'email' ? customerInfo.value.email : "",
+    password: "",
+    confirmPassword: "",
+    otp: ""
+  };
+  
+  showRegisterModal.value = true;
+};
+
+// Handle register modal close
+const handleCloseRegisterModal = () => {
+  showRegisterModal.value = false;
+  authError.value = "";
+  registrationStep.value = 'form';
+  
+  // Clear countdown
+  if (registrationOTPForm.value.countdownInterval) {
+    clearInterval(registrationOTPForm.value.countdownInterval);
+  }
+  
+  // Reset register form
+  registerForm.value = {
+    firstName: "",
+    lastName: "",
+    phoneNumber: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    otp: ""
+  };
+};
+
+// Handle register modal tab switching
+const handleRegisterTabSwitch = (tab) => {
+  console.log('🔄 Register modal switching to tab:', tab, 'from:', registerActiveTab.value);
+  registerActiveTab.value = tab;
+  authError.value = ""; // Clear any errors when switching tabs
+  console.log('✅ Register modal tab switched. Current tab:', registerActiveTab.value);
+  
+  // Force reactivity update
+  nextTick(() => {
+    console.log('🔄 After nextTick, registerActiveTab:', registerActiveTab.value);
+  });
+};
+
+// Handle register form submission (send Firebase OTP)
+const handleRegisterAccount = async () => {
+  console.log('📝 Starting registration process - sending Firebase OTP...');
+  
+  // Validate form data
+  if (!registerForm.value.firstName || !registerForm.value.lastName || !registerForm.value.phoneNumber) {
+    authError.value = 'Please fill in all required fields';
+    return;
+  }
+  
+  try {
+    authError.value = '';
+    isCreatingAccount.value = true;
+    
+    // Send Firebase OTP to phone number
+    console.log('📤 Sending Firebase OTP to:', registerForm.value.phoneNumber);
+    const result = await sendOtp(registerForm.value.phoneNumber);
+    
+    console.log('✅ Firebase OTP sent successfully');
+    
+    // Move to OTP verification step
+    registrationStep.value = 'otp';
+    startRegistrationOTPCountdown();
+    
+    // Show success message
+    toast.add({
+      severity: 'success',
+      summary: 'OTP Sent',
+      detail: `Verification code sent to ${registerForm.value.phoneNumber}`,
+      life: 5000
+    });
+    
+  } catch (error) {
+    console.error('❌ Firebase OTP error:', error);
+    authError.value = error.message || 'Failed to send OTP. Please try again.';
+    
+    // Show different message for configuration errors
+    let toastDetail = error.message;
+    let toastSummary = 'OTP Error';
+    
+    if (error.message.includes('Firebase configuration error')) {
+      toastSummary = 'Firebase Setup Required';
+      toastDetail = 'Please check Firebase Console: Enable Phone Authentication and add authorized domains.';
+    }
+    
+    toast.add({
+      severity: 'error',
+      summary: toastSummary,
+      detail: toastDetail,
+      life: 10000
+    });
+  } finally {
+    isCreatingAccount.value = false;
+  }
+};
+
+
+
+// Verify Firebase OTP and create account
+const handleVerifyRegistrationOTP = async () => {
+  console.log('🔍 Verifying Firebase OTP and creating account...');
+  
+  if (!registerForm.value.otp || registerForm.value.otp.length < 6) {
+    authError.value = "Please enter a valid 6-digit OTP";
+    return;
+  }
+  
+  try {
+    authError.value = '';
+    isCreatingAccount.value = true;
+    
+    // Step 1: Verify Firebase OTP
+    const firebaseResult = await submitOtp(registerForm.value.otp, registerForm.value.firstName, registerForm.value.lastName, registerForm.value.phoneNumber);
+    
+    console.log('✅ Firebase OTP verified successfully');
+    
+    // Clear OTP timer
+    if (registrationOTPForm.value.countdownInterval) {
+      clearInterval(registrationOTPForm.value.countdownInterval);
+    }
+    
+    // Close register modal and show create password modal
+    showRegisterModal.value = false;
+    showCreatePasswordModal.value = true;
+    
+    // Reset registration step for next time
+    registrationStep.value = 'form';
+    
+    console.log('✅ OTP verified, showing create password modal');
+    
+  } catch (error) {
+    console.error('❌ Error verifying Firebase OTP:', error);
+    authError.value = error.message || 'Failed to verify OTP. Please try again.';
+    
+    toast.add({
+      severity: 'error',
+      summary: 'Verification Failed',
+      detail: authError.value,
+      life: 5000
+    });
+  } finally {
+    isCreatingAccount.value = false;
+  }
+};
+
+
+
+
+// Resend Firebase registration OTP
+const handleResendRegistrationOTP = async () => {
+  console.log('🔄 Resending Firebase registration OTP...');
+  
+  try {
+    authError.value = '';
+    isCreatingAccount.value = true;
+    
+    // Resend Firebase OTP
+    const phoneNumber = registerForm.value.phoneNumber;
+    await sendFirebaseOTP(phoneNumber);
+    
+    // Restart countdown
+    registrationOTPForm.value.countdown = 60;
+    registrationOTPForm.value.timer = setInterval(() => {
+      registrationOTPForm.value.countdown--;
+      if (registrationOTPForm.value.countdown <= 0) {
+        clearInterval(registrationOTPForm.value.timer);
+      }
+    }, 1000);
+    
+    console.log('✅ Firebase registration OTP resent successfully');
+  } catch (error) {
+    console.error('❌ Error resending Firebase registration OTP:', error);
+    authError.value = error.message || 'Failed to resend OTP. Please try again.';
+  } finally {
+    isCreatingAccount.value = false;
+  }
+};
+
+// Handle forgot password flow
+const handleForgotPassword = async () => {
+  showAccountNotFoundModal.value = false;
+  
+  // Pre-populate phone number if available
+  forgotPasswordForm.value.phoneNumber = activeTab.value === 'phone' 
+    ? customerInfo.value.phoneNumber 
+    : "";
+  
+  showForgotPasswordModal.value = true;
+  
+  // Automatically send OTP when modal opens
+  if (forgotPasswordForm.value.phoneNumber) {
+    await handleSendOTP();
+  }
+};
+
+// Send OTP for password reset
+const handleSendOTP = async () => {
+  authError.value = "";
+  isSendingOTP.value = true;
+  
+  try {
+    const result = await sendResetPasswordOTP(forgotPasswordForm.value.phoneNumber);
+    
+    if (result.success) {
+      // Start countdown
+      startOTPCountdown();
+      
+      toast.add({
+        severity: 'success',
+        summary: 'OTP Sent',
+        detail: 'Verification code sent to your phone number',
+        life: 3000
+      });
+      
+      console.log('✅ OTP sent successfully');
+    }
+    
+  } catch (error) {
+    console.error('❌ Error sending OTP:', error);
+    authError.value = error.message || 'Failed to send OTP';
+  } finally {
+    isSendingOTP.value = false;
+  }
+};
+
+// Start registration OTP countdown timer
+const startRegistrationOTPCountdown = () => {
+  registrationOTPForm.value.countdown = 120; // 2 minutes
+  
+  if (registrationOTPForm.value.countdownInterval) {
+    clearInterval(registrationOTPForm.value.countdownInterval);
+  }
+  
+  registrationOTPForm.value.countdownInterval = setInterval(() => {
+    registrationOTPForm.value.countdown--;
+    
+    if (registrationOTPForm.value.countdown <= 0) {
+      clearInterval(registrationOTPForm.value.countdownInterval);
+      registrationOTPForm.value.countdownInterval = null;
+    }
+  }, 1000);
+};
+
+// Start OTP countdown timer
+const startOTPCountdown = () => {
+  forgotPasswordForm.value.countdown = 60;
+  
+  forgotPasswordForm.value.countdownInterval = setInterval(() => {
+    forgotPasswordForm.value.countdown--;
+    
+    if (forgotPasswordForm.value.countdown <= 0) {
+      clearInterval(forgotPasswordForm.value.countdownInterval);
+      forgotPasswordForm.value.countdownInterval = null;
+    }
+  }, 1000);
+};
+
+// Handle OTP confirmation
+const handleConfirmOTP = () => {
+  if (!forgotPasswordForm.value.otp || forgotPasswordForm.value.otp.length < 6) {
+    authError.value = "Please enter the 6-digit verification code";
+    return;
+  }
+  
+  showForgotPasswordModal.value = false;
+  showInstructCustomerModal.value = true;
+  
+  // Clear countdown
+  if (forgotPasswordForm.value.countdownInterval) {
+    clearInterval(forgotPasswordForm.value.countdownInterval);
+  }
+};
+
+// Handle resend OTP
+const handleResendOTP = async () => {
+  await handleSendOTP();
+};
+
+const handleCreatePasswordAfterOTP = async () => {
+  // Validate password
+  if (!registerForm.value.password || registerForm.value.password.length < 8) {
+    authError.value = "Password must be at least 8 characters";
+    return;
+  }
+
+  if (registerForm.value.password !== registerForm.value.confirmPassword) {
+    authError.value = "Passwords do not match";
+    return;
+  }
+
+  authError.value = "";
+  isCreatingAccount.value = true;
+
+  try {
+    // Build body for register API
+    const body = {
+      identifier: registerForm.value.phoneNumber,
+      new_password: registerForm.value.password
+    };
+
+    const config = useRuntimeConfig();
+    const baseUrl = config.public.apiBaseUrl;
+
+    // Call register API
+    await $fetch(`${baseUrl}/update-user-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: body,
+    });
+
+    console.log('✅ Account registered successfully');
+
+    // Close create password modal and show success modal
+    showCreatePasswordModal.value = false;
+    showAccountSuccessModal.value = true;
+
+    // Save customer info to localStorage
+    if (process.client) {
+      localStorage.setItem('customerInfo', JSON.stringify(customerInfo.value));
+    }
+    createPasswordForm.value = {
+      password: '',
+      confirmPassword: ''
+    };
+
+    console.log('✅ Password created successfully');
+  } catch (error) {
+    console.error('❌ Error creating account:', error);
+    authError.value = error.message || 'Failed to create account';
+  } finally {
+    isCreatingAccount.value = false;
+  }
+};
+
+
+// Handle create password (for forgot password flow)
+const handleCreatePassword = async () => {
+  // Validate passwords
+  if (!createPasswordForm.value.password || createPasswordForm.value.password.length) {
+    authError.value = "Password must be at least 8 characters";
+    return;
+  }
+  
+  if (createPasswordForm.value.password !== createPasswordForm.value.confirmPassword) {
+    authError.value = "Passwords do not match";
+    return;
+  }
+  
+  authError.value = "";
+  isVerifyingOTP.value = true;
+  
+  try {
+    const result = await verifyOTPAndResetPassword(
+      forgotPasswordForm.value.phoneNumber,
+      forgotPasswordForm.value.otp,
+      createPasswordForm.value.password
+    );
+    
+    if (result.success) {
+      showCreatePasswordModal.value = false;
+      showAccountSuccessModal.value = true;
+      
+      // Save customer info
+      if (process.client) {
+        localStorage.setItem('customerInfo', JSON.stringify(customerInfo.value));
+      }
+      
+      console.log('✅ Password reset successfully');
+    }
+    
+  } catch (error) {
+    console.error('❌ Error resetting password:', error);
+    authError.value = error.message || 'Failed to reset password';
+  } finally {
+    isVerifyingOTP.value = false;
+  }
+};
+
+// Handle success modal completion
+const handleSuccessComplete = () => {
+  showAccountSuccessModal.value = false;
   
   toast.add({
     severity: 'success',
-    summary: 'Information Saved',
-    detail: 'Customer information saved successfully!',
+    summary: 'Account Ready',
+    detail: 'You can now proceed with booking!',
     life: 3000
   });
-  
-  console.log('💾 Customer info saved:', customerInfo.value);
+};
+
+// Handle show instruction modal
+const handleShowInstruction = () => {
+  showInstructCustomerModal.value = true;
+};
+
+// Handle instruction modal OK
+const handleInstructionOK = () => {
+  showInstructCustomerModal.value = false;
+  showCreatePasswordModal.value = true;
 };
 
 // Clear customer information
@@ -901,6 +1917,69 @@ watch(visible, (newVisible) => {
     clearEventFromUrl();
   }
 });
+
+// Cleanup countdown timer on unmount
+onUnmounted(() => {
+  if (forgotPasswordForm.value.countdownInterval) {
+    clearInterval(forgotPasswordForm.value.countdownInterval);
+  }
+  if (registrationOTPForm.value.countdownInterval) {
+    clearInterval(registrationOTPForm.value.countdownInterval);
+  }
+});
+
+// internal
+const confirmationResult = ref(null)
+let otpTimer = null
+
+// ---------- helpers ----------
+function toE164(rawPhone) {
+  // Normalize given phone into E.164 (e.g. +855XXXXXXXX)
+  if (!rawPhone) return null
+  let digits = rawPhone.replace(/\D/g, '')
+  // remove leading zeros
+  digits = digits.replace(/^0+/, '')
+  // if user already typed '855...' keep it; otherwise prefix 855
+  if (!digits.startsWith('855')) digits = '855' + digits
+  return '+' + digits
+}
+
+function formatIdentifierForApi(rawPhoneOrEmail) {
+  // backend sample used identifier="77778" — adapt as reasonable.
+  // We will pass identifier as digits-only 855XXXXXXXX (no '+')
+  if (!rawPhoneOrEmail) return ''
+  // if looks like email -> return as-is
+  if (/@/.test(rawPhoneOrEmail)) return rawPhoneOrEmail
+  const digits = rawPhoneOrEmail.replace(/\D/g, '').replace(/^0+/, '')
+  if (digits.startsWith('855')) return digits
+  return '855' + digits
+}
+
+function startOtpCountdown(seconds = 120) {
+  registrationOTPForm.countdown = seconds
+  if (otpTimer) clearInterval(otpTimer)
+  otpTimer = setInterval(() => {
+    if (registrationOTPForm.countdown > 0) registrationOTPForm.countdown--
+    else {
+      clearInterval(otpTimer)
+      otpTimer = null
+    }
+  }, 1000)
+}
+
+function clearOtpCountdown() {
+  if (otpTimer) {
+    clearInterval(otpTimer)
+    otpTimer = null
+  }
+  registrationOTPForm.countdown = 0
+}
+
+onBeforeUnmount(() => {
+  clearOtpCountdown()
+  try { if (window.recaptchaVerifier && typeof window.recaptchaVerifier.clear === 'function') window.recaptchaVerifier.clear() } catch(e) {}
+})
+
 </script>
 
 <style scoped>
@@ -994,5 +2073,46 @@ img {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+}
+
+/* Modal animation styles */
+.fixed.inset-0 {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.fixed.inset-0 > div {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Input focus styles for modals */
+.fixed input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.5);
+}
+
+/* Button loading state */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>

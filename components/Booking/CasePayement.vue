@@ -61,12 +61,14 @@
                 <span class="font-semibold text-gray-800">{{ order.customer_name }}</span>
                 <span class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-md">{{ order.order_number }}</span>
               </div>
-              <span 
-                class="px-3 py-1 rounded-full text-xs font-medium" 
-                :class="getStatusClass(order.status)"
-              >
-                {{ formatStatus(order.status) }}
-              </span>
+              <span
+  class="inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-medium"
+  :class="getStatusClass(order.status)"
+>
+  <Icon name="radix-icons:dot-filled" class="w-3 h-3" />
+  <span>{{ formatStatus(order.status) }}</span>
+</span>
+
             </div>
             <p class="text-sm text-gray-500 mb-3">
               Purchase Date: {{ formatDate(order.created_at) }}
@@ -83,25 +85,28 @@
               </div>
               <div class="border-b border-gray-300 my-4"></div>
               <Transition name="slide-fade">
-                <div v-if="expandedBookings[order.id]" class="mt-3 text-gray-600 space-y-1">
-  <!-- Row 1 -->
-  <div class="flex items-center space-x-12 mb-4">
-    <div class="email">
+               <div v-if="expandedBookings[order.id]" class="mt-3 text-gray-600 space-y-1">
+  <!-- Use Grid with 2 columns -->
+  <div class="grid grid-cols-2 gap-6 mb-4">
+    <!-- Column 1 -->
+    <div class="email break-words">
       <p class="text-sm text-gray-500">Email</p>
       <span class="font-medium text-gray-800">{{ order.customer_email || 'N/A' }}</span>
     </div>
-    <div class="total-ticket pl-1">
+    <!-- Column 2 -->
+    <div class="total-ticket">
       <p class="text-sm text-gray-500">Total Tickets</p>
       <span class="font-medium text-gray-800">{{ order.ticket_count || 0 }}</span>
     </div>
   </div>
 
-  <!-- Row 2 -->
-  <div class="flex items-center space-x-36">
-    <div class="number-phone">
+  <div class="grid grid-cols-2 gap-6">
+    <!-- Column 1 -->
+    <div class="number-phone break-words">
       <p class="text-sm text-gray-500">Phone Number</p>
       <span class="font-medium text-gray-800">{{ order.customer_phone_number || 'N/A' }}</span>
     </div>
+    <!-- Column 2 -->
     <div class="payment-method">
       <p class="text-sm text-gray-500">Ticket Types</p>
       <div class="flex flex-wrap gap-2">
@@ -116,8 +121,10 @@
       </div>
     </div>
   </div>
+
   <div class="border-b border-gray-300 my-4"></div>
 </div>
+
 
               </Transition>
             </div>
@@ -231,37 +238,59 @@
           <p class="text-gray-600">{{ selectedOrder.customer_name }}</p>
         </div>
 
-        <!-- Order Summary -->
-        <div class="space-y-3 mb-6">
-          <div v-if="selectedOrder.items && selectedOrder.items.length > 0" class="space-y-2">
-            <div 
-              v-for="(item, index) in selectedOrder.items" 
-              :key="item.id" 
-              class="bg-gray-100 rounded-2xl p-3 text-gray-700"
-            >
-              <div class="flex justify-between items-center">
-                <div class="flex items-center space-x-3">
-                  <span class="text-sm p-1 text-black bg-white rounded-full min-w-[24px] text-center">
-                    {{ String(index + 1).padStart(2, '0') }}
-                  </span>
-                  <span class="text-sm font-medium text-gray-800">{{ item.name }}</span>
-                </div>
-                <span class="font-medium">{{ item.quantity || 1 }}</span>
-                <span class="font-medium">${{ (item.price || 0).toFixed(2) }}</span>
-              </div>
-            </div>
-          </div>
-          <div v-else class="bg-gray-100 rounded-2xl p-3 text-gray-700">
-            <div class="flex justify-between items-center">
-              <div class="flex items-center space-x-3">
-                <span class="text-sm p-1 text-black bg-white rounded-full">01</span>
-                <span class="text-sm">Event Tickets</span>
-              </div>
-              <span class="font-medium">{{ selectedOrder.ticket_count || 0 }}</span>
-              <span class="font-medium">${{ (selectedOrder.total_amount || 0).toFixed(2) }}</span>
-            </div>
-          </div>
+       <!-- Order Summary -->
+<div class="space-y-3 mb-6">
+  <div v-if="selectedOrder.items && selectedOrder.items.length > 0" class="space-y-2">
+    <div 
+      v-for="(item, index) in selectedOrder.items" 
+      :key="item.id" 
+      class="bg-gray-100 rounded-2xl p-3 text-gray-700"
+    >
+      <!-- Grid Layout with 3 columns -->
+      <div class="grid grid-cols-3 items-center gap-4">
+        <!-- Column 1: Index + Item Name -->
+        <div class="flex items-center space-x-3 overflow-hidden">
+          <span class="text-sm p-1 text-black bg-white rounded-full min-w-[24px] text-center">
+            {{ String(index + 1).padStart(2, '0') }}
+          </span>
+          <span class="text-sm font-medium text-gray-800 truncate">
+            {{ item.name }}
+          </span>
         </div>
+        <!-- Column 2: Quantity -->
+        <div class="text-center">
+          <span class="font-medium">{{ item.quantity || 1 }}</span>
+        </div>
+        <!-- Column 3: Price -->
+        <div class="text-right">
+          <span class="font-medium">${{ (item.price || 0).toFixed(2) }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fallback when no items -->
+  <div v-else class="bg-gray-100 rounded-2xl p-3 text-gray-700">
+    <div class="grid grid-cols-3 items-center gap-4">
+      <!-- Column 1 -->
+      <div class="flex items-center space-x-3">
+        <span class="text-sm p-1 text-black bg-white rounded-full min-w-[24px] text-center">
+          01
+        </span>
+        <span class="text-sm truncate">Event Tickets</span>
+      </div>
+      <!-- Column 2 -->
+      <div class="text-center">
+        <span class="font-medium">{{ selectedOrder.ticket_count || 0 }}</span>
+      </div>
+      <!-- Column 3 -->
+      <div class="text-right">
+        <span class="font-medium">${{ (selectedOrder.total_amount || 0).toFixed(2) }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 
         <!-- Order Details -->
         <div class="space-y-3 bg-gray-100 p-3 rounded-xl text-gray-700 mb-6">
@@ -472,13 +501,13 @@ const formatStatus = (status) => {
 const getStatusClass = (status) => {
   switch (status?.toLowerCase()) {
     case 'pending':
-      return 'bg-yellow-100 text-yellow-800'
+      return 'bg-yellow-50 text-yellow-700'
     case 'completed':
-      return 'bg-green-100 text-green-800'
+      return 'bg-green-50 text-green-700'
     case 'cancelled':
-      return 'bg-red-100 text-red-800'
+      return 'bg-red-50 text-red-700'
     default:
-      return 'bg-gray-100 text-gray-800'
+      return 'bg-gray-50 text-gray-700'
   }
 }
 

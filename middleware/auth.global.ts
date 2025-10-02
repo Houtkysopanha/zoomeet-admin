@@ -7,14 +7,20 @@ export default defineNuxtRouteMiddleware((to, from) => {
 
   const { getToken, isTokenExpired, clearAuth } = useAuth()
 
-  // Protect /admin routes
+  // Protect /admin routes (except public booking routes)
   if (import.meta.client && to.path.startsWith('/admin')) {
-    const token = getToken()
+    // Allow public access to booking routes for customers
+    const publicBookingRoutes = ['/admin/booking']
+    const isPublicBookingRoute = publicBookingRoutes.some(route => to.path.startsWith(route))
+    
+    if (!isPublicBookingRoute) {
+      const token = getToken()
 
-    if (!token || isTokenExpired()) {
-      console.log('❌ No valid token found, redirecting to login')
-      clearAuth()
-      return navigateTo(`/login?redirect=${encodeURIComponent(to.fullPath)}`)
+      if (!token || isTokenExpired()) {
+        console.log('❌ No valid token found, redirecting to login')
+        clearAuth()
+        return navigateTo(`/login?redirect=${encodeURIComponent(to.fullPath)}`)
+      }
     }
   }
 

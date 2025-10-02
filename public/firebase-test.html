@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Firebase Phone Auth Test</title>
+</head>
+<body>
+    <h1>Firebase Phone Auth Test</h1>
+    <p>Project: ticket-502d6</p>
+    <div id="recaptcha-container"></div>
+    <input type="text" id="phoneNumber" placeholder="+855123456789" value="+85512345678">
+    <button onclick="testFirebaseOTP()">Test Firebase OTP</button>
+    <div id="result"></div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signInWithPhoneNumber, RecaptchaVerifier } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        // Firebase config - EXACT same as in firebase.client.ts
+        const firebaseConfig = {
+            apiKey: "AIzaSyDspK_LhPxXEi3ePwcXSc0SGFYv17fWcO8",
+            authDomain: "ticket-502d6.firebaseapp.com",
+            projectId: "ticket-502d6",
+            storageBucket: "ticket-502d6.firebasestorage.app",
+            messagingSenderId: "277425939534",
+            appId: "1:277425939534:web:e0f023f75bacf775b74f1f",
+            measurementId: "G-PTG0JQSP1W"
+        };
+
+        console.log('🔥 Initializing Firebase with config:', firebaseConfig);
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        console.log('📱 Firebase Auth initialized:', auth);
+
+        // Test function
+        window.testFirebaseOTP = async function() {
+            const phoneNumber = document.getElementById('phoneNumber').value;
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                resultDiv.innerHTML = 'Initializing reCAPTCHA...';
+                
+                // Initialize reCAPTCHA
+                if (window.recaptchaVerifier) {
+                    window.recaptchaVerifier.clear();
+                }
+                
+                window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+                    size: 'normal',
+                    callback: (response) => {
+                        console.log('✅ reCAPTCHA solved:', response);
+                    },
+                    'expired-callback': () => {
+                        console.log('❌ reCAPTCHA expired');
+                    }
+                });
+
+                resultDiv.innerHTML = 'Sending OTP...';
+                console.log('📞 Testing Firebase OTP for:', phoneNumber);
+                
+                const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, window.recaptchaVerifier);
+                console.log('✅ OTP sent successfully:', confirmationResult);
+                
+                resultDiv.innerHTML = `
+                    <p style="color: green;">✅ REAL Firebase OTP sent successfully!</p>
+                    <p>Check your phone for the SMS code</p>
+                    <input type="text" id="otpCode" placeholder="Enter 6-digit OTP code" maxlength="6">
+                    <button onclick="verifyOTP()">Verify OTP</button>
+                `;
+                
+                window.confirmationResult = confirmationResult;
+                
+            } catch (error) {
+                console.error('❌ Firebase OTP error:', error);
+                
+                let errorMessage = '';
+                switch(error.code) {
+                    case 'auth/billing-not-enabled':
+                        errorMessage = 'Firebase Billing not enabled. Please enable Blaze plan.';
+                        break;
+                    case 'auth/operation-not-allowed':
+                        errorMessage = 'Phone authentication not enabled in Firebase Console.';
+                        break;
+                    case 'auth/invalid-phone-number':
+                        errorMessage = 'Invalid phone number format.';
+                        break;
+                    case 'auth/unauthorized-domain':
+                        errorMessage = 'Domain not authorized. Add localhost to Firebase Console.';
+                        break;
+                    default:
+                        errorMessage = error.message;
+                }
+                
+                resultDiv.innerHTML = `
+                    <div style="color: red; border: 1px solid red; padding: 10px; margin: 10px 0;">
+                        <h3>❌ Firebase Error: ${error.code}</h3>
+                        <p><strong>Message:</strong> ${errorMessage}</p>
+                        <details>
+                            <summary>Full Error Details</summary>
+                            <pre style="background: #f5f5f5; padding: 10px;">${JSON.stringify(error, null, 2)}</pre>
+                        </details>
+                    </div>
+                `;
+            }
+        };
+
+        // Verify OTP function
+        window.verifyOTP = async function() {
+            const otpCode = document.getElementById('otpCode').value;
+            const resultDiv = document.getElementById('result');
+            
+            if (!otpCode || otpCode.length !== 6) {
+                resultDiv.innerHTML += `<p style="color: red;">❌ Please enter a 6-digit OTP code</p>`;
+                return;
+            }
+            
+            try {
+                resultDiv.innerHTML += '<p>Verifying OTP...</p>';
+                const result = await window.confirmationResult.confirm(otpCode);
+                console.log('✅ OTP verified successfully:', result);
+                resultDiv.innerHTML += `
+                    <div style="color: green; border: 1px solid green; padding: 10px; margin: 10px 0;">
+                        <h3>✅ OTP Verified Successfully!</h3>
+                        <p><strong>User ID:</strong> ${result.user.uid}</p>
+                        <p><strong>Phone:</strong> ${result.user.phoneNumber}</p>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('❌ OTP verification error:', error);
+                resultDiv.innerHTML += `<p style="color: red;">❌ Verification failed: ${error.message}</p>`;
+            }
+        };
+
+        // Auto-load diagnostics on page load
+        window.addEventListener('load', () => {
+            console.log('🔬 Firebase Configuration Diagnostics:');
+            console.log('- Project ID:', firebaseConfig.projectId);
+            console.log('- Auth Domain:', firebaseConfig.authDomain);
+            console.log('- App ID:', firebaseConfig.appId);
+            console.log('- Current Domain:', window.location.hostname);
+            console.log('- Current Protocol:', window.location.protocol);
+        });
+    </script>
+</body>
+</html>
