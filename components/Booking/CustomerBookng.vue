@@ -1601,9 +1601,6 @@ const handleVerifyRegistrationOTP = async () => {
   }
 };
 
-
-
-
 // Resend Firebase registration OTP
 const handleResendRegistrationOTP = async () => {
   console.log('🔄 Resending Firebase registration OTP...');
@@ -1729,11 +1726,6 @@ const handleConfirmOTP = () => {
   }
 };
 
-// Handle resend OTP
-const handleResendOTP = async () => {
-  await handleSendOTP();
-};
-
 const handleCreatePasswordAfterOTP = async () => {
   // Validate password
   if (!registerForm.value.password || registerForm.value.password.length < 8) {
@@ -1748,11 +1740,11 @@ const handleCreatePasswordAfterOTP = async () => {
 
   authError.value = "";
   isCreatingAccount.value = true;
-
+ let formattedPhone = registerForm.value.phoneNumber.replace(/^\+/, ''); 
   try {
     // Build body for register API
     const body = {
-      identifier: registerForm.value.phoneNumber,
+      identifier: formattedPhone,
       new_password: registerForm.value.password
     };
 
@@ -1793,49 +1785,6 @@ const handleCreatePasswordAfterOTP = async () => {
 };
 
 
-// Handle create password (for forgot password flow)
-const handleCreatePassword = async () => {
-  // Validate passwords
-  if (!createPasswordForm.value.password || createPasswordForm.value.password.length) {
-    authError.value = "Password must be at least 8 characters";
-    return;
-  }
-  
-  if (createPasswordForm.value.password !== createPasswordForm.value.confirmPassword) {
-    authError.value = "Passwords do not match";
-    return;
-  }
-  
-  authError.value = "";
-  isVerifyingOTP.value = true;
-  
-  try {
-    const result = await verifyOTPAndResetPassword(
-      forgotPasswordForm.value.phoneNumber,
-      forgotPasswordForm.value.otp,
-      createPasswordForm.value.password
-    );
-    
-    if (result.success) {
-      showCreatePasswordModal.value = false;
-      showAccountSuccessModal.value = true;
-      
-      // Save customer info
-      if (process.client) {
-        localStorage.setItem('customerInfo', JSON.stringify(customerInfo.value));
-      }
-      
-      console.log('✅ Password reset successfully');
-    }
-    
-  } catch (error) {
-    console.error('❌ Error resetting password:', error);
-    authError.value = error.message || 'Failed to reset password';
-  } finally {
-    isVerifyingOTP.value = false;
-  }
-};
-
 // Handle success modal completion
 const handleSuccessComplete = () => {
   showAccountSuccessModal.value = false;
@@ -1846,11 +1795,6 @@ const handleSuccessComplete = () => {
     detail: 'You can now proceed with booking!',
     life: 3000
   });
-};
-
-// Handle show instruction modal
-const handleShowInstruction = () => {
-  showInstructCustomerModal.value = true;
 };
 
 // Handle instruction modal OK
