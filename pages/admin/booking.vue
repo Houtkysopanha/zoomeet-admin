@@ -5,7 +5,7 @@
       <h1 class="text-3xl font-bold text-purple-600">Booking Service</h1>
       <div class="flex items-center gap-4">
         <!-- Tabs (Custom HTML/Tailwind with gradient) -->
-        <div class="flex bg-gray-100 rounded-full ">
+        <div class="flex bg-gray-100 space-x-2 rounded-full ">
           <button
             @click="activeTab = 'customer'"
             :class="[

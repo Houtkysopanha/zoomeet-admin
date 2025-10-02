@@ -41,7 +41,7 @@
     <div class="flex flex-col sm:flex-row justify-around items-center bg-[#F8F8FF] border border-white p-3 rounded-xl shadow-md">
       <div class="flex flex-col items-center text-center mb-2 sm:mb-0">
         <p class="text-gray-500 text-xs font-medium">Date</p>
-        <p class="text-gray-800 text-base md:text-sm font-semibold">{{ formattedDate }}</p>
+        <p class="text-gray-800 text-base md:text-sm">{{ formattedDate }}</p>
       </div>
 
       <!-- Vertical separator (visible on larger screens) -->
@@ -51,7 +51,7 @@
 
       <div class="flex flex-col items-center text-center">
         <p class="text-gray-500 text-xs font-medium">Time</p>
-        <p class="text-gray-800 text-base md:text-sm font-semibold">{{ formattedTime }}</p>
+        <p class="text-gray-800 text-base md:text-sm">{{ formattedTime }}</p>
       </div>
     </div>
   </div>

@@ -30,7 +30,7 @@ function startTokenMonitoring() {
   let userWarned = false
 
   const checkIntervalMs =
-    process.env.NODE_ENV === 'production' ? 60 * 60 * 1000 : 30 * 60 * 1000
+    process.env.NODE_ENV === 'production' ? 60 * 60 * 1000 : 10 * 60 * 1000 // Reduced dev interval from 30min to 10min
 
   tokenCheckInterval = setInterval(async () => {
     const { getTimeUntilExpiry, isTokenExpired, shouldRefreshToken, refreshToken, clearAuth } = useAuth()
