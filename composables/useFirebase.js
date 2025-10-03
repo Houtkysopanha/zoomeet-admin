@@ -1,5 +1,6 @@
 import { onMounted } from 'vue'
-import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth'
+import { getAuth, RecaptchaVerifier, signInWithCustomToken, signInWithPhoneNumber } from 'firebase/auth'
+
 
 export default function useFirebase() {
   const router = useRouter()
@@ -101,21 +102,30 @@ export default function useFirebase() {
 
 
 
+  const submitWithEmail = async (otpDigits, firstName, lastName, email) => {
+    try {
+       const res = await verifyEmailOtp(email, otpDigits)
+        const auth = getAuth()
+        const userCredential = await signInWithCustomToken(auth, res.token)
+        const idToken = await userCredential.user.getIdToken()
+      // Return the verified user data for further processing
+      return {
+        success: true,
+        userData: {
+          uid: res.uid,
+          firstName: firstName,
+          lastName: lastName,
+          identifier: email,
+          login_type: 'email',
+          idToken: idToken
+        }
+      }
+    } catch (err) {
+      console.error('Firebase OTP verification error:', err)
+      return { error: 'Invalid OTP. Please try again.' }
+    } 
+  }
 
-//   return {
-//     tab,
-//     otpDigits,
-//     otpInputs,
-//     countdown,
-//     isSubmitting,
-//     identifier,
-//     phonenumber,
-//     confirmationResult,
-//     resendCode,
-//     submitOtp,
-//     startCountdown,
-//     isOtpComplete
-//   }
   // ------------------------
   // Register user after OTP verification (Phone with Firebase token)
   // ------------------------
@@ -167,13 +177,11 @@ export default function useFirebase() {
       const config = useRuntimeConfig()
       const baseUrl = config.public.apiBaseUrl
       
-      console.log('📧 Registering user with email (no Firebase token):', userData.identifier)
-      
+      console.log(userData)
       const response = await $fetch(`${baseUrl}/register`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${userData.idToken}`,
-          skipAuth: true,
           'Content-Type': 'application/json',
         },
         body: {
@@ -186,7 +194,6 @@ export default function useFirebase() {
         },
       })
       
-      console.log('✅ Email registration successful')
       return { success: true, data: response }
     } catch (err) {
       console.error('❌ Email registration error:', err)
@@ -214,6 +221,7 @@ export default function useFirebase() {
     initializeRecaptcha,
     sendOtp,
     submitOtp,
+    submitWithEmail,
     registerUser,
     registerUserWithEmail,
   }

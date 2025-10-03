@@ -106,7 +106,7 @@
             <InputText
               v-model="customerInfo.fullName"
               placeholder="Full name"
-              class="w-full p-3 border border-gray-200 rounded-lg bg-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+              class="w-full p-3 bg-neutral-100 border border-gray-200 rounded-lg focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
             />
           </div>
         </div>
@@ -837,9 +837,9 @@ import {
   fetchEvents, 
   createOrderReservation,
 } from "@/composables/api";
-import { sendEmailOtp, verifyEmailOtp } from "@/composables/useEmailAuth";
+import { sendEmailOtp } from "@/composables/useEmailAuth";
 // Firebase composable
-const { sendOtp, submitOtp, registerUser, registerUserWithEmail } = useFirebase();
+const { sendOtp, submitOtp, registerUser, registerUserWithEmail,submitWithEmail  } = useFirebase();
 import img1 from "@/assets/image/poster-manage-booking.png";
 import PhoneNumber from "../PhoneNumber.vue";
 
@@ -1525,9 +1525,7 @@ const handleRegisterTabSwitch = (tab) => {
 };
 
 // Handle register form submission (send OTP - Phone or Email)
-const handleRegisterAccount = async () => {
-  console.log('📝 Starting registration process - sending OTP...');
-  
+const handleRegisterAccount = async () => {  
   // Validate form data based on active tab
   if (!registerForm.value.firstName || !registerForm.value.lastName) {
     authError.value = 'Please fill in first name and last name';
@@ -1560,17 +1558,13 @@ const handleRegisterAccount = async () => {
     if (registerActiveTab.value === 'phone') {
       // Send Firebase Phone OTP
       identifier = registerForm.value.phoneNumber;
-      console.log('📤 Sending Firebase Phone OTP to:', identifier);
       otpResult = await sendOtp(identifier);
     } else if (registerActiveTab.value === 'email') {
       // Send Firebase Email OTP
       identifier = registerForm.value.email;
-      console.log('📤 Sending Firebase Email OTP to:', identifier);
       otpResult = await sendEmailOtp(identifier);
     }
-    
-    console.log('✅ OTP sent successfully');
-    
+        
     // Move to OTP verification step
     registrationStep.value = 'otp';
     startRegistrationOTPCountdown();
@@ -1629,19 +1623,16 @@ const handleVerifyRegistrationOTP = async () => {
     if (registerActiveTab.value === 'phone') {
       // Verify Firebase Phone OTP
       identifier = registerForm.value.phoneNumber;
-      loginType = 'phone';
-      console.log('🔍 Verifying Phone OTP for:', identifier);
       otpResult = await submitOtp(registerForm.value.otp, registerForm.value.firstName, registerForm.value.lastName, identifier);
     } else if (registerActiveTab.value === 'email') {
       // Verify Firebase Email OTP
       identifier = registerForm.value.email;
       loginType = 'email';
       console.log('🔍 Verifying Email OTP for:', identifier);
-      const emailResult = await verifyEmailOtp(identifier, registerForm.value.otp);
+      const emailResult = await submitWithEmail(registerForm.value.otp, registerForm.value.firstName, registerForm.value.lastName, identifier);
       
       if (emailResult.success) {
-        // Create user data structure similar to phone OTP
-        otpResult = {
+          otpResult = {
           success: true,
           userData: {
             uid: emailResult.uid || `email_${Date.now()}`, // Generate UID if not provided
@@ -1649,7 +1640,7 @@ const handleVerifyRegistrationOTP = async () => {
             lastName: registerForm.value.lastName,
             identifier: identifier,
             login_type: 'email',
-            idToken: emailResult.idToken || null
+            idToken: emailResult.userData.idToken || null
           }
         };
       } else {
@@ -1661,20 +1652,14 @@ const handleVerifyRegistrationOTP = async () => {
       authError.value = otpResult.error;
       return;
     }
-    
-    console.log('✅ OTP verified successfully');
-    
     // Step 2: Register user in backend using appropriate method
     let registrationResult;
     
     if (registerActiveTab.value === 'phone') {
-      // Use Firebase token-based registration for phone
-      console.log('📱 Using Firebase token-based registration for phone');
       registrationResult = await registerUser(otpResult.userData);
     } else if (registerActiveTab.value === 'email') {
-      // Use email-based registration without Firebase token
-      console.log('📧 Using email-based registration without Firebase token');
       registrationResult = await registerUserWithEmail(otpResult.userData);
+
     } else {
       // Fallback
       registrationResult = await registerUser(otpResult.userData);
@@ -1958,7 +1943,7 @@ onBeforeUnmount(() => {
 <style scoped>
 /* PrimeVue component overrides for consistent styling */
 :deep(.p-inputtext) {
-  @apply focus:ring-1 focus:ring-purple-500 focus:border-purple-500 bg-white;
+  @apply focus:ring-1 focus:ring-purple-500 focus:border-purple-500 bg-neutral-100;
 }
 /* Remove border and focus styles for phone input */
 :deep(.p-inputtext.border-0) {
