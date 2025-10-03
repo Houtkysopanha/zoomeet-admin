@@ -74,39 +74,27 @@ export default function useFirebase() {
       return { error: 'Session expired. Please try again.' }
     }
     try {
-      let body = {}
-      const idToken = ref('')
-
-    //   if (tab.value === 'phone') {
-        const result = await confirmationResult.value.confirm(otpDigits)
-        const user = result.user
-        let formattedPhone = phoneNumber.replace(/^\+/, ''); 
-
-        idToken.value = await result.user.getIdToken()
-        body = {
+      // Verify Firebase OTP
+      const result = await confirmationResult.value.confirm(otpDigits)
+      const user = result.user
+      let formattedPhone = phoneNumber.replace(/^\+/, ''); 
+      const idToken = await result.user.getIdToken()
+      
+      // Return the verified user data for further processing
+      return {
+        success: true,
+        userData: {
           uid: user.uid,
           firstName: firstName,
           lastName: lastName,
           identifier: formattedPhone,
-          login_type: 'phone'
+          login_type: 'phone',
+          idToken: idToken
         }
-    //   }
-      
-      const config = useRuntimeConfig()
-      const baseUrl = config.public.apiBaseUrl  
-        // Only call register API in registration flow
-        await $fetch(`${baseUrl}/register`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${idToken.value}`,
-            'Content-Type': 'application/json',
-          },
-          body: body,
-        })
-    
+      }
     
     } catch (err) {
-      console.error(err)
+      console.error('Firebase OTP verification error:', err)
       return { error: 'Invalid OTP. Please try again.' }
     } 
   }
@@ -129,11 +117,104 @@ export default function useFirebase() {
 //     isOtpComplete
 //   }
   // ------------------------
+  // Register user after OTP verification (Phone with Firebase token)
+  // ------------------------
+  const registerUser = async (userData) => {
+    try {
+      const config = useRuntimeConfig()
+      const baseUrl = config.public.apiBaseUrl
+      
+      const response = await $fetch(`${baseUrl}/register`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${userData.idToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: {
+          uid: userData.uid,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          identifier: userData.identifier,
+          login_type: userData.login_type
+        },
+      })
+      
+      return { success: true, data: response }
+    } catch (err) {
+      console.error('Registration error:', err)
+      
+      // Handle 409 conflict (user already exists)
+      if (err.status === 409) {
+        return { 
+          success: false, 
+          error: 'User already exists. Please try logging in instead.',
+          code: 'USER_EXISTS'
+        }
+      }
+      
+      return { 
+        success: false, 
+        error: err.message || 'Failed to register user. Please try again.' 
+      }
+    }
+  }
+
+  // ------------------------
+  // Register user with email (without Firebase token)
+  // ------------------------
+  const registerUserWithEmail = async (userData) => {
+    try {
+      const config = useRuntimeConfig()
+      const baseUrl = config.public.apiBaseUrl
+      
+      console.log('📧 Registering user with email (no Firebase token):', userData.identifier)
+      
+      const response = await $fetch(`${baseUrl}/register`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${userData.idToken}`,
+          skipAuth: true,
+          'Content-Type': 'application/json',
+        },
+        body: {
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          identifier: userData.identifier,
+          login_type: userData.login_type,
+          // Generate a unique UID for email users
+          uid: userData.uid
+        },
+      })
+      
+      console.log('✅ Email registration successful')
+      return { success: true, data: response }
+    } catch (err) {
+      console.error('❌ Email registration error:', err)
+      
+      // Handle 409 conflict (user already exists)
+      if (err.status === 409) {
+        return { 
+          success: false, 
+          error: 'User already exists. Please try logging in instead.',
+          code: 'USER_EXISTS'
+        }
+      }
+      
+      return { 
+        success: false, 
+        error: err.message || 'Failed to register user. Please try again.' 
+      }
+    }
+  }
+
+  // ------------------------
   // Expose
   // ------------------------
   return {
     initializeRecaptcha,
     sendOtp,
     submitOtp,
+    registerUser,
+    registerUserWithEmail,
   }
 }

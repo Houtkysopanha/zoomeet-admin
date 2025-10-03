@@ -37,24 +37,24 @@
           <div class="flex gap-3 button-save">
              <Button 
                @click="saveCustomerInfo"
-               :disabled="!isCustomerInfoComplete || isCheckingAccount"
+               :disabled="!isCustomerInfoComplete || isCreatingAccount"
                :class="[
                  'rounded-full p-2 px-8 transition-all duration-200',
-                 (isCustomerInfoComplete && !isCheckingAccount)
+                 (isCustomerInfoComplete && !isCreatingAccount)
                    ? 'bg-purple-700 text-white hover:bg-purple-800' 
                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                ]"
              >
               <Icon 
-                :name="isCheckingAccount ? 'eos-icons:loading' : 'mingcute:save-fill'" 
-                :class="['w-5 mr-2 h-5', isCheckingAccount ? 'animate-spin' : '']" 
+                :name="isCreatingAccount ? 'eos-icons:loading' : 'mingcute:save-fill'" 
+                :class="['w-5 mr-2 h-5', isCreatingAccount ? 'animate-spin' : '']" 
               />
-              {{ isCheckingAccount ? 'Checking...' : 'Save' }}
+              {{ isCreatingAccount ? 'Checking...' : 'Save' }}
               </Button>
               
               <Button 
                 @click="clearCustomerInfo"
-                v-if="customerInfo.fullName || customerInfo.phoneNumber || customerInfo.email"
+                v-if="customerInfo?.fullName || customerInfo?.phoneNumber || customerInfo?.email"
                 class="rounded-full p-2 px-6 bg-gray-500 text-white hover:bg-gray-600 transition-all duration-200"
               >
                 <Icon name="heroicons:trash" class="w-5 mr-2 h-5" />
@@ -570,7 +570,9 @@
           <div class="text-center">
             <p class="text-gray-600 mb-6">
               Enter the 6-digit verification code sent to 
-              <span class="font-medium">{{ registerForm.phoneNumber }}</span>
+              <span class="font-medium">
+                {{ registerActiveTab === 'phone' ? registerForm.phoneNumber : registerForm.email }}
+              </span>
             </p>
             
             <!-- OTP Input -->
@@ -628,65 +630,7 @@
       </div>
     </div>
 
-    <!-- Forgot Password Modal (OTP) -->
-    <div v-if="showForgotPasswordModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4 relative">
-        <button 
-          @click="showForgotPasswordModal = false"
-          class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-        >
-          <Icon name="heroicons:x-mark" class="w-6 h-6" />
-        </button>
-        
-        <div class="text-center">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Forget Password</h3>
-          
-          <p class="text-gray-600 mb-6">
-            Enter the 6-digit code sent to <span class="font-medium">{{ forgotPasswordForm.phoneNumber }}</span> for verification purposes
-          </p>
-          
-          <!-- OTP Input -->
-          <div class="mb-4">
-            <input
-              v-model="forgotPasswordForm.otp"
-              type="text"
-              maxlength="6"
-              placeholder="Enter 6-digit code"
-              class="w-full px-4 py-3 text-center text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-            />
-          </div>
-          
-          <!-- Countdown -->
-          <div class="text-sm text-gray-500 mb-6">
-            <span v-if="forgotPasswordForm.countdown > 0">
-              Resend code: {{ Math.floor(forgotPasswordForm.countdown / 60) }}:{{ String(forgotPasswordForm.countdown % 60).padStart(2, '0') }} Seconds
-            </span>
-            <button 
-              v-else
-              @click="handleResendOTP"
-              :disabled="isSendingOTP"
-              class="text-purple-600 hover:text-purple-700 disabled:opacity-50"
-            >
-              {{ isSendingOTP ? 'Sending...' : "Didn't receive code? Resend code" }}
-            </button>
-          </div>
-          
-          <!-- Error Message -->
-          <div v-if="authError" class="text-red-600 text-sm mb-4">
-            {{ authError }}
-          </div>
-          
-          <!-- Confirm Button -->
-          <button
-            @click="handleConfirmOTP"
-            :disabled="!forgotPasswordForm.otp || forgotPasswordForm.otp.length < 6"
-            class="w-full py-3 px-4 bg-purple-600 text-white rounded-full hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-          >
-            Confirm
-          </button>
-        </div>
-      </div>
-    </div>
+
 
     <!-- Create Password Modal -->
     <div v-if="showCreatePasswordModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -750,6 +694,68 @@
 
 
 
+    <!-- User Exists Confirmation Modal -->
+    <div v-if="showUserExistsModal && existingUserData" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4 relative">
+        <button 
+          @click="showUserExistsModal = false"
+          class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+        >
+          <Icon name="heroicons:x-mark" class="w-6 h-6" />
+        </button>
+        
+        <div class="text-center">
+          <div class="mx-auto flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+            <Icon name="heroicons:user" class="w-8 h-8 text-blue-600" />
+          </div>
+          
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Account Found</h3>
+          
+          <p class="text-gray-600 mb-6">
+            An account already exists with this 
+            <span class="font-medium text-purple-600">
+              {{ existingUserData?.loginType === 'phone' ? 'phone number' : 'email address' }}
+            </span>:
+          </p>
+          
+          <div class="bg-gray-50 rounded-lg p-4 mb-6">
+            <div class="flex items-center justify-center space-x-2">
+              <Icon 
+                :name="existingUserData?.loginType === 'phone' ? 'heroicons:phone' : 'heroicons:envelope'" 
+                class="w-5 h-5 text-gray-500" 
+              />
+              <span class="font-medium text-gray-800">{{ existingUserData?.identifier }}</span>
+            </div>
+            <div v-if="existingUserData?.fullName" class="mt-2 text-sm text-gray-600">
+              Name: <span class="font-medium">{{ existingUserData?.fullName }}</span>
+            </div>
+          </div>
+          
+          <p class="text-gray-600 mb-8 text-sm">
+            Would you like to use this existing account or create a new one?
+          </p>
+          
+          <div class="space-y-3">
+            <button
+              @click="handleUseExistingUser"
+              class="w-full py-3 px-4 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors"
+            >
+              <Icon name="heroicons:check" class="w-5 h-5 mr-2 inline" />
+              Use Existing Account
+            </button>
+            
+            <button
+              @click="handleCreateNewAccount"
+              class="w-full py-3 px-4 border border-purple-600 text-purple-600 rounded-full hover:bg-purple-50 transition-colors"
+            >
+              <Icon name="heroicons:plus" class="w-5 h-5 mr-2 inline" />
+              Create New Account
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Account Success Modal -->
     <div v-if="showAccountSuccessModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4 relative">
@@ -769,7 +775,7 @@
           
           <p class="text-gray-600 mb-8">
             The account has been completely registered using 
-            <span class="font-medium">{{ forgotPasswordForm.phoneNumber || registerForm.phoneNumber }}</span>. 
+            <span class="font-medium">{{ registerForm.phoneNumber || registerForm.email }}</span>. 
             The customer has securely completed their password setup.
           </p>
           
@@ -822,20 +828,19 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, nextTick, onBeforeUnmount } from "vue";
 import InputText from "primevue/inputtext";
 import Button from "primevue/button";
 import { useToast } from "primevue/usetoast";
-// Import the new EventDetailSidebar component
 import EventDetail from "./EventDetail.vue";
-// Import the API function for fetching events
 import { 
   fetchEvents, 
   createOrderReservation,
 } from "@/composables/api";
-const { sendOtp, submitOtp } = useFirebase()
+import { sendEmailOtp, verifyEmailOtp } from "@/composables/useEmailAuth";
+// Firebase composable
+const { sendOtp, submitOtp, registerUser, registerUserWithEmail } = useFirebase();
 import img1 from "@/assets/image/poster-manage-booking.png";
-import flat from "@/assets/image/cambodia.png";
 import PhoneNumber from "../PhoneNumber.vue";
 
 // Customer information
@@ -854,11 +859,15 @@ const bookingError = ref("");
 const bookingSuccess = ref(false);
 
 // Authentication modal states
-const showAccountNotFoundModal = ref(false);
 const showRegisterModal = ref(false);
-const showForgotPasswordModal = ref(false);
 const showCreatePasswordModal = ref(false);
 const showAccountSuccessModal = ref(false);
+const showUserExistsModal = ref(false);
+
+// User exists modal data
+const existingUserData = ref(null);
+
+// Instruct customer modal
 const showInstructCustomerModal = ref(false);
 
 // Authentication form data
@@ -883,24 +892,12 @@ const registrationOTPForm = ref({
   countdownInterval: null
 });
 
-const forgotPasswordForm = ref({
-  phoneNumber: "",
-  otp: "",
-  countdown: 0,
-  countdownInterval: null
-});
 
-const createPasswordForm = ref({
-  password: "",
-  confirmPassword: ""
-});
 
 // Authentication processing states
-const isCheckingAccount = ref(false);
 const isCreatingAccount = ref(false);
-const isSendingOTP = ref(false);
-const isVerifyingOTP = ref(false);
 const authError = ref("");
+
 
 // PrimeVue Toast
 const toast = useToast();
@@ -1105,24 +1102,24 @@ const selectEvent = (event) => {
 const validateCustomerInfo = () => {
   const errors = [];
   
-  if (!customerInfo.value.fullName.trim()) {
+  if (!customerInfo.value?.fullName?.trim()) {
     errors.push('Full name is required');
   }
   
   if (activeTab.value === 'phone') {
-    if (!customerInfo.value.phoneNumber.trim()) {
+    if (!customerInfo.value?.phoneNumber?.trim()) {
       errors.push('Phone number is required');
     } else {
       // Basic phone number validation (should contain only digits and common separators)
       const phoneRegex = /^[0-9\s\-\+\(\)]{8,15}$/;
-      if (!phoneRegex.test(customerInfo.value.phoneNumber.trim())) {
+      if (!phoneRegex.test(customerInfo.value?.phoneNumber?.trim() || '')) {
         errors.push('Please enter a valid phone number');
       }
     }
   } else if (activeTab.value === 'email') {
-    if (!customerInfo.value.email.trim()) {
+    if (!customerInfo.value?.email?.trim()) {
       errors.push('Email is required');
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerInfo.value.email)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerInfo.value?.email || '')) {
       errors.push('Please enter a valid email address');
     }
   }
@@ -1145,7 +1142,11 @@ const isRegisterFormValid = computed(() => {
   if (registerActiveTab.value === 'phone') {
     return registerForm.value.phoneNumber && registerForm.value.phoneNumber.trim().length > 0;
   } else if (registerActiveTab.value === 'email') {
-    return registerForm.value.email && registerForm.value.email.trim().length > 0;
+    const email = registerForm.value.email && registerForm.value.email.trim();
+    if (!email) return false;
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
   }
   
   return false;
@@ -1230,9 +1231,9 @@ const handleCompleteBooking = async (bookingDetails) => {
         : (bookingDetails.transactionId && String(bookingDetails.transactionId).trim() 
            ? String(bookingDetails.transactionId).trim() 
            : generateTransactionId()),
-      phone_number: activeTab.value === 'phone' ? `+855${customerInfo.value.phoneNumber.trim()}` : null,
-      email: activeTab.value === 'email' ? customerInfo.value.email.trim() : null, 
-      full_name: customerInfo.value.fullName.trim()
+      phone_number: activeTab.value === 'phone' ? `+855${customerInfo.value?.phoneNumber?.trim() || ''}` : null,
+      email: activeTab.value === 'email' ? customerInfo.value?.email?.trim() : null, 
+      full_name: customerInfo.value?.fullName?.trim() || ''
     };
 
     console.log('📋 Creating order with data:', orderData);
@@ -1312,27 +1313,10 @@ const resetBookingForm = () => {
   console.log('🔄 Booking form reset successfully');
 };
 
-// Save customer information (skipping account check for now)
+// Save customer information and check if user exists
 const saveCustomerInfo = async () => {
   const validationErrors = validateCustomerInfo();
   if (validationErrors.length > 0) {
-    // Build body for register API
-   
-
-    console.log('✅ Account registered successfully');
-
-    // Close create password modal and show success modal
-    showCreatePasswordModal.value = false;
-    showAccountSuccessModal.value = true;
-
-    // Save customer info to localStorage
-    if (process.client) {
-      localStorage.setItem('customerInfo', JSON.stringify(customerInfo.value));
-    }
-    createPasswordForm.value = {
-      password: '',
-      confirmPassword: ''
-    };
     bookingError.value = validationErrors.join(', ');
     toast.add({
       severity: 'error',
@@ -1346,22 +1330,22 @@ const saveCustomerInfo = async () => {
   bookingError.value = "";
   bookingSuccess.value = false;
   authError.value = "";
-  isCheckingAccount.value = true;
   
   try {
-    console.log('� Saving customer info and showing registration (account check disabled)');
-    const body = ref(null)
-     let formattedPhone = customerInfo.value.phoneNumber.replace(/^\+/, ''); 
+    console.log('🔍 Checking if user exists...');
+    const body = ref(null);
+    let identifier = '';
 
-    if(activeTab.value == "phone"){
+    if(activeTab.value === "phone"){
+      identifier = customerInfo.value?.phoneNumber?.replace(/^\+/, '') || ''; 
       body.value = {
-        username: formattedPhone,
+        username: identifier,
         login_type: 'phone'
       };
-    }
-    if(activeTab.value == "email"){
+    } else if(activeTab.value === "email"){
+      identifier = customerInfo.value?.email || '';
       body.value = {
-        username: customerInfo.value.email,
+        username: identifier,
         login_type: 'email'
       };
     }
@@ -1369,38 +1353,57 @@ const saveCustomerInfo = async () => {
     const config = useRuntimeConfig();
     const baseUrl = config.public.apiBaseUrl;
 
-    // Call register API
-    await $fetch(`${baseUrl}/user-exists`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: body.value,
-    });
-    registerActiveTab.value = activeTab.value;
-    
-    // Reset registration state
-    registrationStep.value = 'form';
-    
-    // Pre-populate register form with existing customer info
-    registerForm.value = {
-      firstName: customerInfo.value.fullName.split(' ')[0] || "",
-      lastName: customerInfo.value.fullName.split(' ').slice(1).join(' ') || "",
-      phoneNumber: customerInfo.value.phoneNumber || "",
-      email: customerInfo.value.email || "",
-      password: "",
-      confirmPassword: "",
-      otp: ""
-    };
-    
-    // Show registration modal directly
-    showRegisterModal.value = true;
-    
-    console.log('✅ Registration modal opened with pre-filled data');
+    try {
+      // Check if user exists
+      const response = await $fetch(`${baseUrl}/user-exists`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: body.value,
+      });
+      
+      console.log('User existence check response:', response);
+      
+      // Check if user exists in the response
+      if (response && response.exists === true) {
+        // User exists - show confirmation modal
+        existingUserData.value = {
+          identifier: identifier || '',
+          fullName: response.full_name || customerInfo.value?.fullName || '',
+          loginType: activeTab.value || 'phone',
+          ...response
+        };
+        
+        // Only show modal if existingUserData was properly set
+        if (existingUserData.value && existingUserData.value.identifier) {
+          showUserExistsModal.value = true;
+        } else {
+          console.warn('⚠️ Failed to set existingUserData properly, proceeding to registration');
+          proceedToRegistration();
+        }
+        return;
+      } else {
+        // User doesn't exist - proceed to registration
+        proceedToRegistration();
+      }
+      
+    } catch (error) {
+      console.error('User existence check error:', error);
+      
+      // If the API returns 404 or user not found, proceed to registration
+      if (error.status === 404 || error.message?.includes('not found')) {
+        console.log('User not found, proceeding to registration');
+        proceedToRegistration();
+      } else {
+        // Other errors - show error message
+        throw error;
+      }
+    }
     
   } catch (error) {
-    console.error('❌ Error in saveCustomerInfo:', error);
-    authError.value = error.message || 'Failed to process customer information';
+    console.error('❌ Error checking user existence:', error);
+    authError.value = error.message || 'Failed to check user information';
     bookingError.value = authError.value;
     
     toast.add({
@@ -1409,9 +1412,62 @@ const saveCustomerInfo = async () => {
       detail: authError.value,
       life: 5000
     });
-  } finally {
-    isCheckingAccount.value = false;
   }
+};
+
+// Proceed to registration flow
+const proceedToRegistration = () => {
+  registerActiveTab.value = activeTab.value;
+  
+  // Reset registration state
+  registrationStep.value = 'form';
+  
+  // Pre-populate register form with existing customer info
+  registerForm.value = {
+    firstName: customerInfo.value?.fullName?.split(' ')[0] || "",
+    lastName: customerInfo.value?.fullName?.split(' ').slice(1).join(' ') || "",
+    phoneNumber: customerInfo.value?.phoneNumber || "",
+    email: customerInfo.value?.email || "",
+    password: "",
+    confirmPassword: "",
+    otp: ""
+  };
+  
+  // Show registration modal
+  showRegisterModal.value = true;
+  
+  console.log('✅ Registration modal opened with pre-filled data');
+};
+
+// Handle user exists confirmation - use existing user
+const handleUseExistingUser = () => {
+  if (!existingUserData.value) {
+    console.warn('⚠️ existingUserData is null, closing modal');
+    showUserExistsModal.value = false;
+    return;
+  }
+  
+  showUserExistsModal.value = false;
+  
+  // Save existing user info to localStorage
+  if (process.client) {
+    localStorage.setItem('customerInfo', JSON.stringify(customerInfo.value));
+  }
+  
+  toast.add({
+    severity: 'success',
+    summary: 'User Confirmed',
+    detail: `Using existing account for ${existingUserData.value?.identifier || 'this user'}`,
+    life: 5000
+  });
+  
+  console.log('✅ Using existing user account');
+};
+
+// Handle user exists confirmation - create new account
+const handleCreateNewAccount = () => {
+  showUserExistsModal.value = false;
+  proceedToRegistration();
 };
 
 // === TAB SWITCHING FUNCTIONS ===
@@ -1430,35 +1486,7 @@ const handleTabSwitch = (tab) => {
 
 // === AUTHENTICATION MODAL FUNCTIONS ===
 
-// Handle "Try again" action from Account Not Found modal
-const handleTryAgain = () => {
-  showAccountNotFoundModal.value = false;
-  authError.value = "";
-};
 
-// Handle "Create account" action from Account Not Found modal
-const handleCreateAccount = () => {
-  showAccountNotFoundModal.value = false;
-  
-  // Set register modal tab based on main customer form tab
-  registerActiveTab.value = activeTab.value;
-  
-  // Reset registration state
-  registrationStep.value = 'form';
-  
-  // Pre-populate register form with existing customer info
-  registerForm.value = {
-    firstName: "",
-    lastName: "",
-    phoneNumber: activeTab.value === 'phone' ? customerInfo.value.phoneNumber : "",
-    email: activeTab.value === 'email' ? customerInfo.value.email : "",
-    password: "",
-    confirmPassword: "",
-    otp: ""
-  };
-  
-  showRegisterModal.value = true;
-};
 
 // Handle register modal close
 const handleCloseRegisterModal = () => {
@@ -1496,25 +1524,52 @@ const handleRegisterTabSwitch = (tab) => {
   });
 };
 
-// Handle register form submission (send Firebase OTP)
+// Handle register form submission (send OTP - Phone or Email)
 const handleRegisterAccount = async () => {
-  console.log('📝 Starting registration process - sending Firebase OTP...');
+  console.log('📝 Starting registration process - sending OTP...');
   
-  // Validate form data
-  if (!registerForm.value.firstName || !registerForm.value.lastName || !registerForm.value.phoneNumber) {
-    authError.value = 'Please fill in all required fields';
+  // Validate form data based on active tab
+  if (!registerForm.value.firstName || !registerForm.value.lastName) {
+    authError.value = 'Please fill in first name and last name';
     return;
   }
   
-  try {
+  if (registerActiveTab.value === 'phone') {
+    if (!registerForm.value.phoneNumber) {
+      authError.value = 'Please enter phone number';
+      return;
+    }
+  } else if (registerActiveTab.value === 'email') {
+    if (!registerForm.value.email) {
+      authError.value = 'Please enter email address';
+      return;
+    }
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(registerForm.value.email)) {
+      authError.value = 'Please enter a valid email address';
+      return;
+    }
+  }  try {
     authError.value = '';
     isCreatingAccount.value = true;
     
-    // Send Firebase OTP to phone number
-    console.log('📤 Sending Firebase OTP to:', registerForm.value.phoneNumber);
-    const result = await sendOtp(registerForm.value.phoneNumber);
+    let otpResult;
+    let identifier;
     
-    console.log('✅ Firebase OTP sent successfully');
+    if (registerActiveTab.value === 'phone') {
+      // Send Firebase Phone OTP
+      identifier = registerForm.value.phoneNumber;
+      console.log('📤 Sending Firebase Phone OTP to:', identifier);
+      otpResult = await sendOtp(identifier);
+    } else if (registerActiveTab.value === 'email') {
+      // Send Firebase Email OTP
+      identifier = registerForm.value.email;
+      console.log('📤 Sending Firebase Email OTP to:', identifier);
+      otpResult = await sendEmailOtp(identifier);
+    }
+    
+    console.log('✅ OTP sent successfully');
     
     // Move to OTP verification step
     registrationStep.value = 'otp';
@@ -1524,7 +1579,7 @@ const handleRegisterAccount = async () => {
     toast.add({
       severity: 'success',
       summary: 'OTP Sent',
-      detail: `Verification code sent to ${registerForm.value.phoneNumber}`,
+      detail: `Verification code sent to ${identifier}`,
       life: 5000
     });
     
@@ -1554,9 +1609,9 @@ const handleRegisterAccount = async () => {
 
 
 
-// Verify Firebase OTP and create account
+// Verify OTP and create account (Phone or Email)
 const handleVerifyRegistrationOTP = async () => {
-  console.log('🔍 Verifying Firebase OTP and creating account...');
+  console.log('🔍 Verifying OTP and creating account...');
   
   if (!registerForm.value.otp || registerForm.value.otp.length < 6) {
     authError.value = "Please enter a valid 6-digit OTP";
@@ -1567,10 +1622,87 @@ const handleVerifyRegistrationOTP = async () => {
     authError.value = '';
     isCreatingAccount.value = true;
     
-    // Step 1: Verify Firebase OTP
-    const firebaseResult = await submitOtp(registerForm.value.otp, registerForm.value.firstName, registerForm.value.lastName, registerForm.value.phoneNumber);
+    let otpResult;
+    let identifier;
+    let loginType;
     
-    console.log('✅ Firebase OTP verified successfully');
+    if (registerActiveTab.value === 'phone') {
+      // Verify Firebase Phone OTP
+      identifier = registerForm.value.phoneNumber;
+      loginType = 'phone';
+      console.log('🔍 Verifying Phone OTP for:', identifier);
+      otpResult = await submitOtp(registerForm.value.otp, registerForm.value.firstName, registerForm.value.lastName, identifier);
+    } else if (registerActiveTab.value === 'email') {
+      // Verify Firebase Email OTP
+      identifier = registerForm.value.email;
+      loginType = 'email';
+      console.log('🔍 Verifying Email OTP for:', identifier);
+      const emailResult = await verifyEmailOtp(identifier, registerForm.value.otp);
+      
+      if (emailResult.success) {
+        // Create user data structure similar to phone OTP
+        otpResult = {
+          success: true,
+          userData: {
+            uid: emailResult.uid || `email_${Date.now()}`, // Generate UID if not provided
+            firstName: registerForm.value.firstName,
+            lastName: registerForm.value.lastName,
+            identifier: identifier,
+            login_type: 'email',
+            idToken: emailResult.idToken || null
+          }
+        };
+      } else {
+        otpResult = { error: emailResult.message || 'Invalid email OTP' };
+      }
+    }
+    
+    if (otpResult.error) {
+      authError.value = otpResult.error;
+      return;
+    }
+    
+    console.log('✅ OTP verified successfully');
+    
+    // Step 2: Register user in backend using appropriate method
+    let registrationResult;
+    
+    if (registerActiveTab.value === 'phone') {
+      // Use Firebase token-based registration for phone
+      console.log('📱 Using Firebase token-based registration for phone');
+      registrationResult = await registerUser(otpResult.userData);
+    } else if (registerActiveTab.value === 'email') {
+      // Use email-based registration without Firebase token
+      console.log('📧 Using email-based registration without Firebase token');
+      registrationResult = await registerUserWithEmail(otpResult.userData);
+    } else {
+      // Fallback
+      registrationResult = await registerUser(otpResult.userData);
+    }
+    
+    if (!registrationResult.success) {
+      if (registrationResult.code === 'USER_EXISTS') {
+        // User already exists, this is actually fine for our flow
+        console.log('ℹ️ User already exists, proceeding to password creation');
+        toast.add({
+          severity: 'info',
+          summary: 'Account Found',
+          detail: 'Account already exists. Please create a password to complete setup.',
+          life: 5000
+        });
+      } else {
+        authError.value = registrationResult.error;
+        return;
+      }
+    } else {
+      console.log('✅ User registered successfully');
+      toast.add({
+        severity: 'success',
+        summary: 'Account Created',
+        detail: 'Account created successfully. Please set your password.',
+        life: 5000
+      });
+    }
     
     // Clear OTP timer
     if (registrationOTPForm.value.countdownInterval) {
@@ -1587,12 +1719,12 @@ const handleVerifyRegistrationOTP = async () => {
     console.log('✅ OTP verified, showing create password modal');
     
   } catch (error) {
-    console.error('❌ Error verifying Firebase OTP:', error);
-    authError.value = error.message || 'Failed to verify OTP. Please try again.';
+    console.error('❌ Error in registration flow:', error);
+    authError.value = error.message || 'Failed to complete registration. Please try again.';
     
     toast.add({
       severity: 'error',
-      summary: 'Verification Failed',
+      summary: 'Registration Failed',
       detail: authError.value,
       life: 5000
     });
@@ -1601,26 +1733,35 @@ const handleVerifyRegistrationOTP = async () => {
   }
 };
 
-// Resend Firebase registration OTP
+// Resend registration OTP (Phone or Email)
 const handleResendRegistrationOTP = async () => {
-  console.log('🔄 Resending Firebase registration OTP...');
+  console.log('🔄 Resending registration OTP...');
   
   try {
     authError.value = '';
     isCreatingAccount.value = true;
     
-    // Resend Firebase OTP
-    const phoneNumber = registerForm.value.phoneNumber;
-    await sendFirebaseOTP(phoneNumber);
+    let identifier;
+    
+    if (registerActiveTab.value === 'phone') {
+      // Resend Firebase Phone OTP
+      identifier = registerForm.value.phoneNumber;
+      await sendOtp(identifier);
+    } else if (registerActiveTab.value === 'email') {
+      // Resend Firebase Email OTP
+      identifier = registerForm.value.email;
+      await sendEmailOtp(identifier);
+    }
     
     // Restart countdown
-    registrationOTPForm.value.countdown = 60;
-    registrationOTPForm.value.timer = setInterval(() => {
-      registrationOTPForm.value.countdown--;
-      if (registrationOTPForm.value.countdown <= 0) {
-        clearInterval(registrationOTPForm.value.timer);
-      }
-    }, 1000);
+    startRegistrationOTPCountdown();
+    
+    toast.add({
+      severity: 'success',
+      summary: 'OTP Resent',
+      detail: `New verification code sent to your ${registerActiveTab.value}`,
+      life: 3000
+    });
     
     console.log('✅ Firebase registration OTP resent successfully');
   } catch (error) {
@@ -1628,53 +1769,6 @@ const handleResendRegistrationOTP = async () => {
     authError.value = error.message || 'Failed to resend OTP. Please try again.';
   } finally {
     isCreatingAccount.value = false;
-  }
-};
-
-// Handle forgot password flow
-const handleForgotPassword = async () => {
-  showAccountNotFoundModal.value = false;
-  
-  // Pre-populate phone number if available
-  forgotPasswordForm.value.phoneNumber = activeTab.value === 'phone' 
-    ? customerInfo.value.phoneNumber 
-    : "";
-  
-  showForgotPasswordModal.value = true;
-  
-  // Automatically send OTP when modal opens
-  if (forgotPasswordForm.value.phoneNumber) {
-    await handleSendOTP();
-  }
-};
-
-// Send OTP for password reset
-const handleSendOTP = async () => {
-  authError.value = "";
-  isSendingOTP.value = true;
-  
-  try {
-    const result = await sendResetPasswordOTP(forgotPasswordForm.value.phoneNumber);
-    
-    if (result.success) {
-      // Start countdown
-      startOTPCountdown();
-      
-      toast.add({
-        severity: 'success',
-        summary: 'OTP Sent',
-        detail: 'Verification code sent to your phone number',
-        life: 3000
-      });
-      
-      console.log('✅ OTP sent successfully');
-    }
-    
-  } catch (error) {
-    console.error('❌ Error sending OTP:', error);
-    authError.value = error.message || 'Failed to send OTP';
-  } finally {
-    isSendingOTP.value = false;
   }
 };
 
@@ -1696,35 +1790,7 @@ const startRegistrationOTPCountdown = () => {
   }, 1000);
 };
 
-// Start OTP countdown timer
-const startOTPCountdown = () => {
-  forgotPasswordForm.value.countdown = 60;
-  
-  forgotPasswordForm.value.countdownInterval = setInterval(() => {
-    forgotPasswordForm.value.countdown--;
-    
-    if (forgotPasswordForm.value.countdown <= 0) {
-      clearInterval(forgotPasswordForm.value.countdownInterval);
-      forgotPasswordForm.value.countdownInterval = null;
-    }
-  }, 1000);
-};
-
-// Handle OTP confirmation
-const handleConfirmOTP = () => {
-  if (!forgotPasswordForm.value.otp || forgotPasswordForm.value.otp.length < 6) {
-    authError.value = "Please enter the 6-digit verification code";
-    return;
-  }
-  
-  showForgotPasswordModal.value = false;
-  showInstructCustomerModal.value = true;
-  
-  // Clear countdown
-  if (forgotPasswordForm.value.countdownInterval) {
-    clearInterval(forgotPasswordForm.value.countdownInterval);
-  }
-};
+// Removed unused OTP countdown function
 
 const handleCreatePasswordAfterOTP = async () => {
   // Validate password
@@ -1740,11 +1806,19 @@ const handleCreatePasswordAfterOTP = async () => {
 
   authError.value = "";
   isCreatingAccount.value = true;
- let formattedPhone = registerForm.value.phoneNumber.replace(/^\+/, ''); 
+  
+  // Get identifier based on registration type
+  let identifier;
+  if (registerActiveTab.value === 'phone') {
+    identifier = registerForm.value.phoneNumber.replace(/^\+/, '');
+  } else {
+    identifier = registerForm.value.email;
+  }
+  
   try {
-    // Build body for register API
+    // Build body for update password API
     const body = {
-      identifier: formattedPhone,
+      identifier: identifier,
       new_password: registerForm.value.password
     };
 
@@ -1770,10 +1844,6 @@ const handleCreatePasswordAfterOTP = async () => {
     if (process.client) {
       localStorage.setItem('customerInfo', JSON.stringify(customerInfo.value));
     }
-    createPasswordForm.value = {
-      password: '',
-      confirmPassword: ''
-    };
 
     console.log('✅ Password created successfully');
   } catch (error) {
@@ -1797,7 +1867,7 @@ const handleSuccessComplete = () => {
   });
 };
 
-// Handle instruction modal OK
+// Handle instruction modal OK button
 const handleInstructionOK = () => {
   showInstructCustomerModal.value = false;
   showCreatePasswordModal.value = true;
@@ -1864,64 +1934,23 @@ watch(visible, (newVisible) => {
 
 // Cleanup countdown timer on unmount
 onUnmounted(() => {
-  if (forgotPasswordForm.value.countdownInterval) {
-    clearInterval(forgotPasswordForm.value.countdownInterval);
-  }
   if (registrationOTPForm.value.countdownInterval) {
     clearInterval(registrationOTPForm.value.countdownInterval);
   }
 });
 
-// internal
-const confirmationResult = ref(null)
-let otpTimer = null
-
-// ---------- helpers ----------
-function toE164(rawPhone) {
-  // Normalize given phone into E.164 (e.g. +855XXXXXXXX)
-  if (!rawPhone) return null
-  let digits = rawPhone.replace(/\D/g, '')
-  // remove leading zeros
-  digits = digits.replace(/^0+/, '')
-  // if user already typed '855...' keep it; otherwise prefix 855
-  if (!digits.startsWith('855')) digits = '855' + digits
-  return '+' + digits
-}
-
-function formatIdentifierForApi(rawPhoneOrEmail) {
-  // backend sample used identifier="77778" — adapt as reasonable.
-  // We will pass identifier as digits-only 855XXXXXXXX (no '+')
-  if (!rawPhoneOrEmail) return ''
-  // if looks like email -> return as-is
-  if (/@/.test(rawPhoneOrEmail)) return rawPhoneOrEmail
-  const digits = rawPhoneOrEmail.replace(/\D/g, '').replace(/^0+/, '')
-  if (digits.startsWith('855')) return digits
-  return '855' + digits
-}
-
-function startOtpCountdown(seconds = 120) {
-  registrationOTPForm.countdown = seconds
-  if (otpTimer) clearInterval(otpTimer)
-  otpTimer = setInterval(() => {
-    if (registrationOTPForm.countdown > 0) registrationOTPForm.countdown--
-    else {
-      clearInterval(otpTimer)
-      otpTimer = null
-    }
-  }, 1000)
-}
-
-function clearOtpCountdown() {
-  if (otpTimer) {
-    clearInterval(otpTimer)
-    otpTimer = null
-  }
-  registrationOTPForm.countdown = 0
-}
-
+// Cleanup on unmount
 onBeforeUnmount(() => {
-  clearOtpCountdown()
-  try { if (window.recaptchaVerifier && typeof window.recaptchaVerifier.clear === 'function') window.recaptchaVerifier.clear() } catch(e) {}
+  if (registrationOTPForm.value.countdownInterval) {
+    clearInterval(registrationOTPForm.value.countdownInterval);
+  }
+  try { 
+    if (typeof window !== 'undefined' && window.recaptchaVerifier && typeof window.recaptchaVerifier.clear === 'function') {
+      window.recaptchaVerifier.clear();
+    }
+  } catch(e) {
+    console.warn('Error clearing recaptcha:', e);
+  }
 })
 
 </script>
