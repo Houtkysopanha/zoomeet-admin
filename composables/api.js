@@ -1067,13 +1067,22 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
       price: parseFloat(ticketData.price || 0),
       total: parseInt(ticketData.total || ticketData.quantity || 0),
       tag: String(ticketData.tag || ticketData.description || '').trim(),
-      is_active: ticketData.is_active !== undefined ? (ticketData.is_active ? 1 : 0) : 1
+      is_active: ticketData.is_active !== undefined ? (ticketData.is_active ? 1 : 0) : 1,
+      is_private: ticketData.is_private !== undefined ? (ticketData.is_private ? 1 : 0) : 0
     }
 
     // Validate required fields
     if (!normalizedData.name) throw new Error('Ticket name is required')
     if (isNaN(normalizedData.price) || normalizedData.price < 0) throw new Error('Price must be 0 or greater')
     if (isNaN(normalizedData.total) || normalizedData.total < 1) throw new Error('Quantity must be at least 1')
+    
+    // Debug logging for is_private field
+    console.log('🔧 updateTicketType - Sending data:', {
+      name: normalizedData.name,
+      is_active: normalizedData.is_active,
+      is_private: normalizedData.is_private,
+      originalIsPrivate: ticketData.is_private
+    })
     
     // Use server proxy endpoint for ticket type update
     const headers = await createAuthHeaders()
@@ -1143,10 +1152,17 @@ export async function createTicketTypes(eventId, ticketTypesData) {
         total: total, // API expects 'total' not 'total_quantity'
         tag: description, // API expects 'tag' not 'description'
         sort_order: index + 1,
-        is_active: 1 // Send as integer, not boolean
+        is_active: 1, // Send as integer, not boolean
+        is_private: ticket.is_private !== undefined ? (ticket.is_private ? 1 : 0) : 0 // Ensure proper boolean to integer conversion
       }
     })
 
+    // Debug logging for is_private field in create
+    console.log('🔧 createTicketTypes - Sending tickets:', normalizedTickets.map(ticket => ({
+      name: ticket.name,
+      is_active: ticket.is_active,
+      is_private: ticket.is_private
+    })))
 
     // Wrap tickets in proper structure that API expects
     const requestBody = {

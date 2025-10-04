@@ -96,6 +96,7 @@
                 rows="3"
               />
             </div>
+
           </div>
           
         </div>
@@ -160,24 +161,24 @@
                       @click="deleteTicket(ticket.ticket_type_id, index)"
                       title="Delete ticket"
                     />
-                    <!-- Publish Toggle -->
-                    <!-- Publish Toggle -->
+                    
+                    <!-- Privacy Toggle -->
                     <div class="flex items-center">
                       <button
-                        @click="toggleTicketStatus(ticket, index)"
-                        :disabled="ticket.isUpdating"
+                        @click="toggleTicketPrivacy(ticket, index)"
+                        :disabled="ticket.isUpdatingPrivacy"
                         :class="[
-                          'flex items-center justify-center h-8 w-24 rounded-full cursor-pointer transition-all duration-300 text-white text-xs font-medium shadow-sm relative',
-                          ticket.is_active 
-                            ? 'bg-purple-600 hover:bg-purple-700' 
-                            : 'bg-gray-400 hover:bg-gray-500',
-                          ticket.isUpdating ? 'opacity-70 cursor-wait' : ''
+                          'flex items-center justify-center h-8 w-20 rounded-full cursor-pointer transition-all duration-300 text-white text-xs font-medium shadow-sm relative',
+                          ticket.is_private 
+                            ? 'bg-gray-500 hover:bg-gray-600' 
+                            : 'bg-purple-500 hover:bg-purple-600',
+                          ticket.isUpdatingPrivacy ? 'opacity-70 cursor-wait' : ''
                         ]"
-                        :title="ticket.is_active ? 'Click to turn OFF (make private)' : 'Click to turn ON (publish)'"
+                        :title="ticket.is_private ? 'Click to make Public' : 'Click to make Private'"
                       >
-                        <span v-if="!ticket.isUpdating" class="flex items-center space-x-1">
-                          <span>{{ ticket.is_active ? 'ON' : 'OFF' }}</span>
-                          <span class="text-xs opacity-80">{{ ticket.is_active ? 'Publish' : 'Private' }}</span>
+                        <span v-if="!ticket.isUpdatingPrivacy" class="flex items-center space-x-1">
+                          <span>{{ ticket.is_private ? 'OFF' : 'ON' }}</span> |
+                          <span>{{ ticket.is_private ? 'Private' : 'Public' }}</span>
                         </span>
                         <span v-else class="flex items-center space-x-1">
                           <Icon name="heroicons:arrow-path" class="w-3 h-3 animate-spin" />
@@ -287,7 +288,8 @@ const formData = ref({
   name: '',
   price: 0,
   quantity: 1,
-  description: ''
+  description: '',
+  is_private: 0
 })
 
 // Track if there are new tickets added
@@ -330,7 +332,8 @@ const resetForm = () => {
     name: '',
     price: 0,
     quantity: 1,
-    description: ''
+    description: '',
+    is_private: 0
   }
   currentEditingTicket.value = null
 }
@@ -376,6 +379,7 @@ const saveTicket = async () => {
       tag: formData.value.description.trim(),
       event_id: currentEventId.value,
       is_active: true,
+      is_private: parseInt(formData.value.is_private) || 0,
       sort_order: tickets.value.length + 1
     }
 
@@ -408,7 +412,8 @@ const saveTicket = async () => {
           quantity: ticketData.quantity,
           description: ticketData.description,
           tag: ticketData.tag,
-          is_active: true
+          is_active: true,
+          is_private: parseInt(ticketData.is_private) || 0
         }
         
         // Add to local array
@@ -500,7 +505,8 @@ const loadTickets = async () => {
         quantity: ticket.total,
         description: ticket.tag || '',
         sort_order: ticket.sort_order,
-        is_active: ticket.is_active
+        is_active: ticket.is_active,
+        is_private: parseInt(ticket.is_private) || 0
       }))
       hasExistingTickets.value = true
       toast.add({
@@ -557,7 +563,8 @@ const toggleTicketStatus = async (ticket, index) => {
       total: parseInt(ticket.quantity) || 1,
       tag: ticket.description || ticket.tag || '',
       sort_order: ticket.sort_order || (index + 1),
-      is_active: ticket.is_active ? 1 : 0 // Convert boolean to integer for API
+      is_active: ticket.is_active ? 1 : 0, // Convert boolean to integer for API
+      is_private: parseInt(ticket.is_private) || 0
     }
     
     console.log('📤 Sending update data:', updateData)
@@ -608,6 +615,88 @@ const toggleTicketStatus = async (ticket, index) => {
   }
 }
 
+// Toggle ticket privacy status instantly with server update
+const toggleTicketPrivacy = async (ticket, index) => {
+  if (!ticket.ticket_type_id || !currentEventId.value || ticket.isUpdatingPrivacy) {
+    console.warn('⚠️ Privacy toggle blocked:', { 
+      hasTicketId: !!ticket.ticket_type_id, 
+      hasEventId: !!currentEventId.value, 
+      isUpdatingPrivacy: ticket.isUpdatingPrivacy 
+    })
+    return
+  }
+  
+  // Set updating state
+  ticket.isUpdatingPrivacy = true
+  
+  // Store original state for rollback
+  const originalPrivacyState = ticket.is_private
+  
+  // Optimistically update UI
+  ticket.is_private = ticket.is_private ? 0 : 1
+  
+  console.log(`🔄 Toggling ticket "${ticket.name}" privacy from ${originalPrivacyState} to ${ticket.is_private}`)
+  
+  try {
+    // Prepare update data - ensure all required fields are included
+    const updateData = {
+      name: ticket.name || '',
+      price: parseFloat(ticket.price) || 0,
+      total: parseInt(ticket.quantity) || 1,
+      tag: ticket.description || ticket.tag || '',
+      sort_order: ticket.sort_order || (index + 1),
+      is_active: ticket.is_active ? 1 : 0,
+      is_private: ticket.is_private
+    }
+    
+    console.log('📤 Sending privacy update data:', updateData)
+    
+    // Make API call to update ticket privacy status
+    const response = await updateTicketType(currentEventId.value, ticket.ticket_type_id, updateData)
+    
+    console.log('📥 Privacy API Response:', response)
+    
+    // Check for successful response (different API response formats)
+    const isSuccess = response && (
+      response.success === true || 
+      response.status === 'success' ||
+      (!response.error && response.status !== 'error')
+    )
+    
+    if (isSuccess) {
+      // Update successful - keep the new state
+      const privacyText = ticket.is_private ? 'made private' : 'made public'
+      console.log(`✅ Ticket "${ticket.name}" ${privacyText}`)
+      
+      // Update tab store to persist the change
+      handleSaveCurrentTab()
+      
+      // Show success feedback
+      showToast('success', 'Privacy Updated', `Ticket ${privacyText} successfully`, 2000)
+      
+    } else {
+      // Update failed - rollback to original state
+      ticket.is_private = originalPrivacyState
+      console.error('❌ Privacy API returned unsuccessful response:', response)
+      throw new Error(response?.message || response?.error || 'Server returned unsuccessful response')
+    }
+    
+  } catch (error) {
+    console.error('❌ Failed to toggle ticket privacy:', error)
+    
+    // Rollback to original state
+    ticket.is_private = originalPrivacyState
+    
+    // Show error toast
+    const actionText = originalPrivacyState ? 'make public' : 'make private'
+    showToast('error', 'Update Failed', `Could not ${actionText} ticket. ${error.message || 'Please try again.'}`, 4000)
+    
+  } finally {
+    // Clear updating state
+    ticket.isUpdatingPrivacy = false
+  }
+}
+
 // Edit ticket functionality - Load into form
 const editTicket = async (ticketTypeId, index) => {
   if (!ticketTypeId || !currentEventId.value) return
@@ -620,7 +709,8 @@ const editTicket = async (ticketTypeId, index) => {
     name: ticket.name || '',
     price: ticket.price || 0,
     quantity: ticket.quantity || 1,
-    description: ticket.description || ticket.tag || ''
+    description: ticket.description || ticket.tag || '',
+    is_private: parseInt(ticket.is_private) || 0
   }
   
   currentEditingTicket.value = ticket
@@ -774,7 +864,7 @@ const saveTicketsInternal = async (mode = 'create') => {
 
   // Show different confirmation for published events (only once)
   if (isEditMode.value && eventData.value?.is_published) {
-    showToast('info', 'Updating Published Event', 'You are modifying tickets for a live event. Changes will be visible to users immediately.', 4000)
+    showToast('success', 'Tickets Saved', 'Your tickets has been saved successfully.', 4000)
   }
 
   // Enhanced ticket validation with better error detection
@@ -825,8 +915,6 @@ const saveTicketsInternal = async (mode = 'create') => {
   }
 
   if (invalidTickets.length > 0) {
-    // Show only one concise toast notification
-    showToast('error', 'Validation Error', `${invalidTickets.length} ticket(s) need attention. Please complete all required fields.`)
 
     // Force re-render of validation states
     tickets.value = [...tickets.value.map((ticket, index) => ({
@@ -872,7 +960,8 @@ const saveTicketsInternal = async (mode = 'create') => {
             total: quantity,
             tag: description,
             sort_order: tickets.value.indexOf(ticket) + 1,
-            is_active: 1
+            is_active: 1,
+            is_private: parseInt(ticket.is_private) || 0
           }
         })
         
@@ -936,7 +1025,8 @@ const saveTicketsInternal = async (mode = 'create') => {
           total: quantity,
           tag: description,
           sort_order: tickets.value.indexOf(ticket) + 1,
-          is_active: 1
+          is_active: 1,
+          is_private: parseInt(ticket.is_private) || 0
         }
 
         const updatePromise = updateTicketType(currentEventId.value, ticket.ticket_type_id, ticketData)
@@ -1085,6 +1175,7 @@ const loadExistingTickets = async () => {
           quantity: parseInt(ticket.inventory?.total || ticket.total || ticket.quantity) || 1,
           sort_order: ticket.sort_order || (index + 1),
           is_active: ticket.is_active === undefined ? true : Boolean(ticket.is_active),
+          is_private: parseInt(ticket.is_private) || 0,
           isValidating: false,
           eventId: eventId // Ensure event ID is set
         }
