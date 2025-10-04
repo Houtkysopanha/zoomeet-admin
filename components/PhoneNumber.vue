@@ -1,14 +1,14 @@
 <template>
   <div class="w-full relative" ref="phoneInputContainer">
-    <label class="self-stretch justify-start text-zinc-800 text-md mb-3 font-normal leading-7 ">
+    <label class="self-stretch justify-start text-zinc-800 text-sm mb-3 font-normal leading-7 ">
       Phone Number
     </label>
     
-    <div class="relative mt-2">
-      <div class="flex items-center bg-neutral-100 rounded-lg p-2" >
+    <div class="relative">
+      <div class="flex items-center bg-neutral-100 rounded-lg p-1" >
         <!-- Country Flag and Code -->
         <div class="flex items-center bg-neutral-100 cursor-pointer" @click="toggleDropdown">
-          <div class="w-3 h-2 sm:w-8 sm:h-6 rounded-sm overflow-hidden mr-2 sm:mr-3 flex-shrink-0">
+          <div class="w-3 h-2 sm:w-8 sm:h-6 rounded-sm overflow-hidden mr-2 sm:mr-3 ml-2 flex-shrink-0">
             <img 
               :src="selectedCountry.flagUrl"
               :alt="selectedCountry.name"
@@ -20,8 +20,6 @@
           <span class="text-gray-600 font-medium text-xs sm:text-base mr-2 sm:mr-3">{{ selectedCountry.code }}</span>
           
         </div>
-        
-        <!-- Vertical Divider -->
         
         <!-- Phone Number Input -->
         <input

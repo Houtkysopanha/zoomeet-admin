@@ -34,8 +34,22 @@
 
     <!-- Tab Content -->
     <div class="tab-content">
-      <CustomerBooking v-if="activeTab === 'customer'" />
-      <CashPayment v-else-if="activeTab === 'payment'" />
+      <div v-if="activeTab === 'customer'">
+        <ClientOnly>
+          <CustomerBooking />
+          <template #fallback>
+            <div class="flex items-center justify-center h-64">
+              <div class="text-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                <p class="text-gray-600">Loading booking form...</p>
+              </div>
+            </div>
+          </template>
+        </ClientOnly>
+      </div>
+      <div v-else-if="activeTab === 'payment'">
+        <CashPayment />
+      </div>
     </div>
   </div>
 </template>
