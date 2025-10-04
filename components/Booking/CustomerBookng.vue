@@ -1010,7 +1010,6 @@ const loadCustomerInfo = () => {
           phoneNumber: parsed.phoneNumber || "",
           email: parsed.email || "",
         };
-        console.log('📋 Loaded customer info from localStorage:', customerInfo.value);
       }
     } catch (error) {
       console.warn('Failed to load customer info from localStorage:', error);
@@ -1038,7 +1037,6 @@ onMounted(async () => {
       );
       
       if (eventToSelect) {
-        console.log('🔗 Auto-selecting event from URL:', eventToSelect);
         selectEvent(eventToSelect);
       }
     }
@@ -1079,8 +1077,7 @@ const selectEvent = (event) => {
   
   selectedEvent.value = eventForDetail;
   visible.value = true;
-  
-  console.log('🎯 Selected event for detail:', eventForDetail);
+
   
   // Update URL to include event ID for proper ticket loading
   if (process.client && event._originalData.id) {
@@ -1168,12 +1165,6 @@ const generateTransactionId = () => {
 
 // Handle booking completion from EventDetail component
 const handleCompleteBooking = async (bookingDetails) => {
-  console.log('🎯 Handling complete booking:', bookingDetails);
-  console.log('🔍 Transaction ID received:', {
-    value: bookingDetails.transactionId,
-    type: typeof bookingDetails.transactionId,
-    paymentMethod: bookingDetails.paymentMethod
-  });
   
   // Validate customer information first
   const validationErrors = validateCustomerInfo();
@@ -1236,16 +1227,12 @@ const handleCompleteBooking = async (bookingDetails) => {
       full_name: customerInfo.value?.fullName?.trim() || ''
     };
 
-    console.log('📋 Creating order with data:', orderData);
-    console.log('🔍 API will be called with endpoint:', '/orders/reserve');
 
     // Create the order reservation
     const result = await createOrderReservation(orderData);
-    
-    console.log('📨 API Response received:', result);
+  
     
     if (result.success) {
-      console.log('✅ Order created successfully:', result);
       bookingSuccess.value = true;
       visible.value = false; // Close the sidebar
       
@@ -1284,7 +1271,6 @@ const showSuccessMessage = (result) => {
     life: 5000
   });
   
-  console.log('🎉 Booking completed successfully!', result);
 };
 
 // Reset booking form
@@ -1310,7 +1296,6 @@ const resetBookingForm = () => {
   visible.value = false;
   clearEventFromUrl();
   
-  console.log('🔄 Booking form reset successfully');
 };
 
 // Save customer information and check if user exists
@@ -1332,7 +1317,6 @@ const saveCustomerInfo = async () => {
   authError.value = "";
   
   try {
-    console.log('🔍 Checking if user exists...');
     const body = ref(null);
     let identifier = '';
 
@@ -1379,7 +1363,6 @@ const saveCustomerInfo = async () => {
         if (existingUserData.value && existingUserData.value.identifier) {
           showUserExistsModal.value = true;
         } else {
-          console.warn('⚠️ Failed to set existingUserData properly, proceeding to registration');
           proceedToRegistration();
         }
         return;
@@ -1436,13 +1419,11 @@ const proceedToRegistration = () => {
   // Show registration modal
   showRegisterModal.value = true;
   
-  console.log('✅ Registration modal opened with pre-filled data');
 };
 
 // Handle user exists confirmation - use existing user
 const handleUseExistingUser = () => {
   if (!existingUserData.value) {
-    console.warn('⚠️ existingUserData is null, closing modal');
     showUserExistsModal.value = false;
     return;
   }
@@ -1461,7 +1442,6 @@ const handleUseExistingUser = () => {
     life: 5000
   });
   
-  console.log('✅ Using existing user account');
 };
 
 // Handle user exists confirmation - create new account
@@ -1474,14 +1454,12 @@ const handleCreateNewAccount = () => {
 
 // Handle tab switching with debugging
 const handleTabSwitch = (tab) => {
-  console.log('🔄 Switching to tab:', tab, 'from:', activeTab.value);
   activeTab.value = tab;
   
   // Clear any existing errors when switching tabs
   bookingError.value = "";
   authError.value = "";
-  
-  console.log('✅ Tab switched. Current tab:', activeTab.value);
+
 };
 
 // === AUTHENTICATION MODAL FUNCTIONS ===
@@ -1513,14 +1491,13 @@ const handleCloseRegisterModal = () => {
 
 // Handle register modal tab switching
 const handleRegisterTabSwitch = (tab) => {
-  console.log('🔄 Register modal switching to tab:', tab, 'from:', registerActiveTab.value);
+
   registerActiveTab.value = tab;
   authError.value = ""; // Clear any errors when switching tabs
-  console.log('✅ Register modal tab switched. Current tab:', registerActiveTab.value);
+
   
   // Force reactivity update
   nextTick(() => {
-    console.log('🔄 After nextTick, registerActiveTab:', registerActiveTab.value);
   });
 };
 
@@ -1605,7 +1582,6 @@ const handleRegisterAccount = async () => {
 
 // Verify OTP and create account (Phone or Email)
 const handleVerifyRegistrationOTP = async () => {
-  console.log('🔍 Verifying OTP and creating account...');
   
   if (!registerForm.value.otp || registerForm.value.otp.length < 6) {
     authError.value = "Please enter a valid 6-digit OTP";
@@ -1628,7 +1604,6 @@ const handleVerifyRegistrationOTP = async () => {
       // Verify Firebase Email OTP
       identifier = registerForm.value.email;
       loginType = 'email';
-      console.log('🔍 Verifying Email OTP for:', identifier);
       const emailResult = await submitWithEmail(registerForm.value.otp, registerForm.value.firstName, registerForm.value.lastName, identifier);
       
       if (emailResult.success) {
@@ -1668,7 +1643,7 @@ const handleVerifyRegistrationOTP = async () => {
     if (!registrationResult.success) {
       if (registrationResult.code === 'USER_EXISTS') {
         // User already exists, this is actually fine for our flow
-        console.log('ℹ️ User already exists, proceeding to password creation');
+
         toast.add({
           severity: 'info',
           summary: 'Account Found',
@@ -1680,7 +1655,6 @@ const handleVerifyRegistrationOTP = async () => {
         return;
       }
     } else {
-      console.log('✅ User registered successfully');
       toast.add({
         severity: 'success',
         summary: 'Account Created',
@@ -1701,7 +1675,6 @@ const handleVerifyRegistrationOTP = async () => {
     // Reset registration step for next time
     registrationStep.value = 'form';
     
-    console.log('✅ OTP verified, showing create password modal');
     
   } catch (error) {
     console.error('❌ Error in registration flow:', error);
@@ -1720,7 +1693,6 @@ const handleVerifyRegistrationOTP = async () => {
 
 // Resend registration OTP (Phone or Email)
 const handleResendRegistrationOTP = async () => {
-  console.log('🔄 Resending registration OTP...');
   
   try {
     authError.value = '';
@@ -1748,7 +1720,6 @@ const handleResendRegistrationOTP = async () => {
       life: 3000
     });
     
-    console.log('✅ Firebase registration OTP resent successfully');
   } catch (error) {
     console.error('❌ Error resending Firebase registration OTP:', error);
     authError.value = error.message || 'Failed to resend OTP. Please try again.';
@@ -1819,8 +1790,6 @@ const handleCreatePasswordAfterOTP = async () => {
       body: body,
     });
 
-    console.log('✅ Account registered successfully');
-
     // Close create password modal and show success modal
     showCreatePasswordModal.value = false;
     showAccountSuccessModal.value = true;
@@ -1829,8 +1798,6 @@ const handleCreatePasswordAfterOTP = async () => {
     if (process.client) {
       localStorage.setItem('customerInfo', JSON.stringify(customerInfo.value));
     }
-
-    console.log('✅ Password created successfully');
   } catch (error) {
     console.error('❌ Error creating account:', error);
     authError.value = error.message || 'Failed to create account';
@@ -1882,7 +1849,6 @@ const clearCustomerInfo = () => {
     life: 3000
   });
   
-  console.log('🗑️ Customer info cleared');
 };
 
 const handleBookNowClick = (event) => {

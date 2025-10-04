@@ -3147,14 +3147,6 @@ export async function createOrderReservation(orderData) {
     }
     // For offline payments, completely omit the transaction_id field
 
-    console.log('🎫 Creating order reservation:', {
-      endpoint: `${API_BASE_URL}/orders/reserve`,
-      payload,
-      transaction_id_included: 'transaction_id' in payload,
-      transaction_id_type: typeof payload.transaction_id,
-      transaction_id_value: payload.transaction_id
-    })
-
     const response = await $fetch(`${API_BASE_URL}/orders/reserve`, {
       method: 'POST',
       headers: {
@@ -3163,7 +3155,7 @@ export async function createOrderReservation(orderData) {
       body: payload
     })
 
-    console.log('✅ Order reservation created successfully:', response)
+
 
     return {
       success: true,

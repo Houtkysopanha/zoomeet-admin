@@ -532,17 +532,16 @@ const breakoutRooms = ref([
 watch(
   () => props.selectedEvent,
   async (newEvent) => {
-    console.log("🔍 EventDetail received event:", newEvent);
 
     if (newEvent?.id) {
-      console.log("🎯 Loading tickets for event ID:", newEvent.id);
+  
 
       ticketsLoading.value = true;
       ticketsError.value = "";
 
       try {
         const res = await getEventTicketTypes(newEvent.id);
-        console.log("🎟 API Response:", res); // 🔍 log to see shape
+
 
         // Handle the correct API response format
         let ticketList = [];
@@ -563,11 +562,9 @@ watch(
           // Fallback: { ticketTypes: [...] }
           ticketList = res.ticketTypes;
         } else {
-          console.warn("⚠️ Unexpected API response format:", res);
           ticketList = [];
         }
 
-        console.log("📋 Processing ticket list:", ticketList);
 
         // Extract organizers if available
         if (
@@ -576,16 +573,13 @@ watch(
           Array.isArray(res.data.organizers)
         ) {
           organizers.value = res.data.organizers;
-          console.log("👥 Found organizers:", organizers.value);
         } else {
           organizers.value = [];
         }
 
         // Fetch promotions separately
         try {
-          console.log("🎯 Fetching promotions for event ID:", newEvent.id);
           const promotionsRes = await getEventPromotions(newEvent.id);
-          console.log("🎁 Promotions API Response:", promotionsRes);
 
           if (
             promotionsRes?.success &&
@@ -598,21 +592,10 @@ watch(
               const endDate = new Date(promo.end_date);
               const isActive =
                 promo.is_active && now >= startDate && now <= endDate;
-              console.log(
-                `🔍 Promotion "${promo.name}": active=${
-                  promo.is_active
-                }, inDateRange=${
-                  now >= startDate && now <= endDate
-                }, result=${isActive}`
-              );
+
               return isActive;
             });
-            console.log("✅ Found active promotions:", promotions.value);
           } else {
-            console.log(
-              "⚠️ No promotions found or unexpected format:",
-              promotionsRes
-            );
             promotions.value = [];
           }
         } catch (promotionError) {
@@ -647,8 +630,6 @@ watch(
           // Keep original ticket data for reference
           _original: ticket,
         }));
-
-        console.log("✅ Processed tickets:", tickets.value);
       } catch (err) {
         console.error("❌ Failed to load tickets:", err);
         ticketsError.value = err.message || "Failed to load ticket types";

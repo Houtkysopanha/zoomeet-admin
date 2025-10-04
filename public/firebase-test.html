@@ -32,7 +32,6 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
 
-        console.log('📱 Firebase Auth initialized:', auth);
 
         // Test function
         window.testFirebaseOTP = async function() {
@@ -61,7 +60,6 @@
                 console.log('📞 Testing Firebase OTP for:', phoneNumber);
                 
                 const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, window.recaptchaVerifier);
-                console.log('✅ OTP sent successfully:', confirmationResult);
                 
                 resultDiv.innerHTML = `
                     <p style="color: green;">✅ REAL Firebase OTP sent successfully!</p>
@@ -119,7 +117,6 @@
             try {
                 resultDiv.innerHTML += '<p>Verifying OTP...</p>';
                 const result = await window.confirmationResult.confirm(otpCode);
-                console.log('✅ OTP verified successfully:', result);
                 resultDiv.innerHTML += `
                     <div style="color: green; border: 1px solid green; padding: 10px; margin: 10px 0;">
                         <h3>✅ OTP Verified Successfully!</h3>
@@ -135,12 +132,6 @@
 
         // Auto-load diagnostics on page load
         window.addEventListener('load', () => {
-            console.log('🔬 Firebase Configuration Diagnostics:');
-            console.log('- Project ID:', firebaseConfig.projectId);
-            console.log('- Auth Domain:', firebaseConfig.authDomain);
-            console.log('- App ID:', firebaseConfig.appId);
-            console.log('- Current Domain:', window.location.hostname);
-            console.log('- Current Protocol:', window.location.protocol);
         });
     </script>
 </body>

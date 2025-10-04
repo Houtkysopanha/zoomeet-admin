@@ -567,12 +567,10 @@ const toggleTicketStatus = async (ticket, index) => {
       is_private: parseInt(ticket.is_private) || 0
     }
     
-    console.log('📤 Sending update data:', updateData)
     
     // Make API call to update ticket status
     const response = await updateTicketType(currentEventId.value, ticket.ticket_type_id, updateData)
     
-    console.log('📥 API Response:', response)
     
     // Check for successful response (different API response formats)
     const isSuccess = response && (
@@ -584,7 +582,6 @@ const toggleTicketStatus = async (ticket, index) => {
     if (isSuccess) {
       // Update successful - keep the new state
       const statusText = ticket.is_active ? 'published' : 'made private'
-      console.log(`✅ Ticket "${ticket.name}" ${statusText}`)
       
       // Update tab store to persist the change
       handleSaveCurrentTab()
@@ -649,12 +646,9 @@ const toggleTicketPrivacy = async (ticket, index) => {
       is_private: ticket.is_private
     }
     
-    console.log('📤 Sending privacy update data:', updateData)
-    
     // Make API call to update ticket privacy status
     const response = await updateTicketType(currentEventId.value, ticket.ticket_type_id, updateData)
     
-    console.log('📥 Privacy API Response:', response)
     
     // Check for successful response (different API response formats)
     const isSuccess = response && (
@@ -666,7 +660,6 @@ const toggleTicketPrivacy = async (ticket, index) => {
     if (isSuccess) {
       // Update successful - keep the new state
       const privacyText = ticket.is_private ? 'made private' : 'made public'
-      console.log(`✅ Ticket "${ticket.name}" ${privacyText}`)
       
       // Update tab store to persist the change
       handleSaveCurrentTab()

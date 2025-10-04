@@ -428,7 +428,6 @@ const loadOrders = async () => {
       search: searchQuery.value || undefined
     }
     
-    console.log('🔍 API Request params:', params)
 
     const response = await fetchOrders(params)
     
@@ -436,9 +435,6 @@ const loadOrders = async () => {
       orders.value = response.data
       pagination.value = response.pagination
       
-      // Debug pagination data
-      console.log('📄 Pagination Data:', JSON.stringify(response.pagination, null, 2))
-      console.log('📊 Orders Count:', response.data?.length || 0)
     } else {
       throw new Error(response.message || 'Failed to load orders')
     }
@@ -655,7 +651,6 @@ const closeQrPopup = () => {
 // Show success message (you can replace this with your toast/notification system)
 const showSuccess = (message) => {
   // Implement your success notification here
-  console.log('Success:', message)
 }
 
 // Show error message (you can replace this with your toast/notification system)
