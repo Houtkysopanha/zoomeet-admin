@@ -327,7 +327,8 @@
 
       <!-- Fixed Payment Method and Order Button (always visible) -->
       <div class="mt-auto sticky bottom-4">
-        <h3 class="text-lg font-normal text-purple-600 mb-4">Payment Method</h3>
+        <!-- Payment Method section disabled for now -->
+        <!-- <h3 class="text-lg font-normal text-purple-600 mb-4">Payment Method</h3>
         <div class="grid grid-cols-2 gap-4 mb-8">
           <div
             :class="['flex flex-col items-center p-4 border rounded-lg cursor-pointer transition-all duration-200',
@@ -345,14 +346,15 @@
             <Icon name="heroicons:credit-card" class="w-8 h-8 mb-2" :class="paymentMethod === 'khqr' ? 'text-purple-600' : 'text-gray-600'" />
             <span class="text-sm font-medium" :class="paymentMethod === 'khqr' ? 'text-purple-800' : 'text-gray-700'">KHQR</span>
           </div>
-        </div>
+        </div> -->
 
-        <Button
+        <!-- Complete Order button disabled for now -->
+        <!-- <Button
           :label="selectedOrder?.status === 'pending' ? 'Complete Order' : 'Order Already Completed'"
           class="w-full py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-purple-600 to-purple-400 hover:from-purple-700 hover:to-purple-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           @click="completeOrder"
-          :disabled="!selectedOrder || selectedOrder.status !== 'pending' || paymentMethod === '' || processingOrder === selectedOrder?.id"
-        />
+          :disabled="!selectedOrder || selectedOrder.status !== 'pending' || processingOrder === selectedOrder?.id"
+        /> -->
 
         <!-- KHQR Popup -->
         <Transition name="fade">
@@ -426,7 +428,6 @@ const loadOrders = async () => {
       search: searchQuery.value || undefined
     }
     
-    console.log('🔍 API Request params:', params)
 
     const response = await fetchOrders(params)
     
@@ -434,9 +435,6 @@ const loadOrders = async () => {
       orders.value = response.data
       pagination.value = response.pagination
       
-      // Debug pagination data
-      console.log('📄 Pagination Data:', JSON.stringify(response.pagination, null, 2))
-      console.log('📊 Orders Count:', response.data?.length || 0)
     } else {
       throw new Error(response.message || 'Failed to load orders')
     }
@@ -653,7 +651,6 @@ const closeQrPopup = () => {
 // Show success message (you can replace this with your toast/notification system)
 const showSuccess = (message) => {
   // Implement your success notification here
-  console.log('Success:', message)
 }
 
 // Show error message (you can replace this with your toast/notification system)

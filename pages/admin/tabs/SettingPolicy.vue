@@ -383,10 +383,7 @@ const loadSettingsFromAPI = async () => {
       };
 
       // Debug: Log the arrays received from API
-      console.log("🔍 Received arrays from API:", {
-        required_identity_document: apiData.required_identity_document,
-        provide_special_assistance: apiData.provide_special_assistance
-      });
+
 
       // Map API data to component formatp
       settings.value = {
@@ -538,18 +535,7 @@ const saveSettingsToAPI = async () => {
         : [],
     };
 
-    // Debug: Log the complete payload being sent to API
-    console.log("🔍 Complete API payload:", apiData);
-    console.log("🔍 Boolean fields:", {
-      is_accept_cash_payment: apiData.is_accept_cash_payment,
-      is_required_registration_before_checkin: apiData.is_required_registration_before_checkin,
-      is_required_age_verification: apiData.is_required_age_verification
-    });
-    console.log("🔍 Array fields:", {
-      required_identity_document: apiData.required_identity_document,
-      provide_special_assistance: apiData.provide_special_assistance
-    });
-
+  
     const response = await saveEventSettings(currentEventId.value, apiData);
 
     if (response) {

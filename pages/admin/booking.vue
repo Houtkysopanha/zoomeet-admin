@@ -8,8 +8,9 @@
         <div class="flex bg-gray-100 space-x-2 rounded-full ">
           <button
             @click="activeTab = 'customer'"
+            :disabled="true"
             :class="[
-              'px-6 py-2 rounded-full font-medium transition-all duration-300 ease-in-out',
+              'px-6 py-2 rounded-full font-medium transition-all duration-300 ease-in-out cursor-not-allowed opacity-50',
               activeTab === 'customer'
                 ? 'bg-gradient-to-r from-blue-800 to-purple-600 text-white shadow-lg transform scale-105'
                 : 'text-gray-600 hover:text-purple-600 hover:bg-white hover:shadow-md',
@@ -34,8 +35,22 @@
 
     <!-- Tab Content -->
     <div class="tab-content">
-      <CustomerBooking v-if="activeTab === 'customer'" />
-      <CashPayment v-else-if="activeTab === 'payment'" />
+      <div v-if="activeTab === 'customer'">
+        <ClientOnly>
+          <CustomerBooking />
+          <template #fallback>
+            <div class="flex items-center justify-center h-64">
+              <div class="text-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                <p class="text-gray-600">Loading booking form...</p>
+              </div>
+            </div>
+          </template>
+        </ClientOnly>
+      </div>
+      <div v-else-if="activeTab === 'payment'">
+        <CashPayment />
+      </div>
     </div>
   </div>
 </template>
@@ -50,7 +65,7 @@ definePageMeta({
 })
 
 // Active tab state
-const activeTab = ref('customer') // 'customer' or 'payment'
+const activeTab = ref('payment') // 'customer' or 'payment'
 </script>
 
 <style scoped>

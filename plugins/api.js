@@ -4,19 +4,31 @@ export default defineNuxtPlugin(() => {
   const originalFetch = $fetch
 
   globalThis.$fetch = async (url, options = {}) => {
-    // Automatically inject token for API requests
+    // Routes that should skip automatic token injection
+    const skipTokenRoutes = ['/register']
+    const shouldSkipToken = skipTokenRoutes.some(route => url.includes(route))
+    
+    // Check if this request explicitly wants to skip auth
+    const skipAuth = options.skipAuth === true
+    
+    // Automatically inject token for API requests (unless explicitly skipped)
     const token = getToken()
-    if (token && !options.headers?.Authorization) {
+    if (token && !options.headers?.Authorization && !shouldSkipToken && !skipAuth) {
       options.headers = {
         ...options.headers,
         'Authorization': `Bearer ${token}`
       }
     }
 
+    // Remove skipAuth from options to avoid sending it to server
+    if (options.skipAuth) {
+      delete options.skipAuth
+    }
+
     try {
       return await originalFetch(url, options)
     } catch (err) {
-      if (err?.status === 401) {
+      if (err?.status === 401 && !shouldSkipToken && !skipAuth) {
         console.log('🔄 Got 401, attempting token refresh...')
         const refreshed = await refreshToken()
         if (refreshed) {

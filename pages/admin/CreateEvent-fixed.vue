@@ -631,25 +631,6 @@ const changeTab = async (index) => {
       const lastSaved = tabData.lastSaved
       
       // Show appropriate notification
-      if (hasData && lastSaved) {
-        const savedTime = new Date(lastSaved).toLocaleTimeString()
-        toast.add({
-          severity: 'success',
-          summary: 'Data Restored ✨',
-          detail: `Your previous work has been restored (last saved: ${savedTime})`,
-          life: 3000
-        })
-      } else if (index > 0 && isBasicInfoCompleted.value) {
-        // Show welcome message for unlocked tabs
-        const tabNames = ['Basic Info', 'Agenda', 'Tickets', 'Breakout Rooms', 'Settings']
-        toast.add({
-          severity: 'info',
-          summary: `${tabNames[index]} Tab Unlocked! 🔓`,
-          detail: 'You can now configure this section of your event.',
-          life: 2500
-        })
-      }
-      
       // Load any existing data for this tab from the event store
       if (isBasicInfoCompleted.value && eventId.value) {
         await loadTabSpecificData(index)
