@@ -8,7 +8,7 @@
         <div class="flex bg-gray-100 space-x-2 rounded-full ">
           <button
             @click="activeTab = 'customer'"
-            :disabled="true"
+            :disabled="false"
             :class="[
               'px-6 py-2 rounded-full font-medium transition-all duration-300 ease-in-out cursor-not-allowed opacity-50',
               activeTab === 'customer'
