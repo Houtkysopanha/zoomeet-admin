@@ -90,6 +90,7 @@ const handleClick = () => {
 }
 .bg-card{
   background-color: #F5F5F5;
+  border: 1.5px solid #EBEDF0;
 }
 .event-stats-card:not(.cursor-not-allowed):hover {
   transform: translateY(-2px);

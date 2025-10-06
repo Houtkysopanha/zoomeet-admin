@@ -1,7 +1,5 @@
 <template>
   <div class="p-3 lg:p-4 bg-[#F8F8FF]">
-   
-    
     <!-- Disabled Dashboard Content -->
     <div class="">
     <div class="">
@@ -84,7 +82,7 @@
       </div>
 
       <div class="border border-gray-200 mt-4 lg:mt-5 mb-6 lg:mb-10"></div>
-       <div class="mb-6 p-6 bg-[#E6F2FF] border border-purple-600 rounded-2xl">
+       <!-- <div class="mb-6 p-6 bg-[#E6F2FF] border border-purple-600 rounded-2xl">
       <div class="flex items-center">
         <Icon name="heroicons:exclamation-triangle" class="w-8 h-8 text-yellow-600 mr-4" />
         <div>
@@ -98,9 +96,10 @@
           </div>
         </div>
       </div>
-    </div>
+    </div> -->
        <!-- Dashboard Disabled Notice -->
-      <div class="opacity-30 pointer-events-none">
+      <!-- <div class="opacity-30 pointer-events-none"> -->
+        <div>
 
 
     <!-- Event Stats -->

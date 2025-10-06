@@ -72,38 +72,38 @@
           </template>
         </div>
         
-        <!-- Settings Dropdown -->
+        <!-- reports Dropdown -->
         <div class="relative">
           <button
-            @click="toggleSettingsDropdown"
+            @click="togglereportsDropdown"
             class="w-full flex items-center justify-between px-3 lg:px-4 py-3 rounded-lg transition-all duration-200 hover:bg-gray-100 text-black"
-            :class="{ 'bg-[#E6F2FF]': showSettingsDropdown }"
+            :class="{ 'bg-[#E6F2FF]': showreportsDropdown }"
           >
             <div class="flex items-center space-x-3">
               <Icon
-                name="lets-icons:setting-fill"
+                name="bxs:report"
                 class="text-lg flex-shrink-0"
               />
-              <span class="font-medium text-sm lg:text-base truncate">Settings</span>
+              <span class="font-medium text-sm lg:text-base truncate">Report</span>
             </div>
             <Icon
               name="i-heroicons-chevron-up"
               class="text-sm transition-transform duration-200 flex-shrink-0"
-              :class="{ 'rotate-180': showSettingsDropdown }"
+              :class="{ 'rotate-180': showreportsDropdown }"
             />
           </button>
 
-          <!-- Settings Items -->
+          <!-- reports Items -->
           <div
-            v-show="showSettingsDropdown"
+            v-show="showreportsDropdown"
             class="mt-2 ml-3 lg:ml-4 space-y-1 border-l-2 border-gray-600 pl-3 lg:pl-4"
           >
             <div
-              v-for="(setting, index) in settingsLinks"
+              v-for="(setting, index) in reportsLinks"
               :key="index"
               :class="[
                 'flex items-center space-x-3 px-2 py-2 rounded-lg transition-all duration-200 text-xs lg:text-sm',
-                setting.disabled ? 'cursor-not-allowed opacity-50 text-gray-400' : 'hover:bg-gray-100 text-gray-400',
+                setting.disabled ? 'cursor-not-allowed  text-black' : 'hover:bg-gray-100 text-black',
                 isActive(setting.to) ? 'bg-[#E6F2FF]' : ''
               ]"
             >
@@ -136,7 +136,7 @@ import { useGlobalEventCount } from '@/composables/useEventCount.js'
 defineEmits(['close-mobile'])
 
 const route = useRoute()
-const showSettingsDropdown = ref(false)
+const showreportsDropdown = ref(false)
 
 // Use the global event count composable
 const { totalEventCount, loadEventCount, loading, error } = useGlobalEventCount()
@@ -149,19 +149,19 @@ const navLinks = computed(() => [
   { to: "/admin/checkIn", icon: "mdi:invoice-text-check", text: "Check-in Service", activeClass: "bg-[#E6F2FF]", disabled: false },
 ])
 
-const settingsLinks = [
-  { to: "", icon: "mingcute:user-setting-fill", text: "Manage Role and Staff", activeClass: "bg-[#E6F2FF]", disabled: true },
-  { to: "", icon: "mynaui:activity-square-solid", text: "Audit Logs", activeClass: "bg-[#E6F2FF]", disabled: true },
-  { to: "", icon: "bxs:report", text: "Report", activeClass: "bg-[#E6F2FF]", disabled: true },
+const reportsLinks = [
+  { to: "/admin/report/saleReport", icon: "material-symbols:finance-mode-rounded", text: "Sale Report", activeClass: "bg-[#E6F2FF]", disabled: false },
+  { to: "", icon: "tdesign:chart-line-data-1", text: "Business Insight", activeClass: "bg-[#E6F2FF]", disabled: true },
+  { to: "", icon: "material-symbols:display-settings-rounded", text: "Audit Log", activeClass: "bg-[#E6F2FF]", disabled: true },
 ]
 
-function toggleSettingsDropdown() {
-  showSettingsDropdown.value = !showSettingsDropdown.value
+function togglereportsDropdown() {
+  showreportsDropdown.value = !showreportsDropdown.value
 }
 
 function handleClickOutside(event) {
   if (!event.target.closest('.relative')) {
-    showSettingsDropdown.value = false
+    showreportsDropdown.value = false
   }
 }
 
