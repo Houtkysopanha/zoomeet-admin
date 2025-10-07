@@ -3426,7 +3426,7 @@ export async function checkCustomerExists(identifier, loginType = 'phone') {
 }
 
 // Update order status (for completing cash payments)
-export async function updateOrderStatus(orderId, status, paymentMethod = null, ticketTypes = null) {
+export async function updateOrderStatus(orderId, status, paymentMethod = null, ticketTypes = null, remark = null) {
   const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
 
@@ -3455,6 +3455,23 @@ export async function updateOrderStatus(orderId, status, paymentMethod = null, t
     if (ticketTypes && Array.isArray(ticketTypes) && ticketTypes.length > 0) {
       requestBody.ticket_types = ticketTypes
     }
+
+    // Add remark field - auto-generate if not provided
+    if (remark) {
+      requestBody.remark = remark
+    } else if (paymentMethod === 'cash') {
+      requestBody.remark = 'cash payment'
+    } else if (paymentMethod) {
+      requestBody.remark = `${paymentMethod} payment`
+    } else {
+      requestBody.remark = 'payment processed'
+    }
+
+    console.log('Updating order status with payload:', {
+      orderId,
+      requestBody,
+      endpoint: `${API_ADMIN_BASE_URL}/orders/${orderId}/status`
+    })
 
     const response = await $fetch(`${API_ADMIN_BASE_URL}/orders/${orderId}/status`, {
       method: 'PUT',

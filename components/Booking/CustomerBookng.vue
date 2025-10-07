@@ -399,6 +399,8 @@
       :visible="visible"
       :selected-event="selectedEvent"
       :customer-info="customerInfo"
+      :existing-user-data="existingUserData"
+      :current-customer-id="currentCustomerId"
       :active-customer-tab="activeTab"
       :is-customer-info-complete="isCustomerInfoComplete"
       :is-processing-booking="isProcessingBooking"

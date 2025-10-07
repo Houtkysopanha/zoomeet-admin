@@ -29,18 +29,18 @@
               <div
                 :class="[
                   'text-sm font-bold leading-5 flex items-center gap-1',
-                  props.customerInfo?.fullName
+                  getBookingName()
                     ? 'text-gray-800'
                     : 'text-orange-600',
                 ]"
               >
                 <Icon
-                  v-if="!props.customerInfo?.fullName"
+                  v-if="!getBookingName()"
                   name="heroicons:exclamation-triangle"
                   class="w-4 h-4"
                 />
                 {{
-                  props.customerInfo?.fullName ||
+                  getBookingName() ||
                   "Please enter customer information"
                 }}
               </div>
@@ -437,6 +437,8 @@ const props = defineProps({
   visible: { type: Boolean, required: true },
   selectedEvent: { type: Object, default: null },
   customerInfo: { type: Object, default: () => ({}) },
+  existingUserData: { type: Object, default: null },
+  currentCustomerId: { type: [String, Number], default: null },
   activeCustomerTab: { type: String, default: "phone" },
   isCustomerInfoComplete: { type: Boolean, default: false },
   isProcessingBooking: { type: Boolean, default: false },
@@ -774,10 +776,31 @@ const getCustomerContact = () => {
       props.customerInfo.phoneNumber &&
       props.customerInfo.phoneNumber.trim()
     ) {
-      return `+855 ${props.customerInfo.phoneNumber.trim()}`;
+      return `+${props.customerInfo.phoneNumber.trim()}`;
     }
     return "Please enter phone number";
   }
+};
+
+// Get booking name - prioritize authenticated user's name over manual input
+const getBookingName = () => {
+  // 1. First priority: Use authenticated user's name from existingUserData (when user found)
+  if (props.existingUserData?.fullName || props.existingUserData?.full_name || props.existingUserData?.name) {
+    const authenticatedName = props.existingUserData.fullName || props.existingUserData.full_name || props.existingUserData.name;
+    console.log('📋 Using authenticated user name for booking:', authenticatedName);
+    return authenticatedName;
+  }
+  
+  // 2. Second priority: If we have a customer ID but no existingUserData, 
+  //    this means account was just created - use customerInfo populated during registration
+  if (props.currentCustomerId && props.customerInfo?.fullName) {
+    console.log('📋 Using newly created account name for booking:', props.customerInfo.fullName);
+    return props.customerInfo.fullName;
+  }
+  
+  // 3. No authenticated user - return null to show warning
+  console.log('⚠️ No authenticated user name available for booking');
+  return null;
 };
 
 const handleCompleteBooking = () => {
