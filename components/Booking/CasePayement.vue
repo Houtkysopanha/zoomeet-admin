@@ -535,7 +535,6 @@ const loadOrders = async () => {
       throw new Error(response.message || 'Failed to load orders')
     }
   } catch (err) {
-    console.error('Failed to load orders:', err)
     error.value = err.message || 'Failed to load orders. Please try again.'
     orders.value = []
   } finally {

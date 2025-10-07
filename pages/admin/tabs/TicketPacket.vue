@@ -311,18 +311,7 @@ const isFormValid = computed(() => {
          formData.value.description.trim() !== '' &&
          formData.value.price >= 0 &&
          formData.value.quantity > 0
-  
-  // Debug validation
-  if (process.client) {
-    console.log('Form validation:', {
-      name: formData.value.name.trim(),
-      description: formData.value.description.trim(),
-      price: formData.value.price,
-      quantity: formData.value.quantity,
-      isValid
-    })
-  }
-  
+
   return isValid
 })
 
@@ -398,9 +387,8 @@ const saveTicket = async () => {
       }
     } else {
       // Create new ticket
-      console.log('Creating new ticket with data:', ticketData)
       const response = await createTicketTypes(currentEventId.value, [ticketData])
-      console.log('Create ticket response:', response)
+
       
       if (response?.success && response?.data?.length > 0) {
         const newTicket = {
@@ -418,7 +406,6 @@ const saveTicket = async () => {
         
         // Add to local array
         tickets.value.push(newTicket)
-        console.log('Added ticket to local array. Total tickets:', tickets.value.length)
         
         // Ticket added successfully - no toast needed
       } else {
@@ -553,7 +540,6 @@ const toggleTicketStatus = async (ticket, index) => {
   // Optimistically update UI
   ticket.is_active = !ticket.is_active
   
-  console.log(`🔄 Toggling ticket "${ticket.name}" from ${originalState} to ${ticket.is_active}`)
   
   try {
     // Prepare update data - ensure all required fields are included
@@ -631,9 +617,7 @@ const toggleTicketPrivacy = async (ticket, index) => {
   
   // Optimistically update UI
   ticket.is_private = ticket.is_private ? 0 : 1
-  
-  console.log(`🔄 Toggling ticket "${ticket.name}" privacy from ${originalPrivacyState} to ${ticket.is_private}`)
-  
+    
   try {
     // Prepare update data - ensure all required fields are included
     const updateData = {

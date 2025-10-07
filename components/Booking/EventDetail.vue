@@ -670,7 +670,6 @@ const updateQuantity = (ticketId, change) => {
     }
 
     ticket.quantity = newQuantity;
-    console.log(`Updated ${ticket.type} quantity to ${ticket.quantity}`);
   }
 };
 
@@ -787,14 +786,13 @@ const getBookingName = () => {
   // 1. First priority: Use authenticated user's name from existingUserData (when user found)
   if (props.existingUserData?.fullName || props.existingUserData?.full_name || props.existingUserData?.name) {
     const authenticatedName = props.existingUserData.fullName || props.existingUserData.full_name || props.existingUserData.name;
-    console.log('📋 Using authenticated user name for booking:', authenticatedName);
+
     return authenticatedName;
   }
   
   // 2. Second priority: If we have a customer ID but no existingUserData, 
   //    this means account was just created - use customerInfo populated during registration
   if (props.currentCustomerId && props.customerInfo?.fullName) {
-    console.log('📋 Using newly created account name for booking:', props.customerInfo.fullName);
     return props.customerInfo.fullName;
   }
   

@@ -80,7 +80,6 @@ const manualRefresh = async () => {
   try {
     const success = await refreshToken()
     if (success) {
-      console.log('✅ Manual token refresh successful')
     } else {
       console.error('❌ Manual token refresh failed')
     }

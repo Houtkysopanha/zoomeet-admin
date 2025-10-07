@@ -2192,8 +2192,13 @@ const normalizedData = {
   max_ticket_per_person: parseInt(settingsData.max_ticket_per_person || 5),
   refund_policy_id: settingsData.refund_policy_id || (settingsData.refundPolicy === 'Full Refund' ? 1 : settingsData.refundPolicy === 'Not Refund' ? 2 : null),
   ticket_transfer_deadline: settingsData.ticket_transfer_deadline || null,
+  is_allow_ticket_transfer: settingsData.is_allow_ticket_transfer !== undefined ? 
+    (settingsData.is_allow_ticket_transfer ? 1 : 0) : 
+    (settingsData.allowTicketTransfer ? 1 : 0),
+  is_required_terms_condition: settingsData.is_required_terms_condition !== undefined ? 
+    (settingsData.is_required_terms_condition ? 1 : 0) : 
+    (settingsData.requireTermsConditions ? 1 : 0),
   terms_and_condition: settingsData.terms_and_condition || settingsData.termsAndConditions || '',
-  special_instructions: settingsData.special_instructions || settingsData.specialInstructions || '',
   is_accept_cash_payment: settingsData.is_accept_cash_payment !== undefined ? 
     (settingsData.is_accept_cash_payment ? 1 : 0) : 
     (settingsData.acceptCashPayment ? 1 : 0),
@@ -3154,11 +3159,6 @@ export async function createOrderReservation(orderData) {
         formattedPhone = cleanPhone
       }
       
-      console.log('📞 Phone number formatting:', {
-        original: orderData.phone_number,
-        cleaned: cleanPhone,
-        formatted: formattedPhone
-      })
     }
     
     const payload = {
@@ -3181,15 +3181,6 @@ export async function createOrderReservation(orderData) {
     }
     // For offline payments, completely omit the transaction_id field
 
-    console.log('🚀 Creating order reservation with payload:', {
-      event_id: payload.event_id,
-      customer_id: payload.customer_id || 'new customer',
-      payment_method: payload.payment_method,
-      contact: payload.phone_number || payload.email,
-      ticket_count: payload.ticket_types.length,
-      full_payload: payload // Show complete payload for debugging
-    })
-
     const response = await $fetch(`${API_BASE_URL}/orders/reserve`, {
       method: 'POST',
       headers: {
@@ -3198,13 +3189,6 @@ export async function createOrderReservation(orderData) {
       body: payload
     })
 
-    console.log('✅ Order reservation response:', {
-      success: response.success,
-      order_id: response.data?.id || response.id,
-      customer_id: response.data?.customer_id || response.customer_id,
-      status: response.data?.status || response.status,
-      full_response: response
-    })
 
     // Validate reservation response
     if (!response.success) {
@@ -3220,12 +3204,6 @@ export async function createOrderReservation(orderData) {
       throw new Error('Invalid reservation response: missing order ID')
     }
 
-    console.log('🎯 Reservation created successfully:', {
-      order_id: orderId,
-      customer_id: customerId,
-      phone_used: formattedPhone,
-      email_used: orderData.email
-    })
 
     return {
       success: true,
@@ -3326,8 +3304,7 @@ export async function checkCustomerExists(identifier, loginType = 'phone') {
       // Assume it's a local number, add 855 only if it doesn't already start with 855
       value = '855' + value
     }
-    
-    console.log('📞 Formatted phone number:', { original: identifier, formatted: value })
+
   }
 
   try {
@@ -3345,7 +3322,6 @@ export async function checkCustomerExists(identifier, loginType = 'phone') {
       }
     })
 
-    console.log('✅ User info check response:', response)
 
     // Check if user was found - API returns success: true but data could be empty array or null
     if (response.success && response.data && Array.isArray(response.data) && response.data.length > 0) {
@@ -3365,7 +3341,6 @@ export async function checkCustomerExists(identifier, loginType = 'phone') {
         originalResponse: response // Include full API response for debugging
       }
 
-      console.log('📋 User found - mapped data:', userData)
       return userData
     } else if (response.success && response.data && !Array.isArray(response.data) && typeof response.data === 'object') {
       // Handle case where data is directly an object (not array)
@@ -3382,8 +3357,6 @@ export async function checkCustomerExists(identifier, loginType = 'phone') {
         userData: response.data, // Include complete user data
         originalResponse: response // Include full API response for debugging
       }
-
-      console.log('📋 User found (object) - mapped data:', userData)
       return userData
     } else {
       // User not found - API returns success: true but empty data array or message indicates not found

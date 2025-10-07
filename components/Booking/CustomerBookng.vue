@@ -981,7 +981,6 @@ const loadEvents = async () => {
       throw new Error(response.data.message || "Failed to load events");
     }
   } catch (error) {
-    console.error("Error loading events:", error);
     errorMessage.value =
       error.message || "Failed to load events. Please try again.";
     // Keep empty array on error
@@ -1007,14 +1006,9 @@ const loadCustomerInfo = () => {
         // Load customer_id if available to maintain customer context
         if (parsed.customer_id) {
           currentCustomerId.value = parsed.customer_id;
-          console.log('📋 Loaded customer context:', {
-            customer_id: currentCustomerId.value,
-            name: customerInfo.value.fullName
-          });
         }
       }
     } catch (error) {
-      console.warn('Failed to load customer info from localStorage:', error);
     }
   }
 };
@@ -1184,7 +1178,6 @@ const handleCompleteBooking = async (bookingDetails) => {
   // IMPORTANT: Check if customer validation was done
   // If currentCustomerId is null, we need to check customer existence first
   if (!currentCustomerId.value) {
-    console.log('🔍 Customer ID not found, checking customer existence before order creation...');
     
     try {
       let identifier = '';
@@ -1203,9 +1196,7 @@ const handleCompleteBooking = async (bookingDetails) => {
       if (customerCheck.exists === true) {
         // Set customer_id for order linking
         currentCustomerId.value = customerCheck.customer_id;
-        console.log('✅ Found existing customer for order:', currentCustomerId.value);
       } else {
-        console.log('ℹ️ New customer - order will create new customer record');
       }
       
     } catch (error) {
@@ -1262,19 +1253,10 @@ const handleCompleteBooking = async (bookingDetails) => {
       customer_id: currentCustomerId.value // IMPORTANT: Link order to existing customer if found
     };
 
-    console.log('🚀 Creating order with customer context:', {
-      event_id: orderData.event_id,
-      customer_id: orderData.customer_id || 'new customer',
-      currentCustomerId_value: currentCustomerId.value,
-      contact_method: activeTab.value,
-      contact_value: orderData.phone_number || orderData.email,
-      full_name: orderData.full_name
-    });
 
     // Debug: Check why customer_id might be missing
     if (!currentCustomerId.value) {
       console.warn('⚠️ No customer ID found! User may not have gone through validation flow.');
-      console.log('existingUserData:', existingUserData.value);
     }
 
     // Create the order reservation
@@ -1313,12 +1295,7 @@ const showSuccessMessage = (result) => {
   const orderInfo = result.data || {};
   const orderId = result.order_id || orderInfo.id || 'N/A';
   const customerId = result.customer_id || orderInfo.customer_id || currentCustomerId.value;
-  
-  console.log('🎉 Order created successfully:', {
-    order_id: orderId,
-    customer_id: customerId,
-    customer_name: customerInfo.value.fullName
-  });
+
   
   let successDetail = `Your booking has been confirmed! Order ID: ${orderId}`;
   if (customerId) {
@@ -1361,7 +1338,6 @@ const resetBookingForm = () => {
   visible.value = false;
   clearEventFromUrl();
   
-  console.log('🔄 Booking form reset - ready for new customer');
 };
 
 // Save customer information and check if user exists
@@ -1415,12 +1391,10 @@ const saveCustomerInfo = async () => {
       loginType = 'email';
     }
 
-    console.log('🔍 Checking customer existence for:', { identifier, loginType });
 
     // Use the new checkCustomerExists function for better handling
     const customerCheck = await checkCustomerExists(identifier, loginType);
     
-    console.log('✅ Customer check result:', customerCheck);
     
     if (customerCheck.exists === true) {
       // User exists - store customer_id and show Account Found modal
@@ -1438,8 +1412,6 @@ const saveCustomerInfo = async () => {
         ...customerCheck
       };
       
-      console.log('👤 Customer found with ID:', currentCustomerId.value);
-      console.log('👤 Customer data:', existingUserData.value);
       showUserExistsModal.value = true;
       
     } else {
@@ -1513,11 +1485,6 @@ const handleUseExistingUser = () => {
     }));
   }
   
-  console.log('✅ Using existing customer:', {
-    customer_id: currentCustomerId.value,
-    name: customerInfo.value.fullName,
-    contact: customerInfo.value.phoneNumber || customerInfo.value.email
-  });
   
   toast.add({
     severity: 'success',
@@ -1569,12 +1536,6 @@ const handleConfirmAndContinue = () => {
       customer_id: currentCustomerId.value
     }));
   }
-  
-  console.log('✅ Confirmed existing customer:', {
-    customer_id: currentCustomerId.value,
-    name: customerInfo.value.fullName,
-    contact: customerInfo.value.phoneNumber || customerInfo.value.email
-  });
   
   toast.add({
     severity: 'success',
@@ -1986,7 +1947,6 @@ const clearCustomerInfo = () => {
   bookingError.value = "";
   bookingSuccess.value = false;
   
-  console.log('🧹 Customer information cleared');
   
   toast.add({
     severity: 'info',
