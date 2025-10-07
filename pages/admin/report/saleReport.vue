@@ -33,7 +33,7 @@
           v-model="searchQuery"
           type="text"
           placeholder="Search"
-          class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
+          class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-full focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-transparent"
         />
       </div>
       <div class="flex items-center space-x-4 ml-4">
@@ -43,7 +43,7 @@
           optionLabel="label"
           optionValue="value"
           placeholder="October"
-          class="w-32 rounded-2xl "
+          class="w-32 rounded-xl border border-gray-300 bg-[#F5F5F5]"
         />
         <Dropdown
           v-model="selectedYear"
@@ -51,101 +51,138 @@
           optionLabel="label"
           optionValue="value"
           placeholder="2025"
-          class="w-24 rounded-2xl "
+          class="w-24 rounded-xl border border-gray-300 bg-[#F5F5F5]"
         />
       </div>
     </div>
 
     <!-- Event Cards -->
     <div class="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="bg-white rounded-lg p-4 shadow-sm border border-gray-200 flex items-center space-x-4">
-        <img src="https://via.placeholder.com/60x60" alt="Event" class="w-15 h-15 rounded-lg object-cover" />
+      <div class="bg-white rounded-2xl p-2 shadow-sm border border-gray-200 flex items-center space-x-4">
+        <img :src="poster" alt="Event" class="w-30 rounded-2xl object-cover" />
         <div class="flex-1">
           <h3 class="font-medium text-gray-900 text-sm mb-1">Navigating the future of cybersecurity in Cambodia 2015</h3>
-          <p class="text-xs text-gray-500">📍 Hayatt Regency, Phnom Penh</p>
-          <p class="text-xs text-gray-500">🕐 10:00 AM GMT+7</p>
+         <div class="flex items-center text-xs text-gray-500 mb-1">
+                <Icon name="heroicons:map-pin" class="w-3 h-3 mr-1" />
+                Hayatt Regency, Phnom Penh
+              </div>
+              <div class="flex items-center text-xs text-gray-500">
+                <Icon name="heroicons:calendar" class="w-3 h-3 mr-1" />
+               10:00 AM GMT+7
+              </div>
         </div>
       </div>
-      <div class="bg-white rounded-lg p-4 shadow-sm border border-gray-200 flex items-center space-x-4">
-        <img src="https://via.placeholder.com/60x60" alt="Event" class="w-15 h-15 rounded-lg object-cover" />
+       <div class="bg-white rounded-2xl p-2 shadow-sm border border-gray-200 flex items-center space-x-4">
+        <img :src="poster" alt="Event" class="w-30 rounded-2xl object-cover" />
         <div class="flex-1">
           <h3 class="font-medium text-gray-900 text-sm mb-1">Navigating the future of cybersecurity in Cambodia 2015</h3>
-          <p class="text-xs text-gray-500">📍 Hayatt Regency, Phnom Penh</p>
-          <p class="text-xs text-gray-500">🕐 10:00 AM GMT+7</p>
+         <div class="flex items-center text-xs text-gray-500 mb-1">
+                <Icon name="heroicons:map-pin" class="w-3 h-3 mr-1" />
+                Hayatt Regency, Phnom Penh
+              </div>
+              <div class="flex items-center text-xs text-gray-500">
+                <Icon name="wi:time-9" class="w-3 h-3 mr-1" />
+               10:00 AM GMT+7
+              </div>
         </div>
       </div>
-      <div class="bg-white rounded-lg p-4 shadow-sm border border-gray-200 flex items-center space-x-4">
-        <img src="https://via.placeholder.com/60x60" alt="Event" class="w-15 h-15 rounded-lg object-cover" />
+       <div class="bg-white rounded-2xl p-2 shadow-sm border border-gray-200 flex items-center space-x-4">
+        <img :src="poster" alt="Event" class="w-30 rounded-2xl object-cover" />
         <div class="flex-1">
-          <h3 class="font-medium text-gray-900 text-sm mb-1">Navigating the future of cyber in Cambodia 2015</h3>
-          <p class="text-xs text-gray-500">📍 Hayatt Regency, Phnom Penh</p>
-          <p class="text-xs text-gray-500">🕐 10:00 AM GMT+7</p>
+          <h3 class="font-medium text-gray-900 text-sm mb-1">Navigating the future of cybersecurity in Cambodia 2015</h3>
+         <div class="flex items-center text-xs text-gray-500 mb-1">
+                <Icon name="heroicons:map-pin" class="w-3 h-3 mr-1" />
+                Hayatt Regency, Phnom Penh
+              </div>
+              <div class="flex items-center text-xs text-gray-500">
+                <Icon name="heroicons:calendar" class="w-3 h-3 mr-1" />
+               10:00 AM GMT+7
+              </div>
         </div>
       </div>
     </div>
 
     <!-- Sale Overtime Section -->
     <div class="mb-8">
-      <h2 class="text-xl font-semibold text-gray-900 mb-6">Sale Overtime</h2>
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <!-- Sale Overtime Header with Controls -->
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-semibold text-gray-900">Sale Overtime</h2>
+        <div class="flex items-center space-x-4">
+          <Dropdown
+            v-model="selectedPeriod"
+            :options="periodOptions"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Today"
+            class="w-32 rounded-xl border border-gray-300 bg-[#F5F5F5]"
+          />
+          <Button
+            label="Filters"
+            icon="pi pi-filter"
+            class="p-button-outlined text-purple-600 border-purple-600 hover:bg-purple-50 px-4 py-2 rounded-xl"
+            @click="toggleOvertimeFilters"
+          />
+        </div>
+      </div>
+      
+      <div class="grid grid-cols-1 lg:grid-cols-2 bg-white rounded-2xl">
         <!-- Paid and confirmed -->
-        <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-          <div class="mb-4">
-            <h3 class="text-lg font-medium text-gray-900 mb-2">Paid and confirmed</h3>
-            <p class="text-2xl font-bold text-purple-600">1,000</p>
+        <div class="p-6 ">
+          <div class="mb-6 flex justify-between rounded-lg px-1 py-1 items-center bg-[#F9F7FD] m-auto">
+            <h3 class="text-sm font-medium text-gray-900 ">Paid and confirmed</h3>
+            <h3 class="text-md font-bold text-purple-900 ">1000</h3>
           </div>
           <div class="grid grid-cols-3 gap-4">
-            <div class="text-center">
-              <div class="flex items-center justify-center mb-2">
-                <span class="w-3 h-3 bg-purple-500 rounded-full mr-2"></span>
-                <span class="text-sm text-gray-600">Bookings</span>
+            <div class="text-start">
+              <div class="flex items-center justify-start mb-2">
+                <Icon name="material-symbols-light:receipt-rounded" class="w-6 h-6 text-purple-700 mr-1" />
+                <span class="text-md  font-medium  text-purple-700 ">Bookings</span>
               </div>
-              <p class="text-lg font-semibold text-gray-900">1,000</p>
+              <p class="text-xl ml-5 font-semibold text-gray-900">1,000</p>
             </div>
-            <div class="text-center">
+            <div class="text-center border-x border-gray-400">
               <div class="flex items-center justify-center mb-2">
-                <span class="w-3 h-3 bg-purple-500 rounded-full mr-2"></span>
-                <span class="text-sm text-gray-600">Tickets</span>
+                <Icon name="heroicons:ticket-solid" class="w-6 h-6 text-purple-700 mr-1" />
+                <span class="text-md  font-medium  text-purple-700 ">Tickets</span>
               </div>
-              <p class="text-lg font-semibold text-gray-900">1,500</p>
+              <p class="text-xl font-semibold text-gray-900">1,500</p>
             </div>
-            <div class="text-center">
-              <div class="flex items-center justify-center mb-2">
-                <span class="w-3 h-3 bg-blue-500 rounded-full mr-2"></span>
-                <span class="text-sm text-gray-600">Amount</span>
+            <div class="text-end">
+              <div class="flex items-center justify-end mb-2">
+               <Icon name="tabler:coin-filled" class="w-6 h-6 text-purple-700 mr-1" />
+                <span class="text-md  font-medium  text-purple-700 ">Amounts</span>
               </div>
-              <p class="text-lg font-semibold text-gray-900">$2,000</p>
+              <p class="text-xl font-semibold mr-4 text-gray-900">$2,000</p>
             </div>
           </div>
         </div>
-
         <!-- Pending for cash payment -->
-        <div class="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-          <div class="mb-4">
-            <h3 class="text-lg font-medium text-gray-900 mb-2">Pending for cash payment</h3>
-            <p class="text-2xl font-bold text-purple-600">1,000</p>
+         <div class="p-6  ">
+          <div class="mb-6 flex justify-between rounded-lg px-1 py-1 items-center bg-[#F9F7FD] m-auto">
+            <h3 class="text-sm font-medium text-gray-900 ">Pending for cash payment</h3>
+            <h3 class="text-md font-bold text-purple-900 ">1000</h3>
           </div>
           <div class="grid grid-cols-3 gap-4">
-            <div class="text-center">
-              <div class="flex items-center justify-center mb-2">
-                <span class="w-3 h-3 bg-purple-500 rounded-full mr-2"></span>
-                <span class="text-sm text-gray-600">Bookings</span>
+            <div class="text-start">
+              <div class="flex items-center justify-start mb-2">
+                <Icon name="material-symbols-light:receipt-rounded" class="w-6 h-6 text-purple-700 mr-1" />
+                <span class="text-md  font-medium  text-purple-700 ">Bookings</span>
               </div>
-              <p class="text-lg font-semibold text-gray-900">1,000</p>
+              <p class="text-xl ml-5 font-semibold text-gray-900">1,000</p>
             </div>
-            <div class="text-center">
+            <div class="text-center border-x border-gray-400">
               <div class="flex items-center justify-center mb-2">
-                <span class="w-3 h-3 bg-purple-500 rounded-full mr-2"></span>
-                <span class="text-sm text-gray-600">Tickets</span>
+                <Icon name="heroicons:ticket-solid" class="w-6 h-6 text-purple-700 mr-1" />
+                <span class="text-md  font-medium  text-purple-700 ">Tickets</span>
               </div>
-              <p class="text-lg font-semibold text-gray-900">1,500</p>
+              <p class="text-xl font-semibold text-gray-900">1,500</p>
             </div>
-            <div class="text-center">
-              <div class="flex items-center justify-center mb-2">
-                <span class="w-3 h-3 bg-blue-500 rounded-full mr-2"></span>
-                <span class="text-sm text-gray-600">Amount</span>
+            <div class="text-end">
+              <div class="flex items-center justify-end mb-2">
+               <Icon name="tabler:coin-filled" class="w-6 h-6 text-purple-700 mr-1" />
+                <span class="text-md  font-medium  text-purple-700 ">Amounts</span>
               </div>
-              <p class="text-lg font-semibold text-gray-900">$2,000</p>
+              <p class="text-xl font-semibold mr-4 text-gray-900">$2,000</p>
             </div>
           </div>
         </div>
@@ -157,19 +194,41 @@
       <!-- Header with filters -->
       <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
         <h2 class="text-lg font-semibold text-gray-900">List Sale</h2>
-        <div class="flex items-center space-x-4">
-          <Button
-            label="Today"
-            class="p-button-outlined text-gray-600 border-gray-300 hover:bg-gray-50"
-            @click="filterToday"
-          />
-          <Button
-            label="Filters"
-            icon="pi pi-filter"
-            class="p-button-outlined text-purple-600 border-purple-600 hover:bg-purple-50"
-            @click="toggleFilters"
+        <!-- Filters and Search -->
+   <div class="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 w-full lg:w-auto">
+        <div class="relative w-full sm:w-auto">
+          <Dropdown
+            v-model="sortOption"
+            :options="sortOptions"
+            optionLabel="label"
+            optionValue="value"
+            class="w-full sm:w-32 lg:w-40 p-dropdown-sm border bg-transparent border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            @change="applySort"
+          >
+            <template #value="slotProps">
+              <span v-if="slotProps.value" class="text-sm lg:text-base">{{ slotProps.value }}</span>
+              <span v-else class="text-sm lg:text-base text-black">Sort</span>
+            </template>
+          </Dropdown>
+        </div>
+
+        <div class="flex items-center space-x-2 lg:space-x-4 w-full sm:w-auto">
+          <p class="text-sm lg:text-xl font-normal text-gray-700 whitespace-nowrap">Show</p>
+          <Dropdown
+            v-model="itemsPerPage"
+            :options="pageOptions"
+            optionLabel="label"
+            optionValue="value"
+            placeholder=""
+            class="w-20 lg:w-24 border border-gray-300 bg-transparent rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            @change="applyPageChange"
           />
         </div>
+
+        <span class="text-xs lg:text-lg text-gray-700 border-l pl-2 border-gray-500 whitespace-nowrap">
+          {{ searchQuery ? `Filtered: ${totalItems} results` : `Show ${currentPage * itemsPerPage - (itemsPerPage - 1)} to ${Math.min(currentPage * itemsPerPage, totalItems)} of ${totalItems}` }}
+        </span>
+      </div>
       </div>
 
       <!-- Data Table -->
@@ -265,7 +324,7 @@ import Button from 'primevue/button'
 import Menu from 'primevue/menu'
 import Dropdown from 'primevue/dropdown'
 import { useToast } from 'primevue/usetoast'
-
+import poster from "@/assets/image/poster-manage-booking.png"
 const toast = useToast()
 
 // Data
@@ -274,8 +333,18 @@ const totalRecords = ref(206)
 const searchQuery = ref('')
 const selectedMonth = ref('October')
 const selectedYear = ref('2025')
+const selectedPeriod = ref('Today')
 
 // Dropdown options
+const periodOptions = ref([
+  { label: 'Today', value: 'Today' },
+  { label: 'Yesterday', value: 'Yesterday' },
+  { label: 'This Week', value: 'This Week' },
+  { label: 'Last Week', value: 'Last Week' },
+  { label: 'This Month', value: 'This Month' },
+  { label: 'Last Month', value: 'Last Month' }
+])
+
 const monthOptions = ref([
   { label: 'January', value: 'January' },
   { label: 'February', value: 'February' },
@@ -440,6 +509,15 @@ const toggleFilters = () => {
   })
 }
 
+const toggleOvertimeFilters = () => {
+  toast.add({ 
+    severity: 'info', 
+    summary: 'Overtime Filters', 
+    detail: 'Sale overtime filters toggled', 
+    life: 3000 
+  })
+}
+
 const formatDate = (dateString) => {
   return dateString
 }
@@ -523,12 +601,7 @@ definePageMeta({
   @apply border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white;
 }
 
-/* Card hover effects */
-.bg-white:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-}
+
 
 /* Status badge styling */
 .px-2 {

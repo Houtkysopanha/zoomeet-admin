@@ -3347,8 +3347,28 @@ export async function checkCustomerExists(identifier, loginType = 'phone') {
 
     console.log('✅ User info check response:', response)
 
-    if (response.success && response.data) {
-      // Map the response to match existing component expectations
+    // Check if user was found - API returns success: true but data could be empty array or null
+    if (response.success && response.data && Array.isArray(response.data) && response.data.length > 0) {
+      // User found - data array contains user info
+      const userInfo = response.data[0]; // Get first user from array
+      const userData = {
+        exists: true,
+        customer_id: userInfo.id, // Map id to customer_id
+        id: userInfo.id,
+        name: userInfo.name,
+        full_name: userInfo.name,
+        email: userInfo.email,
+        phone_number: userInfo.phone_number,
+        identifier: identifier,
+        loginType: loginType,
+        userData: userInfo, // Include complete user data
+        originalResponse: response // Include full API response for debugging
+      }
+
+      console.log('📋 User found - mapped data:', userData)
+      return userData
+    } else if (response.success && response.data && !Array.isArray(response.data) && typeof response.data === 'object') {
+      // Handle case where data is directly an object (not array)
       const userData = {
         exists: true,
         customer_id: response.data.id, // Map id to customer_id
@@ -3363,11 +3383,11 @@ export async function checkCustomerExists(identifier, loginType = 'phone') {
         originalResponse: response // Include full API response for debugging
       }
 
-      console.log('📋 Mapped user data:', userData)
+      console.log('📋 User found (object) - mapped data:', userData)
       return userData
     } else {
-      // User not found
-      console.log('❌ User not found')
+      // User not found - API returns success: true but empty data array or message indicates not found
+      console.log('❌ User not found - API response:', response)
       return {
         exists: false,
         customer_id: null,

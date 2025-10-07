@@ -1,13 +1,13 @@
 <template>
   <!-- Recent event News -->
-  <div class="p-6 bg-white rounded-2xl shadow-sm border border-gray-200 h-[calc(80vh-8rem)] overflow-hidden flex flex-col">
+  <div class="p-6 bg-white rounded-2xl border border-gray-200 h-[calc(80vh-8rem)] overflow-hidden flex flex-col">
     <h2 class="text-xl font-semibold text-gray-900 mb-6">Recent events</h2>
 
     <div class="flex-1 overflow-y-auto space-y-4">
       <div
         v-for="(event, index) in visibleEvents"
         :key="index"
-        class="bg-[#F9FAFB] rounded-2xl p-4 shadow-sm"
+        class="bg-[#F9FAFB] rounded-2xl p-4 "
       >
         <!-- Event Header -->
         <div class="flex items-start justify-between mb-4">
@@ -211,10 +211,6 @@ function viewReport(event) {
 }
 
 /* Card hover effect */
-.bg-white:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transition: box-shadow 0.2s ease-in-out;
-}
 
 /* Button customizations */
 :deep(.p-button-outlined) {

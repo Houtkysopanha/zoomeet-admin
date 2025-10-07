@@ -420,10 +420,10 @@
         >
           <Icon name="mdi:close" class="w-6 h-6" />
         </button>   
-         <!-- Success Icon -->
+         <!-- Not Found Icon -->
         <div class="flex justify-start items-center space-x-2 mb-4">
           <img :src="accNotFound" width="30px" alt="">
-          <h3 class="text-lg font-semibold text-gray-900 ">Account Found</h3>
+          <h3 class="text-lg font-semibold text-gray-900 ">Account Not Found</h3>
         </div>
        </div>
         
@@ -722,7 +722,7 @@
                 </span>
               </div>
               <div>
-                <p class="font-medium text-gray-900">{{ existingUserData.fullName || 'Kim Hong' }}</p>
+                <p class="font-medium text-gray-900">{{ existingUserData.fullName }}</p>
                 <p class="text-sm text-gray-500">{{ existingUserData.identifier }}</p>
               </div>
             </div>

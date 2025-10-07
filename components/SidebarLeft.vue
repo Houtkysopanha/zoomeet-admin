@@ -76,15 +76,19 @@
         <div class="relative">
           <button
             @click="togglereportsDropdown"
-            class="w-full flex items-center justify-between px-3 lg:px-4 py-3 rounded-lg transition-all duration-200 hover:bg-gray-100 text-black"
-            :class="{ 'bg-[#E6F2FF]': showreportsDropdown }"
+            class="w-full flex items-center justify-between px-3 lg:px-4 py-3 rounded-lg transition-all duration-200 hover:bg-gray-100"
+            :class="{ 'bg-[#E6F2FF]': showreportsDropdown || isActiveReport() }"
           >
             <div class="flex items-center space-x-3">
               <Icon
                 name="bxs:report"
                 class="text-lg flex-shrink-0"
+                :class="isActiveReport() ? 'bg-gradient-to-r from-[#4D66A6] to-[#B61EEB] ' : 'text-black'"
               />
-              <span class="font-medium text-sm lg:text-base truncate">Report</span>
+              <span 
+                class="font-medium text-sm lg:text-base truncate"
+                :class="isActiveReport() ? 'bg-gradient-to-r from-[#4D66A6] to-[#B61EEB] bg-clip-text text-transparent font-bold' : 'text-black'"
+              >Report</span>
             </div>
             <Icon
               name="i-heroicons-chevron-up"
@@ -109,8 +113,15 @@
             >
               <template v-if="!setting.disabled">
                 <NuxtLink :to="setting.to" class="flex items-center space-x-3 w-full">
-                  <Icon :name="`${setting.icon}`" class="text-base flex-shrink-0" />
-                  <span class="font-medium truncate">{{ setting.text }}</span>
+                  <Icon 
+                    :name="`${setting.icon}`" 
+                    class="text-base flex-shrink-0"
+                    :class="isActive(setting.to) ? 'bg-gradient-to-r from-[#4D66A6] to-[#B61EEB] ' : 'text-black'"
+                  />
+                  <span 
+                    class="font-medium truncate"
+                    :class="isActive(setting.to) ? 'bg-gradient-to-r from-[#4D66A6] to-[#B61EEB] bg-clip-text text-transparent font-bold' : 'text-black'"
+                  >{{ setting.text }}</span>
                 </NuxtLink>
               </template>
               <template v-else>
@@ -165,6 +176,10 @@ function handleClickOutside(event) {
   }
 }
 
+function isActiveReport() {
+  return route.path.startsWith('/admin/report')
+}
+
 function isActive(path) {
   if (!path) return false
   
@@ -193,6 +208,11 @@ function isActive(path) {
   // For Check-in menu item, check if current route is check-in related
   if (path === '/admin/checkIn') {
     return route.path.startsWith('/admin/checkIn') ||route.path.startsWith('/admin/print-tickets')
+  }
+
+  // For report menu items, check if current route matches the specific report path
+  if (path.startsWith('/admin/report/')) {
+    return route.path === path
   }
   
   // Default: check if current path starts with the menu path
