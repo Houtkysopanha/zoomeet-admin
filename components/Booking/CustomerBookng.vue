@@ -399,6 +399,8 @@
       :visible="visible"
       :selected-event="selectedEvent"
       :customer-info="customerInfo"
+      :existing-user-data="existingUserData"
+      :current-customer-id="currentCustomerId"
       :active-customer-tab="activeTab"
       :is-customer-info-complete="isCustomerInfoComplete"
       :is-processing-booking="isProcessingBooking"
@@ -409,60 +411,53 @@
 
     <!-- Authentication Modals -->
     
-    <!-- Account Not Found Modal - COMMENTED OUT: Now goes directly to registration -->
-    <!--
+    <!-- Account Not Found Modal -->
     <div v-if="showAccountNotFoundModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4 relative">
+      <div class="bg-white rounded-2xl p-6 w-[30rem] max-w-md mx-4 relative shadow-2xl">
+       <div class="header flex justify-between items-center">
+         <!-- Close Button -->
         <button 
           @click="showAccountNotFoundModal = false"
-          class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+          class="absolute top-6 right-4 text-gray-400 hover:text-gray-600 transition-colors"
         >
-          <Icon name="heroicons:x-mark" class="w-6 h-6" />
-        </button>
+          <Icon name="mdi:close" class="w-6 h-6" />
+        </button>   
+         <!-- Not Found Icon -->
+        <div class="flex justify-start items-center space-x-2 mb-4">
+          <img :src="accNotFound" width="30px" alt="">
+          <h3 class="text-lg font-semibold text-gray-900 ">Account Not Found</h3>
+        </div>
+       </div>
         
-        <div class="text-center">
-          <div class="mx-auto flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
-            <Icon name="heroicons:exclamation-triangle" class="w-8 h-8 text-red-600" />
-          </div>
-          
-          <h3 class="text-lg font-semibold text-gray-900 mb-2">Account Not Found</h3>
-          
-          <p class="text-gray-600 mb-6">
+        <!-- Modal Content -->
+        <div class="text-start">
+          <p class="text-gray-600 mb-2">
             The phone number or email you entered 
-            <span class="font-medium">"{{ activeTab === 'email' ? customerInfo.email : customerInfo.phoneNumber }}"</span> 
+            <span class="font-medium text-gray-800">'{{ activeTab === 'phone' ? customerInfo.phoneNumber : customerInfo.email }}'</span> 
             is not linked to any etickets.asia account.
           </p>
-          
-          <p class="text-gray-600 mb-8">
+          <p class="text-gray-600 mb-6">
             Try entering a different email or phone, or create a new account to continue booking.
           </p>
           
-          <div class="space-y-3">
+          <!-- Action Buttons -->
+          <div class="flex justify-center items-center space-x-2">
             <button
               @click="handleTryAgain"
-              class="w-full py-3 px-4 border border-purple-600 text-purple-600 rounded-full hover:bg-purple-50 transition-colors"
+              class="w-full px-4 py-3 border border-purple-600 text-purple-600 rounded-full font-medium hover:bg-purple-50 transition-colors"
             >
               Try again
             </button>
-            
             <button
-              @click="handleCreateAccount"
-              class="w-full py-3 px-4 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors"
+              @click="handleCreateAccountFromNotFound"
+              class="w-full px-4 py-3 bg-purple-600 text-white rounded-full font-medium hover:bg-purple-700 transition-colors"
             >
               Create account
-            </button>
-            
-            <button
-              @click="handleForgotPassword"
-              class="text-purple-600 hover:text-purple-700 text-sm underline"
-            >
-              Forgot password?
             </button>
           </div>
         </div>
       </div>
     </div>
-    -->
 
     <!-- Register Account Modal -->
     <div v-if="showRegisterModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -694,64 +689,54 @@
 
 
 
-    <!-- User Exists Confirmation Modal -->
+    <!-- Account Found Modal -->
     <div v-if="showUserExistsModal && existingUserData" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4 relative">
+      <div class="bg-white rounded-2xl p-6 w-[30rem] max-w-md mx-4 relative shadow-2xl">
+       <div class="header flex justify-between items-center">
+         <!-- Close Button -->
         <button 
           @click="showUserExistsModal = false"
-          class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+          class="absolute top-6 right-4 text-gray-400 hover:text-gray-600 transition-colors"
         >
-          <Icon name="heroicons:x-mark" class="w-6 h-6" />
-        </button>
-        
-        <div class="text-center">
-          <div class="mx-auto flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-            <Icon name="heroicons:user" class="w-8 h-8 text-blue-600" />
-          </div>
-          
-          <h3 class="text-lg font-semibold text-gray-900 mb-4">Account Found</h3>
-          
+          <Icon name="mdi:close" class="w-6 h-6" />
+        </button>   
+         <!-- Success Icon -->
+        <div class="flex justify-start items-center space-x-2 mb-4">
+          <img :src="accFound" width="30px" alt="">
+          <h3 class="text-lg font-semibold text-gray-900 ">Account Found</h3>
+        </div>
+       </div>
+        <!-- Modal Content -->
+        <div class="text-start">
+          <p class="text-gray-600">
+            We found an account registered to {{ existingUserData.identifier }}.
+          </p>
           <p class="text-gray-600 mb-6">
-            An account already exists with this 
-            <span class="font-medium text-purple-600">
-              {{ existingUserData?.loginType === 'phone' ? 'phone number' : 'email address' }}
-            </span>:
+            Please confirm identity to continue with booking.
           </p>
           
-          <div class="bg-gray-50 rounded-lg p-4 mb-6">
-            <div class="flex items-center justify-center space-x-2">
-              <Icon 
-                :name="existingUserData?.loginType === 'phone' ? 'heroicons:phone' : 'heroicons:envelope'" 
-                class="w-5 h-5 text-gray-500" 
-              />
-              <span class="font-medium text-gray-800">{{ existingUserData?.identifier }}</span>
-            </div>
-            <div v-if="existingUserData?.fullName" class="mt-2 text-sm text-gray-600">
-              Name: <span class="font-medium">{{ existingUserData?.fullName }}</span>
+          <!-- User Info Display -->
+          <div class="bg-purple-50 rounded-lg p-2 mb-6 text-left">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <span class="text-purple-600 font-semibold text-sm">
+                  {{ existingUserData.fullName ? existingUserData.fullName.charAt(0).toUpperCase() : 'K' }}
+                </span>
+              </div>
+              <div>
+                <p class="font-medium text-gray-900">{{ existingUserData.fullName }}</p>
+                <p class="text-sm text-gray-500">{{ existingUserData.identifier }}</p>
+              </div>
             </div>
           </div>
           
-          <p class="text-gray-600 mb-8 text-sm">
-            Would you like to use this existing account or create a new one?
-          </p>
-          
-          <div class="space-y-3">
-            <button
-              @click="handleUseExistingUser"
-              class="w-full py-3 px-4 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors"
-            >
-              <Icon name="heroicons:check" class="w-5 h-5 mr-2 inline" />
-              Use Existing Account
-            </button>
-            
-            <button
-              @click="handleCreateNewAccount"
-              class="w-full py-3 px-4 border border-purple-600 text-purple-600 rounded-full hover:bg-purple-50 transition-colors"
-            >
-              <Icon name="heroicons:plus" class="w-5 h-5 mr-2 inline" />
-              Create New Account
-            </button>
-          </div>
+          <!-- Action Button -->
+          <button
+            @click="handleConfirmAndContinue"
+            class="w-full px-4 py-3 bg-purple-600 text-white rounded-full font-medium hover:bg-purple-700 transition-colors"
+          >
+            Confirm and continue
+          </button>
         </div>
       </div>
     </div>
@@ -836,11 +821,15 @@ import EventDetail from "./EventDetail.vue";
 import { 
   fetchEvents, 
   createOrderReservation,
+  checkCustomerExists,
 } from "@/composables/api";
 import { sendEmailOtp } from "@/composables/useEmailAuth";
 // Firebase composable
 const { sendOtp, submitOtp, registerUser, registerUserWithEmail,submitWithEmail  } = useFirebase();
 import img1 from "@/assets/image/poster-manage-booking.png";
+import accFound from "@/assets/image/acc-found.png";
+import accNotFound from "@/assets/image/acc-notfound.png";
+import accSuccess from "@/assets/image/acc-sucess.png";
 import PhoneNumber from "../PhoneNumber.vue";
 
 // Customer information
@@ -863,9 +852,13 @@ const showRegisterModal = ref(false);
 const showCreatePasswordModal = ref(false);
 const showAccountSuccessModal = ref(false);
 const showUserExistsModal = ref(false);
+const showAccountNotFoundModal = ref(false);
 
 // User exists modal data
 const existingUserData = ref(null);
+
+// Customer ID for linking orders (avoid user confusion)
+const currentCustomerId = ref(null);
 
 // Instruct customer modal
 const showInstructCustomerModal = ref(false);
@@ -988,7 +981,6 @@ const loadEvents = async () => {
       throw new Error(response.data.message || "Failed to load events");
     }
   } catch (error) {
-    console.error("Error loading events:", error);
     errorMessage.value =
       error.message || "Failed to load events. Please try again.";
     // Keep empty array on error
@@ -1010,10 +1002,13 @@ const loadCustomerInfo = () => {
           phoneNumber: parsed.phoneNumber || "",
           email: parsed.email || "",
         };
-        console.log('📋 Loaded customer info from localStorage:', customerInfo.value);
+        
+        // Load customer_id if available to maintain customer context
+        if (parsed.customer_id) {
+          currentCustomerId.value = parsed.customer_id;
+        }
       }
     } catch (error) {
-      console.warn('Failed to load customer info from localStorage:', error);
     }
   }
 };
@@ -1038,7 +1033,6 @@ onMounted(async () => {
       );
       
       if (eventToSelect) {
-        console.log('🔗 Auto-selecting event from URL:', eventToSelect);
         selectEvent(eventToSelect);
       }
     }
@@ -1079,8 +1073,7 @@ const selectEvent = (event) => {
   
   selectedEvent.value = eventForDetail;
   visible.value = true;
-  
-  console.log('🎯 Selected event for detail:', eventForDetail);
+
   
   // Update URL to include event ID for proper ticket loading
   if (process.client && event._originalData.id) {
@@ -1168,12 +1161,6 @@ const generateTransactionId = () => {
 
 // Handle booking completion from EventDetail component
 const handleCompleteBooking = async (bookingDetails) => {
-  console.log('🎯 Handling complete booking:', bookingDetails);
-  console.log('🔍 Transaction ID received:', {
-    value: bookingDetails.transactionId,
-    type: typeof bookingDetails.transactionId,
-    paymentMethod: bookingDetails.paymentMethod
-  });
   
   // Validate customer information first
   const validationErrors = validateCustomerInfo();
@@ -1186,6 +1173,35 @@ const handleCompleteBooking = async (bookingDetails) => {
       life: 5000
     });
     return;
+  }
+  
+  // IMPORTANT: Check if customer validation was done
+  // If currentCustomerId is null, we need to check customer existence first
+  if (!currentCustomerId.value) {
+    
+    try {
+      let identifier = '';
+      let loginType = '';
+
+      if (activeTab.value === "phone") {
+        identifier = customerInfo.value?.phoneNumber?.replace(/^\+/, '') || ''; 
+        loginType = 'phone';
+      } else if (activeTab.value === "email") {
+        identifier = customerInfo.value?.email || '';
+        loginType = 'email';
+      }
+
+      const customerCheck = await checkCustomerExists(identifier, loginType);
+      
+      if (customerCheck.exists === true) {
+        // Set customer_id for order linking
+        currentCustomerId.value = customerCheck.customer_id;
+      } else {
+      }
+      
+    } catch (error) {
+      console.warn('⚠️ Could not verify customer existence, proceeding as new customer:', error.message);
+    }
   }
   
   // Check if an event is selected
@@ -1231,21 +1247,23 @@ const handleCompleteBooking = async (bookingDetails) => {
         : (bookingDetails.transactionId && String(bookingDetails.transactionId).trim() 
            ? String(bookingDetails.transactionId).trim() 
            : generateTransactionId()),
-      phone_number: activeTab.value === 'phone' ? `+855${customerInfo.value?.phoneNumber?.trim() || ''}` : null,
+      phone_number: activeTab.value === 'phone' ? customerInfo.value?.phoneNumber?.trim() || null : null,
       email: activeTab.value === 'email' ? customerInfo.value?.email?.trim() : null, 
-      full_name: customerInfo.value?.fullName?.trim() || ''
+      full_name: customerInfo.value?.fullName?.trim() || '',
+      customer_id: currentCustomerId.value // IMPORTANT: Link order to existing customer if found
     };
 
-    console.log('📋 Creating order with data:', orderData);
-    console.log('🔍 API will be called with endpoint:', '/orders/reserve');
+
+    // Debug: Check why customer_id might be missing
+    if (!currentCustomerId.value) {
+      console.warn('⚠️ No customer ID found! User may not have gone through validation flow.');
+    }
 
     // Create the order reservation
     const result = await createOrderReservation(orderData);
-    
-    console.log('📨 API Response received:', result);
+  
     
     if (result.success) {
-      console.log('✅ Order created successfully:', result);
       bookingSuccess.value = true;
       visible.value = false; // Close the sidebar
       
@@ -1276,15 +1294,21 @@ const handleCompleteBooking = async (bookingDetails) => {
 const showSuccessMessage = (result) => {
   const orderInfo = result.data || {};
   const orderId = result.order_id || orderInfo.id || 'N/A';
+  const customerId = result.customer_id || orderInfo.customer_id || currentCustomerId.value;
+
+  
+  let successDetail = `Your booking has been confirmed! Order ID: ${orderId}`;
+  if (customerId) {
+    successDetail = `Booking confirmed for customer #${customerId}! Order ID: ${orderId}`;
+  }
   
   toast.add({
     severity: 'success',
     summary: 'Booking Successful',
-    detail: `Your booking has been confirmed! Order ID: ${orderId}`,
+    detail: successDetail,
     life: 5000
   });
   
-  console.log('🎉 Booking completed successfully!', result);
 };
 
 // Reset booking form
@@ -1295,6 +1319,10 @@ const resetBookingForm = () => {
     phoneNumber: "",
     email: "",
   };
+  
+  // Clear customer_id and existing user data
+  currentCustomerId.value = null;
+  existingUserData.value = null;
   
   // Clear from localStorage as well
   if (process.client) {
@@ -1310,18 +1338,38 @@ const resetBookingForm = () => {
   visible.value = false;
   clearEventFromUrl();
   
-  console.log('🔄 Booking form reset successfully');
 };
 
 // Save customer information and check if user exists
 const saveCustomerInfo = async () => {
-  const validationErrors = validateCustomerInfo();
-  if (validationErrors.length > 0) {
-    bookingError.value = validationErrors.join(', ');
+  // Only validate contact information (phone/email) for user existence check
+  // Full name validation will be done later during booking completion
+  const contactValidationErrors = [];
+  
+  if (activeTab.value === 'phone') {
+    if (!customerInfo.value?.phoneNumber?.trim()) {
+      contactValidationErrors.push('Phone number is required');
+    } else {
+      // Basic phone number validation (should contain only digits and common separators)
+      const phoneRegex = /^[0-9\s\-\+\(\)]{8,15}$/;
+      if (!phoneRegex.test(customerInfo.value?.phoneNumber?.trim() || '')) {
+        contactValidationErrors.push('Please enter a valid phone number');
+      }
+    }
+  } else if (activeTab.value === 'email') {
+    if (!customerInfo.value?.email?.trim()) {
+      contactValidationErrors.push('Email is required');
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerInfo.value?.email || '')) {
+      contactValidationErrors.push('Please enter a valid email address');
+    }
+  }
+  
+  if (contactValidationErrors.length > 0) {
+    bookingError.value = contactValidationErrors.join(', ');
     toast.add({
       severity: 'error',
       summary: 'Validation Error',
-      detail: validationErrors.join(', '),
+      detail: contactValidationErrors.join(', '),
       life: 5000
     });
     return;
@@ -1332,78 +1380,50 @@ const saveCustomerInfo = async () => {
   authError.value = "";
   
   try {
-    console.log('🔍 Checking if user exists...');
-    const body = ref(null);
     let identifier = '';
+    let loginType = '';
 
-    if(activeTab.value === "phone"){
+    if (activeTab.value === "phone") {
       identifier = customerInfo.value?.phoneNumber?.replace(/^\+/, '') || ''; 
-      body.value = {
-        username: identifier,
-        login_type: 'phone'
-      };
-    } else if(activeTab.value === "email"){
+      loginType = 'phone';
+    } else if (activeTab.value === "email") {
       identifier = customerInfo.value?.email || '';
-      body.value = {
-        username: identifier,
-        login_type: 'email'
-      };
+      loginType = 'email';
     }
 
-    const config = useRuntimeConfig();
-    const baseUrl = config.public.apiBaseUrl;
 
-    try {
-      // Check if user exists
-      const response = await $fetch(`${baseUrl}/user-exists`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: body.value,
-      });
+    // Use the new checkCustomerExists function for better handling
+    const customerCheck = await checkCustomerExists(identifier, loginType);
+    
+    
+    if (customerCheck.exists === true) {
+      // User exists - store customer_id and show Account Found modal
+      currentCustomerId.value = customerCheck.customer_id;
+      existingUserData.value = {
+        identifier: customerCheck.identifier || '',
+        fullName: customerCheck.full_name || customerCheck.name || '', // Use name from API response
+        name: customerCheck.full_name || customerCheck.name || '', // Also store as name for compatibility
+        loginType: customerCheck.loginType || activeTab.value || 'phone',
+        customer_id: customerCheck.customer_id, // IMPORTANT: customer_id from check-user-info API
+        phone_number: customerCheck.phone_number,
+        email: customerCheck.email,
+        userData: customerCheck.userData, // Complete user data from API
+        originalResponse: customerCheck.originalResponse, // Full API response
+        ...customerCheck
+      };
       
-      console.log('User existence check response:', response);
+      showUserExistsModal.value = true;
       
-      // Check if user exists in the response
-      if (response && response.exists === true) {
-        // User exists - show confirmation modal
-        existingUserData.value = {
-          identifier: identifier || '',
-          fullName: response.full_name || customerInfo.value?.fullName || '',
-          loginType: activeTab.value || 'phone',
-          ...response
-        };
-        
-        // Only show modal if existingUserData was properly set
-        if (existingUserData.value && existingUserData.value.identifier) {
-          showUserExistsModal.value = true;
-        } else {
-          console.warn('⚠️ Failed to set existingUserData properly, proceeding to registration');
-          proceedToRegistration();
-        }
-        return;
-      } else {
-        // User doesn't exist - proceed to registration
-        proceedToRegistration();
-      }
-      
-    } catch (error) {
-      console.error('User existence check error:', error);
-      
-      // If the API returns 404 or user not found, proceed to registration
-      if (error.status === 404 || error.message?.includes('not found')) {
-        console.log('User not found, proceeding to registration');
-        proceedToRegistration();
-      } else {
-        // Other errors - show error message
-        throw error;
-      }
+    } else {
+      // User doesn't exist - clear customer_id and show Account Not Found modal
+      currentCustomerId.value = null;
+      console.log('❌ Customer not found for:', identifier);
+      showAccountNotFoundModal.value = true;
     }
     
   } catch (error) {
-    console.error('❌ Error checking user existence:', error);
-    authError.value = error.message || 'Failed to check user information';
+    console.error('❌ Error checking customer existence:', error);
+    authError.value = error.message || 'Failed to check customer information';
     bookingError.value = authError.value;
     
     toast.add({
@@ -1436,35 +1456,96 @@ const proceedToRegistration = () => {
   // Show registration modal
   showRegisterModal.value = true;
   
-  console.log('✅ Registration modal opened with pre-filled data');
 };
 
 // Handle user exists confirmation - use existing user
 const handleUseExistingUser = () => {
   if (!existingUserData.value) {
-    console.warn('⚠️ existingUserData is null, closing modal');
     showUserExistsModal.value = false;
     return;
   }
   
   showUserExistsModal.value = false;
   
+  // Store customer_id for order linking
+  currentCustomerId.value = existingUserData.value.customer_id;
+  
+  // Update customer info with confirmed data
+  customerInfo.value = {
+    fullName: existingUserData.value.fullName || existingUserData.value.full_name || existingUserData.value.name || '',
+    phoneNumber: existingUserData.value.loginType === 'phone' ? existingUserData.value.identifier : '',
+    email: existingUserData.value.loginType === 'email' ? existingUserData.value.identifier : ''
+  };
+  
   // Save existing user info to localStorage
   if (process.client) {
-    localStorage.setItem('customerInfo', JSON.stringify(customerInfo.value));
+    localStorage.setItem('customerInfo', JSON.stringify({
+      ...customerInfo.value,
+      customer_id: currentCustomerId.value
+    }));
+  }
+  
+  
+  toast.add({
+    severity: 'success',
+    summary: 'Customer Information Confirmed',
+    detail: `Welcome back, ${customerInfo.value.fullName}! Your information has been confirmed.`,
+    life: 5000
+  });
+  
+};
+
+// Handle Account Not Found modal - Try Again
+const handleTryAgain = () => {
+  showAccountNotFoundModal.value = false;
+  // Reset the form so user can try again
+  customerInfo.value.phoneNumber = "";
+  customerInfo.value.email = "";
+  authError.value = "";
+  bookingError.value = "";
+};
+
+// Handle Account Not Found modal - Create Account
+const handleCreateAccountFromNotFound = () => {
+  showAccountNotFoundModal.value = false;
+  proceedToRegistration();
+};
+
+// Handle Account Found modal - Confirm and Continue
+const handleConfirmAndContinue = () => {
+  if (!existingUserData.value) {
+    return;
+  }
+  
+  showUserExistsModal.value = false;
+  
+  // Store customer_id for order linking
+  currentCustomerId.value = existingUserData.value.customer_id;
+  
+  // Update customer info with confirmed data
+  customerInfo.value = {
+    fullName: existingUserData.value.fullName || existingUserData.value.full_name || existingUserData.value.name || '',
+    phoneNumber: existingUserData.value.loginType === 'phone' ? existingUserData.value.identifier : '',
+    email: existingUserData.value.loginType === 'email' ? existingUserData.value.identifier : ''
+  };
+  
+  // Save existing user info to localStorage
+  if (process.client) {
+    localStorage.setItem('customerInfo', JSON.stringify({
+      ...customerInfo.value,
+      customer_id: currentCustomerId.value
+    }));
   }
   
   toast.add({
     severity: 'success',
-    summary: 'User Confirmed',
-    detail: `Using existing account for ${existingUserData.value?.identifier || 'this user'}`,
+    summary: 'Account Confirmed',
+    detail: `Welcome back, ${customerInfo.value.fullName}! Ready to proceed with booking.`,
     life: 5000
   });
-  
-  console.log('✅ Using existing user account');
 };
 
-// Handle user exists confirmation - create new account
+// Handle user exists confirmation - create new account (legacy - kept for compatibility)
 const handleCreateNewAccount = () => {
   showUserExistsModal.value = false;
   proceedToRegistration();
@@ -1474,14 +1555,12 @@ const handleCreateNewAccount = () => {
 
 // Handle tab switching with debugging
 const handleTabSwitch = (tab) => {
-  console.log('🔄 Switching to tab:', tab, 'from:', activeTab.value);
   activeTab.value = tab;
   
   // Clear any existing errors when switching tabs
   bookingError.value = "";
   authError.value = "";
-  
-  console.log('✅ Tab switched. Current tab:', activeTab.value);
+
 };
 
 // === AUTHENTICATION MODAL FUNCTIONS ===
@@ -1513,14 +1592,13 @@ const handleCloseRegisterModal = () => {
 
 // Handle register modal tab switching
 const handleRegisterTabSwitch = (tab) => {
-  console.log('🔄 Register modal switching to tab:', tab, 'from:', registerActiveTab.value);
+
   registerActiveTab.value = tab;
   authError.value = ""; // Clear any errors when switching tabs
-  console.log('✅ Register modal tab switched. Current tab:', registerActiveTab.value);
+
   
   // Force reactivity update
   nextTick(() => {
-    console.log('🔄 After nextTick, registerActiveTab:', registerActiveTab.value);
   });
 };
 
@@ -1605,7 +1683,6 @@ const handleRegisterAccount = async () => {
 
 // Verify OTP and create account (Phone or Email)
 const handleVerifyRegistrationOTP = async () => {
-  console.log('🔍 Verifying OTP and creating account...');
   
   if (!registerForm.value.otp || registerForm.value.otp.length < 6) {
     authError.value = "Please enter a valid 6-digit OTP";
@@ -1628,7 +1705,6 @@ const handleVerifyRegistrationOTP = async () => {
       // Verify Firebase Email OTP
       identifier = registerForm.value.email;
       loginType = 'email';
-      console.log('🔍 Verifying Email OTP for:', identifier);
       const emailResult = await submitWithEmail(registerForm.value.otp, registerForm.value.firstName, registerForm.value.lastName, identifier);
       
       if (emailResult.success) {
@@ -1668,7 +1744,7 @@ const handleVerifyRegistrationOTP = async () => {
     if (!registrationResult.success) {
       if (registrationResult.code === 'USER_EXISTS') {
         // User already exists, this is actually fine for our flow
-        console.log('ℹ️ User already exists, proceeding to password creation');
+
         toast.add({
           severity: 'info',
           summary: 'Account Found',
@@ -1680,7 +1756,6 @@ const handleVerifyRegistrationOTP = async () => {
         return;
       }
     } else {
-      console.log('✅ User registered successfully');
       toast.add({
         severity: 'success',
         summary: 'Account Created',
@@ -1694,14 +1769,13 @@ const handleVerifyRegistrationOTP = async () => {
       clearInterval(registrationOTPForm.value.countdownInterval);
     }
     
-    // Close register modal and show create password modal
+    // Close register modal and show instruction modal first
     showRegisterModal.value = false;
-    showCreatePasswordModal.value = true;
+    showInstructCustomerModal.value = true;
     
     // Reset registration step for next time
     registrationStep.value = 'form';
     
-    console.log('✅ OTP verified, showing create password modal');
     
   } catch (error) {
     console.error('❌ Error in registration flow:', error);
@@ -1720,7 +1794,6 @@ const handleVerifyRegistrationOTP = async () => {
 
 // Resend registration OTP (Phone or Email)
 const handleResendRegistrationOTP = async () => {
-  console.log('🔄 Resending registration OTP...');
   
   try {
     authError.value = '';
@@ -1748,7 +1821,6 @@ const handleResendRegistrationOTP = async () => {
       life: 3000
     });
     
-    console.log('✅ Firebase registration OTP resent successfully');
   } catch (error) {
     console.error('❌ Error resending Firebase registration OTP:', error);
     authError.value = error.message || 'Failed to resend OTP. Please try again.';
@@ -1819,8 +1891,6 @@ const handleCreatePasswordAfterOTP = async () => {
       body: body,
     });
 
-    console.log('✅ Account registered successfully');
-
     // Close create password modal and show success modal
     showCreatePasswordModal.value = false;
     showAccountSuccessModal.value = true;
@@ -1829,8 +1899,6 @@ const handleCreatePasswordAfterOTP = async () => {
     if (process.client) {
       localStorage.setItem('customerInfo', JSON.stringify(customerInfo.value));
     }
-
-    console.log('✅ Password created successfully');
   } catch (error) {
     console.error('❌ Error creating account:', error);
     authError.value = error.message || 'Failed to create account';
@@ -1866,6 +1934,10 @@ const clearCustomerInfo = () => {
     email: "",
   };
   
+  // Clear customer_id to avoid confusion
+  currentCustomerId.value = null;
+  existingUserData.value = null;
+  
   // Clear from localStorage as well
   if (process.client) {
     localStorage.removeItem('customerInfo');
@@ -1875,6 +1947,7 @@ const clearCustomerInfo = () => {
   bookingError.value = "";
   bookingSuccess.value = false;
   
+  
   toast.add({
     severity: 'info',
     summary: 'Information Cleared',
@@ -1882,7 +1955,6 @@ const clearCustomerInfo = () => {
     life: 3000
   });
   
-  console.log('🗑️ Customer info cleared');
 };
 
 const handleBookNowClick = (event) => {

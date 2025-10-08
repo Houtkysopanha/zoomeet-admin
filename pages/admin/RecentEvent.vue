@@ -1,50 +1,82 @@
 <template>
   <!-- Recent event News -->
-  <div class="p-6 bg-transparent rounded-2xl shadow-sm border border-gray-200 h-[calc(80vh-8rem)] overflow-hidden flex flex-col">
-    <h2 class="text-xl font-semibold text-gray-900 ">Recent events</h2>
+  <div class="p-6 bg-white rounded-2xl border border-gray-200 h-[calc(80vh-8rem)] overflow-hidden flex flex-col">
+    <h2 class="text-xl font-semibold text-gray-900 mb-6">Recent events</h2>
 
-    <div class="flex-1 overflow-y-auto">
-      <DataTable
-        :value="visibleEvents"
-        class="p-datatable-sm p-3"
-        responsiveLayout="scroll"
-        :rowClass="getRowClass"
-        :loading="loading"
+    <div class="flex-1 overflow-y-auto space-y-4">
+      <div
+        v-for="(event, index) in visibleEvents"
+        :key="index"
+        class="bg-[#F9FAFB] rounded-2xl p-4 "
       >
-        <Column header="Event name" >
-          <template #body="slotProps">
-            <div class="flex items-start space-x-3">
-              <img
-                :src="slotProps.data.image"
-                class="w-10 h-10 rounded-lg object-cover"
-                alt="event"
-              />
-              <div class="text-sm text-gray-800 leading-tight">
-                {{ slotProps.data.name }}
+        <!-- Event Header -->
+        <div class="flex items-start justify-between mb-4">
+          <div class="flex items-start space-x-3 flex-1">
+            <img
+              :src="event.image"
+              class="w-28 h-20 rounded-lg object-cover flex-shrink-0"
+              alt="event"
+            />
+            <div class="flex-1 min-w-0">
+              <h3 class="text-sm font-medium text-gray-900 leading-tight mb-2">
+                {{ event.name }}
+              </h3>
+              <div class="flex items-center text-xs text-gray-500 mb-1">
+                <Icon name="heroicons:map-pin" class="w-3 h-3 mr-1" />
+                {{ event.location }}
+              </div>
+              <div class="flex items-center text-xs text-gray-500">
+                <Icon name="heroicons:calendar" class="w-3 h-3 mr-1" />
+                {{ event.date }} | {{ event.time }}
               </div>
             </div>
-          </template>
-        </Column>
+          </div>
+          <span
+            :class="[
+              'px-2 py-1 rounded-full text-xs font-medium',
+              event.status === 'ended' 
+                ? 'bg-gray-100 text-gray-600' 
+                : 'bg-green-100 text-green-600'
+            ]"
+          >
+            {{ event.status === 'ended' ? 'Event has Ended' : 'Active' }}
+          </span>
+        </div>
 
-        <Column field="date" header="Date" class="text-sm text-gray-700" />
-
-        <Column header="Revenue" headerClass="text-center">
-          <template #body="slotProps">
-            <div class="text-sm font-semibold text-gray-900">
-              {{ slotProps.data.revenue }}
+        <!-- Event Metrics -->
+          <div class="flex justify-between items-center my-3 mx-5">
+            <div>
+              <div class="text-xs text-gray-500 mb-1">Total Revenue</div>
+              <div class="text-lg font-semibold text-gray-900">{{ event.totalRevenue }}</div>
             </div>
-          </template>
-        </Column>
-      </DataTable>
+            |
+            <div >
+              <div class="text-xs text-gray-500 text-start mb-1">Booking</div>
+              <div class="text-lg font-semibold text-gray-900">{{ event.booking }}</div>
+            </div>
+            |
+            <div>
+              <div class="text-xs text-gray-500 mb-1">Tickets</div>
+              <div class="text-lg font-semibold text-gray-900">{{ event.tickets }}</div>
+            </div>
+          </div>
+       <div class="flex justify-center items-center">
+         <Button
+            label="View Report"
+            icon="pi pi-chart-bar"
+            class=" p-button-sm text-purple-600  hover:bg-purple-50"
+            @click="viewReport(event)"
+          />
+       </div>
+      </div>
 
-      <div class="mt-4 flex justify-center">
+      <!-- Show More Button -->
+      <div v-if="!showAll && events.length > visibleEvents.length" class="flex justify-center pt-4">
         <Button
-          v-if="!showAll && events.length > visibleEvents.length"
           label="Show more"
           icon="pi pi-chevron-down"
           :loading="loading"
-          class="p-button-text  text-blue-900  px-6 py-2  hover:from-blue-600 hover:to-blue-800 hover:shadow-lg transition-all duration-300"
-          style="margin-top: -2rem; position: relative; z-index: 10;"
+          class="p-button-text text-blue-600 border-none hover:bg-blue-50"
           @click="showMore"
         />
       </div>
@@ -54,52 +86,85 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import DataTable from 'primevue/datatable'
-import Column from 'primevue/column'
 import Button from 'primevue/button'
 import img from '@/assets/image/poster-manage-booking.png'
 
 const events = ref([
   {
     name: 'Navigating the future of cybersecurity in Cambodia 2015',
-    date: '14–16 July, 2025',
-    revenue: '$1,280',
+    location: 'Hyatt Regency, Phnom Penh',
+    date: '14-16 July, 2025',
+    time: '10:00 AM GMT+7',
+    totalRevenue: '$230,650',
+    booking: '1,000',
+    tickets: '3,000',
+    status: 'ended',
     image: img,
   },
   {
     name: 'Navigating the future of cybersecurity in Cambodia 2015',
-    date: '14–16 July, 2025',
-    revenue: '$1,280',
+    location: 'Hyatt Regency, Phnom Penh',
+    date: '14-16 July, 2025',
+    time: '10:00 AM GMT+7',
+    totalRevenue: '$230,650',
+    booking: '1,000',
+    tickets: '3,000',
+    status: 'active',
     image: img,
   },
   {
     name: 'Navigating the future of cybersecurity in Cambodia 2015',
-    date: '14–16 July, 2025',
-    revenue: '$1,280',
+    location: 'Hyatt Regency, Phnom Penh',
+    date: '14-16 July, 2025',
+    time: '10:00 AM GMT+7',
+    totalRevenue: '$230,650',
+    booking: '1,000',
+    tickets: '3,000',
+    status: 'active',
     image: img,
   },
   {
     name: 'Boeung Mealia Meeting fan concert follow up new album diss strack',
+    location: 'Hyatt Regency, Phnom Penh',
     date: '16 July, 2025',
-    revenue: '$1,280',
+    time: '10:00 AM GMT+7',
+    totalRevenue: '$230,650',
+    booking: '1,000',
+    tickets: '3,000',
+    status: 'active',
     image: img,
   },
   {
     name: 'Asian Music showcase festival 2025',
+    location: 'Hyatt Regency, Phnom Penh',
     date: '14–16 July, 2025',
-    revenue: '$1,280',
+    time: '10:00 AM GMT+7',
+    totalRevenue: '$230,650',
+    booking: '1,000',
+    tickets: '3,000',
+    status: 'active',
     image: img,
   },
   {
     name: 'Navigating the future of cybersecurity in Cambodia 2015',
+    location: 'Hyatt Regency, Phnom Penh',
     date: '14–16 July, 2025',
-    revenue: '$1,280',
+    time: '10:00 AM GMT+7',
+    totalRevenue: '$230,650',
+    booking: '1,000',
+    tickets: '3,000',
+    status: 'active',
     image: img,
   },
   {
     name: 'World business summit - There are many variations',
+    location: 'Hyatt Regency, Phnom Penh',
     date: '14–16 July, 2025',
-    revenue: '$1,280',
+    time: '10:00 AM GMT+7',
+    totalRevenue: '$230,650',
+    booking: '1,000',
+    tickets: '3,000',
+    status: 'active',
     image: img,
   },
 ])
@@ -108,15 +173,8 @@ const showAll = ref(false)
 const loading = ref(false)
 
 const visibleEvents = computed(() => {
-  return showAll.value ? events.value : events.value.slice(0, 5)
+  return showAll.value ? events.value : events.value.slice(0, 3)
 })
-
-function getRowClass(data, index) {
-  if (!showAll.value && index >= 5) {
-    return 'faded-row'
-  }
-  return ''
-}
 
 function showMore() {
   loading.value = true
@@ -125,56 +183,47 @@ function showMore() {
     loading.value = false
   }, 500)
 }
+
+function viewReport(event) {
+  // Handle view report action
+  console.log('View report for:', event.name)
+}
 </script>
 
 <style scoped>
-.faded-row {
-  opacity: 0.5;
-  pointer-events: none;
-  user-select: none;
+/* Custom scrollbar for the events container */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
 }
 
-/* Fix header and allow body to scroll */
-:deep(.p-datatable .p-datatable-thead) {
-  position: sticky;
-  top: 0;
-  background-color: #F6F9F9;
-  z-index: 1;
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
 }
 
-:deep(.p-datatable .p-datatable-tbody) {
-  overflow-y: auto;
-  max-height: calc(80vh - 12rem); /* Adjust based on header and padding */
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
 }
 
-:deep(.p-datatable thead > tr > th) {
-  background-color: #F6F9F9;
-  border-bottom: 1px solid #e5e7eb;
-  padding: 15px;
-  border-radius: 10px;
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
-:deep(.p-datatable-tbody > tr > td) {
-  background-color: #F8F8FF;
-  padding: 15px;
+/* Card hover effect */
+
+/* Button customizations */
+:deep(.p-button-outlined) {
+  border-width: 1px;
+  font-weight: 500;
 }
 
-/* Add bottom border to each data row */
-:deep(.p-datatable-tbody > tr) {
-  border-bottom: 1px solid #e5e7eb;
+:deep(.p-button-outlined:hover) {
+  transform: translateY(-1px);
+  transition: transform 0.2s ease-in-out;
 }
 
-:deep(.p-datatable thead > tr > th:nth-child(2)) {
-  text-align: left;
+:deep(.p-button-text:hover) {
+  background-color: rgba(59, 130, 246, 0.05) !important;
 }
-
-:deep(.p-datatable thead > tr > th:nth-child(3)) {
-  text-align: right;
-}
-
-/* Remove border from last row if you want */
-:deep(.p-datatable-tbody > tr:last-child) {
-  border-bottom: none;
-}
-
 </style>

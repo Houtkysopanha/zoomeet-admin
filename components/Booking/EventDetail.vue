@@ -29,19 +29,19 @@
               <div
                 :class="[
                   'text-sm font-bold leading-5 flex items-center gap-1',
-                  props.customerInfo?.fullName
+                  getBookingName()
                     ? 'text-gray-800'
                     : 'text-orange-600',
                 ]"
               >
-                <Icon
-                  v-if="!props.customerInfo?.fullName"
+                <!-- <Icon
+                  v-if="!getBookingName()"
                   name="heroicons:exclamation-triangle"
                   class="w-4 h-4"
-                />
+                /> -->
                 {{
-                  props.customerInfo?.fullName ||
-                  "Please enter customer information"
+                  getBookingName() ||
+                  "-"
                 }}
               </div>
             </div>
@@ -53,12 +53,12 @@
                   hasCustomerContact() ? 'text-gray-800' : 'text-orange-600',
                 ]"
               >
-                <Icon
+                <!-- <Icon
                   v-if="!hasCustomerContact()"
                   name="heroicons:exclamation-triangle"
                   class="w-4 h-4"
-                />
-                {{ getCustomerContact() }}
+                /> -->
+                {{ getCustomerContact()  }}
               </div>
             </div>
           </div>
@@ -282,12 +282,13 @@
               <InputText
                 v-model="voucherCode"
                 placeholder="Enter Voucher code"
-                class="flex-1 p-3 rounded-lg bg-gray-100 mr-2"
+                class="flex-1 p-3 rounded-lg bg-gray-100 mr-2 cursor-not-allowed opacity-50"
+                disabled
               />
               <Button
                 label="Apply"
-                class="bg-purple-100 text-purple-600 hover:bg-purple-200 px-4 py-2 rounded-lg"
-                @click="applyVoucher"
+                class="bg-gray-300 text-gray-500 px-4 py-2 rounded-lg cursor-not-allowed opacity-50"
+                disabled
               />
             </div>
             <div class="flex justify-between">
@@ -323,13 +324,14 @@
                 >Cash/Offline Payment</label
               >
             </div>
-            <div class="flex items-center">
+            <div class="flex items-center cursor-not-allowed opacity-50">
               <RadioButton
                 v-model="paymentMethod"
                 inputId="abapay"
                 value="abapay"
+                disabled
               />
-              <label for="abapay" class="ml-2 text-gray-700">ABA Pay</label>
+              <label for="abapay" class="ml-2 text-gray-500 cursor-not-allowed">ABA Pay</label>
             </div>
 
             <!-- Transaction ID field for ABA Pay -->
@@ -437,6 +439,8 @@ const props = defineProps({
   visible: { type: Boolean, required: true },
   selectedEvent: { type: Object, default: null },
   customerInfo: { type: Object, default: () => ({}) },
+  existingUserData: { type: Object, default: null },
+  currentCustomerId: { type: [String, Number], default: null },
   activeCustomerTab: { type: String, default: "phone" },
   isCustomerInfoComplete: { type: Boolean, default: false },
   isProcessingBooking: { type: Boolean, default: false },
@@ -532,17 +536,16 @@ const breakoutRooms = ref([
 watch(
   () => props.selectedEvent,
   async (newEvent) => {
-    console.log("🔍 EventDetail received event:", newEvent);
 
     if (newEvent?.id) {
-      console.log("🎯 Loading tickets for event ID:", newEvent.id);
+  
 
       ticketsLoading.value = true;
       ticketsError.value = "";
 
       try {
         const res = await getEventTicketTypes(newEvent.id);
-        console.log("🎟 API Response:", res); // 🔍 log to see shape
+
 
         // Handle the correct API response format
         let ticketList = [];
@@ -563,11 +566,9 @@ watch(
           // Fallback: { ticketTypes: [...] }
           ticketList = res.ticketTypes;
         } else {
-          console.warn("⚠️ Unexpected API response format:", res);
           ticketList = [];
         }
 
-        console.log("📋 Processing ticket list:", ticketList);
 
         // Extract organizers if available
         if (
@@ -576,16 +577,13 @@ watch(
           Array.isArray(res.data.organizers)
         ) {
           organizers.value = res.data.organizers;
-          console.log("👥 Found organizers:", organizers.value);
         } else {
           organizers.value = [];
         }
 
         // Fetch promotions separately
         try {
-          console.log("🎯 Fetching promotions for event ID:", newEvent.id);
           const promotionsRes = await getEventPromotions(newEvent.id);
-          console.log("🎁 Promotions API Response:", promotionsRes);
 
           if (
             promotionsRes?.success &&
@@ -598,21 +596,10 @@ watch(
               const endDate = new Date(promo.end_date);
               const isActive =
                 promo.is_active && now >= startDate && now <= endDate;
-              console.log(
-                `🔍 Promotion "${promo.name}": active=${
-                  promo.is_active
-                }, inDateRange=${
-                  now >= startDate && now <= endDate
-                }, result=${isActive}`
-              );
+
               return isActive;
             });
-            console.log("✅ Found active promotions:", promotions.value);
           } else {
-            console.log(
-              "⚠️ No promotions found or unexpected format:",
-              promotionsRes
-            );
             promotions.value = [];
           }
         } catch (promotionError) {
@@ -647,8 +634,6 @@ watch(
           // Keep original ticket data for reference
           _original: ticket,
         }));
-
-        console.log("✅ Processed tickets:", tickets.value);
       } catch (err) {
         console.error("❌ Failed to load tickets:", err);
         ticketsError.value = err.message || "Failed to load ticket types";
@@ -687,7 +672,6 @@ const updateQuantity = (ticketId, change) => {
     }
 
     ticket.quantity = newQuantity;
-    console.log(`Updated ${ticket.type} quantity to ${ticket.quantity}`);
   }
 };
 
@@ -778,7 +762,7 @@ const hasCustomerContact = () => {
 // Get customer contact information (email or phone)
 const getCustomerContact = () => {
   if (!props.customerInfo) {
-    return "Please enter customer information";
+    return "-";
   }
 
   // Show based on active tab preference
@@ -786,17 +770,37 @@ const getCustomerContact = () => {
     if (props.customerInfo.email && props.customerInfo.email.trim()) {
       return props.customerInfo.email.trim();
     }
-    return "Please enter email address";
+    return "-";
   } else {
     // Default to phone tab
     if (
       props.customerInfo.phoneNumber &&
       props.customerInfo.phoneNumber.trim()
     ) {
-      return `+855 ${props.customerInfo.phoneNumber.trim()}`;
+      return `+${props.customerInfo.phoneNumber.trim()}`;
     }
-    return "Please enter phone number";
+    return "-";
   }
+};
+
+// Get booking name - prioritize authenticated user's name over manual input
+const getBookingName = () => {
+  // 1. First priority: Use authenticated user's name from existingUserData (when user found)
+  if (props.existingUserData?.fullName || props.existingUserData?.full_name || props.existingUserData?.name) {
+    const authenticatedName = props.existingUserData.fullName || props.existingUserData.full_name || props.existingUserData.name;
+
+    return authenticatedName;
+  }
+  
+  // 2. Second priority: If we have a customer ID but no existingUserData, 
+  //    this means account was just created - use customerInfo populated during registration
+  if (props.currentCustomerId && props.customerInfo?.fullName) {
+    return props.customerInfo.fullName;
+  }
+  
+  // 3. No authenticated user - return null to show warning
+  console.log('⚠️ No authenticated user name available for booking');
+  return null;
 };
 
 const handleCompleteBooking = () => {

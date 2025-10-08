@@ -1067,13 +1067,22 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
       price: parseFloat(ticketData.price || 0),
       total: parseInt(ticketData.total || ticketData.quantity || 0),
       tag: String(ticketData.tag || ticketData.description || '').trim(),
-      is_active: ticketData.is_active !== undefined ? (ticketData.is_active ? 1 : 0) : 1
+      is_active: ticketData.is_active !== undefined ? (ticketData.is_active ? 1 : 0) : 1,
+      is_private: ticketData.is_private !== undefined ? (ticketData.is_private ? 1 : 0) : 0
     }
 
     // Validate required fields
     if (!normalizedData.name) throw new Error('Ticket name is required')
     if (isNaN(normalizedData.price) || normalizedData.price < 0) throw new Error('Price must be 0 or greater')
     if (isNaN(normalizedData.total) || normalizedData.total < 1) throw new Error('Quantity must be at least 1')
+    
+    // Debug logging for is_private field
+    console.log('🔧 updateTicketType - Sending data:', {
+      name: normalizedData.name,
+      is_active: normalizedData.is_active,
+      is_private: normalizedData.is_private,
+      originalIsPrivate: ticketData.is_private
+    })
     
     // Use server proxy endpoint for ticket type update
     const headers = await createAuthHeaders()
@@ -1143,10 +1152,17 @@ export async function createTicketTypes(eventId, ticketTypesData) {
         total: total, // API expects 'total' not 'total_quantity'
         tag: description, // API expects 'tag' not 'description'
         sort_order: index + 1,
-        is_active: 1 // Send as integer, not boolean
+        is_active: 1, // Send as integer, not boolean
+        is_private: ticket.is_private !== undefined ? (ticket.is_private ? 1 : 0) : 0 // Ensure proper boolean to integer conversion
       }
     })
 
+    // Debug logging for is_private field in create
+    console.log('🔧 createTicketTypes - Sending tickets:', normalizedTickets.map(ticket => ({
+      name: ticket.name,
+      is_active: ticket.is_active,
+      is_private: ticket.is_private
+    })))
 
     // Wrap tickets in proper structure that API expects
     const requestBody = {
@@ -2176,8 +2192,13 @@ const normalizedData = {
   max_ticket_per_person: parseInt(settingsData.max_ticket_per_person || 5),
   refund_policy_id: settingsData.refund_policy_id || (settingsData.refundPolicy === 'Full Refund' ? 1 : settingsData.refundPolicy === 'Not Refund' ? 2 : null),
   ticket_transfer_deadline: settingsData.ticket_transfer_deadline || null,
+  is_allow_ticket_transfer: settingsData.is_allow_ticket_transfer !== undefined ? 
+    (settingsData.is_allow_ticket_transfer ? 1 : 0) : 
+    (settingsData.allowTicketTransfer ? 1 : 0),
+  is_required_terms_condition: settingsData.is_required_terms_condition !== undefined ? 
+    (settingsData.is_required_terms_condition ? 1 : 0) : 
+    (settingsData.requireTermsConditions ? 1 : 0),
   terms_and_condition: settingsData.terms_and_condition || settingsData.termsAndConditions || '',
-  special_instructions: settingsData.special_instructions || settingsData.specialInstructions || '',
   is_accept_cash_payment: settingsData.is_accept_cash_payment !== undefined ? 
     (settingsData.is_accept_cash_payment ? 1 : 0) : 
     (settingsData.acceptCashPayment ? 1 : 0),
@@ -3102,16 +3123,44 @@ export async function createOrderReservation(orderData) {
     throw new Error('Transaction ID is required for ABA Pay payments')
   }
 
-  // Ensure either phone_number or email is provided
+  // Ensure either phone_number or email is provided (for customer identification)
   if (!orderData.phone_number && !orderData.email) {
-    throw new Error('Either phone number or email is required')
+    throw new Error('Either phone number or email is required for customer identification')
   }
 
   if (!orderData.full_name) {
     throw new Error('Full name is required')
   }
 
+  // Validate customer_id if provided (to avoid user confusion)
+  if (orderData.customer_id && !validateUUID(orderData.customer_id)) {
+    throw new Error('Invalid customer ID format')
+  }
+
   try {
+    // Format phone number to 855 format if provided
+    let formattedPhone = null
+    if (orderData.phone_number) {
+      // Remove any non-digit characters first
+      let cleanPhone = orderData.phone_number.replace(/\D/g, '')
+      
+      // Convert to 855 format
+      if (cleanPhone.startsWith('855')) {
+        // Already in correct format, don't add another 855
+        formattedPhone = cleanPhone
+      } else if (cleanPhone.startsWith('0')) {
+        // Remove leading 0 and add 855
+        formattedPhone = '855' + cleanPhone.substring(1)
+      } else if (cleanPhone.length >= 8 && cleanPhone.length <= 9 && !cleanPhone.startsWith('855')) {
+        // Assume it's a local number, add 855 only if it doesn't already start with 855
+        formattedPhone = '855' + cleanPhone
+      } else {
+        // Use as is if doesn't match expected formats
+        formattedPhone = cleanPhone
+      }
+      
+    }
+    
     const payload = {
       event_id: orderData.event_id, // CRITICAL: Include event_id
       coupon: orderData.coupon || null,
@@ -3120,9 +3169,10 @@ export async function createOrderReservation(orderData) {
         quantity: ticket.quantity
       })),
       payment_method: orderData.payment_method,
-      phone_number: orderData.phone_number || null,
+      phone_number: formattedPhone,
       email: orderData.email || null,
-      full_name: orderData.full_name
+      full_name: orderData.full_name,
+      customer_id: orderData.customer_id || null // Always include customer_id field
     }
 
     // FIXED: Only include transaction_id field if payment method is abapay
@@ -3130,14 +3180,6 @@ export async function createOrderReservation(orderData) {
       payload.transaction_id = orderData.transaction_id || null
     }
     // For offline payments, completely omit the transaction_id field
-
-    console.log('🎫 Creating order reservation:', {
-      endpoint: `${API_BASE_URL}/orders/reserve`,
-      payload,
-      transaction_id_included: 'transaction_id' in payload,
-      transaction_id_type: typeof payload.transaction_id,
-      transaction_id_value: payload.transaction_id
-    })
 
     const response = await $fetch(`${API_BASE_URL}/orders/reserve`, {
       method: 'POST',
@@ -3147,13 +3189,28 @@ export async function createOrderReservation(orderData) {
       body: payload
     })
 
-    console.log('✅ Order reservation created successfully:', response)
+
+    // Validate reservation response
+    if (!response.success) {
+      throw new Error(response.message || 'Order reservation failed')
+    }
+
+    const reservationData = response.data || response
+    const orderId = reservationData.id || response.id
+    const customerId = reservationData.customer_id || response.customer_id
+
+    if (!orderId) {
+      console.error('❌ No order ID in reservation response:', response)
+      throw new Error('Invalid reservation response: missing order ID')
+    }
+
 
     return {
       success: true,
-      data: response.data || response,
+      data: reservationData,
       message: response.message || 'Order reservation created successfully',
-      order_id: response.data?.id || response.id
+      order_id: orderId,
+      customer_id: customerId
     }
   } catch (error) {
     console.error('❌ Failed to create order reservation:', error)
@@ -3214,8 +3271,135 @@ export async function createOrderReservation(orderData) {
   }
 }
 
+// Check if customer exists and return customer details including customer_id
+export async function checkCustomerExists(identifier, loginType = 'phone') {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!API_ADMIN_BASE_URL) {
+    throw new Error('API base URL is not configured')
+  }
+
+  if (!identifier || !identifier.trim()) {
+    throw new Error('Phone number or email is required')
+  }
+
+  // Determine type based on loginType parameter
+  const type = loginType === 'email' ? 'email' : 'phone_number'
+  let value = identifier.trim()
+  
+  // Format phone number to 855 format if it's a phone number
+  if (type === 'phone_number') {
+    // Remove any non-digit characters first
+    value = value.replace(/\D/g, '')
+    
+    // Convert to 855 format
+    if (value.startsWith('855')) {
+      // Already in correct format, don't add another 855
+      value = value
+    } else if (value.startsWith('0')) {
+      // Remove leading 0 and add 855
+      value = '855' + value.substring(1)
+    } else if (value.length >= 8 && value.length <= 9 && !value.startsWith('855')) {
+      // Assume it's a local number, add 855 only if it doesn't already start with 855
+      value = '855' + value
+    }
+
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Failed to create authentication headers')
+    }
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/orders/check-user-info`, {
+      method: 'POST',
+      headers,
+      body: {
+        type,
+        value
+      }
+    })
+
+
+    // Check if user was found - API returns success: true but data could be empty array or null
+    if (response.success && response.data && Array.isArray(response.data) && response.data.length > 0) {
+      // User found - data array contains user info
+      const userInfo = response.data[0]; // Get first user from array
+      const userData = {
+        exists: true,
+        customer_id: userInfo.id, // Map id to customer_id
+        id: userInfo.id,
+        name: userInfo.name,
+        full_name: userInfo.name,
+        email: userInfo.email,
+        phone_number: userInfo.phone_number,
+        identifier: identifier,
+        loginType: loginType,
+        userData: userInfo, // Include complete user data
+        originalResponse: response // Include full API response for debugging
+      }
+
+      return userData
+    } else if (response.success && response.data && !Array.isArray(response.data) && typeof response.data === 'object') {
+      // Handle case where data is directly an object (not array)
+      const userData = {
+        exists: true,
+        customer_id: response.data.id, // Map id to customer_id
+        id: response.data.id,
+        name: response.data.name,
+        full_name: response.data.name,
+        email: response.data.email,
+        phone_number: response.data.phone_number,
+        identifier: identifier,
+        loginType: loginType,
+        userData: response.data, // Include complete user data
+        originalResponse: response // Include full API response for debugging
+      }
+      return userData
+    } else {
+      // User not found - API returns success: true but empty data array or message indicates not found
+      console.log('❌ User not found - API response:', response)
+      return {
+        exists: false,
+        customer_id: null,
+        full_name: null,
+        phone_number: loginType === 'phone' ? identifier : null,
+        email: loginType === 'email' ? identifier : null,
+        identifier: identifier,
+        loginType: loginType,
+        message: response.message || 'User not found'
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error checking user info:', error)
+    
+    // Handle specific error cases
+    if (error.status === 404 || error.statusCode === 404) {
+      return {
+        exists: false,
+        customer_id: null,
+        full_name: null,
+        phone_number: loginType === 'phone' ? identifier : null,
+        email: loginType === 'email' ? identifier : null,
+        identifier: identifier,
+        loginType: loginType,
+        message: 'User not found'
+      }
+    }
+    
+    if (error.status === 401 || error.statusCode === 401) {
+      handleAuthRedirect()
+      throw new Error('Authentication required. Please log in again.')
+    }
+    
+    throw new Error(error.message || 'Failed to check user information')
+  }
+}
+
 // Update order status (for completing cash payments)
-export async function updateOrderStatus(orderId, status, paymentMethod = null, ticketTypes = null) {
+export async function updateOrderStatus(orderId, status, paymentMethod = null, ticketTypes = null, remark = null) {
   const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
 
@@ -3244,6 +3428,23 @@ export async function updateOrderStatus(orderId, status, paymentMethod = null, t
     if (ticketTypes && Array.isArray(ticketTypes) && ticketTypes.length > 0) {
       requestBody.ticket_types = ticketTypes
     }
+
+    // Add remark field - auto-generate if not provided
+    if (remark) {
+      requestBody.remark = remark
+    } else if (paymentMethod === 'cash') {
+      requestBody.remark = 'cash payment'
+    } else if (paymentMethod) {
+      requestBody.remark = `${paymentMethod} payment`
+    } else {
+      requestBody.remark = 'payment processed'
+    }
+
+    console.log('Updating order status with payload:', {
+      orderId,
+      requestBody,
+      endpoint: `${API_ADMIN_BASE_URL}/orders/${orderId}/status`
+    })
 
     const response = await $fetch(`${API_ADMIN_BASE_URL}/orders/${orderId}/status`, {
       method: 'PUT',

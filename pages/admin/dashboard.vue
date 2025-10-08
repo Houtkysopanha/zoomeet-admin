@@ -1,7 +1,5 @@
 <template>
   <div class="p-3 lg:p-4 bg-[#F8F8FF]">
-   
-    
     <!-- Disabled Dashboard Content -->
     <div class="">
     <div class="">
@@ -101,6 +99,7 @@
     </div>
        <!-- Dashboard Disabled Notice -->
       <div class="opacity-30 pointer-events-none">
+        <!-- <div> -->
 
 
     <!-- Event Stats -->
