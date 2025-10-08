@@ -22,7 +22,7 @@
         <div>
          <!-- Allow Ticket Transfer Deadline -->
       <div class="mb-4">
-        <div class="flex items-center mb-3">
+        <div class="flex items-center mb-1">
           <Checkbox
             v-model="settings.allowTicketTransfer"
             :binary="true"

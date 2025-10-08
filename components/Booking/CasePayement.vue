@@ -339,12 +339,11 @@
             <span class="text-sm font-medium" :class="paymentMethod === 'cash' ? 'text-purple-800' : 'text-gray-700'">Cash</span>
           </div>
           <div
-            :class="['flex flex-col items-center p-4 border rounded-lg cursor-pointer transition-all duration-200',
-                     paymentMethod === 'khqr' ? 'border-purple-600 bg-purple-50 shadow-md' : 'border-gray-300 bg-gray-50 hover:bg-gray-100']"
-            @click="paymentMethod = 'khqr'"
+            :class="['flex flex-col items-center p-4 border rounded-lg cursor-not-allowed transition-all duration-200 opacity-50',
+                     'border-gray-300 bg-gray-100']"
           >
-            <Icon name="heroicons:credit-card" class="w-8 h-8 mb-2" :class="paymentMethod === 'khqr' ? 'text-purple-600' : 'text-gray-600'" />
-            <span class="text-sm font-medium" :class="paymentMethod === 'khqr' ? 'text-purple-800' : 'text-gray-700'">KHQR</span>
+            <Icon name="heroicons:credit-card" class="w-8 h-8 mb-2 text-gray-400" />
+            <span class="text-sm font-medium text-gray-500">KHQR</span>
           </div>
         </div>
 
@@ -395,12 +394,12 @@
                 <!-- Order Info -->
                 <div class="bg-gray-50 rounded-xl p-4 mb-6">
                   <div class="flex justify-between items-center mb-2">
-                    <span class="text-sm text-gray-600">Order ID:</span>
-                    <span class="font-mono text-sm font-medium text-gray-800">#{{ selectedOrder?.id?.toString().slice(-8) || selectedOrder?.id }}</span>
+                    <span class="text-sm text-gray-600">Order Number:</span>
+                    <span class="font-mono text-sm font-medium text-gray-800">#{{ selectedOrder?.order_number || selectedOrder?.id }}</span>
                   </div>
                   <div class="flex justify-between items-center mb-2">
                     <span class="text-sm text-gray-600">Customer:</span>
-                    <span class="font-medium text-gray-800 text-sm">{{ selectedOrder?.customer_email || selectedOrder?.customer_phone_number || 'N/A' }}</span>
+                    <span class="font-medium text-gray-800 text-sm">{{ selectedOrder?.customer_name || 'N/A' }}</span>
                   </div>
                   <div class="flex justify-between items-center">
                     <span class="text-sm text-gray-600">Amount:</span>

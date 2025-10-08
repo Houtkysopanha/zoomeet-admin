@@ -34,14 +34,14 @@
                     : 'text-orange-600',
                 ]"
               >
-                <Icon
+                <!-- <Icon
                   v-if="!getBookingName()"
                   name="heroicons:exclamation-triangle"
                   class="w-4 h-4"
-                />
+                /> -->
                 {{
                   getBookingName() ||
-                  "Please enter customer information"
+                  "-"
                 }}
               </div>
             </div>
@@ -53,12 +53,12 @@
                   hasCustomerContact() ? 'text-gray-800' : 'text-orange-600',
                 ]"
               >
-                <Icon
+                <!-- <Icon
                   v-if="!hasCustomerContact()"
                   name="heroicons:exclamation-triangle"
                   class="w-4 h-4"
-                />
-                {{ getCustomerContact() }}
+                /> -->
+                {{ getCustomerContact()  }}
               </div>
             </div>
           </div>
@@ -282,12 +282,13 @@
               <InputText
                 v-model="voucherCode"
                 placeholder="Enter Voucher code"
-                class="flex-1 p-3 rounded-lg bg-gray-100 mr-2"
+                class="flex-1 p-3 rounded-lg bg-gray-100 mr-2 cursor-not-allowed opacity-50"
+                disabled
               />
               <Button
                 label="Apply"
-                class="bg-purple-100 text-purple-600 hover:bg-purple-200 px-4 py-2 rounded-lg"
-                @click="applyVoucher"
+                class="bg-gray-300 text-gray-500 px-4 py-2 rounded-lg cursor-not-allowed opacity-50"
+                disabled
               />
             </div>
             <div class="flex justify-between">
@@ -323,13 +324,14 @@
                 >Cash/Offline Payment</label
               >
             </div>
-            <div class="flex items-center">
+            <div class="flex items-center cursor-not-allowed opacity-50">
               <RadioButton
                 v-model="paymentMethod"
                 inputId="abapay"
                 value="abapay"
+                disabled
               />
-              <label for="abapay" class="ml-2 text-gray-700">ABA Pay</label>
+              <label for="abapay" class="ml-2 text-gray-500 cursor-not-allowed">ABA Pay</label>
             </div>
 
             <!-- Transaction ID field for ABA Pay -->
@@ -760,7 +762,7 @@ const hasCustomerContact = () => {
 // Get customer contact information (email or phone)
 const getCustomerContact = () => {
   if (!props.customerInfo) {
-    return "Please enter customer information";
+    return "-";
   }
 
   // Show based on active tab preference
@@ -768,7 +770,7 @@ const getCustomerContact = () => {
     if (props.customerInfo.email && props.customerInfo.email.trim()) {
       return props.customerInfo.email.trim();
     }
-    return "Please enter email address";
+    return "-";
   } else {
     // Default to phone tab
     if (
@@ -777,7 +779,7 @@ const getCustomerContact = () => {
     ) {
       return `+${props.customerInfo.phoneNumber.trim()}`;
     }
-    return "Please enter phone number";
+    return "-";
   }
 };
 

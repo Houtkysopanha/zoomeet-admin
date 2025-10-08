@@ -161,7 +161,7 @@ const navLinks = computed(() => [
 ])
 
 const reportsLinks = [
-  { to: "/admin/report/saleReport", icon: "material-symbols:finance-mode-rounded", text: "Sale Report", activeClass: "bg-[#E6F2FF]", disabled: false },
+  { to: "/admin/report/saleReport", icon: "material-symbols:finance-mode-rounded", text: "Sale Report", activeClass: "bg-[#E6F2FF]", disabled: true },
   { to: "", icon: "tdesign:chart-line-data-1", text: "Business Insight", activeClass: "bg-[#E6F2FF]", disabled: true },
   { to: "", icon: "material-symbols:display-settings-rounded", text: "Audit Log", activeClass: "bg-[#E6F2FF]", disabled: true },
 ]

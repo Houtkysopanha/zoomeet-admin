@@ -10,7 +10,7 @@
             @click="activeTab = 'customer'"
             :disabled="false"
             :class="[
-              'px-6 py-2 rounded-full font-medium transition-all duration-300 ease-in-out cursor-not-allowed opacity-50',
+              'px-6 py-2 rounded-full font-medium transition-all duration-300 ease-in-out ',
               activeTab === 'customer'
                 ? 'bg-gradient-to-r from-blue-800 to-purple-600 text-white shadow-lg transform scale-105'
                 : 'text-gray-600 hover:text-purple-600 hover:bg-white hover:shadow-md',
@@ -65,7 +65,7 @@ definePageMeta({
 })
 
 // Active tab state
-const activeTab = ref('payment') // 'customer' or 'payment'
+const activeTab = ref('customer') // 'customer' or 'payment'
 </script>
 
 <style scoped>
