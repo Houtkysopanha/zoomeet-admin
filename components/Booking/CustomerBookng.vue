@@ -404,6 +404,7 @@
       :active-customer-tab="activeTab"
       :is-customer-info-complete="isCustomerInfoComplete"
       :is-processing-booking="isProcessingBooking"
+      :is-authenticated="isAuthenticated"
       @update:visible="visible = $event"
       @complete-booking="handleCompleteBooking"
       @book-now="handleBookNowClick"
@@ -730,13 +731,22 @@
             </div>
           </div>
           
-          <!-- Action Button -->
-          <button
-            @click="handleConfirmAndContinue"
-            class="w-full px-4 py-3 bg-purple-600 text-white rounded-full font-medium hover:bg-purple-700 transition-colors"
-          >
-            Confirm and continue
-          </button>
+          <!-- Action Buttons -->
+          <div class="space-y-3">
+            <button
+              @click="handleConfirmAndContinue"
+              class="w-full px-4 py-3 bg-purple-600 text-white rounded-full font-medium hover:bg-purple-700 transition-colors"
+            >
+              Confirm and continue
+            </button>
+            
+            <button
+              @click="handleResetPassword"
+              class="px-4 text-start underline py-3 text-black hover:text-purple-700 font-medium transition-colors"
+            >
+              Reset Password
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -807,6 +817,275 @@
       </div>
     </div>
 
+    <!-- Reset Password Modal -->
+    <div v-if="showResetPasswordModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-2xl p-6 w-[30rem] max-w-md mx-4 relative shadow-2xl">
+        <!-- Close Button -->
+        <button 
+          @click="handleCloseResetPasswordModal"
+          class="absolute top-6 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <Icon name="mdi:close" class="w-6 h-6" />
+        </button>
+
+        <!-- Header -->
+        <div class="flex justify-start items-center space-x-2 mb-4">
+          <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+            <Icon name="mdi:lock-reset" class="w-5 h-5 text-orange-600" />
+          </div>
+          <h3 class="text-lg font-semibold text-gray-900">Reset Password</h3>
+        </div>
+
+        <!-- Modal Content -->
+        <div class="text-start">
+          <!-- Step 1: Identity Verification Form -->
+          <div v-if="resetPasswordStep === 'form'">
+            <p class="text-gray-600 mb-4">
+              We need to verify your identity before resetting your password.
+            </p>
+
+            <!-- Error Message -->
+            <div v-if="resetPasswordError" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p class="text-red-600 text-sm">{{ resetPasswordError }}</p>
+            </div>
+
+            <!-- Identity Verification Form -->
+            <form @submit.prevent="handleSendResetPasswordOTP" class="space-y-4">
+              <!-- Tab Selection -->
+              <div class="flex bg-gray-100 rounded-lg p-1 mb-4">
+                <button
+                  type="button"
+                  @click="resetPasswordForm.loginType = 'phone'"
+                  :class="[
+                    'flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors',
+                    resetPasswordForm.loginType === 'phone' 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  ]"
+                >
+                  Phone
+                </button>
+                <button
+                  type="button"
+                  @click="resetPasswordForm.loginType = 'email'"
+                  :class="[
+                    'flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors',
+                    resetPasswordForm.loginType === 'email' 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  ]"
+                >
+                  Email
+                </button>
+              </div>
+
+              <!-- Phone Input -->
+              <div v-if="resetPasswordForm.loginType === 'phone'">
+                <PhoneNumber
+                  v-model="resetPasswordForm.identifier"
+                  placeholder="Enter your phone number"
+                  class="w-full"
+                />
+              </div>
+
+              <!-- Email Input -->
+              <div v-else>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                <input
+                  v-model="resetPasswordForm.identifier"
+                  type="email"
+                  placeholder="Enter your email address"
+                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  required
+                />
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  @click="handleCloseResetPasswordModal"
+                  class="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-full font-medium hover:bg-gray-300 transition-colors"
+                  :disabled="isResettingPassword"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  class="flex-1 px-4 py-3 bg-orange-500 text-white rounded-full font-medium hover:bg-orange-600 transition-colors disabled:bg-orange-300"
+                  :disabled="isResettingPassword || !resetPasswordForm.identifier"
+                >
+                  <span v-if="isResettingPassword" class="flex items-center justify-center">
+                    <Icon name="mdi:loading" class="w-4 h-4 animate-spin mr-2" />
+                    Sending...
+                  </span>
+                  <span v-else>Send OTP</span>
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Step 2: OTP Verification -->
+          <div v-else-if="resetPasswordStep === 'otp'">
+            <p class="text-gray-600 mb-4">
+              Enter the verification code sent to {{ resetPasswordForm.identifier }}
+            </p>
+
+            <!-- Error Message -->
+            <div v-if="resetPasswordError" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p class="text-red-600 text-sm">{{ resetPasswordError }}</p>
+            </div>
+
+            <!-- OTP Form -->
+            <form @submit.prevent="handleVerifyResetPasswordOTP" class="space-y-4">
+              <!-- OTP Input -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Verification Code</label>
+                <input
+                  v-model="resetPasswordForm.otp"
+                  type="text"
+                  placeholder="Enter 6-digit code"
+                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center text-lg tracking-widest"
+                  maxlength="6"
+                  required
+                />
+              </div>
+
+              <!-- Resend OTP -->
+              <div class="text-center">
+                <button
+                  type="button"
+                  @click="handleResendResetPasswordOTP"
+                  :disabled="resetPasswordOTP.countdown > 0"
+                  class="text-sm text-orange-600 hover:text-orange-800 disabled:text-gray-400"
+                >
+                  <span v-if="resetPasswordOTP.countdown > 0">
+                    Resend in {{ resetPasswordOTP.countdown }}s
+                  </span>
+                  <span v-else>Resend Code</span>
+                </button>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  @click="resetPasswordStep = 'form'"
+                  class="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-full font-medium hover:bg-gray-300 transition-colors"
+                  :disabled="isResettingPassword"
+                >
+                  Back
+                </button>
+                <button
+                  type="submit"
+                  class="flex-1 px-4 py-3 bg-orange-500 text-white rounded-full font-medium hover:bg-orange-600 transition-colors disabled:bg-orange-300"
+                  :disabled="isResettingPassword || !resetPasswordForm.otp || resetPasswordForm.otp.length !== 6"
+                >
+                  <span v-if="isResettingPassword" class="flex items-center justify-center">
+                    <Icon name="mdi:loading" class="w-4 h-4 animate-spin mr-2" />
+                    Verifying...
+                  </span>
+                  <span v-else>Verify Code</span>
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Step 3: New Password Form -->
+          <div v-else-if="resetPasswordStep === 'password'">
+            <p class="text-gray-600 mb-4">
+              Create a new password for your account
+            </p>
+
+            <!-- Error Message -->
+            <div v-if="resetPasswordError" class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p class="text-red-600 text-sm">{{ resetPasswordError }}</p>
+            </div>
+
+            <!-- Success Message -->
+            <div v-if="resetPasswordSuccess" class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <p class="text-green-600 text-sm">{{ resetPasswordSuccess }}</p>
+            </div>
+
+            <!-- Reset Password Form -->
+            <form @submit.prevent="handleSubmitResetPassword" class="space-y-4">
+              <!-- New Password -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">New Password</label>
+                <div class="relative">
+                  <input
+                    v-model="resetPasswordForm.newPassword"
+                    :type="resetPasswordForm.showNewPassword ? 'text' : 'password'"
+                    placeholder="Enter new password"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    required
+                    minlength="8"
+                  />
+                  <button
+                    type="button"
+                    @click="resetPasswordForm.showNewPassword = !resetPasswordForm.showNewPassword"
+                    class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <Icon :name="resetPasswordForm.showNewPassword ? 'mdi:eye-off' : 'mdi:eye'" class="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              <!-- Confirm Password -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+                <div class="relative">
+                  <input
+                    v-model="resetPasswordForm.confirmPassword"
+                    :type="resetPasswordForm.showConfirmPassword ? 'text' : 'password'"
+                    placeholder="Confirm new password"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    required
+                    minlength="8"
+                  />
+                  <button
+                    type="button"
+                    @click="resetPasswordForm.showConfirmPassword = !resetPasswordForm.showConfirmPassword"
+                    class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <Icon :name="resetPasswordForm.showConfirmPassword ? 'mdi:eye-off' : 'mdi:eye'" class="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              <!-- Password Requirements -->
+              <div class="text-xs text-gray-500">
+                <p>Password must be at least 8 characters long</p>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  @click="handleCloseResetPasswordModal"
+                  class="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-full font-medium hover:bg-gray-300 transition-colors"
+                  :disabled="isResettingPassword"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  class="flex-1 px-4 py-3 bg-orange-500 text-black rounded-full font-medium hover:bg-orange-600 transition-colors disabled:bg-orange-300"
+                  :disabled="isResettingPassword || !isResetPasswordFormValid"
+                >
+                  <span v-if="isResettingPassword" class="flex items-center justify-center">
+                    <Icon name="mdi:loading" class="w-4 h-4 animate-spin mr-2" />
+                    Resetting...
+                  </span>
+                  <span v-else>Reset Password</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- reCAPTCHA container (invisible) -->
     <div id="recaptcha-container"></div>
   </div>
@@ -822,10 +1101,14 @@ import {
   fetchEvents, 
   createOrderReservation,
   checkCustomerExists,
+  resetPassword,
+  resetPasswordWithToken,
 } from "@/composables/api";
 import { sendEmailOtp } from "@/composables/useEmailAuth";
 // Firebase composable
 const { sendOtp, submitOtp, registerUser, registerUserWithEmail,submitWithEmail  } = useFirebase();
+// Auth composable
+const { isAuthenticated, getToken } = useAuth();
 import img1 from "@/assets/image/poster-manage-booking.png";
 import accFound from "@/assets/image/acc-found.png";
 import accNotFound from "@/assets/image/acc-notfound.png";
@@ -891,6 +1174,30 @@ const registrationOTPForm = ref({
 const isCreatingAccount = ref(false);
 const authError = ref("");
 
+// Reset password modal states
+const showResetPasswordModal = ref(false);
+const isResettingPassword = ref(false);
+const resetPasswordError = ref("");
+const resetPasswordSuccess = ref("");
+const resetPasswordStep = ref('form'); // 'form', 'otp', 'password'
+
+// Reset password form data
+const resetPasswordForm = ref({
+  identifier: "",
+  newPassword: "",
+  confirmPassword: "",
+  showNewPassword: false,
+  showConfirmPassword: false,
+  otp: "",
+  idToken: "",
+  loginType: 'phone' // 'phone' or 'email'
+});
+
+// Reset password OTP state
+const resetPasswordOTP = ref({
+  countdown: 0,
+  countdownInterval: null
+});
 
 // PrimeVue Toast
 const toast = useToast();
@@ -1152,6 +1459,14 @@ const isPasswordValid = computed(() => {
          registerForm.value.password === registerForm.value.confirmPassword;
 });
 
+// Check if reset password form is valid
+const isResetPasswordFormValid = computed(() => {
+  return resetPasswordForm.value.newPassword && 
+         resetPasswordForm.value.confirmPassword &&
+         resetPasswordForm.value.newPassword.length >= 8 && 
+         resetPasswordForm.value.newPassword === resetPasswordForm.value.confirmPassword;
+});
+
 // Generate transaction ID
 const generateTransactionId = () => {
   const timestamp = Date.now().toString(36);
@@ -1161,6 +1476,22 @@ const generateTransactionId = () => {
 
 // Handle booking completion from EventDetail component
 const handleCompleteBooking = async (bookingDetails) => {
+  // Check if user is authenticated (required for admin booking interface)
+  if (process.client && (!isAuthenticated.value || !getToken())) {
+    bookingError.value = 'Please log in to process customer bookings.';
+    toast.add({
+      severity: 'warn',
+      summary: 'Authentication Required',
+      detail: 'This booking interface requires admin login. Please log in to process customer bookings.',
+      life: 8000
+    });
+    
+    // Redirect to login after a delay
+    setTimeout(() => {
+      window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+    }, 2000);
+    return;
+  }
   
   // Validate customer information first
   const validationErrors = validateCustomerInfo();
@@ -1278,13 +1609,32 @@ const handleCompleteBooking = async (bookingDetails) => {
     
   } catch (error) {
     console.error('❌ Booking failed:', error);
-    bookingError.value = error.message || 'Failed to complete booking. Please try again.';
-    toast.add({
-      severity: 'error',
-      summary: 'Booking Failed',
-      detail: error.message || 'Failed to complete booking. Please try again.',
-      life: 8000
-    });
+    
+    // Handle authentication errors specifically
+    if (error.message && error.message.includes('Authentication required')) {
+      bookingError.value = 'Session expired. Please refresh the page and log in again.';
+      toast.add({
+        severity: 'error',
+        summary: 'Session Expired',
+        detail: 'Your admin session has expired. Please refresh the page and log in again.',
+        life: 10000
+      });
+      
+      // Redirect to login after a delay
+      setTimeout(() => {
+        if (process.client) {
+          window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname);
+        }
+      }, 3000);
+    } else {
+      bookingError.value = error.message || 'Failed to complete booking. Please try again.';
+      toast.add({
+        severity: 'error',
+        summary: 'Booking Failed',
+        detail: error.message || 'Failed to complete booking. Please try again.',
+        life: 8000
+      });
+    }
   } finally {
     isProcessingBooking.value = false;
   }
@@ -1926,6 +2276,257 @@ const handleInstructionOK = () => {
   showCreatePasswordModal.value = true;
 };
 
+// Handle reset password button click
+const handleResetPassword = () => {
+  showUserExistsModal.value = false;
+  showResetPasswordModal.value = true;
+  
+  // Reset form and states to initial step
+  resetPasswordStep.value = 'form';
+  resetPasswordForm.value = {
+    identifier: existingUserData.value?.identifier || "",
+    newPassword: "",
+    confirmPassword: "",
+    showNewPassword: false,
+    showConfirmPassword: false,
+    otp: "",
+    idToken: "",
+    loginType: existingUserData.value?.login_type || 'phone'
+  };
+  resetPasswordError.value = "";
+  resetPasswordSuccess.value = "";
+  
+  // Clear OTP countdown
+  if (resetPasswordOTP.value.countdownInterval) {
+    clearInterval(resetPasswordOTP.value.countdownInterval);
+    resetPasswordOTP.value.countdownInterval = null;
+  }
+  resetPasswordOTP.value.countdown = 0;
+};
+
+// Handle close reset password modal
+const handleCloseResetPasswordModal = () => {
+  showResetPasswordModal.value = false;
+  
+  // Reset form and states
+  resetPasswordStep.value = 'form';
+  resetPasswordForm.value = {
+    identifier: "",
+    newPassword: "",
+    confirmPassword: "",
+    showNewPassword: false,
+    showConfirmPassword: false,
+    otp: "",
+    idToken: "",
+    loginType: 'phone'
+  };
+  resetPasswordError.value = "";
+  resetPasswordSuccess.value = "";
+  
+  // Clear OTP countdown
+  if (resetPasswordOTP.value.countdownInterval) {
+    clearInterval(resetPasswordOTP.value.countdownInterval);
+    resetPasswordOTP.value.countdownInterval = null;
+  }
+  resetPasswordOTP.value.countdown = 0;
+};
+
+// Handle send reset password OTP
+const handleSendResetPasswordOTP = async () => {
+  if (!resetPasswordForm.value.identifier) {
+    resetPasswordError.value = "Please enter your " + (resetPasswordForm.value.loginType === 'phone' ? 'phone number' : 'email address');
+    return;
+  }
+
+  isResettingPassword.value = true;
+  resetPasswordError.value = "";
+
+  try {
+    if (resetPasswordForm.value.loginType === 'phone') {
+      // Send phone OTP using Firebase
+      await sendOtp(resetPasswordForm.value.identifier);
+    } else {
+      // Send email OTP
+      await sendEmailOtp(resetPasswordForm.value.identifier);
+    }
+        
+    // Move to OTP verification step
+    resetPasswordStep.value = 'otp';
+    startResetPasswordOTPCountdown();
+    
+  } catch (error) {
+    console.error('❌ Failed to send reset password OTP:', error);
+    resetPasswordError.value = error.message || 'Failed to send verification code. Please try again.';
+  } finally {
+    isResettingPassword.value = false;
+  }
+};
+
+// Handle verify reset password OTP
+const handleVerifyResetPasswordOTP = async () => {
+  if (!resetPasswordForm.value.otp || resetPasswordForm.value.otp.length !== 6) {
+    resetPasswordError.value = "Please enter a valid 6-digit verification code";
+    return;
+  }
+
+  isResettingPassword.value = true;
+  resetPasswordError.value = "";
+
+  try {
+    let result;
+    
+    if (resetPasswordForm.value.loginType === 'phone') {
+      // Verify phone OTP using Firebase
+      result = await submitOtp(
+        resetPasswordForm.value.otp,
+        '', // firstName not needed for reset
+        '', // lastName not needed for reset
+        resetPasswordForm.value.identifier
+      );
+    } else {
+      // Verify email OTP
+      result = await submitWithEmail(
+        resetPasswordForm.value.otp,
+        '', // firstName not needed for reset
+        '', // lastName not needed for reset
+        resetPasswordForm.value.identifier
+      );
+    }
+
+    if (result.success && result.userData?.idToken) {
+      
+      // Store the idToken for password reset
+      resetPasswordForm.value.idToken = result.userData.idToken;
+      
+      // Move to password reset step
+      resetPasswordStep.value = 'password';
+      
+      // Clear OTP countdown
+      if (resetPasswordOTP.value.countdownInterval) {
+        clearInterval(resetPasswordOTP.value.countdownInterval);
+        resetPasswordOTP.value.countdownInterval = null;
+      }
+      resetPasswordOTP.value.countdown = 0;
+      
+    } else {
+      resetPasswordError.value = result.error || 'Invalid verification code. Please try again.';
+    }
+  } catch (error) {
+    console.error('❌ Failed to verify reset password OTP:', error);
+    resetPasswordError.value = error.message || 'Failed to verify code. Please try again.';
+  } finally {
+    isResettingPassword.value = false;
+  }
+};
+
+// Handle resend reset password OTP
+const handleResendResetPasswordOTP = async () => {
+  if (resetPasswordOTP.value.countdown > 0) return;
+
+  try {
+    if (resetPasswordForm.value.loginType === 'phone') {
+      await sendOtp(resetPasswordForm.value.identifier);
+    } else {
+      await sendEmailOtp(resetPasswordForm.value.identifier);
+    }
+    
+    startResetPasswordOTPCountdown();
+    
+    toast.add({
+      severity: 'success',
+      summary: 'Code Sent',
+      detail: 'Verification code resent successfully!',
+      life: 3000
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to resend reset password OTP:', error);
+    resetPasswordError.value = error.message || 'Failed to resend verification code.';
+  }
+};
+
+// Start reset password OTP countdown timer
+const startResetPasswordOTPCountdown = () => {
+  resetPasswordOTP.value.countdown = 60;
+  resetPasswordOTP.value.countdownInterval = setInterval(() => {
+    resetPasswordOTP.value.countdown--;
+    if (resetPasswordOTP.value.countdown <= 0) {
+      clearInterval(resetPasswordOTP.value.countdownInterval);
+      resetPasswordOTP.value.countdownInterval = null;
+    }
+  }, 1000);
+};
+
+// Handle reset password form submission (final step)
+const handleSubmitResetPassword = async () => {
+  if (!resetPasswordForm.value.idToken) {
+    resetPasswordError.value = "Authentication token not found. Please verify your identity again.";
+    return;
+  }
+
+  // Validate form
+  if (!isResetPasswordFormValid.value) {
+    resetPasswordError.value = "Please fill all fields correctly";
+    return;
+  }
+
+  // Additional validation
+  if (resetPasswordForm.value.newPassword.length < 8) {
+    resetPasswordError.value = "Password must be at least 8 characters long";
+    return;
+  }
+
+  if (resetPasswordForm.value.newPassword !== resetPasswordForm.value.confirmPassword) {
+    resetPasswordError.value = "Passwords do not match";
+    return;
+  }
+
+  isResettingPassword.value = true;
+  resetPasswordError.value = "";
+  resetPasswordSuccess.value = "";
+
+  try {
+    // Use the updated resetPassword function that requires idToken
+    const result = await resetPasswordWithToken(
+      resetPasswordForm.value.identifier,
+      resetPasswordForm.value.newPassword,
+      resetPasswordForm.value.confirmPassword,
+      resetPasswordForm.value.idToken
+    );
+
+
+    resetPasswordSuccess.value = result.message || "Password reset successfully!";
+    
+    // Show success toast
+    toast.add({
+      severity: 'success',
+      summary: 'Password Reset',
+      detail: 'Password has been reset successfully!',
+      life: 5000
+    });
+
+    // Close modal after a short delay to show success message
+    setTimeout(() => {
+      handleCloseResetPasswordModal();
+      // Show the user exists modal again
+      showUserExistsModal.value = true;
+    }, 2000);
+
+  } catch (error) {
+    console.error('❌ Password reset failed:', error);
+    resetPasswordError.value = error.message || 'Failed to reset password. Please try again.';
+    
+    toast.add({
+      severity: 'error',
+      summary: 'Reset Failed',
+      detail: error.message || 'Failed to reset password',
+      life: 5000
+    });
+  } finally {
+    isResettingPassword.value = false;
+  }
+};
+
 // Clear customer information
 const clearCustomerInfo = () => {
   customerInfo.value = {
@@ -1994,12 +2595,18 @@ onUnmounted(() => {
   if (registrationOTPForm.value.countdownInterval) {
     clearInterval(registrationOTPForm.value.countdownInterval);
   }
+  if (resetPasswordOTP.value.countdownInterval) {
+    clearInterval(resetPasswordOTP.value.countdownInterval);
+  }
 });
 
 // Cleanup on unmount
 onBeforeUnmount(() => {
   if (registrationOTPForm.value.countdownInterval) {
     clearInterval(registrationOTPForm.value.countdownInterval);
+  }
+  if (resetPasswordOTP.value.countdownInterval) {
+    clearInterval(resetPasswordOTP.value.countdownInterval);
   }
   try { 
     if (typeof window !== 'undefined' && window.recaptchaVerifier && typeof window.recaptchaVerifier.clear === 'function') {

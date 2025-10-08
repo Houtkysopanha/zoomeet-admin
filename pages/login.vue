@@ -324,12 +324,15 @@ async function handleLogin() {
     classicLoader.updateProgress(85, 'Loading dashboard...')
     const { setAuth, getToken } = useAuth();
     
-    // Store auth data with server's expires_in value
+    // Store complete auth data from server response
     const authData = { 
      access_token: token,
      refresh_token: refreshToken || null,
-     expires_in: expiresIn, // ✅ Pass server's expires_in value
-     refresh_expires_in: refreshExpiresIn, // ✅ Pass server's refresh_expires_in value
+     id_token: data.tokens?.id_token || data.id_token || null,
+     token_type: data.token_type || 'Bearer',
+     expires_in: expiresIn, // ✅ Pass server's expires_in value (1200 seconds = 20 minutes)
+     refresh_expires_in: refreshExpiresIn, // ✅ Pass server's refresh_expires_in value (864000 seconds = 10 days)
+     scope: data.scope || null,
      user
     };
     

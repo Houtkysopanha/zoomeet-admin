@@ -767,14 +767,6 @@ const closeStatusPopup = () => {
 const confirmStatusChange = async () => {
   if (!selectedOrder.value || !selectedStatus.value) return
   
-  console.log('Processing cash payment:', {
-    orderId: selectedOrder.value.id,
-    status: selectedStatus.value,
-    paymentMethod: 'cash',
-    remark: 'cash payment',
-    statusType: typeof selectedStatus.value,
-    possibleStatuses: ['completed', 'canceled', 'refunded']
-  })
   
   // Process cash payment with selected status
   await processPayment(selectedStatus.value, 'cash')
