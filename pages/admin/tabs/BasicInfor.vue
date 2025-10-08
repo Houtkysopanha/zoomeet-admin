@@ -65,7 +65,6 @@
                   />
                 </template>
               </ClientOnly>
-              <span class="text-xs text-gray-400"> <small class="text-red-500">*</small> Text Editor will abvailable later.</span>
             </div>
           </div>
         </div>
@@ -126,7 +125,7 @@
                 v-model="formData.mapUrl"
                 :class="[
                   'w-full p-3 mt-1 bg-gray-100 rounded-2xl',
-                  getFieldError('map_url') ? 'border-red-500 border-2' : ''
+                  getFieldError('map_url') ? '' : ''
                 ]"
                 placeholder="https://maps.google.com/... (optional)"
               />
@@ -158,6 +157,41 @@
               placeholder="Enter organizer name"
             />
             <small v-if="getFieldError('organizer')" class="text-red-500">{{ getFieldError('organizer') }}</small>
+          </div>
+        </div>
+        
+        <!-- Tag Section -->
+        <div class="mt-6">
+          <label class="block text-sm font-medium text-gray-700">Tag</label>
+          <div class="flex items-center gap-2 mt-2">
+            <InputText
+              v-model="currentTag"
+              class="flex-1 p-3 bg-gray-100 rounded-2xl"
+              placeholder="Enter tag"
+              @keyup.enter="addTag"
+            />
+            <Button 
+              label="Add Tag" 
+              class="bg-gray-200 text-gray-700 px-4 py-3 rounded-2xl border-0 hover:bg-gray-300"
+              @click="addTag"
+            />
+          </div>
+          <!-- Display tags -->
+          <div v-if="formData.tags && formData.tags.length > 0" class="flex flex-wrap gap-2 mt-3">
+            <span 
+              v-for="(tag, index) in formData.tags" 
+              :key="index"
+              class="inline-flex items-center gap-1 px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded-full"
+            >
+              <span>#{{ tag }}</span>
+              <button 
+                @click="removeTag(index)"
+                class="ml-1 text-gray-500 hover:text-red-500 focus:outline-none"
+                type="button"
+              >
+                <Icon name="heroicons:x-mark" class="w-4 h-4" />
+              </button>
+            </span>
           </div>
         </div>
       </section>
@@ -242,21 +276,41 @@
         </div>
       </section>
 
+      <!-- Label Title Section -->
       <section class="chair">
-        <div class="flex items-center justify-between mb-5">
-          <div class="flex items-center gap-3">
-            <div class="w-6 h-6 bg-purple-600 rounded-lg flex items-center justify-center">
-            <Icon name="heroicons:megaphone" class="text-sm text-white" />
-            </div>
-            <h2 class="text-lg font-semibold text-purple-700">Chair</h2>
-          </div>
-          <Button @click="openChairDialog()" class="add-chair-btn">
-            <template #default>
-              <i class="pi pi-plus mr-2"></i>
-              <span class="font-medium">Add Chair</span>
-            </template>
-          </Button>
-        </div>
+       <div class="flex items-center justify-between mb-5">
+  <!-- Left Side: Label with icon and edit button -->
+  <div class="flex items-center gap-3">
+    <!-- Icon -->
+    <div class="w-6 h-6 bg-purple-600 rounded flex items-center justify-center">
+      <Icon name="heroicons:tag" class="text-sm text-white" />
+    </div>
+    <span class="text-lg font-semibold text-purple-700">Label Title</span>
+
+    <!-- Label text with edit -->
+    <div class="flex items-center justify-center gap-14 bg-gray-100 rounded-lg px-3 py-1">
+      <h3 class="text-sm">
+        {{ formData.labelTitle }}
+      </h3>
+      <button
+        @click="openLabelDialog"
+        class="text-gray-400 hover:text-purple-600 transition-colors duration-200 "
+        title="Change label title"
+      >
+        <Icon name="heroicons:pencil" class="w-4 h-4" />
+      </button>
+    </div>
+  </div>
+
+  <!-- Right Side: Add button -->
+  <Button @click="openChairDialog()" class="add-chair-btn">
+    <template #default>
+      <i class="pi pi-plus mr-2"></i>
+      <span class="font-medium">Add {{ formData.labelTitle }}</span>
+    </template>
+  </Button>
+</div>
+
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div class="">
             <ClientOnly>
@@ -295,10 +349,10 @@
                 </Column>
                 <Column header="Action" class="action-column">
                   <template #body="slotProps">
-                    <div class="flex items-center justify-center gap-2">
-                      <Button icon="pi pi-pencil" text rounded size="small" class="action-btn edit-btn" @click="openChairDialog(slotProps.data, slotProps.index)" title="Edit Chair" />
+                    <div class="flex items-center justify-start gap-2">
+                      <Button icon="pi pi-pencil" text rounded size="small" class="action-btn edit-btn" @click="openChairDialog(slotProps.data, slotProps.index)" :title="`Edit ${formData.labelTitle}`" />
                       <span class="text-gray-300">|</span>
-                      <Button icon="pi pi-trash" text rounded size="small" class="action-btn delete-btn" @click="deleteChair(slotProps.index)" title="Delete Chair" />
+                      <Button icon="pi pi-trash" text rounded size="small" class="action-btn delete-btn" @click="deleteChair(slotProps.index)" :title="`Delete ${formData.labelTitle}`" />
                     </div>
                   </template>
                 </Column>
@@ -307,11 +361,11 @@
                     <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <i class="pi pi-users text-2xl text-gray-400"></i>
                     </div>
-                    <h3 class="text-lg font-medium text-gray-900 mb-2">No chairs added yet</h3>
-                    <p class="text-gray-500 mb-6">Add your first chair to get started with event management.</p>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">No {{ formData.labelTitle.toLowerCase() }}s added yet</h3>
+                    <p class="text-gray-500 mb-6">Add your first {{ formData.labelTitle.toLowerCase() }} to get started with event management.</p>
                     <Button @click="openChairDialog()" class="add-chair-btn">
                       <i class="pi pi-plus mr-2"></i>
-                      Add First Chair</Button>
+                      Add First {{ formData.labelTitle }}</Button>
                   </div>
                 </template>
                 <template #loading>
@@ -322,7 +376,7 @@
               </DataTable>
               <template #fallback>
                 <div class="flex items-center justify-center py-8">
-                  <div class="text-gray-500">Loading chairs...</div>
+                  <div class="text-gray-500">Loading {{ formData.labelTitle.toLowerCase() }}s...</div>
                 </div>
               </template>
             </ClientOnly>
@@ -374,6 +428,44 @@
     
     <!-- Confirmation Dialog -->
     <ConfirmDialog />
+
+    <!-- Change Label Title Dialog -->
+    <Dialog
+      v-model:visible="showLabelDialog"
+      :style="{ width: '450px' }"
+      header="Change Label Title"
+      :modal="true"
+      :closable="true"
+      class="label-dialog"
+    >
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Label Title
+        </label>
+        <InputText
+          v-model="tempLabelTitle"
+          class="w-full p-3 rounded-2xl bg-gray-100 border-2 border-purple-100 focus:border-gray-100 focus:ring-1 focus:ring-gray-100 focus:ring-opacity-50"
+          placeholder="Enter label title"
+          autofocus
+          @keyup.enter="updateLabelTitle"
+        />
+      </div>
+      
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <Button
+            label="Cancel"
+            class="p-button-text border border-purple-300 text-purple-700 px-4 py-2 rounded-lg hover:bg-purple-50"
+            @click="closeLabelDialog"
+          />
+          <Button
+            label="Update"
+            class="bg-purple-600 text-white px-4 py-2 rounded-lg border-0 hover:bg-purple-700"
+            @click="updateLabelTitle"
+          />
+        </div>
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -399,6 +491,7 @@ import Column from 'primevue/column'
 import Avatar from 'primevue/avatar'
 import ProgressSpinner from 'primevue/progressspinner'
 import ConfirmDialog from 'primevue/confirmdialog'
+import Dialog from 'primevue/dialog'
 
 // Import custom components
 import ChairForm from '~/components/common/ChairForm.vue'
@@ -424,6 +517,23 @@ const confirm = useConfirm()
 const eventStore = useEventStore()
 const tabsStore = useEventTabsStore()
 const { getToken } = useAuth()
+
+// Toast deduplication helper
+const showUniqueToast = (toastConfig) => {
+  // Remove any existing toasts with the same key or similar content
+  const existingToasts = document.querySelectorAll('.p-toast-message');
+  existingToasts.forEach(toastEl => {
+    const summaryEl = toastEl.querySelector('.p-toast-summary');
+    if (summaryEl && summaryEl.textContent === toastConfig.summary) {
+      toastEl.remove();
+    }
+  });
+
+  // Add the new toast after a small delay
+  setTimeout(() => {
+    toast.add(toastConfig);
+  }, 50);
+};
 
 // Form validation
 const {
@@ -458,7 +568,9 @@ const formData = reactive({
   eventBackgroundFile: null,
   cardBackgroundFile: null,
   chairs: [],
-  members: []
+  members: [],
+  tags: [],
+  labelTitle: 'Chair'
 })
 
 // UI state
@@ -469,6 +581,9 @@ const showChairDialog = ref(false)
 const editingChair = ref(null)
 const editingChairIndex = ref(-1)
 const isLoadingData = ref(false)
+const currentTag = ref('')
+const showLabelDialog = ref(false)
+const tempLabelTitle = ref('')
 
 // Computed properties
 const isEditMode = computed(() => eventCreationState?.isEditMode?.value || false)
@@ -529,7 +644,9 @@ const loadExistingData = async () => {
         onlineLinkMeeting: tabData.onlineLinkMeeting || null,
         eventSlug: tabData.eventSlug || '',
         chairs: tabData.chairs || [],
-        members: tabData.members || []
+        members: tabData.members || [],
+        tags: tabData.tags || [],
+        labelTitle: tabData.labelTitle || 'Chair'
       })
       
       // Initialize or get chairFileObjects Map
@@ -576,6 +693,10 @@ const loadExistingData = async () => {
         chairFileObjects
       });
       
+      // Re-validate form after loading data
+      await nextTick()
+      revalidateForm()
+      
       return
     }
     
@@ -596,7 +717,9 @@ const loadExistingData = async () => {
         onlineLinkMeeting: event.online_link_meeting || null,
         eventSlug: event.event_slug || '',
         chairs: event.chairs || [],
-        members: event.members || []
+        members: event.members || [],
+        tags: event.tags ? (Array.isArray(event.tags) ? event.tags : []) : [],
+        labelTitle: event.chair_label || event.label_title || 'Chair'
       })
       
       // Save this data to tabs store for future use
@@ -606,6 +729,10 @@ const loadExistingData = async () => {
         isComplete: true,
         lastSaved: new Date().toISOString()
       })
+      
+      // Re-validate form after loading data
+      await nextTick()
+      revalidateForm()
       
       return
     }
@@ -623,8 +750,7 @@ const loadExistingData = async () => {
             category: event.category_id || null,
             description: event.description || '',
             startDate: event.start_date ? parseLocalDate(event.start_date) : null,
-endDate: event.end_date ? parseLocalDate(event.end_date) : null,
-
+            endDate: event.end_date ? parseLocalDate(event.end_date) : null,
             location: event.location || '',
             mapUrl: event.map_url || '',
             company: event.company || '',
@@ -632,7 +758,9 @@ endDate: event.end_date ? parseLocalDate(event.end_date) : null,
             onlineLinkMeeting: event.online_link_meeting || null,
             eventSlug: event.event_slug || '',
             chairs: event.chairs || [],
-            members: event.members || []
+            members: event.members || [],
+            tags: event.tags ? (Array.isArray(event.tags) ? event.tags : []) : [],
+            labelTitle: event.chair_label || event.label_title || 'Chair'
           })
           
           // Save to tabs store
@@ -642,6 +770,10 @@ endDate: event.end_date ? parseLocalDate(event.end_date) : null,
             isComplete: true,
             lastSaved: new Date().toISOString()
           })
+          
+          // Re-validate form after loading data
+          await nextTick()
+          revalidateForm()
           
         }
       } catch (error) {
@@ -765,7 +897,19 @@ const handleSaveCurrentTab = async (event) => {
 }
 
 // Enhanced save draft function with better error handling and update support
+let saveDraftTimeout = null;
 const handleSaveDraft = async () => {
+  // Debounce to prevent multiple simultaneous calls
+  if (saveDraftTimeout) {
+    clearTimeout(saveDraftTimeout);
+  }
+  
+  saveDraftTimeout = setTimeout(async () => {
+    await performSaveDraft();
+  }, 100);
+};
+
+const performSaveDraft = async () => {
   if (isSubmitting.value) return
   
   isSubmitting.value = true
@@ -776,14 +920,14 @@ const handleSaveDraft = async () => {
     
     // Validate required fields (added Company and Organizer as required)
     const requiredFields = [
-      { field: 'eventName', label: 'Event Name' },
-      { field: 'category', label: 'Category' },
-      { field: 'description', label: 'Description' },
-      { field: 'startDate', label: 'Start Date' },
-      { field: 'endDate', label: 'End Date' },
-      { field: 'location', label: 'Location' },
-      { field: 'company', label: 'Company' },
-      { field: 'organizer', label: 'Organizer' }
+      { field: 'eventName', apiField: 'name', label: 'Event Name' },
+      { field: 'category', apiField: 'category_id', label: 'Category' },
+      { field: 'description', apiField: 'description', label: 'Description' },
+      { field: 'startDate', apiField: 'start_date', label: 'Start Date' },
+      { field: 'endDate', apiField: 'end_date', label: 'End Date' },
+      { field: 'location', apiField: 'location', label: 'Location' },
+      { field: 'company', apiField: 'company', label: 'Company' },
+      { field: 'organizer', apiField: 'organizer', label: 'Organizer' }
     ]
     
     const missingFields = requiredFields.filter(({ field }) => {
@@ -801,28 +945,39 @@ const handleSaveDraft = async () => {
     
     
     if (missingFields.length > 0) {
-      // Set field-specific errors
-      missingFields.forEach(({ field, label }) => {
-        setFieldError(field, `${label} is required`);
+      // Set field-specific errors using the correct field names for UI
+      missingFields.forEach(({ field, apiField, label }) => {
+        // Use apiField for UI error display (matches getFieldError calls in template)
+        setFieldError(apiField, `${label} is required`);
       });
 
-      // Show a single toast with clear guidance
+      // Clear any existing toasts first to prevent duplicates
+      const existingToasts = document.querySelectorAll('.p-toast-message');
+      existingToasts.forEach(toast => {
+        if (toast.textContent?.includes('Required Fields Missing') || 
+            toast.textContent?.includes('Required Field Missing')) {
+          toast.remove();
+        }
+      });
+
+      // Show a single toast with clear guidance using the helper
       if (missingFields.length === 1) {
-        toast.add({
+        showUniqueToast({
           severity: 'warn',
           summary: 'Required Field Missing',
           detail: `Please fill in the ${missingFields[0].label.toLowerCase()} field to continue.`,
-          life: 3000
+          life: 4000
         });
       } else {
         const fieldCount = missingFields.length;
-        toast.add({
+        showUniqueToast({
           severity: 'warn',
           summary: 'Required Fields Missing',
           detail: `Please fill in all ${fieldCount} required fields to continue.`,
-          life: 3000
+          life: 4000
         });
       }
+      
       return;
     }
     
@@ -908,8 +1063,8 @@ const eventData = {
   name: formData.eventName,
   category_id: formData.category,
   description: formData.description,
-start_date: toLocalISOString(formData.startDate),
-end_date: toLocalISOString(formData.endDate),
+  start_date: toLocalISOString(formData.startDate),
+  end_date: toLocalISOString(formData.endDate),
   location: formData.location,
   map_url: formData.mapUrl || null,
   company: formData.company || null,
@@ -917,6 +1072,8 @@ end_date: toLocalISOString(formData.endDate),
   online_link_meeting: formData.onlineLinkMeeting || null,
   chairs: [],
   members: formData.members || [],
+  tags: formData.tags && formData.tags.length > 0 ? formData.tags : null,
+  chair_label: formData.labelTitle || 'Chair',
   cover_image: formData.coverImageFile || null,
   event_background: formData.eventBackgroundFile || null,
   card_background: formData.cardBackgroundFile || null
@@ -1026,6 +1183,9 @@ eventData.chairs = formData.chairs.map((chair, index) => {
     if (result && result.success !== false && (result.id || result.data?.id)) {
       // Handle both direct response and wrapped response
       const eventData = result.data || result
+      
+      // Clear form validation errors after successful save
+      clearErrors()
       
       // Update local state
       const updatedEvent = {
@@ -1244,12 +1404,86 @@ eventData.chairs = formData.chairs.map((chair, index) => {
     })
   } finally {
     isSubmitting.value = false
+    saveDraftTimeout = null
   }
 }
 
 // Handle update draft (for edit mode)
 const handleUpdateDraft = async () => {
   await handleSaveDraft()
+}
+
+// Tag management functions
+const addTag = () => {
+  const tag = currentTag.value.trim()
+  if (tag && !formData.tags.includes(tag)) {
+    formData.tags.push(tag)
+    currentTag.value = ''
+    
+    // Mark tab as modified and save to tabs store
+    tabsStore.markTabModified(0)
+    tabsStore.saveTabData(0, {
+      ...formData,
+      lastSaved: new Date().toISOString(),
+      hasUnsavedChanges: true
+    })
+    
+    // Removed toast - silent operation for better UX
+  } else if (formData.tags.includes(tag)) {
+    // Only show toast for duplicate tags (important feedback)
+    toast.add({
+      severity: 'warn',
+      summary: 'Duplicate Tag',
+      detail: 'This tag already exists.',
+      life: 2000
+    })
+  }
+}
+
+const removeTag = (index) => {
+  const removedTag = formData.tags[index]
+  formData.tags.splice(index, 1)
+  
+  // Mark tab as modified and save to tabs store
+  tabsStore.markTabModified(0)
+  tabsStore.saveTabData(0, {
+    ...formData,
+    lastSaved: new Date().toISOString(),
+    hasUnsavedChanges: true
+  })
+  
+  // Removed toast - silent operation for better UX
+}
+
+// Label Title management functions
+const openLabelDialog = () => {
+  tempLabelTitle.value = formData.labelTitle
+  showLabelDialog.value = true
+}
+
+const closeLabelDialog = () => {
+  showLabelDialog.value = false
+  tempLabelTitle.value = ''
+}
+
+const updateLabelTitle = () => {
+  const newTitle = tempLabelTitle.value.trim()
+  if (newTitle && newTitle !== formData.labelTitle) {
+    const oldTitle = formData.labelTitle
+    formData.labelTitle = newTitle
+    
+    // Mark tab as modified and save to tabs store
+    tabsStore.markTabModified(0)
+    tabsStore.saveTabData(0, {
+      ...formData,
+      lastSaved: new Date().toISOString(),
+      hasUnsavedChanges: true
+    })
+    
+    // Removed toast - silent operation for better UX
+  }
+  
+  closeLabelDialog()
 }
 
 // Chair management functions
@@ -1342,12 +1576,8 @@ const handleChairSaved = (chairData) => {
   editingChair.value = null;
   editingChairIndex.value = -1;
 
-  toast.add({
-    severity: 'success',
-    summary: isEdit ? 'Chair Updated' : 'Chair Added',
-    detail: `${processed.name} has been ${isEdit ? 'updated' : 'added'} successfully.`,
-    life: 3000
-  });
+  // Removed toast - silent operation for better UX
+  // User can see the chair was added/updated in the table
 };
 
 
@@ -1713,19 +1943,9 @@ const generateSlug = () => {
       const randomNoun = nouns[Math.floor(Math.random() * nouns.length)]
       newSlug = `${randomAdjective}-${randomNoun}-${numbers}`
       
-      toast.add({ 
-        severity: 'info', 
-        summary: 'Slug Generated', 
-        detail: 'Generated random slug (original name contains special characters)', 
-        life: 3000 
-      })
+      // Removed toast - slug generation is visible in the URL field
     } else {
-      toast.add({ 
-        severity: 'success', 
-        summary: 'Slug Generated', 
-        detail: 'Slug generated from event name!', 
-        life: 3000 
-      })
+      // Removed toast - slug generation is visible in the URL field
     }
     
     formData.eventSlug = newSlug
@@ -1751,7 +1971,7 @@ const copyUrl = async () => {
 
 const openUrl = () => {
   window.open(generatedUrl.value, '_blank')
-  toast.add({ severity: 'info', summary: 'Opening URL', detail: 'Opening URL in new tab', life: 3000 })
+  // Removed toast - opening URL is self-evident to user
 }
 
 // Watch for form changes to mark tab as modified and save changes
@@ -1766,6 +1986,66 @@ watch(formData, () => {
     hasUnsavedChanges: true
   })
 }, { deep: true })
+
+// Real-time validation for required fields (silent - no toast alerts)
+const validateRequiredField = (fieldName, apiFieldName, value, showToast = false) => {
+  if (!value || (typeof value === 'string' && value.trim() === '') || 
+      (Array.isArray(value) && value.length === 0) || 
+      value === null || value === undefined) {
+    setFieldError(apiFieldName, `${fieldName} is required`)
+  } else {
+    clearFieldError(apiFieldName)
+  }
+}
+
+// Re-validate entire form (used after data loading) - silent validation
+const revalidateForm = () => {
+  // Clear all errors first
+  clearErrors()
+  
+  // Validate all required fields silently (no toast alerts)
+  validateRequiredField('Event Name', 'name', formData.eventName, false)
+  validateRequiredField('Category', 'category_id', formData.category, false)
+  validateRequiredField('Event Description', 'description', formData.description, false)
+  validateRequiredField('Start Date', 'start_date', formData.startDate, false)
+  validateRequiredField('End Date', 'end_date', formData.endDate, false)
+  validateRequiredField('Location', 'location', formData.location, false)
+  validateRequiredField('Company', 'company', formData.company, false)
+  validateRequiredField('Organizer', 'organizer', formData.organizer, false)
+}
+
+// Watch required fields for real-time validation (silent - no toast alerts)
+watch(() => formData.eventName, (newValue) => {
+  validateRequiredField('Event Name', 'name', newValue, false)
+})
+
+watch(() => formData.category, (newValue) => {
+  validateRequiredField('Category', 'category_id', newValue, false)
+})
+
+watch(() => formData.description, (newValue) => {
+  validateRequiredField('Event Description', 'description', newValue, false)
+})
+
+watch(() => formData.startDate, (newValue) => {
+  validateRequiredField('Start Date', 'start_date', newValue, false)
+})
+
+watch(() => formData.endDate, (newValue) => {
+  validateRequiredField('End Date', 'end_date', newValue, false)
+})
+
+watch(() => formData.location, (newValue) => {
+  validateRequiredField('Location', 'location', newValue, false)
+})
+
+watch(() => formData.company, (newValue) => {
+  validateRequiredField('Company', 'company', newValue, false)
+})
+
+watch(() => formData.organizer, (newValue) => {
+  validateRequiredField('Organizer', 'organizer', newValue, false)
+})
 
 // Watch for event name changes to suggest slug with debouncing
 let slugGenerationTimeout = null
@@ -1815,4 +2095,26 @@ onBeforeUnmount(() => {
   border: none !important;
 }
 
+/* Label Dialog Styling */
+:deep(.label-dialog .p-dialog) {
+  border-radius: 1rem !important; /* rounded-2xl */
+  border: 2px solid rgb(196 181 253) !important; /* purple-300 */
+  box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.1) !important; /* purple ring */
+}
+
+:deep(.label-dialog .p-dialog-header) {
+  border-radius: 1rem 1rem 0 0 !important;
+  background: linear-gradient(135deg, rgb(249 250 251), rgb(243 244 246)) !important;
+  border-bottom: 1px solid rgb(196 181 253) !important;
+}
+
+:deep(.label-dialog .p-dialog-content) {
+  border-radius: 0 0 1rem 1rem !important;
+}
+
+:deep(.label-dialog .p-dialog-footer) {
+  border-top: 1px solid rgb(229 231 235) !important;
+  background: rgb(249 250 251) !important;
+  border-radius: 0 0 1rem 1rem !important;
+}
 </style>

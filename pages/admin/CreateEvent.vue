@@ -722,17 +722,6 @@ const changeTab = async (index) => {
       const hasData = Object.keys(tabData).length > 0
       const lastSaved = tabData.lastSaved
       
-      // Show appropriate notification - reduced frequency
-      if (hasData && lastSaved && index > 0) {
-        // Only show restore message for non-basic tabs
-        toast.add({
-          severity: 'info',
-          summary: 'Data Restored',
-          detail: 'Your previous work has been restored',
-          life: 2000
-        })
-      }
-      
       // Load any existing data for this tab from the event store
       if (isBasicInfoCompleted.value && eventId.value) {
         await loadTabSpecificData(index)

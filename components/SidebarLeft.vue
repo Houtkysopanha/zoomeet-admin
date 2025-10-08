@@ -145,7 +145,7 @@ const { totalEventCount, loadEventCount, loading, error } = useGlobalEventCount(
 const navLinks = computed(() => [
   { to: "/admin/dashboard", icon: "ic:round-dashboard", text: "Dashboard", activeClass: "bg-[#E6F2FF]", disabled: false },
   { to: "/admin/event", icon: "clarity:event-solid", text: "Event", count: totalEventCount.value, activeClass: "bg-[#E6F2FF]", disabled: false },
-  { to: "/admin/booking", icon: "material-symbols-light:receipt-rounded", text: "Booking", count: 0, activeClass: "bg-[#E6F2FF]", disabled: true },
+  { to: "/admin/booking", icon: "material-symbols-light:receipt-rounded", text: "Booking", count: 0, activeClass: "bg-[#E6F2FF]", disabled: false},
   { to: "/admin/checkIn", icon: "mdi:invoice-text-check", text: "Check-in Service", activeClass: "bg-[#E6F2FF]", disabled: false },
 ])
 

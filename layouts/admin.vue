@@ -39,11 +39,15 @@
         </div>
       </main>
     </div>
+
+    <!-- PrimeVue Toast -->
+    <Toast />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import Toast from 'primevue/toast'
 
 // Track page loading state
 const pending = ref(false)

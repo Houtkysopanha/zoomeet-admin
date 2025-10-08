@@ -1,14 +1,13 @@
 <template>
   <div class="">
-    <div class="flex items-center justify-between mb-4">
-      <div>
-        <h2 class="text-lg font-semibold">Ticket Packages</h2>
-        <p class="text-gray-400">Create and manage different ticket types</p>
-      </div>
-      <div v-if="currentEventId" class="text-right">
-        <p class="py-1 rounded-full text-xs font-medium text-purple-500">Basic Info Saved</p>
-        <p class="text-xs text-gray-500">{{ currentEventName }}</p>
-      </div>
+    <!-- Main Layout: Left Form + Right Listing -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <!-- Left Side: Ticket Form -->
+      <div class="space-y-6">
+         <!-- Header -->
+    <div class="mb-6">
+      <h2 class="text-xl font-semibold text-gray-900 mb-1">Ticket Packages</h2>
+      <p class="text-gray-500">Create and manage different ticket types</p>
     </div>
 
     <!-- Event Status Alert -->
@@ -22,142 +21,213 @@
       </div>
     </div>
     
-    <!-- Edit Mode Warning for Published Events -->
-    <div v-if="isEditMode && eventData?.is_published" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-      <div class="flex items-center">
-        <Icon name="heroicons:information-circle" class="w-5 h-5 text-blue-600 mr-2" />
-        <div>
-          <p class="text-sm font-medium text-blue-800">Editing Ticket Event</p>
-          <p class="text-xs text-blue-600">Click Icon for update and click Update before save draft.</p>
-        </div>
-      </div>
-    </div>
 
-    <!-- Ticket Display Based on Workflow State -->
-    <div v-if="tickets.length > 0" class="space-y-4 mb-6">
-      <TransitionGroup name="ticket-list" tag="div" class="space-y-4">
-        <div
-          v-for="(ticket, index) in tickets"
-          :key="ticket.id"
-          class="relative bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200"
-        >
-          <!-- Edit Icon Only for Saved Tickets (after draft) -->
-          <div v-if="ticket.ticket_type_id && hasExistingTickets" class="absolute top-4 right-4 z-10 flex gap-2">
-            <Button
-              icon="pi pi-pencil"
-              text
-              rounded
-              size="small"
-              class="edit-ticket-btn text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-              @click="editTicket(ticket.ticket_type_id, index)"
-              title="Edit this saved ticket"
-            />
-            <Button
-              icon="pi pi-trash"
-              text
-              rounded
-              size="small"
-              class="delete-ticket-btn text-red-600 hover:text-red-800 hover:bg-red-50"
-              @click="deleteTicket(ticket.ticket_type_id, index)"
-              title="Delete this ticket"
-            />
+        <!-- Ticket Icon Header -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
+              <Icon name="heroicons:ticket" class="w-5 h-5 text-white" />
+            </div>
+            <span class="text-lg font-medium text-gray-900">
+              {{ currentEditingTicket ? 'Edit Ticket' : 'Create New Ticket' }}
+            </span>
+          </div>
+          <span v-if="currentEditingTicket" class="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+            Editing
+          </span>
+        </div>
+
+        <!-- Current Ticket Form -->
+        <div class="">
+          <div class="space-y-4">
+            <!-- Ticket Name -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Ticket Name
+              </label>
+              <InputText
+                v-model="formData.name"
+                class="w-full p-3 mt-1 bg-gray-100 border-none rounded-2xl"
+                placeholder="ticket name"
+              />
+            </div>
+
+            <!-- Ticket Price -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Ticket Price
+              </label>
+              <div class="relative">
+                <InputNumber
+                  v-model="formData.price"
+                  mode="decimal"
+                  :minFractionDigits="0"
+                  :maxFractionDigits="2"
+                  :min="0"
+                  class="w-full "
+                  inputClass="pl-8 bg-gray-100 "
+                  placeholder="Set price to $0 or 0 for free tickets"
+                />
+                <span class="text-xs text-gray-400">Set price to 0$ or 0 for free ticket </span>
+              </div>
+            </div>
+
+            <!-- Quantity -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Quantity
+              </label>
+              <InputText
+                v-model="formData.quantity"
+                class="w-full p-3 mt-1 bg-gray-100 border-none rounded-2xl"
+                placeholder="ticket quantity"
+              />
+            </div>
+
+            <!-- Ticket Description -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">
+                Ticket Description
+              </label>
+              <Textarea
+                v-model="formData.description"
+                class="w-full p-3 mt-1 bg-gray-100 border-none rounded-2xl"
+                placeholder="Brief description of this ticket"
+                rows="3"
+              />
+            </div>
+
           </div>
           
-          <!-- Ticket Form Component -->
-          <div class="p-4">
-            <TicketForm
-              v-model="tickets[index]"
-              :ticket-index="index"
-              :readonly="ticket.ticket_type_id && hasExistingTickets && !ticket.isEditing"
-              :is-editing="ticket.isEditing"
-              @remove-ticket="removeTicket"
-            />
+        </div>
+
+        <!-- Add Ticket Package Button -->
+    <div class="mt-8 flex justify-end gap-4">
+      <Button
+        v-if="currentEditingTicket"
+        @click="cancelForm"
+        class="px-6 py-3 border border-gray-300 text-gray-700 rounded-full hover:bg-gray-50 font-medium"
+      >
+        Cancel
+      </Button>
+      <Button
+        @click="addTicketPackage"
+        class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-8 py-4 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center space-x-3"
+        :disabled="!currentEventId || loading"
+        :loading="loading"
+      >
+        <Icon name="heroicons:plus-circle" class="w-6 h-6" />
+        <span>{{ currentEditingTicket ? 'Update Ticket' : 'Add Ticket Package' }}</span>
+      </Button>
+    </div>
+      </div>
+
+      <!-- Right Side: Ticket Listing -->
+      <div class="space-y-6">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-semibold text-gray-900">Ticket Listing</h3>
+          <span class="text-sm text-gray-500">{{ tickets.length }} ticket{{ tickets.length !== 1 ? 's' : '' }}</span>
+        </div>
+        
+        <!-- Ticket Cards -->
+        <div v-if="tickets.length > 0" class="space-y-4">
+          <div
+            v-for="(ticket, index) in tickets"
+            :key="ticket.id || index"
+            class="bg-white shadow-md rounded-2xl p-4 hover:shadow-md transition-shadow duration-200"
+          >
+            <div class="flex items-start justify-between">
+              <div class="flex-1">
+                <div class="flex items-center justify-between mb-2">
+                  <h4 class="font-semibold text-gray-900">{{ ticket.name || 'Unnamed Ticket' }}</h4>
+                  <div class="flex items-center space-x-2">
+                    <!-- Edit Button -->
+                    <Button
+                      icon="pi pi-pencil"
+                      text
+                      rounded
+                      size="small"
+                      class="text-gray-600 hover:text-blue-600"
+                      @click="editTicket(ticket.ticket_type_id, index)"
+                      title="Edit ticket"
+                    />
+                    <!-- Delete Button -->
+                    <Button
+                      icon="pi pi-trash"
+                      text
+                      rounded
+                      size="small"
+                      class="text-gray-600 hover:text-red-600"
+                      @click="deleteTicket(ticket.ticket_type_id, index)"
+                      title="Delete ticket"
+                    />
+                    
+                    <!-- Privacy Toggle -->
+                    <div class="flex items-center">
+                      <button
+                        @click="toggleTicketPrivacy(ticket, index)"
+                        :disabled="ticket.isUpdatingPrivacy"
+                        :class="[
+                          'flex items-center justify-center h-8 w-20 rounded-full cursor-pointer transition-all duration-300 text-white text-xs font-medium shadow-sm relative',
+                          ticket.is_private 
+                            ? 'bg-gray-500 hover:bg-gray-600' 
+                            : 'bg-purple-500 hover:bg-purple-600',
+                          ticket.isUpdatingPrivacy ? 'opacity-70 cursor-wait' : ''
+                        ]"
+                        :title="ticket.is_private ? 'Click to make Public' : 'Click to make Private'"
+                      >
+                        <span v-if="!ticket.isUpdatingPrivacy" class="flex items-center space-x-1">
+                          <span>{{ ticket.is_private ? 'OFF' : 'ON' }}</span> |
+                          <span>{{ ticket.is_private ? 'Private' : 'Public' }}</span>
+                        </span>
+                        <span v-else class="flex items-center space-x-1">
+                          <Icon name="heroicons:arrow-path" class="w-3 h-3 animate-spin" />
+                          <span class="text-xs">Updating...</span>
+                        </span>
+                      </button>
+                    </div>                  </div>
+                </div>
+                
+                <div class="flex items-center space-x-4 text-sm text-gray-600 mb-2">
+                  <span>Quantity | {{ ticket.quantity || 0 }}</span>
+                </div>
+                <div class="border border-gray-200 my-3"></div>
+                <div class="inline-flex items-center justify-center px-4 py-1 rounded-full bg-purple-50 text-purple-700 font-semibold text-lg shadow-sm">
+  {{ ticket.price == 0 ? 'FREE' : `$${ticket.price || 0}` }}
+</div>
+                <p class="text-sm text-gray-600 mt-2">{{ ticket.description || ticket.tag || 'No description' }}</p>
+              </div>
+            </div>
           </div>
         </div>
-      </TransitionGroup>
-    </div>
-
-    <!-- Empty State -->
-    <div v-else class="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
-      <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <Icon name="heroicons:ticket" class="w-8 h-8 text-purple-600" />
+        
+        <!-- Empty State -->
+        <div v-else class="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+          <Icon name="heroicons:ticket" class="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <p class="text-gray-500 mb-2">No tickets created yet</p>
+          <p class="text-sm text-gray-400 mb-4">Fill out the form on the left, then click "Add to Listing" or use the "Add Ticket Package" button below</p>
+          <div class="flex items-center justify-center space-x-2 text-xs text-gray-400">
+            <Icon name="heroicons:arrow-left" class="w-4 h-4" />
+            <span>Form</span>
+            <Icon name="heroicons:arrow-right" class="w-4 h-4" />
+            <span>Save/Add</span>
+            <Icon name="heroicons:arrow-right" class="w-4 h-4" />
+            <span>Appears here</span>
+          </div>
+        </div>
       </div>
-      <h3 class="text-lg font-medium text-gray-900 mb-2">No tickets created yet</h3>
-      <p class="text-gray-500 mb-6">Create your first ticket package to get started.</p>
-      <Button
-        @click="addTicket"
-        class="create-first-ticket-btn"
-        :disabled="!currentEventId"
-      >
-        <Icon name="heroicons:plus" class="mr-2" />
-        Create First Ticket
-      </Button>
     </div>
 
-    <!-- Action Buttons Based on Workflow State (Agenda Pattern) -->
-    <div class="flex justify-end items-center mt-6 gap-4">
-      <!-- PHASE 1: Create First Ticket (No tickets exist) -->
-      <Button
-        v-if="tickets.length === 0"
-        @click="addTicket"
-        class="create-first-ticket-btn"
-        :disabled="!currentEventId"
-      >
-        <Icon name="heroicons:plus" class="mr-2" />
-        Add Ticket
-      </Button>
-      
-      <!-- PHASE 2: Save Draft (New tickets exist but not saved) -->
-      <template v-else-if="!hasExistingTickets">
-        <Button
-          @click="addTicket"
-          class="add-ticket-btn"
-          :disabled="!currentEventId"
-        >
-          <Icon name="heroicons:plus" class="mr-2" />
-          Add Ticket
-        </Button>
-        
-        <!-- <Button
-          @click="saveDraft"
-          class="save-draft-btn"
-          :disabled="!currentEventId || loading || !isValidTicketData"
-          :loading="loading"
-        >
-          <Icon name="heroicons:document-plus" class="mr-2" />
-          {{ loading ? 'Saving...' : 'Save Draft' }}
-        </Button> -->
-      </template>
-      
-      <!-- PHASE 3: After Draft Saved - Show Add + Save Changes (like Agenda) -->
-      <template v-else>
-        <Button
-          @click="addTicket"
-          class="add-ticket-btn"
-          :disabled="!currentEventId"
-        >
-          <Icon name="heroicons:plus" class="mr-2" />
-          Add Ticket Package
-        </Button>
-        
-        <Button
-          v-if="hasUnsavedChanges"
-          @click="saveChanges"
-          class="save-changes-btn"
-          :disabled="!currentEventId || loading"
-          :loading="loading"
-        >
-          <Icon name="heroicons:arrow-path" class="mr-2" />
-          {{ loading ? 'Saving...' : 'Update' }}
-        </Button>
-      </template>
-    </div>
+
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, inject } from "vue"
 import Button from "primevue/button"
+import InputText from "primevue/inputtext"
+import InputNumber from "primevue/inputnumber"
+import Textarea from "primevue/textarea"
 import TicketForm from '~/components/common/TicketForm.vue'
 import LoadingSpinner from '~/components/ui/LoadingSpinner.vue'
 import { createTicketTypes, updateTicketType, getEventDetails, getEventTicketTypes, getTicketTypeDetails } from '@/composables/api'
@@ -169,6 +239,31 @@ import { useTabEventIsolation } from '~/composables/useEventIsolation'
 const loading = ref(false)
 const toast = useToast()
 const hasExistingTickets = ref(false)
+
+// Toast management system to prevent duplicates
+const activeToasts = ref(new Set())
+const showToast = (severity, summary, detail, life = 3000) => {
+  const toastKey = `${severity}-${summary}`
+  
+  // Prevent duplicate toasts
+  if (activeToasts.value.has(toastKey)) {
+    return
+  }
+  
+  activeToasts.value.add(toastKey)
+  
+  toast.add({
+    severity,
+    summary,
+    detail,
+    life
+  })
+  
+  // Remove from active toasts after the toast expires
+  setTimeout(() => {
+    activeToasts.value.delete(toastKey)
+  }, life + 100)
+}
 
 // ENHANCED: Event isolation system
 const {
@@ -186,6 +281,17 @@ const tickets = ref([])
 const isEditMode = ref(false)
 const eventData = ref(null)
 
+// New UI state variables
+const showNewTicketForm = ref(false)
+const currentEditingTicket = ref(null)
+const formData = ref({
+  name: '',
+  price: 0,
+  quantity: 1,
+  description: '',
+  is_private: 0
+})
+
 // Track if there are new tickets added
 const hasNewTickets = computed(() => {
   return tickets.value.some(ticket => !ticket.ticket_type_id)
@@ -198,6 +304,142 @@ const hasUnsavedChanges = ref(false)
 const shouldShowEditMode = computed(() => {
   return isEditMode.value && hasExistingTickets.value
 })
+
+// Form validation
+const isFormValid = computed(() => {
+  const isValid = formData.value.name.trim() !== '' &&
+         formData.value.description.trim() !== '' &&
+         formData.value.price >= 0 &&
+         formData.value.quantity > 0
+  
+  // Debug validation
+  if (process.client) {
+    console.log('Form validation:', {
+      name: formData.value.name.trim(),
+      description: formData.value.description.trim(),
+      price: formData.value.price,
+      quantity: formData.value.quantity,
+      isValid
+    })
+  }
+  
+  return isValid
+})
+
+// Reset form data
+const resetForm = () => {
+  formData.value = {
+    name: '',
+    price: 0,
+    quantity: 1,
+    description: '',
+    is_private: 0
+  }
+  currentEditingTicket.value = null
+}
+
+// Add ticket package - save current ticket if valid, then clear form for new ticket
+const addTicketPackage = async () => {
+  if (!currentEventId.value) {
+    showToast('warn', 'Event Required', 'Please save basic info first')
+    return
+  }
+  
+  // If editing, save the update
+  if (currentEditingTicket.value && isFormValid.value) {
+    await saveTicket()
+    return
+  }
+  
+  // If form has valid data, save it first
+  if (isFormValid.value) {
+    await saveTicket()
+  } else {
+    // Just clear the form for new ticket
+    resetForm()
+  }
+}
+
+// Cancel form
+const cancelForm = () => {
+  resetForm()
+}
+
+// Save ticket
+const saveTicket = async () => {
+  if (!isFormValid.value || !currentEventId.value) return
+  
+  loading.value = true
+  try {
+    const ticketData = {
+      name: formData.value.name.trim(),
+      price: parseFloat(formData.value.price) || 0,
+      quantity: parseInt(formData.value.quantity) || 1,
+      description: formData.value.description.trim(),
+      tag: formData.value.description.trim(),
+      event_id: currentEventId.value,
+      is_active: true,
+      is_private: parseInt(formData.value.is_private) || 0,
+      sort_order: tickets.value.length + 1
+    }
+
+    if (currentEditingTicket.value) {
+      // Update existing ticket
+      const response = await updateTicketType(currentEventId.value, currentEditingTicket.value.ticket_type_id, ticketData)
+      
+      if (response?.success) {
+        // Update in local array
+        const index = tickets.value.findIndex(t => t.ticket_type_id === currentEditingTicket.value.ticket_type_id)
+        if (index !== -1) {
+          tickets.value[index] = { ...tickets.value[index], ...ticketData, ...response.data }
+        }
+        
+        // Ticket updated successfully - no toast needed
+      }
+    } else {
+      // Create new ticket
+      console.log('Creating new ticket with data:', ticketData)
+      const response = await createTicketTypes(currentEventId.value, [ticketData])
+      console.log('Create ticket response:', response)
+      
+      if (response?.success && response?.data?.length > 0) {
+        const newTicket = {
+          ...ticketData,
+          ticket_type_id: response.data[0].id,
+          id: response.data[0].id,
+          name: ticketData.name,
+          price: ticketData.price,
+          quantity: ticketData.quantity,
+          description: ticketData.description,
+          tag: ticketData.tag,
+          is_active: true,
+          is_private: parseInt(ticketData.is_private) || 0
+        }
+        
+        // Add to local array
+        tickets.value.push(newTicket)
+        console.log('Added ticket to local array. Total tickets:', tickets.value.length)
+        
+        // Ticket added successfully - no toast needed
+      } else {
+        console.error('Failed to create ticket - invalid response:', response)
+        throw new Error('Failed to create ticket - invalid response from server')
+      }
+    }
+    
+    resetForm()
+    
+    // Update hasExistingTickets flag since we now have saved tickets
+    hasExistingTickets.value = true
+    isEditMode.value = true
+    
+  } catch (error) {
+    console.error('Failed to save ticket:', error)
+    showToast('error', 'Save Failed', 'Failed to save ticket. Please try again.')
+  } finally {
+    loading.value = false
+  }
+}
 
 // Validate ticket data
 const isValidTicketData = computed(() => {
@@ -241,12 +483,7 @@ const clearAndRefreshTickets = async () => {
       await loadExistingTickets()
     }
   } catch (error) {
-    toast.add({
-      severity: 'error',
-      summary: 'Refresh Failed',
-      detail: 'Failed to refresh ticket data',
-      life: 3000
-    })
+    showToast('error', 'Refresh Failed', 'Failed to refresh ticket data')
   } finally {
     loading.value = false
   }
@@ -268,7 +505,8 @@ const loadTickets = async () => {
         quantity: ticket.total,
         description: ticket.tag || '',
         sort_order: ticket.sort_order,
-        is_active: ticket.is_active
+        is_active: ticket.is_active,
+        is_private: parseInt(ticket.is_private) || 0
       }))
       hasExistingTickets.value = true
       toast.add({
@@ -290,108 +528,187 @@ const loadTickets = async () => {
   }
 }
 
-const createNewTicket = () => {
-  const ticketNumber = tickets.value.length + 1
-  const newTicket = {
-    id: Date.now() + Math.random(),
-    ticket_type_id: null,
-    name: '', // Initialize as empty string
-    price: 0, // Initialize as number
-    quantity: 1, // Initialize as number
-    description: '', // Initialize as empty string
-    tag: '', // Initialize as empty string for API compatibility
-    sort_order: ticketNumber,
-    is_active: true,
-    isValidating: false
-  }
-  
-  return newTicket
+// Legacy method - redirect to new form approach
+const addTicket = () => {
+  addTicketPackage()
 }
 
-const addTicket = () => {
-  if (!currentEventId.value) {
-    toast.add({
-      severity: 'warn',
-      summary: 'Basic Info Required',
-      detail: 'Please complete and save Basic Info first.',
-      life: 3000
+// Toggle ticket status instantly with server update
+const toggleTicketStatus = async (ticket, index) => {
+  if (!ticket.ticket_type_id || !currentEventId.value || ticket.isUpdating) {
+    console.warn('⚠️ Toggle blocked:', { 
+      hasTicketId: !!ticket.ticket_type_id, 
+      hasEventId: !!currentEventId.value, 
+      isUpdating: ticket.isUpdating 
     })
     return
   }
-  tickets.value.push(createNewTicket())
-}
-
-// Edit ticket functionality (Agenda Pattern) - Load from server
-const editTicket = async (ticketTypeId, index) => {
-  if (!ticketTypeId || !currentEventId.value) return
   
-  loading.value = true
+  // Set updating state
+  ticket.isUpdating = true
+  
+  // Store original state for rollback
+  const originalState = ticket.is_active
+  
+  // Optimistically update UI
+  ticket.is_active = !ticket.is_active
+  
+  console.log(`🔄 Toggling ticket "${ticket.name}" from ${originalState} to ${ticket.is_active}`)
+  
   try {
+    // Prepare update data - ensure all required fields are included
+    const updateData = {
+      name: ticket.name || '',
+      price: parseFloat(ticket.price) || 0,
+      total: parseInt(ticket.quantity) || 1,
+      tag: ticket.description || ticket.tag || '',
+      sort_order: ticket.sort_order || (index + 1),
+      is_active: ticket.is_active ? 1 : 0, // Convert boolean to integer for API
+      is_private: parseInt(ticket.is_private) || 0
+    }
     
-    // FIXED: Use getTicketTypeDetails to get individual ticket data (like Agenda pattern)
-    const response = await getTicketTypeDetails(currentEventId.value, ticketTypeId)
     
-    if (response?.success && response?.data) {
-      const serverTicket = response.data
+    // Make API call to update ticket status
+    const response = await updateTicketType(currentEventId.value, ticket.ticket_type_id, updateData)
+    
+    
+    // Check for successful response (different API response formats)
+    const isSuccess = response && (
+      response.success === true || 
+      response.status === 'success' ||
+      (!response.error && response.status !== 'error')
+    )
+    
+    if (isSuccess) {
+      // Update successful - keep the new state
+      const statusText = ticket.is_active ? 'published' : 'made private'
       
-      // FIXED: Load fresh data from server with correct field mapping
-      tickets.value[index] = {
-        id: tickets.value[index].id, // Keep local ID
-        ticket_type_id: serverTicket.id,
-        name: serverTicket.name || '',
-        description: serverTicket.tag || '', // API uses 'tag' field
-        tag: serverTicket.tag || '',
-        price: parseFloat(serverTicket.price) || 0,
-        quantity: parseInt(serverTicket.inventory?.total || serverTicket.total) || 1, // FIXED: Use inventory.total
-        sort_order: serverTicket.sort_order || (index + 1),
-        is_active: serverTicket.is_active === undefined ? true : Boolean(serverTicket.is_active),
-        isEditing: true, // Mark as being edited
-        isValidating: false,
-        eventId: currentEventId.value
-      }
+      // Update tab store to persist the change
+      handleSaveCurrentTab()
       
-      toast.add({
-        severity: 'info',
-        summary: 'Edit Mode',
-        detail: `Now editing "${serverTicket.name}". Make your changes and click "Save Changes".`,
-        life: 4000
-      })
-      
-      // Scroll to the ticket form
-      const ticketElement = document.querySelector(`[data-ticket-index="${index}"]`)
-      if (ticketElement) {
-        ticketElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }
-      
-      // Mark as having unsaved changes
-      hasUnsavedChanges.value = true
+      // Show success feedback (optional)
+      showToast('success', 'Status Updated', `Ticket ${statusText} successfully`, 2000)
       
     } else {
-      throw new Error('Invalid response structure from server')
+      // Update failed - rollback to original state
+      ticket.is_active = originalState
+      console.error('❌ API returned unsuccessful response:', response)
+      throw new Error(response?.message || response?.error || 'Server returned unsuccessful response')
     }
     
   } catch (error) {
-    console.error('❌ Failed to load ticket for editing:', error)
+    console.error('❌ Failed to toggle ticket status:', error)
     
-    // Enhanced error handling
-    let errorMessage = 'Could not load ticket data for editing. Please try again.'
-    if (error.status === 404) {
-      errorMessage = 'Ticket not found on server. It may have been deleted.'
-    } else if (error.status === 403) {
-      errorMessage = 'You do not have permission to edit this ticket.'
-    } else if (error.message) {
-      errorMessage = error.message
+    // Rollback to original state
+    ticket.is_active = originalState
+    
+    // Show error toast
+    const actionText = originalState ? 'unpublish' : 'publish'
+    showToast('error', 'Update Failed', `Could not ${actionText} ticket. ${error.message || 'Please try again.'}`, 4000)
+    
+  } finally {
+    // Clear updating state
+    ticket.isUpdating = false
+  }
+}
+
+// Toggle ticket privacy status instantly with server update
+const toggleTicketPrivacy = async (ticket, index) => {
+  if (!ticket.ticket_type_id || !currentEventId.value || ticket.isUpdatingPrivacy) {
+    console.warn('⚠️ Privacy toggle blocked:', { 
+      hasTicketId: !!ticket.ticket_type_id, 
+      hasEventId: !!currentEventId.value, 
+      isUpdatingPrivacy: ticket.isUpdatingPrivacy 
+    })
+    return
+  }
+  
+  // Set updating state
+  ticket.isUpdatingPrivacy = true
+  
+  // Store original state for rollback
+  const originalPrivacyState = ticket.is_private
+  
+  // Optimistically update UI
+  ticket.is_private = ticket.is_private ? 0 : 1
+  
+  console.log(`🔄 Toggling ticket "${ticket.name}" privacy from ${originalPrivacyState} to ${ticket.is_private}`)
+  
+  try {
+    // Prepare update data - ensure all required fields are included
+    const updateData = {
+      name: ticket.name || '',
+      price: parseFloat(ticket.price) || 0,
+      total: parseInt(ticket.quantity) || 1,
+      tag: ticket.description || ticket.tag || '',
+      sort_order: ticket.sort_order || (index + 1),
+      is_active: ticket.is_active ? 1 : 0,
+      is_private: ticket.is_private
     }
     
-    toast.add({
-      severity: 'error',
-      summary: 'Edit Failed',
-      detail: errorMessage,
-      life: 4000
-    })
+    // Make API call to update ticket privacy status
+    const response = await updateTicketType(currentEventId.value, ticket.ticket_type_id, updateData)
+    
+    
+    // Check for successful response (different API response formats)
+    const isSuccess = response && (
+      response.success === true || 
+      response.status === 'success' ||
+      (!response.error && response.status !== 'error')
+    )
+    
+    if (isSuccess) {
+      // Update successful - keep the new state
+      const privacyText = ticket.is_private ? 'made private' : 'made public'
+      
+      // Update tab store to persist the change
+      handleSaveCurrentTab()
+      
+      // Show success feedback
+      showToast('success', 'Privacy Updated', `Ticket ${privacyText} successfully`, 2000)
+      
+    } else {
+      // Update failed - rollback to original state
+      ticket.is_private = originalPrivacyState
+      console.error('❌ Privacy API returned unsuccessful response:', response)
+      throw new Error(response?.message || response?.error || 'Server returned unsuccessful response')
+    }
+    
+  } catch (error) {
+    console.error('❌ Failed to toggle ticket privacy:', error)
+    
+    // Rollback to original state
+    ticket.is_private = originalPrivacyState
+    
+    // Show error toast
+    const actionText = originalPrivacyState ? 'make public' : 'make private'
+    showToast('error', 'Update Failed', `Could not ${actionText} ticket. ${error.message || 'Please try again.'}`, 4000)
+    
   } finally {
-    loading.value = false
+    // Clear updating state
+    ticket.isUpdatingPrivacy = false
   }
+}
+
+// Edit ticket functionality - Load into form
+const editTicket = async (ticketTypeId, index) => {
+  if (!ticketTypeId || !currentEventId.value) return
+  
+  const ticket = tickets.value[index]
+  if (!ticket) return
+  
+  // Populate form with ticket data
+  formData.value = {
+    name: ticket.name || '',
+    price: ticket.price || 0,
+    quantity: ticket.quantity || 1,
+    description: ticket.description || ticket.tag || '',
+    is_private: parseInt(ticket.is_private) || 0
+  }
+  
+  currentEditingTicket.value = ticket
+  
+  // Edit mode activated - no toast needed
 }
 
 // Delete ticket functionality (Agenda Pattern)
@@ -399,9 +716,9 @@ const deleteTicket = async (ticketTypeId, index) => {
   if (!ticketTypeId || !currentEventId.value) return
   
   const ticket = tickets.value[index]
-  const ticketName = ticket?.name || `Ticket ${index + 1}`
+  const ticketName = ticket?.name || 'Ticket ' + (index + 1)
   
-  if (!confirm(`Are you sure you want to delete "${ticketName}"? This action cannot be undone.`)) {
+  if (!confirm('Are you sure you want to delete "' + ticketName + '"? This action cannot be undone.')) {
     return
   }
   
@@ -423,12 +740,7 @@ const deleteTicket = async (ticketTypeId, index) => {
       // Remove from local array
       tickets.value.splice(index, 1)
       
-      toast.add({
-        severity: 'success',
-        summary: 'Ticket Deleted! 🗑️',
-        detail: `"${ticketName}" has been deleted successfully.`,
-        life: 3000
-      })
+      // Ticket deleted successfully - no toast needed
       
       // Reload tickets to get updated list
       await loadExistingTickets()
@@ -442,12 +754,7 @@ const deleteTicket = async (ticketTypeId, index) => {
     
   } catch (error) {
     console.error('❌ Failed to delete ticket:', error)
-    toast.add({
-      severity: 'error',
-      summary: 'Delete Failed',
-      detail: error.message || 'Could not delete ticket. Please try again.',
-      life: 4000
-    })
+    showToast('error', 'Delete Failed', error.message || 'Could not delete ticket. Please try again.', 4000)
   } finally {
     loading.value = false
   }
@@ -469,12 +776,7 @@ const removeTicket = (index) => {
   
   tickets.value.splice(index, 1)
   
-  toast.add({
-    severity: 'success',
-    summary: 'Ticket Removed',
-    detail: `"${ticketName}" has been removed successfully.`,
-    life: 3000
-  })
+  // Ticket removed successfully - no toast needed
   
   // Auto-save after removal
   handleSaveCurrentTab()
@@ -544,33 +846,18 @@ const saveTicketsInternal = async (mode = 'create') => {
   const tabsStore = useEventTabsStore()
 
   if (!currentEventId.value) {
-    toast.add({
-      severity: 'error',
-      summary: 'No Event',
-      detail: 'Please complete and save Basic Info first.',
-      life: 3000
-    })
+    showToast('error', 'No Event', 'Please complete and save Basic Info first.')
     return
   }
 
   if (tickets.value.length === 0) {
-    toast.add({
-      severity: 'warn',
-      summary: 'No Tickets',
-      detail: 'Please add at least one ticket package.',
-      life: 3000
-    })
+    showToast('warn', 'No Tickets', 'Please add at least one ticket package.')
     return
   }
 
-  // Show different confirmation for published events
+  // Show different confirmation for published events (only once)
   if (isEditMode.value && eventData.value?.is_published) {
-    toast.add({
-      severity: 'info',
-      summary: 'Updating Published Event',
-      detail: 'You are modifying tickets for a live event. Changes will be visible to users immediately.',
-      life: 4000
-    })
+    showToast('success', 'Tickets Saved', 'Your tickets has been saved successfully.', 4000)
   }
 
   // Enhanced ticket validation with better error detection
@@ -621,24 +908,6 @@ const saveTicketsInternal = async (mode = 'create') => {
   }
 
   if (invalidTickets.length > 0) {
-    const errorMessages = invalidTickets.map(ticket => {
-      const fieldNames = {
-        name: 'Ticket Name',
-        description: 'Description',
-        price: 'Price',
-        quantity: 'Quantity'
-      }
-      const readableErrors = ticket.errors.map(error => fieldNames[error] || error)
-      return `• ${ticket.ticketName || `Ticket ${ticket.ticketNumber}`}: ${readableErrors.join(', ')}`
-    })
-
-    // Show only one toast notification
-    toast.add({
-      severity: 'error',
-      summary: 'Validation Error',
-      detail: 'Please complete all required fields for all tickets before saving.',
-      life: 5000
-    })
 
     // Force re-render of validation states
     tickets.value = [...tickets.value.map((ticket, index) => ({
@@ -684,7 +953,8 @@ const saveTicketsInternal = async (mode = 'create') => {
             total: quantity,
             tag: description,
             sort_order: tickets.value.indexOf(ticket) + 1,
-            is_active: 1
+            is_active: 1,
+            is_private: parseInt(ticket.is_private) || 0
           }
         })
         
@@ -748,7 +1018,8 @@ const saveTicketsInternal = async (mode = 'create') => {
           total: quantity,
           tag: description,
           sort_order: tickets.value.indexOf(ticket) + 1,
-          is_active: 1
+          is_active: 1,
+          is_private: parseInt(ticket.is_private) || 0
         }
 
         const updatePromise = updateTicketType(currentEventId.value, ticket.ticket_type_id, ticketData)
@@ -782,12 +1053,7 @@ const saveTicketsInternal = async (mode = 'create') => {
       
       const createCount = ticketUpdates.filter(update => update.includes('Created:')).length
       
-      toast.add({
-        severity: 'success',
-        summary: `Created ${createCount} ticket${createCount > 1 ? 's' : ''}! 🎫`,
-        detail: `Successfully created ${createCount} new ticket(s). You can now edit individual tickets or add more.`,
-        life: 5000
-      })
+      // Tickets created successfully - no toast needed
       
     } else if (mode === 'update') {
       // After successful update, clear editing states and unsaved changes
@@ -798,12 +1064,7 @@ const saveTicketsInternal = async (mode = 'create') => {
       
       const updateCount = ticketUpdates.filter(update => update.includes('Updated:')).length
       
-      toast.add({
-        severity: 'success',
-        summary: 'Tickets Updated! 🎫',
-        detail: `Successfully updated ${updateCount} ticket(s).`,
-        life: 4000
-      })
+      // Tickets updated successfully - no toast needed
     }
 
     // Update stores with new ticket data
@@ -859,12 +1120,7 @@ const saveTicketsInternal = async (mode = 'create') => {
       }
     }
     
-    toast.add({
-      severity: 'error',
-      summary: errorSummary,
-      detail: errorMessage,
-      life: 5000
-    })
+    showToast('error', errorSummary, errorMessage, 5000)
   } finally {
     loading.value = false
   }
@@ -912,6 +1168,7 @@ const loadExistingTickets = async () => {
           quantity: parseInt(ticket.inventory?.total || ticket.total || ticket.quantity) || 1,
           sort_order: ticket.sort_order || (index + 1),
           is_active: ticket.is_active === undefined ? true : Boolean(ticket.is_active),
+          is_private: parseInt(ticket.is_private) || 0,
           isValidating: false,
           eventId: eventId // Ensure event ID is set
         }
@@ -924,24 +1181,14 @@ const loadExistingTickets = async () => {
       isEditMode.value = true
       
       
-      toast.add({
-        severity: 'success',
-        summary: 'Tickets Loaded',
-        detail: `Loaded ${existingTickets.length} existing ticket(s) for editing`,
-        life: 3000
-      })
+      // Tickets loaded successfully - no toast needed
     } else {
       hasExistingTickets.value = false
       tickets.value = []
       isEditMode.value = false
     }
   } catch (error) {
-    toast.add({
-      severity: 'error',
-      summary: 'Load Failed',
-      detail: error.message || 'Could not load existing tickets. You can create new ones.',
-      life: 4000
-    })
+    showToast('error', 'Load Failed', error.message || 'Could not load existing tickets. You can create new ones.', 4000)
     tickets.value = []
     hasExistingTickets.value = false
     isEditMode.value = false
@@ -1012,12 +1259,7 @@ onMounted(async () => {
     )
     
     if (!hasBasicInfo) {
-      toast.add({
-        severity: 'warn',
-        summary: 'Basic Info Required',
-        detail: 'Please complete and save Basic Info first.',
-        life: 3000
-      })
+      showToast('warn', 'Basic Info Required', 'Please complete and save Basic Info first.')
       return
     }
     
@@ -1130,6 +1372,70 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* Toggle Switch Styles */
+.toggle-checkbox {
+  right: 0;
+  border: 0;
+  top: 0;
+  z-index: 2;
+}
+
+.toggle-checkbox:checked {
+  @apply bg-purple-600 border-purple-600;
+  right: 0;
+}
+
+.toggle-checkbox:checked + .toggle-label {
+  @apply bg-purple-600;
+}
+
+.toggle-label {
+  display: block;
+  overflow: hidden;
+  cursor: pointer;
+  border: 0;
+  border-radius: 20px;
+  margin: 0;
+}
+
+.toggle-label:before {
+  content: "";
+  display: block;
+  width: 30px;
+  margin: 0;
+  background: #FFFFFF;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 16px;
+  border: 0;
+  border-radius: 20px;
+  transition: all 0.3s ease-in 0s;
+}
+
+.toggle-checkbox:checked + .toggle-label:before {
+  right: 0;
+}
+
+/* Form Styling */
+:deep(.p-inputtext),
+:deep(.p-inputnumber-input),
+:deep(.p-textarea) {
+  @apply border-gray-300 rounded-lg;
+  padding: 12px;
+}
+
+:deep(.p-inputnumber .p-inputnumber-input) {
+  @apply border-gray-300 rounded-lg;
+}
+
+:deep(.p-inputtext:focus),
+:deep(.p-inputnumber-input:focus),
+:deep(.p-textarea:focus) {
+  @apply border-purple-500 ring-1 ring-purple-200;
+  outline: none;
+}
+
 /* FIXED: Enhanced button styles for different workflow phases */
 .create-first-ticket-btn {
   @apply bg-gradient-to-r from-purple-600 to-indigo-600 text-white;
@@ -1244,5 +1550,45 @@ onUnmounted(() => {
 
 .delete-ticket-btn:hover {
   transform: scale(1.1) translateY(-1px);
+}
+
+/* Toggle Switch Styling */
+.toggle-checkbox:checked {
+  right: 0;
+  border-color: #8b5cf6;
+}
+
+.toggle-checkbox:checked + .toggle-label {
+  background-color: #8b5cf6;
+}
+
+.toggle-checkbox {
+  transition: all 0.3s ease;
+  top: 0;
+}
+
+.toggle-label {
+  transition: all 0.3s ease;
+}
+
+/* Form Input Styling */
+:deep(.p-inputtext),
+:deep(.p-inputnumber-input),
+:deep(.p-textarea) {
+  @apply border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent;
+}
+
+:deep(.p-inputnumber .p-inputnumber-input) {
+  @apply border-0;
+}
+
+/* Card hover effects */
+.ticket-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.ticket-card {
+  transition: all 0.2s ease-in-out;
 }
 </style>

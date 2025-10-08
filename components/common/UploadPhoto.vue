@@ -35,46 +35,36 @@
         <p v-if="dimensionsText" class="text-xs text-gray-400">*{{ dimensionsText }}</p>
       </div>
 
-      <!-- Existing Image Preview -->
-      <div v-if="props.existingImageUrl && !selectedFile" class="existing-image mt-4 p-3 bg-white rounded-lg border">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-sm font-medium text-gray-700">Current Image</span>
-          <Button
-            icon="pi pi-times"
-            text
-            rounded
-            size="small"
-            @click="removeExistingImage"
-            class="text-red-500 hover:text-red-600"
-            title="Remove current image"
-          />
-        </div>
-        <div class="existing-image-preview">
+      <!-- Image Preview (Existing or Selected) -->
+      <div v-if="(props.existingImageUrl && !selectedFile) || selectedFile" class="image-preview mt-4">
+        <!-- Preview Image Container -->
+        <div class="image-preview-container group">
           <img
-            :src="props.existingImageUrl"
-            :alt="props.label"
-            class="max-w-full max-h-32 object-contain rounded border"
+            :src="getImagePreviewUrl()"
+            :alt="getImageAltText()"
+            class="preview-image"
             @error="handleImageError"
+            @load="handleImageLoad"
           />
-        </div>
-      </div>
-
-      <!-- Selected File Preview -->
-      <div v-if="selectedFile" class="selected-file mt-4 p-3 bg-white rounded-lg border">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <i class="pi pi-file text-purple-500"></i>
-            <span class="text-sm font-medium">{{ selectedFile.name }}</span>
-            <span class="text-xs text-gray-500">({{ formatFileSize(selectedFile.size) }})</span>
+          
+          <!-- Remove Button Overlay -->
+          <div class="image-overlay">
+            <Button
+              icon="pi pi-times"
+              rounded
+              size="small"
+              @click="handleImageRemove"
+              class="remove-btn"
+              title="Remove image"
+            />
           </div>
-          <Button
-            icon="pi pi-times"
-            text
-            rounded
-            size="small"
-            @click="removeFile"
-            class="text-red-500 hover:text-red-600"
-          />
+          
+          <!-- Image Info Overlay -->
+          <div class="image-info-overlay" v-if="actualImageDimensions">
+            <span class="image-dimensions">
+              {{ actualImageDimensions }}
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -92,8 +82,12 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useToast } from 'primevue/usetoast'
 import Button from 'primevue/button'
+
+// Use toast for consistent notifications
+const toast = useToast()
 
 // Props
 const props = defineProps({
@@ -144,12 +138,49 @@ const props = defineProps({
 })
 
 // Emits
-const emit = defineEmits(['file-selected', 'file-removed', 'upload-error'])
+const emit = defineEmits(['file-selected', 'file-removed', 'upload-error', 'existing-image-removed'])
 
 // Reactive data
 const fileInput = ref(null)
 const selectedFile = ref(null)
+const selectedFilePreviewUrl = ref(null)
 const hasError = ref(false)
+const actualImageDimensions = ref('')
+
+// Banner resolution constants
+const BANNER_WIDTH = 1800
+const BANNER_HEIGHT = 1440
+const BANNER_ASPECT_RATIO = BANNER_WIDTH / BANNER_HEIGHT
+
+// Computed properties for preview styling
+const getImagePreviewUrl = () => {
+  if (selectedFile.value && selectedFilePreviewUrl.value) {
+    return selectedFilePreviewUrl.value
+  }
+  if (props.existingImageUrl) {
+    return props.existingImageUrl
+  }
+  return null
+}
+
+const getImageAltText = () => {
+  if (selectedFile.value) {
+    return selectedFile.value.name
+  }
+  return props.label || 'Preview image'
+}
+
+// Watch for selected file changes to create preview URL
+watch(selectedFile, (newFile) => {
+  if (selectedFilePreviewUrl.value) {
+    URL.revokeObjectURL(selectedFilePreviewUrl.value)
+    selectedFilePreviewUrl.value = null
+  }
+  
+  if (newFile && newFile instanceof File) {
+    selectedFilePreviewUrl.value = URL.createObjectURL(newFile)
+  }
+})
 
 // Methods
 const triggerFileInput = (event) => {
@@ -203,44 +234,137 @@ const validateAndProcessFile = (file) => {
   // Check file size
   if (file.size > props.maxSize) {
     hasError.value = true
-    emit('upload-error', {
+    const errorData = {
       type: 'size',
       message: `File size must be ${props.maxSizeText}`,
       file
+    }
+    
+    // Standard PrimeVue toast notification
+    toast.add({
+      severity: 'error',
+      summary: 'File Size Error',
+      detail: errorData.message,
+      life: 4000
     })
+    
+    emit('upload-error', errorData)
     return
   }
   
   // Check file type
   if (props.allowedTypes.length > 0 && !props.allowedTypes.includes(file.type)) {
     hasError.value = true
-    emit('upload-error', {
+    const errorData = {
       type: 'type',
-      message: 'Please select a valid file type',
+      message: 'Please select a valid image file (JPEG, PNG, GIF, or WebP)',
       file
+    }
+    
+    // Standard PrimeVue toast notification
+    toast.add({
+      severity: 'error',
+      summary: 'Invalid File Type',
+      detail: errorData.message,
+      life: 4000
     })
+    
+    emit('upload-error', errorData)
     return
   }
 
   selectedFile.value = file
+  
+  // Success notification
+  toast.add({
+    severity: 'success',
+    summary: 'File Selected',
+    detail: `${file.name} selected successfully`,
+    life: 3000
+  })
+  
   emit('file-selected', file)
 }
 
 const removeFile = () => {
+  if (selectedFilePreviewUrl.value) {
+    URL.revokeObjectURL(selectedFilePreviewUrl.value)
+    selectedFilePreviewUrl.value = null
+  }
+  
   selectedFile.value = null
+  actualImageDimensions.value = ''
+  
   if (fileInput.value) {
     fileInput.value.value = ''
   }
+  
+  // Standard PrimeVue toast notification
+  toast.add({
+    severity: 'info',
+    summary: 'File Removed',
+    detail: 'Selected image has been removed',
+    life: 2000
+  })
+  
   emit('file-removed')
 }
 
 const removeExistingImage = () => {
+  actualImageDimensions.value = ''
+  
+  // Standard PrimeVue toast notification  
+  toast.add({
+    severity: 'info',
+    summary: 'Image Removed',
+    detail: 'Current image has been removed',
+    life: 2000
+  })
+  
   emit('existing-image-removed')
 }
 
+const handleImageRemove = () => {
+  if (selectedFile.value) {
+    removeFile()
+  } else if (props.existingImageUrl) {
+    removeExistingImage()
+  }
+}
+
 const handleImageError = (event) => {
-  console.warn('Failed to load existing image:', props.existingImageUrl)
+  console.warn('Failed to load image:', props.existingImageUrl || selectedFilePreviewUrl.value)
   event.target.style.display = 'none'
+  
+  // Standard PrimeVue toast notification for image load error
+  toast.add({
+    severity: 'warn',
+    summary: 'Image Load Error',
+    detail: 'Failed to load the image. Please try uploading again.',
+    life: 3000
+  })
+}
+
+const handleImageLoad = (event) => {
+  const img = event.target
+  const naturalWidth = img.naturalWidth
+  const naturalHeight = img.naturalHeight
+  const aspectRatio = naturalWidth / naturalHeight
+  
+  actualImageDimensions.value = `${naturalWidth}×${naturalHeight}`
+  
+  // Add dimension validation info
+  if (naturalWidth === BANNER_WIDTH && naturalHeight === BANNER_HEIGHT) {
+    actualImageDimensions.value += ' ✓ Perfect'
+  } else if (Math.abs(aspectRatio - BANNER_ASPECT_RATIO) < 0.01) {
+    actualImageDimensions.value += ' ✓ Ratio'
+  } else {
+    actualImageDimensions.value += ' ⚠ Check'
+  }
+}
+
+const handleNewImageLoad = (event) => {
+  handleImageLoad(event)
 }
 
 const formatFileSize = (bytes) => {
@@ -250,6 +374,21 @@ const formatFileSize = (bytes) => {
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
+
+// Cleanup on unmount
+onMounted(() => {
+  // Cleanup any existing object URLs when component unmounts
+  const cleanup = () => {
+    if (selectedFilePreviewUrl.value) {
+      URL.revokeObjectURL(selectedFilePreviewUrl.value)
+    }
+  }
+  
+  // Add cleanup to beforeunload for safety
+  if (typeof window !== 'undefined') {
+    window.addEventListener('beforeunload', cleanup)
+  }
+})
 
 // Expose methods for parent components
 defineExpose({
@@ -309,6 +448,65 @@ defineExpose({
   @apply shadow-sm;
 }
 
+/* Image Preview Styles */
+.image-preview {
+  @apply mt-4;
+}
+
+.image-preview-container {
+  @apply relative rounded-lg border border-gray-200 overflow-hidden;
+  @apply bg-white shadow-sm;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.preview-image {
+  @apply w-full;
+  height: 200px;
+  object-fit: contain;
+  object-position: center;
+  transition: all 0.3s ease;
+}
+
+.image-overlay {
+  @apply absolute inset-0;
+  @apply bg-black bg-opacity-0 group-hover:bg-opacity-20;
+  @apply flex items-center justify-center;
+  @apply transition-all duration-200;
+  @apply opacity-0 group-hover:opacity-100;
+}
+
+.remove-btn {
+  @apply bg-red-500 text-white;
+  @apply hover:bg-red-600;
+  @apply shadow-lg;
+  @apply transform scale-90 group-hover:scale-100;
+  @apply transition-all duration-200;
+}
+
+.image-info-overlay {
+  @apply absolute bottom-2 left-2;
+  @apply opacity-0 group-hover:opacity-100;
+  @apply transition-opacity duration-200;
+}
+
+.image-dimensions {
+  @apply text-xs text-white bg-black bg-opacity-75 px-2 py-1 rounded;
+  @apply backdrop-blur-sm;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+/* Remove button styling */
+:deep(.remove-btn.p-button) {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+:deep(.remove-btn .p-button-icon) {
+  font-size: 1.2rem;
+}
+
 /* Ensure file input is properly hidden but accessible */
 input[type="file"] {
   position: absolute !important;
@@ -324,5 +522,33 @@ input[type="file"] {
 
 .browse-link {
   user-select: text;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .image-preview-container {
+    max-width: 100%;
+  }
+  
+  .preview-image {
+    height: 160px;
+  }
+}
+
+/* Hover effects for preview */
+.image-preview-container:hover .preview-image {
+  transform: scale(1.02);
+}
+
+/* Loading state for images */
+.preview-image {
+  background: linear-gradient(90deg, #f0f0f0 25%, transparent 25%), 
+              linear-gradient(#f0f0f0 50%, transparent 50%);
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
+}
+
+.preview-image[src]:not([src=""]) {
+  background: none;
 }
 </style>

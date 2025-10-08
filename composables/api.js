@@ -89,6 +89,65 @@ const normalizeApiUrl = (baseUrl, endpoint) => {
   return `${cleanBaseUrl}/${cleanEndpoint}`
 }
 
+
+// Refresh access token using refresh token
+export async function refreshAccessToken(refreshToken) {
+  const config = useRuntimeConfig()
+  const API_BASE_URL = config.public.apiBaseUrl
+
+  if (!API_BASE_URL) {
+    throw new Error('API base URL is not configured.')
+  }
+
+  if (!refreshToken) {
+    throw new Error('Refresh token is required')
+  }
+
+  try {
+    
+    // Create FormData to match the curl format: --form 'refresh_token="..."'
+    const formData = new FormData()
+    formData.append('refresh_token', refreshToken)
+
+    const refreshUrl = normalizeApiUrl(API_BASE_URL, 'refresh-token')
+    
+    const response = await $fetch(refreshUrl, {
+      method: 'POST',
+      body: formData,
+      // Don't include Authorization header for refresh token endpoint
+    })
+
+
+    // Validate response structure
+    if (!response || !response.tokens || !response.tokens.access_token) {
+      throw new Error('Invalid refresh response structure: missing tokens.access_token')
+    }
+
+    return {
+      success: true,
+      data: response
+    }
+
+  } catch (error) {
+    console.error('❌ Refresh token API error:', error)
+    
+    // Enhanced error handling for refresh token specific errors
+    if (error.status === 401) {
+      throw new Error('Refresh token has expired. Please login again.')
+    } else if (error.status === 422) {
+      throw new Error('Invalid refresh token format. Please login again.')
+    } else if (error.status === 429) {
+      throw new Error('Too many refresh attempts. Please wait a moment and try again.')
+    } else if (error.status === 500) {
+      throw new Error('Server error during token refresh. Please try again later.')
+    }
+    
+    // Don't expose technical details
+    throw new Error(error.message || 'Failed to refresh access token. Please login again.')
+  }
+}
+
+
 // Login API
 export async function login(identifier, password) {
   const config = useRuntimeConfig()
@@ -429,7 +488,7 @@ export async function createEvent(eventData, isDraft = true) {
     })
     
     // Add optional text fields if they have values
-    const optionalFields = ['map_url', 'company', 'organizer', 'online_link_meeting']
+    const optionalFields = ['map_url', 'company', 'organizer', 'online_link_meeting', 'chair_label']
     optionalFields.forEach(key => {
       if (eventData[key] !== null && eventData[key] !== undefined && eventData[key] !== '') {
         const value = eventData[key]?.trim()
@@ -438,6 +497,16 @@ export async function createEvent(eventData, isDraft = true) {
         }
       }
     })
+    
+    // Add tags array if provided
+    if (eventData.tags && Array.isArray(eventData.tags) && eventData.tags.length > 0) {
+      const filteredTags = eventData.tags.filter(tag => tag && tag.trim().length > 0)
+      if (filteredTags.length > 0) {
+        filteredTags.forEach((tag, index) => {
+          formData.append(`tags[${index}]`, tag.trim())
+        })
+      }
+    }
     
     // Handle chairs array - API expects individual FormData fields format
 if (eventData.chairs && Array.isArray(eventData.chairs)) {
@@ -838,6 +907,18 @@ export async function updateEvent(eventId, eventData) {
   }
   break;
 
+              case 'tags':
+                // Handle tags array
+                if (Array.isArray(value) && value.length > 0) {
+                  const filteredTags = value.filter(tag => tag && tag.trim().length > 0);
+                  if (filteredTags.length > 0) {
+                    filteredTags.forEach((tag, index) => {
+                      formData.append(`tags[${index}]`, tag.trim());
+                    });
+                  }
+                }
+                break;
+
               break;
               
             default:
@@ -985,13 +1066,23 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
       name: String(ticketData.name || '').trim(),
       price: parseFloat(ticketData.price || 0),
       total: parseInt(ticketData.total || ticketData.quantity || 0),
-      tag: String(ticketData.tag || ticketData.description || '').trim()
+      tag: String(ticketData.tag || ticketData.description || '').trim(),
+      is_active: ticketData.is_active !== undefined ? (ticketData.is_active ? 1 : 0) : 1,
+      is_private: ticketData.is_private !== undefined ? (ticketData.is_private ? 1 : 0) : 0
     }
 
     // Validate required fields
     if (!normalizedData.name) throw new Error('Ticket name is required')
     if (isNaN(normalizedData.price) || normalizedData.price < 0) throw new Error('Price must be 0 or greater')
     if (isNaN(normalizedData.total) || normalizedData.total < 1) throw new Error('Quantity must be at least 1')
+    
+    // Debug logging for is_private field
+    console.log('🔧 updateTicketType - Sending data:', {
+      name: normalizedData.name,
+      is_active: normalizedData.is_active,
+      is_private: normalizedData.is_private,
+      originalIsPrivate: ticketData.is_private
+    })
     
     // Use server proxy endpoint for ticket type update
     const headers = await createAuthHeaders()
@@ -1061,10 +1152,17 @@ export async function createTicketTypes(eventId, ticketTypesData) {
         total: total, // API expects 'total' not 'total_quantity'
         tag: description, // API expects 'tag' not 'description'
         sort_order: index + 1,
-        is_active: 1 // Send as integer, not boolean
+        is_active: 1, // Send as integer, not boolean
+        is_private: ticket.is_private !== undefined ? (ticket.is_private ? 1 : 0) : 0 // Ensure proper boolean to integer conversion
       }
     })
 
+    // Debug logging for is_private field in create
+    console.log('🔧 createTicketTypes - Sending tickets:', normalizedTickets.map(ticket => ({
+      name: ticket.name,
+      is_active: ticket.is_active,
+      is_private: ticket.is_private
+    })))
 
     // Wrap tickets in proper structure that API expects
     const requestBody = {
@@ -2054,10 +2152,12 @@ export async function getEventSettings(eventId) {
           ticket_transfer_deadline: null,
           terms_and_condition: '',
           special_instructions: '',
-          accept_cash_payment: 0,
+          is_accept_cash_payment: 0,
+          is_required_registration_before_checkin: 0,
           is_required_age_verification: 0,
           maximum_age: null,
-          required_identity_document: null
+          required_identity_document: [],
+          provide_special_assistance: []
         }
       }
     }
@@ -2094,30 +2194,50 @@ const normalizedData = {
   ticket_transfer_deadline: settingsData.ticket_transfer_deadline || null,
   terms_and_condition: settingsData.terms_and_condition || settingsData.termsAndConditions || '',
   special_instructions: settingsData.special_instructions || settingsData.specialInstructions || '',
+  is_accept_cash_payment: settingsData.is_accept_cash_payment !== undefined ? 
+    (settingsData.is_accept_cash_payment ? 1 : 0) : 
+    (settingsData.acceptCashPayment ? 1 : 0),
+  is_required_registration_before_checkin: settingsData.is_required_registration_before_checkin !== undefined ? 
+    (settingsData.is_required_registration_before_checkin ? 1 : 0) : 
+    (settingsData.requireRegistrationBeforeCheckin ? 1 : 0),
   is_required_age_verification: settingsData.is_required_age_verification !== undefined ? 
     (settingsData.is_required_age_verification ? 1 : 0) : 
     (settingsData.requireAgeVerification ? 1 : 0),
   maximum_age: settingsData.maximum_age || (settingsData.minimumAge ? parseInt(settingsData.minimumAge.replace(/\D/g, '')) : null)
 }
 
-// ✅ Fix required_identity_document handling here
+// ✅ Fix required_identity_document handling here - send as array
 if (Array.isArray(settingsData.required_identity_document)) {
   normalizedData.required_identity_document = settingsData.required_identity_document
     .filter(doc => ['driver_license', 'national_id_card', 'passport', 'student_card'].includes(doc))
-    .join(',')
 } else if (Array.isArray(settingsData.requiredIdentityDocuments)) {
   normalizedData.required_identity_document = settingsData.requiredIdentityDocuments
     .filter(doc => ['driver_license', 'national_id_card', 'passport', 'student_card'].includes(doc))
-    .join(',')
-} else if (typeof settingsData.required_identity_document === 'string') {
+} else if (typeof settingsData.required_identity_document === 'string' && settingsData.required_identity_document.trim()) {
+  // Handle comma-separated string input
   normalizedData.required_identity_document = settingsData.required_identity_document
+    .split(',')
+    .map(doc => doc.trim())
+    .filter(doc => ['driver_license', 'national_id_card', 'passport', 'student_card'].includes(doc))
 } else {
-  normalizedData.required_identity_document = ''
+  normalizedData.required_identity_document = []
 }
 
-// Remove field if empty string
-if (!normalizedData.required_identity_document) {
-  delete normalizedData.required_identity_document
+// ✅ Fix provide_special_assistance handling here - send as array
+if (Array.isArray(settingsData.provide_special_assistance)) {
+  normalizedData.provide_special_assistance = settingsData.provide_special_assistance
+    .filter(assistance => ['wheelchair', 'pregnancy', 'family_with_kids', 'disability'].includes(assistance))
+} else if (Array.isArray(settingsData.provideSpecialAssistance)) {
+  normalizedData.provide_special_assistance = settingsData.provideSpecialAssistance
+    .filter(assistance => ['wheelchair', 'pregnancy', 'family_with_kids', 'disability'].includes(assistance))
+} else if (typeof settingsData.provide_special_assistance === 'string' && settingsData.provide_special_assistance.trim()) {
+  // Handle comma-separated string input
+  normalizedData.provide_special_assistance = settingsData.provide_special_assistance
+    .split(',')
+    .map(assistance => assistance.trim())
+    .filter(assistance => ['wheelchair', 'pregnancy', 'family_with_kids', 'disability'].includes(assistance))
+} else {
+  normalizedData.provide_special_assistance = []
 }
 
     // Ensure maximum_age is null when age verification is disabled
@@ -2882,59 +3002,314 @@ export async function assignTicket(assignmentId, formData) {
   }
 }
 
-// Refresh access token using refresh token
-export async function refreshAccessToken(refreshToken) {
+// Fetch orders with pagination and filters
+export async function fetchOrders(params = {}) {
   const config = useRuntimeConfig()
-  const API_BASE_URL = config.public.apiBaseUrl
-
-  if (!API_BASE_URL) {
-    throw new Error('API base URL is not configured.')
-  }
-
-  if (!refreshToken) {
-    throw new Error('Refresh token is required')
-  }
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
 
   try {
-    
-    // Create FormData to match the curl format: --form 'refresh_token="..."'
-    const formData = new FormData()
-    formData.append('refresh_token', refreshToken)
-
-    const refreshUrl = normalizeApiUrl(API_BASE_URL, 'refresh-token')
-    
-    const response = await $fetch(refreshUrl, {
-      method: 'POST',
-      body: formData,
-      // Don't include Authorization header for refresh token endpoint
-    })
-
-
-    // Validate response structure
-    if (!response || !response.tokens || !response.tokens.access_token) {
-      throw new Error('Invalid refresh response structure: missing tokens.access_token')
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
     }
 
-    return {
-      success: true,
-      data: response
+    // Build query parameters
+    const queryParams = new URLSearchParams()
+    
+    // Default pagination
+    queryParams.append('per_page', params.per_page || '10')
+    queryParams.append('page', params.page || '1')
+    
+    // Optional filters
+    if (params.event_id) queryParams.append('event_id', params.event_id)
+    if (params.status) queryParams.append('status', params.status)
+    if (params.search) queryParams.append('search', params.search)
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/orders?${queryParams.toString()}`, {
+      method: 'GET',
+      headers
+    })
+
+    // Ensure consistent response structure
+    if (response && response.success) {
+      return {
+        success: true,
+        data: response.data || [],
+        pagination: response.pagination || null,
+        links: response.links || null,
+        meta: response.meta || null,
+        message: response.message || 'Orders retrieved successfully'
+      }
+    } else {
+      return {
+        success: false,
+        data: [],
+        message: 'No orders found'
+      }
     }
 
   } catch (error) {
-    console.error('❌ Refresh token API error:', error)
+    console.error('❌ Failed to fetch orders:', error)
     
-    // Enhanced error handling for refresh token specific errors
+    // Handle authentication errors
     if (error.status === 401) {
-      throw new Error('Refresh token has expired. Please login again.')
-    } else if (error.status === 422) {
-      throw new Error('Invalid refresh token format. Please login again.')
-    } else if (error.status === 429) {
-      throw new Error('Too many refresh attempts. Please wait a moment and try again.')
-    } else if (error.status === 500) {
-      throw new Error('Server error during token refresh. Please try again later.')
+      handleAuthRedirect()
+      throw new Error('Authentication required. Please log in again.')
     }
     
-    // Don't expose technical details
-    throw new Error(error.message || 'Failed to refresh access token. Please login again.')
+    if (error.status === 403) {
+      throw new Error('You do not have permission to access orders.')
+    }
+    
+    // Handle not found
+    if (error.status === 404) {
+      return {
+        success: false,
+        data: [],
+        message: 'No orders found matching your criteria.'
+      }
+    }
+    
+    // Don't expose technical details to users
+    let userMessage = 'Failed to load orders. Please try again.'
+    if (error.status >= 500) {
+      userMessage = 'Server error. Please try again later.'
+    }
+    
+    throw new Error(userMessage)
+  }
+}
+
+// Create order reservation (for customer booking)
+export async function createOrderReservation(orderData) {
+  const config = useRuntimeConfig()
+  // FIXED: Use the correct API endpoint for orders - dev-apiticket not dev-gateway
+  const API_BASE_URL = 'https://dev-apiticket.prestigealliance.co/api/v1'
+
+  if (!API_BASE_URL) {
+    throw new Error('API base URL is not configured')
+  }
+
+  if (!orderData) {
+    throw new Error('Order data is required')
+  }
+
+  // Validate required fields
+  if (!orderData.event_id) {
+    throw new Error('Event ID is required')
+  }
+
+  if (!orderData.ticket_types || !Array.isArray(orderData.ticket_types) || orderData.ticket_types.length === 0) {
+    throw new Error('At least one ticket type is required')
+  }
+
+  if (!orderData.payment_method) {
+    throw new Error('Payment method is required')
+  }
+
+  // Validate payment method is one of the allowed values
+  const allowedPaymentMethods = ['offline', 'abapay']
+  if (!allowedPaymentMethods.includes(orderData.payment_method)) {
+    throw new Error('Payment method must be either "offline" or "abapay"')
+  }
+
+  // Validate transaction ID for abapay
+  if (orderData.payment_method === 'abapay' && (!orderData.transaction_id || !orderData.transaction_id.toString().trim())) {
+    throw new Error('Transaction ID is required for ABA Pay payments')
+  }
+
+  // Ensure either phone_number or email is provided
+  if (!orderData.phone_number && !orderData.email) {
+    throw new Error('Either phone number or email is required')
+  }
+
+  if (!orderData.full_name) {
+    throw new Error('Full name is required')
+  }
+
+  try {
+    const payload = {
+      event_id: orderData.event_id, // CRITICAL: Include event_id
+      coupon: orderData.coupon || null,
+      ticket_types: orderData.ticket_types.map(ticket => ({
+        ticket_type_id: ticket.ticket_type_id,
+        quantity: ticket.quantity
+      })),
+      payment_method: orderData.payment_method,
+      phone_number: orderData.phone_number || null,
+      email: orderData.email || null,
+      full_name: orderData.full_name
+    }
+
+    // FIXED: Only include transaction_id field if payment method is abapay
+    if (orderData.payment_method === 'abapay') {
+      payload.transaction_id = orderData.transaction_id || null
+    }
+    // For offline payments, completely omit the transaction_id field
+
+    const response = await $fetch(`${API_BASE_URL}/orders/reserve`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }, // Don't include auth for public reservation
+      body: payload
+    })
+
+
+
+    return {
+      success: true,
+      data: response.data || response,
+      message: response.message || 'Order reservation created successfully',
+      order_id: response.data?.id || response.id
+    }
+  } catch (error) {
+    console.error('❌ Failed to create order reservation:', error)
+
+    // Handle authentication errors  
+    if (error.status === 401) {
+      throw new Error('Authentication required. Please log in again.')
+    }
+    
+    if (error.status === 403) {
+      throw new Error('You do not have permission to create orders.')
+    }
+    
+    // Handle validation errors
+    if (error.status === 422) {
+      let errorMessage = 'Invalid order data. Please check your information.'
+      
+      if (error.data?.errors) {
+        const validationErrors = []
+        Object.entries(error.data.errors).forEach(([field, messages]) => {
+          if (Array.isArray(messages)) {
+            validationErrors.push(`${field}: ${messages.join(', ')}`)
+          } else {
+            validationErrors.push(`${field}: ${messages}`)
+          }
+        })
+        errorMessage = `Validation failed:\n${validationErrors.join('\n')}`
+      } else if (error.data?.message) {
+        errorMessage = error.data.message
+      }
+      
+      throw new Error(errorMessage)
+    }
+    
+    // Handle not found
+    if (error.status === 404) {
+      throw new Error('Event or ticket type not found.')
+    }
+    
+    // Handle insufficient inventory
+    if (error.status === 400 && error.data?.message?.includes('insufficient')) {
+      throw new Error(error.data.message)
+    }
+
+    // Don't expose technical details to users
+    let userMessage = 'Failed to create order reservation. Please try again.'
+    if (error?.data?.message) {
+      userMessage = error.data.message
+    } else if (error?.message) {
+      userMessage = error.message
+    }
+    
+    if (error.status >= 500) {
+      userMessage = 'Server error. Please try again later.'
+    }
+    
+    throw new Error(userMessage)
+  }
+}
+
+// Update order status (for completing cash payments)
+export async function updateOrderStatus(orderId, status, paymentMethod = null, ticketTypes = null) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!orderId) {
+    throw new Error('Order ID is required')
+  }
+
+  if (!status) {
+    throw new Error('Status is required')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Authentication required')
+    }
+
+    const requestBody = {
+      status: status
+    }
+
+    if (paymentMethod) {
+      requestBody.payment_method = paymentMethod
+    }
+
+    if (ticketTypes && Array.isArray(ticketTypes) && ticketTypes.length > 0) {
+      requestBody.ticket_types = ticketTypes
+    }
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/orders/${orderId}/status`, {
+      method: 'PUT',
+      body: requestBody,
+      headers
+    })
+
+    return {
+      success: true,
+      data: response.data || response,
+      message: response.message || 'Order status updated successfully'
+    }
+
+  } catch (error) {
+    console.error('❌ Failed to update order status:', error)
+    
+    // Handle authentication errors
+    if (error.status === 401) {
+      handleAuthRedirect()
+      throw new Error('Authentication required. Please log in again.')
+    }
+    
+    if (error.status === 403) {
+      throw new Error('You do not have permission to update this order.')
+    }
+    
+    // Handle validation errors
+    if (error.status === 422) {
+      let errorMessage = 'Invalid status data. Please try again.'
+      
+      if (error.data?.errors) {
+        const validationErrors = []
+        Object.entries(error.data.errors).forEach(([field, messages]) => {
+          if (Array.isArray(messages)) {
+            validationErrors.push(`${field}: ${messages.join(', ')}`)
+          } else {
+            validationErrors.push(`${field}: ${messages}`)
+          }
+        })
+        errorMessage = `Validation failed:\n${validationErrors.join('\n')}`
+      } else if (error.data?.message) {
+        errorMessage = error.data.message
+      }
+      
+      throw new Error(errorMessage)
+    }
+    
+    // Handle not found
+    if (error.status === 404) {
+      throw new Error('Order not found.')
+    }
+    
+    // Don't expose technical details to users
+    let userMessage = 'Failed to update order status. Please try again.'
+    if (error.status >= 500) {
+      userMessage = 'Server error. Please try again later.'
+    }
+    
+    throw new Error(userMessage)
   }
 }

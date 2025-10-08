@@ -88,6 +88,11 @@ export const useEventStore = defineStore('event', () => {
       settings: data.settings || null,
       ticket_types: data.ticket_types || [],
       
+      // New Fields - tags and chair_label
+      tags: data.tags || null,
+      chair_label: data.chair_label || data.label_title || null,
+      label_title: data.label_title || data.chair_label || null, // backward compatibility
+      
       // Keep ALL other fields from the original data
       ...data
     }

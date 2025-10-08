@@ -1,15 +1,14 @@
 export default defineNuxtPlugin(async (nuxtApp) => {
-
   
   try {
     // Import useAuth from the composables
-    const { initAuth, getToken, isTokenExpired, getTimeUntilExpiry } = useAuth();
+    const { initAuth, shouldRefreshToken, refreshToken, clearAuth, isTokenExpired, getToken } = useAuth()
     
     // Initialize auth state
     initAuth();
     
     // Verify auth state
-    const token = getToken();
+    const token = getToken(); // Now properly imported
     if (token) {
       
       // Start token monitoring for production
@@ -26,72 +25,65 @@ export default defineNuxtPlugin(async (nuxtApp) => {
   }
 });
 
-// Enhanced token monitoring with 24-hour sessions - production optimized
 function startTokenMonitoring() {
-  let tokenCheckInterval: NodeJS.Timeout | null = null;
-  let userWarned = false;
-  
-  // Check token every 60 minutes for production stability (less aggressive)
-  const checkIntervalMs = process.env.NODE_ENV === 'production' ? 60 * 60 * 1000 : 30 * 60 * 1000;
-  
-  tokenCheckInterval = setInterval(() => {
-    const { getTimeUntilExpiry, isTokenExpired, clearAuth } = useAuth();
-    
+  let tokenCheckInterval: NodeJS.Timeout | null = null
+  let userWarned = false
+
+  const checkIntervalMs =
+    process.env.NODE_ENV === 'production' ? 60 * 60 * 1000 : 10 * 60 * 1000 // Reduced dev interval from 30min to 10min
+
+  tokenCheckInterval = setInterval(async () => {
+    const { getTimeUntilExpiry, isTokenExpired, shouldRefreshToken, refreshToken, clearAuth } = useAuth()
+
     try {
+      // Case 1: Token already expired → try refresh immediately
       if (isTokenExpired()) {
-        clearAuth();
-        if (tokenCheckInterval) {
-          clearInterval(tokenCheckInterval);
+        const refreshed = await refreshToken()
+        if (!refreshed) {
+          clearAuth()
+          if (tokenCheckInterval) clearInterval(tokenCheckInterval)
+          navigateTo('/login?session_expired=true&reason=token_expired')
         }
-        
-        // Redirect to login with helpful message
-        navigateTo('/login?session_expired=true&reason=token_expired');
-        return;
+        return
       }
-      
-      const timeUntilExpiry = getTimeUntilExpiry();
+
+      // Case 2: Token close to expiry → refresh proactively
+      if (shouldRefreshToken()) {
+        console.log('🔄 Token expiring soon, attempting refresh...')
+        const refreshed = await refreshToken()
+        if (!refreshed) {
+          clearAuth()
+          if (tokenCheckInterval) clearInterval(tokenCheckInterval)
+          navigateTo('/login?session_expired=true&reason=refresh_failed')
+          return
+        }
+      }
+
+      // Case 3: Just show warnings
+      const timeUntilExpiry = getTimeUntilExpiry()
       if (timeUntilExpiry) {
-        const hoursLeft = Math.floor(timeUntilExpiry / (60 * 60 * 1000));
-        const minutesLeft = Math.floor((timeUntilExpiry % (60 * 60 * 1000)) / (60 * 1000));
-        
-        // Show warning when 3 hours or less remain (more conservative for production)
+        const hoursLeft = Math.floor(timeUntilExpiry / (60 * 60 * 1000))
+        const minutesLeft = Math.floor(
+          (timeUntilExpiry % (60 * 60 * 1000)) / (60 * 1000)
+        )
+
         if (hoursLeft <= 3 && !userWarned) {
-          userWarned = true;
-          console.warn(`⚠️ Token expires in: ${hoursLeft} hours, ${minutesLeft} minutes`);
-          
-          // Show user-friendly notification only for very short time remaining
-          if (hoursLeft <= 1) {
-            showExpirationWarning(hoursLeft, minutesLeft);
-          }
-        }
-        
-        // Force logout when 30 minutes or less remains (more generous)
-        if (hoursLeft === 0 && minutesLeft <= 30) {
-          clearAuth();
-          if (tokenCheckInterval) {
-            clearInterval(tokenCheckInterval);
-          }
-          
-          // Redirect with specific message
-          navigateTo('/login?session_expired=true&reason=about_to_expire');
+          userWarned = true
+          console.warn(`⚠️ Token expires in: ${hoursLeft}h ${minutesLeft}m`)
         }
       }
-      
     } catch (error) {
-      console.error('❌ Token monitoring error:', error);
-      // Don't clear auth on monitoring errors - could be temporary network issues
+      console.error('❌ Token monitoring error:', error)
     }
-  }, checkIntervalMs);
-  
-  // Cleanup on page unload
+  }, checkIntervalMs)
+
   if (typeof window !== 'undefined') {
     window.addEventListener('beforeunload', () => {
-      if (tokenCheckInterval) {
-        clearInterval(tokenCheckInterval);
-      }
-    });
+      if (tokenCheckInterval) clearInterval(tokenCheckInterval)
+    })
   }
 }
+
 
 // Show user-friendly expiration warning for 24-hour sessions
 function showExpirationWarning(hoursLeft: number, minutesLeft: number = 0) {
