@@ -42,6 +42,7 @@
 
     <!-- PrimeVue Toast -->
     <Toast />
+    
   </div>
 </template>
 
@@ -54,6 +55,8 @@ const pending = ref(false)
 
 // Mobile menu state
 const isMobileMenuOpen = ref(false)
+
+
 
 // Listen to route changes
 const nuxtApp = useNuxtApp()

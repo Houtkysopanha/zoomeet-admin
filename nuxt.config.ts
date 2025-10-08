@@ -104,18 +104,28 @@ export default defineNuxtConfig({
   ssr: true,
    runtimeConfig: {
     public: {
+      // Gateway API (for authentication, general operations)
       apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL ||
         (process.env.NODE_ENV === 'production'
-          ? 'https://dev-gateway.prestigealliance.co/api/v1'
-          : 'https://gateway.etickets.asia/api/v1'),
+          ? 'https://gateway.etickets.asia/api/v1'
+          : 'https://dev-gateway.prestigealliance.co/api/v1'),
+      
+      // Admin API (for admin operations)
       apiAdminBaseUrl: process.env.NUXT_PUBLIC_API_ADMIN_BASE_URL ||
         (process.env.NODE_ENV === 'production'
-          ? 'https://dev-apiticket.prestigealliance.co/api/v1/admin'
-          : 'https://api-ticket.etickets.asia/api/v1/admin'),
+          ? 'https://api-ticket.etickets.asia/api/v1/admin'
+          : 'https://dev-apiticket.prestigealliance.co/api/v1/admin'),
+      
+      // Ticket API (for ticket operations, booking, orders)
+      apiTicketBaseUrl: process.env.NUXT_PUBLIC_API_TICKET_BASE_URL ||
+        (process.env.NODE_ENV === 'production'
+          ? 'https://api-ticket.etickets.asia/api/v1'
+          : 'https://dev-apiticket.prestigealliance.co/api/v1'),
+      
       appName: process.env.NUXT_PUBLIC_APP_NAME ||
         (process.env.NODE_ENV === 'production'
-          ? 'eTicketsAsia (Dev)'
-          : 'eTicketsAsia'),
+          ? 'eTicketsAsia'
+          : 'eTicketsAsia (Dev)'),
       appVersion: process.env.NUXT_PUBLIC_APP_VERSION || '1.0.0',
       environment: process.env.NODE_ENV || 'production',
       //firebase

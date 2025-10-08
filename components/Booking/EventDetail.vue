@@ -393,6 +393,8 @@
           </div>
         </div>
 
+
+
         <!-- Footer Button -->
         <Button
           :label="
@@ -645,7 +647,6 @@ watch(
         ticketsLoading.value = false;
       }
     } else {
-      console.log("⚠️ No event ID provided, clearing tickets");
       tickets.value = [];
       organizers.value = [];
       promotions.value = [];
@@ -784,21 +785,75 @@ const getCustomerContact = () => {
 };
 
 // Get booking name - prioritize authenticated user's name over manual input
-const getBookingName = () => {
-  // 1. First priority: Use authenticated user's name from existingUserData (when user found)
+const getBookingName = () => {;
+
+  // 1. First priority: Use authenticated user's name from existingUserData (when user ALREADY EXISTS)
   if (props.existingUserData?.fullName || props.existingUserData?.full_name || props.existingUserData?.name) {
     const authenticatedName = props.existingUserData.fullName || props.existingUserData.full_name || props.existingUserData.name;
-
     return authenticatedName;
   }
   
   // 2. Second priority: If we have a customer ID but no existingUserData, 
-  //    this means account was just created - use customerInfo populated during registration
-  if (props.currentCustomerId && props.customerInfo?.fullName) {
-    return props.customerInfo.fullName;
+  //    this means account was just CREATED - construct from firstName + lastName (NOT fullName field)
+  if (props.currentCustomerId && props.customerInfo) {
+    
+    // For NEW USERS: ALWAYS construct from firstName + lastName (ignore fullName field)
+    const firstName = props.customerInfo.firstName || props.customerInfo.first_name || '';
+    const lastName = props.customerInfo.lastName || props.customerInfo.last_name || '';
+    
+    
+    if (firstName && lastName) {
+      const constructedName = `${firstName} ${lastName}`.trim();
+
+      return constructedName;
+    }
+    
+    // If only one name is available
+    if (firstName || lastName) {
+      const constructedName = `${firstName} ${lastName}`.trim();
+
+      return constructedName;
+    }
+    
+    // Fallback to name field if firstName/lastName not available
+    if (props.customerInfo.name) {
+
+      return props.customerInfo.name;
+    }
+    
+    // Last fallback to fullName for new users (should not be used normally)
+    if (props.customerInfo.fullName) {
+      console.log('⚠️ NEW USER Using fullName fallback (unexpected):', props.customerInfo.fullName);
+      return props.customerInfo.fullName;
+    }
   }
   
-  // 3. No authenticated user - return null to show warning
+  // 3. Third priority: Manual entry case (no customer ID, but has customerInfo)
+  if (props.customerInfo && !props.currentCustomerId) {
+    // For manual entry, also prioritize firstName + lastName construction
+    const firstName = props.customerInfo.firstName || props.customerInfo.first_name || '';
+    const lastName = props.customerInfo.lastName || props.customerInfo.last_name || '';
+    
+    if (firstName || lastName) {
+      const constructedName = `${firstName} ${lastName}`.trim();
+
+      return constructedName;
+    }
+    
+    // Fallback to fullName for manual entry
+    if (props.customerInfo.fullName) {
+
+      return props.customerInfo.fullName;
+    }
+    
+    // Fallback to name field if available
+    if (props.customerInfo.name) {
+
+      return props.customerInfo.name;
+    }
+  }
+  
+  // 4. No authenticated user - return null to show warning
   console.log('⚠️ No authenticated user name available for booking');
   return null;
 };
@@ -813,6 +868,14 @@ const handleCompleteBooking = () => {
         // Promotion display info kept but no application logic
         promotionInfo: getPromotionDisplay(ticket),
       })),
+    customer: {
+      // Include the constructed full name for reservation
+      fullName: getBookingName(),
+      contact: getCustomerContact(),
+      customerId: props.currentCustomerId,
+      customerInfo: props.customerInfo,
+      existingUserData: props.existingUserData,
+    },
     paymentSummary: {
       subtotal: subtotal.value,
       discount: discount.value,

@@ -1,53 +1,79 @@
 // Auto-imported by Nuxt: useRuntimeConfig, $fetch
 import axios from 'axios'
-const getAuthToken = () => {
+// Get fresh auth token with automatic refresh
+const getAuthToken = async () => {
   try {
-    const { getToken, isTokenExpired, clearAuth } = useAuth()
+    const auth = useAuth()
+    const { 
+      getToken, 
+      getRefreshToken,
+      isTokenExpired, 
+      isRefreshTokenExpired,
+      shouldRefreshToken, 
+      refreshToken, 
+      clearAuth,
+      isRefreshing 
+    } = auth
+
     let token = getToken()
 
-    // If expired, clear and return null
-    if (token && isTokenExpired()) {
-      console.warn('⚠️ Attempted to use expired token, clearing auth...')
+    // If no token exists, return null
+    if (!token) {
+      console.log('❌ No access token found')
+      return null
+    }
+
+    // Check if refresh token is expired first
+    if (isRefreshTokenExpired()) {
+      console.log('❌ Refresh token expired, clearing auth')
       clearAuth()
       return null
     }
 
-    // If no token from composable, try storage fallback
-    if (!token && process.client) {
-      let stored = localStorage.getItem('auth')
-      if (stored) {
-        try {
-          const authData = JSON.parse(stored)
-          token = authData?.token
-        } catch (e) {}
+    // If token is expired, try to refresh it
+    if (isTokenExpired()) {
+      
+      // Check if we have refresh token
+      const refreshTokenValue = getRefreshToken()
+      if (!refreshTokenValue) {
+        console.log('❌ No refresh token available')
+        clearAuth()
+        return null
       }
-
-      if (!token) {
-        let sessionStored = sessionStorage.getItem('auth')
-        if (sessionStored) {
-          try {
-            const authData = JSON.parse(sessionStored)
-            token = authData?.token
-          } catch (e) {}
-        }
-      }
-
-      // Extra safety: check again
-      if (token && isTokenExpired()) {
-        console.warn('⚠️ Fallback token is expired, clearing auth...')
+      
+      const refreshSuccess = await refreshToken()
+      if (refreshSuccess) {
+        token = getToken()
+      } else {
+        console.error('❌ Token refresh failed in API layer, clearing auth')
         clearAuth()
         return null
       }
     }
+    // If token expires soon and not already refreshing, proactively refresh
+    else if (shouldRefreshToken() && !isRefreshing.value) {
+      console.log('⚠️ Token expires soon, proactively refreshing in API layer...')
+      
+      // For proactive refresh, don't wait - let it happen in background
+      refreshToken().then(success => {
+        if (success) {
+        } else {
+          console.warn('⚠️ Proactive token refresh failed in API layer')
+        }
+      }).catch(error => {
+        console.error('❌ Proactive token refresh error in API layer:', error)
+      })
+    }
 
-    return token || null
+    return token
   } catch (error) {
+    console.error('❌ Error getting auth token:', error)
     return null
   }
 }
 
 
-// Create authenticated fetch headers
+// Create authenticated fetch headers with automatic token refresh
 const createAuthHeaders = async (includeContentType = true) => {
   const headers = {}
 
@@ -55,11 +81,11 @@ const createAuthHeaders = async (includeContentType = true) => {
     headers['Content-Type'] = 'application/json'
   }
 
-  const token = getAuthToken()
+  const token = await getAuthToken()
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
   } else {
-    console.error('❌ No token found, redirecting to login')
+    console.error('❌ No valid token available, redirecting to login')
     handleAuthRedirect()
     return null
   }
@@ -118,14 +144,42 @@ export async function refreshAccessToken(refreshToken) {
     })
 
 
-    // Validate response structure
-    if (!response || !response.tokens || !response.tokens.access_token) {
-      throw new Error('Invalid refresh response structure: missing tokens.access_token')
+    // Debug the actual response structure
+
+    // Handle different possible response structures
+    let tokens = null
+    
+    if (response && response.tokens) {
+      // Structure: { tokens: { access_token: "...", refresh_token: "..." } }
+      tokens = response.tokens
+    } else if (response && response.access_token) {
+      // Structure: { access_token: "...", refresh_token: "..." }  
+      tokens = response
+    } else if (response && response.data && response.data.tokens) {
+      // Structure: { data: { tokens: { access_token: "..." } } }
+      tokens = response.data.tokens
+    } else if (response && response.data && response.data.access_token) {
+      // Structure: { data: { access_token: "..." } }
+      tokens = response.data
+    }
+
+    if (!tokens || !tokens.access_token) {
+      console.error('❌ Invalid refresh response structure:', {
+        hasResponse: !!response,
+        hasTokens: !!(response && response.tokens),
+        hasAccessToken: !!(response && response.tokens && response.tokens.access_token),
+        hasDirectAccessToken: !!(response && response.access_token),
+        responseKeys: response ? Object.keys(response) : [],
+        actualResponse: response
+      })
+      throw new Error('Invalid refresh response structure: missing access_token')
     }
 
     return {
       success: true,
-      data: response
+      data: {
+        tokens: tokens
+      }
     }
 
   } catch (error) {
@@ -1076,13 +1130,6 @@ export async function updateTicketType(eventId, ticketTypeId, ticketData) {
     if (isNaN(normalizedData.price) || normalizedData.price < 0) throw new Error('Price must be 0 or greater')
     if (isNaN(normalizedData.total) || normalizedData.total < 1) throw new Error('Quantity must be at least 1')
     
-    // Debug logging for is_private field
-    console.log('🔧 updateTicketType - Sending data:', {
-      name: normalizedData.name,
-      is_active: normalizedData.is_active,
-      is_private: normalizedData.is_private,
-      originalIsPrivate: ticketData.is_private
-    })
     
     // Use server proxy endpoint for ticket type update
     const headers = await createAuthHeaders()
@@ -3088,9 +3135,8 @@ export async function fetchOrders(params = {}) {
 // Create order reservation (for customer booking)
 export async function createOrderReservation(orderData) {
   const config = useRuntimeConfig()
-  // FIXED: Use the correct API endpoint for orders - dev-apiticket not dev-gateway
-  const API_BASE_URL = 'https://dev-apiticket.prestigealliance.co/api/v1'
-
+  // Use the ticket API endpoint for order operations
+  const API_BASE_URL = config.public.apiTicketBaseUrl
   if (!API_BASE_URL) {
     throw new Error('API base URL is not configured')
   }
@@ -3181,11 +3227,12 @@ export async function createOrderReservation(orderData) {
     }
     // For offline payments, completely omit the transaction_id field
 
+    // Try to include authentication headers - API now requires auth
+    const headers = await createAuthHeaders()
+    
     const response = await $fetch(`${API_BASE_URL}/orders/reserve`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      }, // Don't include auth for public reservation
+      headers: headers,
       body: payload
     })
 
@@ -3398,6 +3445,156 @@ export async function checkCustomerExists(identifier, loginType = 'phone') {
   }
 }
 
+// Reset password for existing customer
+export async function resetPassword(identifier, newPassword, confirmPassword) {
+  const config = useRuntimeConfig()
+  // Use the gateway API endpoint for authentication operations
+  const API_BASE_URL = config.public.apiBaseUrl
+
+  if (!API_BASE_URL) {
+    throw new Error('API base URL is not configured')
+  }
+
+  if (!identifier) {
+    throw new Error('Identifier is required')
+  }
+
+  if (!newPassword) {
+    throw new Error('New password is required')
+  }
+
+  if (!confirmPassword) {
+    throw new Error('Password confirmation is required')
+  }
+
+  if (newPassword !== confirmPassword) {
+    throw new Error('Passwords do not match')
+  }
+
+  if (newPassword.length < 8) {
+    throw new Error('Password must be at least 8 characters long')
+  }
+
+  try {
+    const url = normalizeApiUrl(API_BASE_URL, '/reset-password')
+    
+    // Create form data as expected by the API
+    const formData = new FormData()
+    formData.append('identifier', identifier)
+    formData.append('new_password', newPassword)
+    formData.append('new_password_confirmation', confirmPassword)
+    const response = await $fetch(url, {
+      method: 'POST',
+      body: formData
+    })
+
+    return {
+      success: true,
+      message: response.message || 'Password reset successfully',
+      data: response.data || null
+    }
+
+  } catch (error) {
+    console.error('❌ Reset password failed:', error)
+
+    // Handle different error types
+    if (error.response?.status === 404) {
+      throw new Error('Customer not found')
+    } else if (error.response?.status === 422) {
+      const validationErrors = error.response.data?.errors || {}
+      const errorMessages = Object.values(validationErrors).flat()
+      throw new Error(errorMessages.join(', ') || 'Validation failed')
+    } else if (error.response?.status === 400) {
+      throw new Error(error.response.data?.message || 'Invalid request')
+    } else {
+      throw new Error(error.response?.data?.message || error.message || 'Reset password failed')
+    }
+  }
+}
+
+// Reset password with authentication token (for authenticated reset flow)
+export async function resetPasswordWithToken(identifier, newPassword, confirmPassword, idToken) {
+  const config = useRuntimeConfig()
+  // Use the gateway API endpoint for authentication operations
+  const API_BASE_URL = config.public.apiBaseUrl
+
+  if (!API_BASE_URL) {
+    throw new Error('API base URL is not configured')
+  }
+
+  if (!identifier) {
+    throw new Error('Identifier is required')
+  }
+
+  if (!newPassword) {
+    throw new Error('New password is required')
+  }
+
+  if (!confirmPassword) {
+    throw new Error('Password confirmation is required')
+  }
+
+  if (!idToken) {
+    throw new Error('Authentication token is required')
+  }
+
+  if (newPassword !== confirmPassword) {
+    throw new Error('Passwords do not match')
+  }
+
+  if (newPassword.length < 8) {
+    throw new Error('Password must be at least 8 characters long')
+  }
+
+  try {
+    const url = normalizeApiUrl(API_BASE_URL, '/reset-password')
+    
+    // Create form data as expected by the API
+    const formData = new FormData()
+    formData.append('identifier', identifier)
+    formData.append('new_password', newPassword)
+    formData.append('new_password_confirmation', confirmPassword)
+
+
+    const response = await $fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${idToken}`
+      },
+      body: formData
+    })
+
+
+    return {
+      success: true,
+      message: response.message || 'Password reset successfully',
+      data: response.data || null
+    }
+
+  } catch (error) {
+    console.error('❌ Authenticated reset password failed:', error)
+
+    // Handle different error types
+    if (error.response?.status === 404) {
+      throw new Error('Customer not found')
+    } else if (error.response?.status === 401) {
+      throw new Error('Authentication failed. Please verify your identity again.')
+    } else if (error.response?.status === 400) {
+      const message = error.response?.data?.message || error.data?.message || 'Invalid request'
+      throw new Error(message)
+    } else if (error.response?.status === 422) {
+      const errors = error.response?.data?.errors || error.data?.errors
+      if (errors) {
+        const firstError = Object.values(errors)[0]
+        throw new Error(Array.isArray(firstError) ? firstError[0] : firstError)
+      }
+      throw new Error('Validation failed')
+    }
+
+    throw new Error(error.message || 'Reset password failed. Please try again.')
+  }
+}
+
 // Update order status (for completing cash payments)
 export async function updateOrderStatus(orderId, status, paymentMethod = null, ticketTypes = null, remark = null) {
   const config = useRuntimeConfig()
@@ -3439,12 +3636,6 @@ export async function updateOrderStatus(orderId, status, paymentMethod = null, t
     } else {
       requestBody.remark = 'payment processed'
     }
-
-    console.log('Updating order status with payload:', {
-      orderId,
-      requestBody,
-      endpoint: `${API_ADMIN_BASE_URL}/orders/${orderId}/status`
-    })
 
     const response = await $fetch(`${API_ADMIN_BASE_URL}/orders/${orderId}/status`, {
       method: 'PUT',

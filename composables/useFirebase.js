@@ -151,7 +151,6 @@ export default function useFirebase() {
       
       return { success: true, data: response }
     } catch (err) {
-      console.error('Registration error:', err)
       
       // Handle 409 conflict (user already exists)
       if (err.status === 409) {
