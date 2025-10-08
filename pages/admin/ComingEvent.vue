@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-[#F8F8FF] border border-gray-200 rounded-2xl shadow-sm p-4 sm:p-6 max-w-4xl mx-auto h-[calc(80vh-8rem)] overflow-hidden flex flex-col">
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-200  p-4 sm:p-6 max-w-4xl mx-auto h-[calc(80vh-8rem)] overflow-hidden flex flex-col">
     <!-- Header -->
     <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-4 sm:mb-6">Upcoming events</h2>
 

@@ -57,7 +57,6 @@
                 });
 
                 resultDiv.innerHTML = 'Sending OTP...';
-                console.log('📞 Testing Firebase OTP for:', phoneNumber);
                 
                 const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, window.recaptchaVerifier);
                 

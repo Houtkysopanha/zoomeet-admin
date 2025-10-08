@@ -6,12 +6,33 @@
     </p>
 
     <div class="">
-      <!-- Registration Deadline and Refund Policy Row -->
+      <!-- Refund Policy Row -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-2"
-            >Ticket transfer deadline</label
+            >Refund Policy</label
           >
+          <Dropdown
+            v-model="settings.refundPolicyOption"
+            :options="refundPolicyOptions"
+            placeholder="Select policy"
+            class="w-full"
+          />
+        </div>
+        <div>
+         <!-- Allow Ticket Transfer Deadline -->
+      <div class="mb-4">
+        <div class="flex items-center mb-1">
+          <Checkbox
+            v-model="settings.allowTicketTransfer"
+            :binary="true"
+            inputId="allowTicketTransfer"
+          />
+          <label for="allowTicketTransfer" class="ml-2 font-medium text-gray-700">
+            Allow ticket transfer deadline
+          </label>
+        </div>
+        <div v-if="settings.allowTicketTransfer">
           <Calendar
             v-model="settings.ticketTransferDeadline"
             showIcon
@@ -21,16 +42,7 @@
             dateFormat="dd/mm/yy"
           />
         </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2"
-            >Refund Policy</label
-          >
-          <Dropdown
-            v-model="settings.refundPolicyOption"
-            :options="refundPolicyOptions"
-            placeholder="Select Refund policy"
-            class="w-full"
-          />
+      </div>
         </div>
       </div>
 
@@ -87,33 +99,32 @@
           </div>
         </div>
       </div>
-      <!-- Terms and Conditions -->
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-700 mb-2"
-          >Terms and Conditions</label
-        >
-        <Textarea
-          v-model="settings.termsAndConditions"
-          class="w-full p-3 bg-gray-100 rounded-2xl"
-          placeholder="Enter terms and conditions for attendees..."
-          rows="4"
-        />
-      </div>
 
-      <!-- Special Instructions -->
-      <div class="mb-6">
-        <label class="block text-sm font-medium text-gray-700 mb-2"
-          >Special Instructions</label
-        >
-        <Textarea
-          v-model="settings.specialInstructions"
-          class="w-full p-3 bg-gray-100 rounded-2xl"
-          placeholder="Any special instructions for attendees..."
-          rows="4"
-        />
+      <!-- Require Terms and Conditions -->
+      <div class="mb-4">
+        <div class="flex items-center mb-3">
+          <Checkbox
+            v-model="settings.requireTermsConditions"
+            :binary="true"
+            inputId="requireTermsConditions"
+          />
+          <label for="requireTermsConditions" class="ml-2 font-medium text-gray-700">
+            Require terms and conditions
+          </label>
+        </div>
+        <div v-if="settings.requireTermsConditions">
+          <label class="block text-sm font-medium text-gray-700 mb-2"
+            >Terms and Conditions</label
+          >
+          <Textarea
+            v-model="settings.termsAndConditions"
+            class="w-full p-3 bg-gray-100 rounded-2xl"
+            placeholder="Enter terms and conditions for attendees..."
+            rows="4"
+          />
+        </div>
       </div>
       <div class="border border-gray-200 my-10"></div>
-
       <!-- Accept Cash Payment -->
       <div class="mb-6">
         <div class="flex items-center">
@@ -281,10 +292,11 @@ const settings = ref({
   refundPolicyOption: null,
   maxTicketPerPerson: 5,
   ticketTransferDeadline: null,
+  allowTicketTransfer: false,
   qrcodeAvailableHours: "48 hours before event starts",
   customQrcodeHours: 168, // Default to 1 week (168 hours)
+  requireTermsConditions: false,
   termsAndConditions: "",
-  specialInstructions: "",
   acceptCashPayment: false,
   requireRegistrationBeforeCheckin: false,
   requireAgeVerification: false,
@@ -330,12 +342,20 @@ const isSaving = ref(false);
 
 // Check if settings are complete for tab validation
 const areSettingsComplete = computed(() => {
-  return !!(
-    settings.value.registrationDeadline &&
+  const basicRequirements = !!(
     settings.value.refundPolicyOption &&
-    settings.value.termsAndConditions &&
     settings.value.maxTicketPerPerson
   );
+  
+  // If terms and conditions are required, check if they are filled
+  const termsComplete = !settings.value.requireTermsConditions || 
+    (settings.value.requireTermsConditions && settings.value.termsAndConditions);
+  
+  // If ticket transfer is allowed, check if deadline is set
+  const ticketTransferComplete = !settings.value.allowTicketTransfer || 
+    (settings.value.allowTicketTransfer && settings.value.ticketTransferDeadline);
+  
+  return basicRequirements && termsComplete && ticketTransferComplete;
 });
 
 // Load settings from API
@@ -384,8 +404,7 @@ const loadSettingsFromAPI = async () => {
 
       // Debug: Log the arrays received from API
 
-
-      // Map API data to component formatp
+      // Map API data to component format
       settings.value = {
   registrationDeadline: parseAPIDate(apiData.registration_dateline),
   refundPolicyOption:
@@ -396,6 +415,7 @@ const loadSettingsFromAPI = async () => {
       : null,
   maxTicketPerPerson: apiData.max_ticket_per_person || 5,
   ticketTransferDeadline: parseAPIDate(apiData.ticket_transfer_deadline),
+  allowTicketTransfer: Boolean(apiData.is_allow_ticket_transfer) || Boolean(apiData.ticket_transfer_deadline),
   qrcodeAvailableHours: (() => {
     const hours = apiData.qrcode_available_hours ?? 48;
     if (hours === 24) return "24 hours before event starts";
@@ -404,13 +424,13 @@ const loadSettingsFromAPI = async () => {
     return "Custom QR code available";
   })(),
   customQrcodeHours: apiData.qrcode_available_hours ?? 168,
+  requireTermsConditions: Boolean(apiData.is_required_terms_condition) || Boolean(apiData.terms_and_condition && apiData.terms_and_condition.trim()),
   termsAndConditions: apiData.terms_and_condition || "",
-  specialInstructions: apiData.special_instructions || "",
   acceptCashPayment: Boolean(apiData.is_accept_cash_payment),
   requireRegistrationBeforeCheckin: Boolean(
     apiData.is_required_registration_before_checkin
   ),
-  requireAgeVerification: Boolean(apiData.is_required_age_verification), // ✅ fixed here
+  requireAgeVerification: Boolean(apiData.is_required_age_verification),
   minimumAgeOptions:
     apiData.is_required_age_verification && apiData.maximum_age
       ? `${apiData.maximum_age} years old`
@@ -422,6 +442,7 @@ const loadSettingsFromAPI = async () => {
     ? apiData.provide_special_assistance
     : (apiData.provide_special_assistance ? [apiData.provide_special_assistance] : [])),
 };
+
 
     }
   } catch (error) {
@@ -494,6 +515,7 @@ const saveSettingsToAPI = async () => {
       ticket_transfer_deadline: formatDateForAPI(
         settings.value.ticketTransferDeadline
       ),
+      is_allow_ticket_transfer: settings.value.allowTicketTransfer ? 1 : 0,
       qrcode_available_hours: (() => {
         if (
           settings.value.qrcodeAvailableHours === "Custom QR code available"
@@ -511,9 +533,9 @@ const saveSettingsToAPI = async () => {
         }
         return 48; // Default
       })(),
+      is_required_terms_condition: settings.value.requireTermsConditions ? 1 : 0,
       terms_and_condition: settings.value.termsAndConditions || "",
-      special_instructions: settings.value.specialInstructions || "",
-      is_accept_cash_payment: settings.value.acceptCashPayment,
+      is_accept_cash_payment: settings.value.acceptCashPayment ? 1 : 0,
       is_required_registration_before_checkin: settings.value.requireRegistrationBeforeCheckin
         ? 1
         : 0,
@@ -534,6 +556,8 @@ const saveSettingsToAPI = async () => {
         ? settings.value.provideSpecialAssistance.filter(assistance => assistance && assistance.trim() !== '') 
         : [],
     };
+
+
 
   
     const response = await saveEventSettings(currentEventId.value, apiData);
@@ -592,10 +616,11 @@ const handleSaveCurrentTab = (event) => {
     refundPolicyOption: settings.value.refundPolicyOption,
     maxTicketPerPerson: settings.value.maxTicketPerPerson,
     ticketTransferDeadline: settings.value.ticketTransferDeadline,
+    allowTicketTransfer: settings.value.allowTicketTransfer,
     qrcodeAvailableHours: settings.value.qrcodeAvailableHours,
     customQrcodeHours: settings.value.customQrcodeHours,
+    requireTermsConditions: settings.value.requireTermsConditions,
     termsAndConditions: settings.value.termsAndConditions,
-    specialInstructions: settings.value.specialInstructions,
     acceptCashPayment: settings.value.acceptCashPayment,
     requireRegistrationBeforeCheckin: settings.value.requireRegistrationBeforeCheckin,
     requireAgeVerification: settings.value.requireAgeVerification,
@@ -630,10 +655,11 @@ watch(
         refundPolicyOption: settings.value.refundPolicyOption,
         maxTicketPerPerson: settings.value.maxTicketPerPerson,
         ticketTransferDeadline: settings.value.ticketTransferDeadline,
+        allowTicketTransfer: settings.value.allowTicketTransfer,
         qrcodeAvailableHours: settings.value.qrcodeAvailableHours,
         customQrcodeHours: settings.value.customQrcodeHours,
+        requireTermsConditions: settings.value.requireTermsConditions,
         termsAndConditions: settings.value.termsAndConditions,
-        specialInstructions: settings.value.specialInstructions,
         acceptCashPayment: settings.value.acceptCashPayment,
         requireRegistrationBeforeCheckin: settings.value.requireRegistrationBeforeCheckin,
         requireAgeVerification: settings.value.requireAgeVerification,
@@ -667,6 +693,26 @@ watch(
   (newValue) => {
     if (!newValue) {
       settings.value.minimumAgeOptions = null;
+    }
+  }
+);
+
+// Watch terms conditions to clear terms when unchecked
+watch(
+  () => settings.value.requireTermsConditions,
+  (newValue) => {
+    if (!newValue) {
+      settings.value.termsAndConditions = "";
+    }
+  }
+);
+
+// Watch ticket transfer to clear deadline when unchecked
+watch(
+  () => settings.value.allowTicketTransfer,
+  (newValue) => {
+    if (!newValue) {
+      settings.value.ticketTransferDeadline = null;
     }
   }
 );
@@ -722,8 +768,9 @@ watch(
           qrcodeAvailableHours:
             tabData.qrcodeAvailableHours || "48 hours before event starts",
           customQrcodeHours: tabData.customQrcodeHours || 168,
+          allowTicketTransfer: tabData.allowTicketTransfer || false,
+          requireTermsConditions: tabData.requireTermsConditions || false,
           termsAndConditions: tabData.termsAndConditions || "",
-          specialInstructions: tabData.specialInstructions || "",
           acceptCashPayment: tabData.acceptCashPayment || false,
           requireRegistrationBeforeCheckin: tabData.requireRegistrationBeforeCheckin || false,
           requireAgeVerification: tabData.requireAgeVerification || false,
@@ -771,8 +818,9 @@ onMounted(async () => {
         qrcodeAvailableHours:
           settingsData.qrcodeAvailableHours || "48 hours before event starts",
         customQrcodeHours: settingsData.customQrcodeHours || 168,
+        allowTicketTransfer: settingsData.allowTicketTransfer || false,
+        requireTermsConditions: settingsData.requireTermsConditions || false,
         termsAndConditions: settingsData.termsAndConditions || "",
-        specialInstructions: settingsData.specialInstructions || "",
         acceptCashPayment: settingsData.acceptCashPayment || false,
         requireRegistrationBeforeCheckin: settingsData.requireRegistrationBeforeCheckin || false,
         requireAgeVerification: settingsData.requireAgeVerification || false,

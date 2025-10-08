@@ -328,7 +328,7 @@
       <!-- Fixed Payment Method and Order Button (always visible) -->
       <div class="mt-auto sticky bottom-4">
         <!-- Payment Method section disabled for now -->
-        <!-- <h3 class="text-lg font-normal text-purple-600 mb-4">Payment Method</h3>
+        <h3 class="text-lg font-normal text-purple-600 mb-4">Payment Method</h3>
         <div class="grid grid-cols-2 gap-4 mb-8">
           <div
             :class="['flex flex-col items-center p-4 border rounded-lg cursor-pointer transition-all duration-200',
@@ -339,22 +339,21 @@
             <span class="text-sm font-medium" :class="paymentMethod === 'cash' ? 'text-purple-800' : 'text-gray-700'">Cash</span>
           </div>
           <div
-            :class="['flex flex-col items-center p-4 border rounded-lg cursor-pointer transition-all duration-200',
-                     paymentMethod === 'khqr' ? 'border-purple-600 bg-purple-50 shadow-md' : 'border-gray-300 bg-gray-50 hover:bg-gray-100']"
-            @click="paymentMethod = 'khqr'"
+            :class="['flex flex-col items-center p-4 border rounded-lg cursor-not-allowed transition-all duration-200 opacity-50',
+                     'border-gray-300 bg-gray-100']"
           >
-            <Icon name="heroicons:credit-card" class="w-8 h-8 mb-2" :class="paymentMethod === 'khqr' ? 'text-purple-600' : 'text-gray-600'" />
-            <span class="text-sm font-medium" :class="paymentMethod === 'khqr' ? 'text-purple-800' : 'text-gray-700'">KHQR</span>
+            <Icon name="heroicons:credit-card" class="w-8 h-8 mb-2 text-gray-400" />
+            <span class="text-sm font-medium text-gray-500">KHQR</span>
           </div>
-        </div> -->
+        </div>
 
         <!-- Complete Order button disabled for now -->
-        <!-- <Button
+        <Button
           :label="selectedOrder?.status === 'pending' ? 'Complete Order' : 'Order Already Completed'"
           class="w-full py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-purple-600 to-purple-400 hover:from-purple-700 hover:to-purple-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           @click="completeOrder"
           :disabled="!selectedOrder || selectedOrder.status !== 'pending' || processingOrder === selectedOrder?.id"
-        /> -->
+        />
 
         <!-- KHQR Popup -->
         <Transition name="fade">
@@ -382,6 +381,96 @@
             </div>
           </div>
         </Transition>
+
+        <!-- Status Selection Popup for Cash Payment -->
+        <Transition name="fade">
+          <div v-if="showStatusPopup" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
+              <div class="mb-6">
+                <Icon name="heroicons:clipboard-document-check" class="w-16 h-16 mx-auto text-purple-600 mb-4" />
+                <h3 class="text-xl font-semibold text-gray-800 mb-2">Update Order Status</h3>
+                <p class="text-gray-600 mb-4">Select the status for this cash payment order</p>
+                
+                <!-- Order Info -->
+                <div class="bg-gray-50 rounded-xl p-4 mb-6">
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm text-gray-600">Order Number:</span>
+                    <span class="font-mono text-sm font-medium text-gray-800">#{{ selectedOrder?.order_number || selectedOrder?.id }}</span>
+                  </div>
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm text-gray-600">Customer:</span>
+                    <span class="font-medium text-gray-800 text-sm">{{ selectedOrder?.customer_name || 'N/A' }}</span>
+                  </div>
+                  <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">Amount:</span>
+                    <span class="font-semibold text-gray-800">${{ (selectedOrder?.total_amount || 0).toFixed(2) }}</span>
+                  </div>
+                </div>
+
+                <!-- Status Options -->
+                <div class="space-y-3 mb-6">
+                  <div 
+                    v-for="status in ['completed', 'canceled', 'refunded']" 
+                    :key="status"
+                    class="flex items-center p-3 rounded-xl border-2 cursor-pointer transition-all duration-200"
+                    :class="selectedStatus === status 
+                      ? 'border-purple-500 bg-purple-50' 
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'"
+                    @click="selectedStatus = status"
+                  >
+                    <div class="flex items-center justify-center w-5 h-5 mr-3">
+                      <div 
+                        class="w-4 h-4 rounded-full border-2 flex items-center justify-center"
+                        :class="selectedStatus === status 
+                          ? 'border-purple-500 bg-purple-500' 
+                          : 'border-gray-300'"
+                      >
+                        <div v-if="selectedStatus === status" class="w-2 h-2 bg-white rounded-full"></div>
+                      </div>
+                    </div>
+                    <div class="flex-1">
+                      <div class="flex items-center">
+                        <Icon 
+                          :name="status === 'completed' ? 'heroicons:check-circle' 
+                                : status === 'canceled' ? 'heroicons:x-circle' 
+                                : 'heroicons:arrow-path'" 
+                          class="w-5 h-5 mr-2"
+                          :class="status === 'completed' ? 'text-green-600' 
+                                : status === 'canceled' ? 'text-red-600' 
+                                : 'text-blue-600'"
+                        />
+                        <span class="font-medium capitalize">{{ status }}</span>
+                      </div>
+                      <p class="text-sm text-gray-500 mt-1">
+                        {{ status === 'completed' ? 'Mark order as successfully completed' 
+                          : status === 'canceled' ? 'Cancel this order' 
+                          : 'Process refund for this order' }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="flex gap-3">
+                <Button 
+                  label="Cancel" 
+                  class="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50"
+                  @click="closeStatusPopup"
+                  :disabled="processingOrder === selectedOrder?.id"
+                />
+                <Button 
+                  :label="processingOrder === selectedOrder?.id ? 'Processing...' : 'Confirm'"
+                  class="flex-1 py-3 rounded-xl font-semibold text-white transition-all duration-200"
+                  :class="selectedStatus === 'completed' ? 'bg-green-600 hover:bg-green-700' 
+                        : selectedStatus === 'canceled' ? 'bg-red-600 hover:bg-red-700' 
+                        : 'bg-blue-600 hover:bg-blue-700'"
+                  @click="confirmStatusChange"
+                  :disabled="processingOrder === selectedOrder?.id"
+                />
+              </div>
+            </div>
+          </div>
+        </Transition>
       </div>
     </div>
   </div>
@@ -392,6 +481,10 @@ import { ref, computed, onMounted, watch } from 'vue'
 import InputText from 'primevue/inputtext'
 import Button from 'primevue/button'
 import { fetchOrders, updateOrderStatus } from '@/composables/api.js'
+import { useNotifications } from '@/composables/useNotifications.js'
+
+// Composables
+const { success: showSuccess, error: showError } = useNotifications()
 
 // Reactive state
 const orders = ref([])
@@ -402,6 +495,8 @@ const expandedBookings = ref({})
 const selectedOrder = ref(null)
 const paymentMethod = ref('cash')
 const showQrPopup = ref(false)
+const showStatusPopup = ref(false)
+const selectedStatus = ref('completed')
 const processingOrder = ref(null)
 const pagination = ref(null)
 const currentPage = ref(1)
@@ -439,7 +534,6 @@ const loadOrders = async () => {
       throw new Error(response.message || 'Failed to load orders')
     }
   } catch (err) {
-    console.error('Failed to load orders:', err)
     error.value = err.message || 'Failed to load orders. Please try again.'
     orders.value = []
   } finally {
@@ -502,8 +596,11 @@ const getStatusClass = (status) => {
       return 'bg-yellow-50 text-yellow-700'
     case 'completed':
       return 'bg-green-50 text-green-700'
+    case 'canceled':
     case 'cancelled':
       return 'bg-red-50 text-red-700'
+    case 'refunded':
+      return 'bg-blue-50 text-blue-700'
     default:
       return 'bg-gray-50 text-gray-700'
   }
@@ -589,8 +686,15 @@ const completeOrder = async () => {
     return
   }
 
-  // Process cash payment
-  await processPayment('completed', 'cash')
+  // Show status selection popup for cash payment
+  if (paymentMethod.value === 'cash') {
+    showStatusPopup.value = true
+    selectedStatus.value = 'completed' // Default to completed
+    return
+  }
+
+  // Process other payment methods directly
+  await processPayment('completed', paymentMethod.value)
 }
 
 // Process payment (either cash or KHQR)
@@ -603,11 +707,15 @@ const processPayment = async (status, method) => {
     // Prepare items data for API call
     const items = selectedOrder.value.items || []
     
+    // Prepare remark based on payment method
+    const remark = method === 'cash' ? 'cash payment' : `${method} payment`
+    
     const response = await updateOrderStatus(
       selectedOrder.value.id, 
       status, 
       method,
-      items
+      items,
+      remark
     )
 
     if (response.success) {
@@ -623,10 +731,11 @@ const processPayment = async (status, method) => {
       selectedOrder.value.payment_method = method
 
       // Show success message
-      showSuccess('Payment processed successfully!')
+      showSuccess(`Order ${status} successfully!`)
       
-      // Close QR popup if it was open
+      // Close popups
       showQrPopup.value = false
+      showStatusPopup.value = false
     } else {
       throw new Error(response.message || 'Failed to process payment')
     }
@@ -648,16 +757,30 @@ const closeQrPopup = () => {
   showQrPopup.value = false
 }
 
-// Show success message (you can replace this with your toast/notification system)
-const showSuccess = (message) => {
-  // Implement your success notification here
+// Close status popup
+const closeStatusPopup = () => {
+  showStatusPopup.value = false
+  selectedStatus.value = 'completed'
 }
 
-// Show error message (you can replace this with your toast/notification system)
-const showError = (message) => {
-  // Implement your error notification here
-  console.error('Error:', message)
+// Confirm status change for cash payment
+const confirmStatusChange = async () => {
+  if (!selectedOrder.value || !selectedStatus.value) return
+  
+  console.log('Processing cash payment:', {
+    orderId: selectedOrder.value.id,
+    status: selectedStatus.value,
+    paymentMethod: 'cash',
+    remark: 'cash payment',
+    statusType: typeof selectedStatus.value,
+    possibleStatuses: ['completed', 'canceled', 'refunded']
+  })
+  
+  // Process cash payment with selected status
+  await processPayment(selectedStatus.value, 'cash')
 }
+
+
 
 // Load orders on component mount
 onMounted(() => {

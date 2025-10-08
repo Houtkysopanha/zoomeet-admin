@@ -94,7 +94,7 @@
               </div>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label for="bookingReference" class="block text-gray-700 text-sm font-medium mb-2">Booking reference</label>
+                  <label for="bookingReference" class="block text-gray-700 text-sm font-medium mb-2">Booking Reference No.</label>
                   <InputText
                     id="bookingReference"
                     v-model="bookingReference"
@@ -112,7 +112,7 @@
                   </div>
                 </div>
                 <div>
-                  <label for="ticketId" class="block text-gray-700 text-sm font-medium mb-2">Ticket ID</label>
+                  <label for="ticketId" class="block text-gray-700 text-sm font-medium mb-2">Ticket No.</label>
                   <InputText
                     id="ticketId"
                     v-model="ticketId"

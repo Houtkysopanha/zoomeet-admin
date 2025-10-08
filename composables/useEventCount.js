@@ -41,7 +41,6 @@ export const useEventCount = () => {
       if (response.status === 200 && response.data.success && Array.isArray(response.data.data)) {
         events.value = response.data.data
       } else {
-        console.warn('Unexpected events API response:', response)
         events.value = []
       }
     } catch (err) {
