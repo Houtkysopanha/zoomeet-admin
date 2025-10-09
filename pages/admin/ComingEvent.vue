@@ -64,8 +64,40 @@
         class="text-gray-500 hover:text-gray-700 border rounded-md w-6 h-6"
       />
     </div>
+    <!-- Loading State -->
+    <div v-if="isLoading" class="flex-1 flex items-center justify-center">
+      <div class="text-center">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+        <p class="text-gray-500">Loading upcoming events...</p>
+      </div>
+    </div>
+
+    <!-- Error State -->
+    <div v-else-if="error" class="flex-1 flex items-center justify-center">
+      <div class="text-center">
+        <i class="pi pi-exclamation-triangle text-4xl text-red-400 mb-4"></i>
+        <p class="text-red-500 text-lg mb-2">Error Loading Events</p>
+        <p class="text-gray-400 text-sm mb-4">{{ error }}</p>
+        <Button
+          label="Try Again"
+          icon="pi pi-refresh"
+          class="p-button-sm"
+          @click="loadEvents()"
+        />
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div v-else-if="events.length === 0" class="flex-1 flex items-center justify-center">
+      <div class="text-center">
+        <i class="pi pi-calendar text-4xl text-gray-400 mb-4"></i>
+        <p class="text-gray-500 text-lg mb-2">No upcoming events</p>
+        <p class="text-gray-400 text-sm">No events found for the selected date.</p>
+      </div>
+    </div>
+
     <!-- Events Scroll Area with Note Icon -->
-    <div class="flex-1 overflow-y-auto pr-1">
+    <div v-else class="flex-1 overflow-y-auto pr-1">
       <div class="space-y-4 pb-4">
         <div 
           v-for="(event) in events" 
@@ -79,6 +111,7 @@
               :src="event.image" 
               :alt="event.title"
               class="w-20 h-20 rounded-lg object-cover shadow-md group-hover:shadow-lg transition-shadow duration-200"
+              @error="event.image = img"
             />
           </div>
 
@@ -91,9 +124,13 @@
               <i class="pi pi-map-marker text-xs mr-2"></i>
               <span>{{ event.location }}</span>
             </div>
-            <div class="flex items-center text-xs text-gray-500">
+            <div class="flex items-center text-xs text-gray-500 mb-1">
               <i class="pi pi-clock text-xs mr-2"></i>
               <span>{{ event.time }}</span>
+            </div>
+            <div class="flex items-center text-xs text-gray-500">
+              <i class="pi pi-tag text-xs mr-2"></i>
+              <span>{{ event.category }}</span>
             </div>
           </div>
         </div>
@@ -107,81 +144,33 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import Button from 'primevue/button'
 import { useToast } from 'primevue/usetoast'
+import { useUpcomingEvents } from '@/composables/useUpcomingEvents.js'
+import img from '@/assets/image/poster-manage-booking.png'
+
 const toast = useToast()
 const isLoadingMore = ref(false)
 const currentDate = ref(new Date(2025, 6, 6)) // July 6, 2025 (month is 0-indexed)
 const selectedDay = ref(6)
-import img from '@/assets/image/poster-manage-booking.png'
+const daysContainer = ref(null)
 
-// Sample event data
-const events = ref([
-  {
-    id: 1,
-    title: 'Navigating the future of cybersecurity in Cambodia 2015',
-    location: 'Hyatt Regency, Phnom Penh',
-    time: '10:00 AM GMT+7',
-    image: img
-  },
-  {
-    id: 2,
-    title: 'Navigating the future of cybersecurity in Cambodia 2015',
-    location: 'Hyatt Regency, Phnom Penh',
-    time: '10:00 AM GMT+7',
-    image: img
-  },
-  {
-    id: 3,
-    title: 'Navigating the future of cybersecurity in Cambodia 2015',
-    location: 'Hyatt Regency, Phnom Penh',
-    time: '10:00 AM GMT+7',
-    image: img
-  },
-  {
-    id: 4,
-    title: 'Navigating the future of cybersecurity in Cambodia 2015',
-    location: 'Hyatt Regency, Phnom Penh',
-    time: '10:00 AM GMT+7',
-    image: img
-  },
-  {
-    id: 5,
-    title: 'Digital Innovation Summit 2025',
-    location: 'Sofitel Phnom Penh Phokeethra',
-    time: '2:00 PM GMT+7',
-    image: img
-  },
-  {
-    id: 6,
-    title: 'Southeast Asia Tech Conference',
-    location: 'NagaWorld Hotel & Entertainment Complex',
-    time: '9:00 AM GMT+7',
-    image: img
-  },
-   {
-    id: 7,
-    title: 'Southeast Asia Tech Conference',
-    location: 'NagaWorld Hotel & Entertainment Complex',
-    time: '9:00 AM GMT+7',
-    image: img
-  },
-   {
-    id: 8,
-    title: 'Southeast Asia Tech Conference',
-    location: 'NagaWorld Hotel & Entertainment Complex',
-    time: '9:00 AM GMT+7',
-    image: img
-  },
-  {
-    id: 9,
-    title: 'Southeast Asia Tech Conference',
-    location: 'NagaWorld Hotel & Entertainment Complex',
-    time: '9:00 AM GMT+7',
-    image: img
-  }
-])
+// Use the upcoming events composable
+const { 
+  formattedEvents, 
+  isLoading, 
+  error, 
+  loadEvents 
+} = useUpcomingEvents()
+
+// Use formatted events from composable with fallback image
+const events = computed(() => {
+  return formattedEvents.value.map(event => ({
+    ...event,
+    image: event.image || img // Fallback to default image
+  }))
+})
 
 // Computed properties
 const currentMonthYear = computed(() => {
@@ -208,27 +197,54 @@ const visibleDays = computed(() => {
 const currentDayOffset = ref(0)
 
 // Methods
-const previousMonth = () => {
+const previousMonth = async () => {
   const newDate = new Date(currentDate.value)
   newDate.setMonth(newDate.getMonth() - 1)
   currentDate.value = newDate
   toast.info(`Switched to ${currentMonthYear.value}`)
+  
+  // Load events for the selected day in the new month
+  const selectedDate = new Date(newDate.getFullYear(), newDate.getMonth(), selectedDay.value)
+  const result = await loadEvents(selectedDate)
+  if (!result.success) {
+    toast.warn(result.message)
+  }
 }
 
-const nextMonth = () => {
+const nextMonth = async () => {
   const newDate = new Date(currentDate.value)
   newDate.setMonth(newDate.getMonth() + 1)
   currentDate.value = newDate
   toast.info(`Switched to ${currentMonthYear.value}`)
+  
+  // Load events for the selected day in the new month
+  const selectedDate = new Date(newDate.getFullYear(), newDate.getMonth(), selectedDay.value)
+  const result = await loadEvents(selectedDate)
+  if (!result.success) {
+    toast.warn(result.message)
+  }
 }
 
-const selectDay = (day) => {
+const selectDay = async (day) => {
   selectedDay.value = parseInt(day.date)
   toast.success(`Selected ${day.dayName}, ${day.date}`)
+  
+  // Calculate the selected date based on current month and selected day
+  const selectedDate = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth(), selectedDay.value)
+  
+  // Load events for the selected date
+  const result = await loadEvents(selectedDate)
+  if (!result.success) {
+    toast.warn(result.message)
+  } else if (result.count === 0) {
+    toast.info('No events found for this date')
+  }
 }
 
 const viewEvent = (event) => {
   toast.info(`Opening: ${event.title}`)
+  // You can add navigation to event details here
+  // For example: navigateTo(`/admin/events/${event.id}`)
 }
 
 const previousDays = () => {
@@ -253,9 +269,18 @@ const scrollDaysContainer = (direction) => {
   }
 }
 
-onMounted(() => {
-  // Ensure days container is referenced
-  // No motion due to previous issues
+onMounted(async () => {
+  // Load initial events for the default date (2025-10-03)
+  const defaultDate = new Date(2025, 9, 3) // October 3, 2025
+  const result = await loadEvents(defaultDate)
+  
+  if (!result.success) {
+    toast.error(result.message)
+  } else if (result.count === 0) {
+    toast.info('No upcoming events found for the default date')
+  } else {
+    toast.success(`Loaded ${result.count} upcoming events`)
+  }
 })
 </script>
 

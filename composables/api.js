@@ -1776,6 +1776,78 @@ export async function checkSlugAvailability(slug, currentEventId = null) {
     }
   }
 }
+
+// Fetch dashboard data
+export async function fetchDashboardData() {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!API_ADMIN_BASE_URL) {
+    console.error('❌ API Admin Base URL is not configured')
+    throw new Error('API Admin Base URL is not configured')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      console.warn('⚠️ No auth headers available')
+      handleAuthRedirect()
+      return null
+    }
+
+    const url = normalizeApiUrl(API_ADMIN_BASE_URL, '/dashboard')
+    
+    console.log('🔄 Fetching dashboard data from:', url)
+    console.log('🔑 Using headers:', { ...headers, Authorization: headers.Authorization ? '[REDACTED]' : 'Not set' })
+    
+    const response = await $fetch(url, {
+      headers,
+      method: 'GET'
+    })
+
+    console.log('✅ Dashboard API response received:', {
+      success: response?.success,
+      hasData: !!response?.data,
+      dataKeys: response?.data ? Object.keys(response.data) : []
+    })
+    
+    // Validate response structure
+    if (!response || typeof response !== 'object') {
+      throw new Error('Invalid response format: not an object')
+    }
+    
+    if (!response.success) {
+      throw new Error(`API returned success=false: ${response.message || 'Unknown error'}`)
+    }
+    
+    if (!response.data) {
+      throw new Error('API response missing data field')
+    }
+
+    return response
+
+  } catch (error) {
+    console.error('❌ Dashboard data fetch failed:', error)
+    
+    if (error.status === 401 || error.statusCode === 401) {
+      console.log('🔒 Authentication failed, redirecting to login')
+      handleAuthRedirect()
+      return null
+    }
+    
+    // Enhanced error information
+    const errorInfo = {
+      message: error.message || 'Failed to fetch dashboard data',
+      status: error.status || error.statusCode || 500,
+      url: error.request?.responseURL || 'unknown',
+      data: error.data || null
+    }
+    
+    console.error('📊 Dashboard API Error Details:', errorInfo)
+    throw errorInfo
+  }
+}
+
 // Fetch List organizer
 export async function fetchEventOrganizers(eventId) {
   const config = useRuntimeConfig()
@@ -3592,6 +3664,82 @@ export async function resetPasswordWithToken(identifier, newPassword, confirmPas
     }
 
     throw new Error(error.message || 'Reset password failed. Please try again.')
+  }
+}
+
+// Fetch upcoming events with start date parameter
+export async function fetchUpcomingEvents(startDate = null) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!API_ADMIN_BASE_URL) {
+    throw new Error('API admin base URL is not configured.')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Unable to create authentication headers')
+    }
+
+    // Build query parameters
+    const params = new URLSearchParams()
+    if (startDate) {
+      params.append('start_date', startDate)
+    }
+
+    const queryString = params.toString()
+    const url = `${API_ADMIN_BASE_URL}/dashboard/up-comming-event${queryString ? `?${queryString}` : ''}`
+
+    console.log('🔄 Fetching upcoming events from:', url)
+
+    const response = await $fetch(url, {
+      method: 'GET',
+      headers
+    })
+
+    console.log('✅ Upcoming events fetched successfully:', response)
+
+    // Validate and return response
+    if (response && response.success && Array.isArray(response.data)) {
+      return {
+        success: true,
+        message: response.message || 'Upcoming events retrieved successfully',
+        data: response.data
+      }
+    } else {
+      console.warn('⚠️ Unexpected response structure:', response)
+      return {
+        success: false,
+        message: 'Invalid response format',
+        data: []
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Fetch upcoming events error:', error)
+    
+    // Handle authentication errors specifically
+    if (error.status === 401) {
+      console.error('❌ Authentication failed, redirecting to login')
+      handleAuthRedirect()
+      throw new Error('Authentication required')
+    }
+    
+    // Don't expose technical details to users
+    let userMessage = 'Failed to load upcoming events. Please try again.'
+    if (error.status === 403) {
+      userMessage = 'You do not have permission to view upcoming events.'
+    } else if (error.status === 500) {
+      userMessage = 'Server error occurred. Please try again later.'
+    }
+    
+    return {
+      status: error?.status || 500,
+      success: false,
+      message: userMessage,
+      data: []
+    }
   }
 }
 

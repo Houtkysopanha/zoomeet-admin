@@ -125,7 +125,7 @@ export default defineNuxtConfig({
       appName: process.env.NUXT_PUBLIC_APP_NAME ||
         (process.env.NODE_ENV === 'production'
           ? 'eTicketsAsia'
-          : 'eTicketsAsia (Dev)'),
+          : 'eTicketsAsia (production)'),
       appVersion: process.env.NUXT_PUBLIC_APP_VERSION || '1.0.0',
       environment: process.env.NODE_ENV || 'production',
       //firebase
