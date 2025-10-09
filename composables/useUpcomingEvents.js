@@ -2,6 +2,28 @@
 import { ref, computed, readonly } from 'vue'
 import { fetchUpcomingEvents } from '@/composables/api.js'
 
+// Helper function to validate and sanitize image URLs
+const validateImageUrl = (url) => {
+  // Return null for empty, null, undefined, or invalid URLs
+  if (!url || typeof url !== 'string' || url.trim() === '') {
+    return null
+  }
+  
+  const trimmedUrl = url.trim()
+  
+  // Check if it's a valid URL format
+  try {
+    new URL(trimmedUrl)
+    return trimmedUrl
+  } catch {
+    // If not a valid absolute URL, check if it's a relative path
+    if (trimmedUrl.startsWith('/') || trimmedUrl.startsWith('./')) {
+      return trimmedUrl
+    }
+    return null
+  }
+}
+
 export const useUpcomingEvents = () => {
   const upcomingEvents = ref([])
   const isLoading = ref(false)
@@ -40,7 +62,7 @@ export const useUpcomingEvents = () => {
         dateRange: formatDate(startDate) !== formatDate(endDate) 
           ? `${formatDate(startDate)} - ${formatDate(endDate)}`
           : formatDate(startDate),
-        image: event.cover_image_url,
+        image: validateImageUrl(event.cover_image_url),
         startDate: startDate,
         endDate: endDate,
         rawData: event
@@ -54,14 +76,28 @@ export const useUpcomingEvents = () => {
     error.value = null
     
     try {
-      // Format date as YYYY-MM-DD if provided
-      const formattedDate = startDate ? 
-        startDate.toISOString().split('T')[0] : 
-        new Date().toISOString().split('T')[0]
+      // Use provided startDate or default to today
+      const dateToUse = startDate || new Date()
+      
+      // Ensure we never request past dates
+      const today = new Date()
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+      const requestStart = new Date(dateToUse.getFullYear(), dateToUse.getMonth(), dateToUse.getDate())
+      
+      if (requestStart < todayStart) {
+        error.value = 'Cannot load events for past dates'
+        upcomingEvents.value = []
+        return {
+          success: false,
+          message: 'Cannot load events for past dates. Please select today or future dates.',
+          count: 0
+        }
+      }
 
+      const formattedDate = requestStart.toISOString().split('T')[0]
       console.log('🔄 Loading upcoming events for date:', formattedDate)
       
-      const response = await fetchUpcomingEvents(formattedDate)
+      const response = await fetchUpcomingEvents(requestStart)
       
       if (response.success && response.data) {
         upcomingEvents.value = response.data

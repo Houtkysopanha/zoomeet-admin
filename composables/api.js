@@ -3684,9 +3684,17 @@ export async function fetchUpcomingEvents(startDate = null) {
 
     // Build query parameters
     const params = new URLSearchParams()
-    if (startDate) {
-      params.append('start_date', startDate)
-    }
+    
+    // Use provided startDate or default to today
+    const dateToUse = startDate || new Date()
+    
+    // Ensure we never request past dates - use today as minimum
+    const today = new Date()
+    const requestDate = dateToUse < today ? today : dateToUse
+    
+    // Format date as YYYY-MM-DD
+    const formattedDate = requestDate.toISOString().split('T')[0]
+    params.append('start_date', formattedDate)
 
     const queryString = params.toString()
     const url = `${API_ADMIN_BASE_URL}/dashboard/up-comming-event${queryString ? `?${queryString}` : ''}`
@@ -3702,10 +3710,17 @@ export async function fetchUpcomingEvents(startDate = null) {
 
     // Validate and return response
     if (response && response.success && Array.isArray(response.data)) {
+      // Filter out any events that have already ended (additional client-side filtering)
+      const currentTime = new Date()
+      const filteredEvents = response.data.filter(event => {
+        const eventEndDate = new Date(event.end_date)
+        return eventEndDate >= currentTime
+      })
+
       return {
         success: true,
         message: response.message || 'Upcoming events retrieved successfully',
-        data: response.data
+        data: filteredEvents
       }
     } else {
       console.warn('⚠️ Unexpected response structure:', response)
@@ -3739,6 +3754,76 @@ export async function fetchUpcomingEvents(startDate = null) {
       success: false,
       message: userMessage,
       data: []
+    }
+  }
+}
+
+// Fetch recent events with dashboard data
+export async function fetchRecentEvents() {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!API_ADMIN_BASE_URL) {
+    throw new Error('API admin base URL is not configured.')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Unable to create authentication headers')
+    }
+
+    console.log('🔄 Fetching recent events from dashboard')
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/dashboard`, {
+      method: 'GET',
+      headers
+    })
+
+    console.log('✅ Recent events fetched successfully:', response)
+
+    // Validate and return response
+    if (response && response.success && response.data && Array.isArray(response.data.recently_event)) {
+      return {
+        success: true,
+        message: response.message || 'Recent events retrieved successfully',
+        data: response.data.recently_event,
+        summary: response.data.summary || null
+      }
+    } else {
+      console.warn('⚠️ Unexpected response structure:', response)
+      return {
+        success: false,
+        message: 'Invalid response format',
+        data: [],
+        summary: null
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Fetch recent events error:', error)
+    
+    // Handle authentication errors specifically
+    if (error.status === 401) {
+      console.error('❌ Authentication failed, redirecting to login')
+      handleAuthRedirect()
+      throw new Error('Authentication required')
+    }
+    
+    // Don't expose technical details to users
+    let userMessage = 'Failed to load recent events. Please try again.'
+    if (error.status === 403) {
+      userMessage = 'You do not have permission to view recent events.'
+    } else if (error.status === 500) {
+      userMessage = 'Server error occurred. Please try again later.'
+    }
+    
+    return {
+      status: error?.status || 500,
+      success: false,
+      message: userMessage,
+      data: [],
+      summary: null
     }
   }
 }

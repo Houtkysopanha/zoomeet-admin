@@ -61,19 +61,26 @@ Successfully integrated the upcoming events feature with the real API endpoint `
 - **Date Navigation**: Calendar controls trigger API requests
 - **Month Navigation**: Previous/Next month buttons load new events
 - **Real-time Updates**: UI updates automatically with API data
+- **Future-Only Events**: Only shows present and future events, blocks past dates
+- **Today Highlighting**: Current date is visually highlighted
+- **Smart Date Filtering**: Client-side filtering ensures no past events are shown
 
 ### ✅ User Experience
 - **Loading States**: Spinner shown during API calls
-- **Error Handling**: User-friendly error messages
+- **Error Handling**: User-friendly error messages for past date selections
 - **Empty States**: Clear messaging when no events found
-- **Toast Notifications**: Success/error feedback
+- **Toast Notifications**: Success/error feedback with event counts
 - **Responsive Design**: Maintained mobile-friendly layout
+- **Visual Date Indicators**: Today vs future dates are clearly marked
 
 ### ✅ Data Handling
 - **Image Fallbacks**: Default image when cover_image_url is missing
 - **Date Formatting**: Proper time/date display from API timestamps
 - **Category Display**: Shows event category from API
 - **Event Details**: All API fields properly mapped to UI
+- **Date Validation**: Prevents API calls for past dates
+- **Event Filtering**: Removes ended events even if returned by API
+- **Today Detection**: Automatically identifies and highlights current date
 
 ## Usage Examples
 

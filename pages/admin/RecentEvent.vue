@@ -11,6 +11,21 @@
       </div>
     </div>
 
+    <!-- Error state -->
+    <div v-else-if="error" class="flex-1 flex items-center justify-center">
+      <div class="text-center">
+        <Icon name="heroicons:exclamation-triangle" class="h-16 w-16 text-red-400 mx-auto mb-4" />
+        <p class="text-red-500 text-lg mb-2">Error Loading Events</p>
+        <p class="text-gray-400 text-sm mb-4">{{ error }}</p>
+        <Button
+          label="Try Again"
+          icon="pi pi-refresh"
+          class="p-button-sm"
+          @click="loadEvents()"
+        />
+      </div>
+    </div>
+
     <!-- Empty state -->
     <div v-else-if="events.length === 0" class="flex-1 flex items-center justify-center">
       <div class="text-center">
@@ -30,12 +45,12 @@
         <!-- Event Header -->
         <div class="flex items-start justify-between mb-4">
           <div class="flex items-start space-x-3 flex-1">
-            <div class="w-28 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 relative">
+            <div class="w-36 h-full rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 relative">
               <img
-                :src="event.image"
+                :src="event.image || img"
                 class="w-full h-full object-cover"
                 :alt="event.name || 'Event image'"
-                @error="handleImageError"
+                @error="handleRecentImageError"
               />
             </div>
             <div class="flex-1 min-w-0">
@@ -119,78 +134,32 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import Button from 'primevue/button'
-// Props
-const props = defineProps({
-  recentEvents: {
-    type: Array,
-    default: () => []
-  },
-  isLoading: {
-    type: Boolean,
-    default: false
-  }
-})
+import { useToast } from 'primevue/usetoast'
+import { useRecentEvents } from '@/composables/useRecentEvents.js'
+import img from '@/assets/image/poster-manage-booking.png'
+
+const toast = useToast()
+
+// Use the recent events composable
+const { 
+  formattedEvents, 
+  dashboardSummary,
+  isLoading, 
+  error, 
+  loadEvents 
+} = useRecentEvents()
 
 const showAll = ref(false)
 const loading = ref(false)
 
-
-// Transform API data to component format
+// Use formatted events from composable with fallback image
 const events = computed(() => {
-  if (!props.recentEvents || props.recentEvents.length === 0) {
-    return []
-  }
-
-  return props.recentEvents.map(event => {
-    // Parse dates
-    const startDate = new Date(event.start_date)
-    const endDate = new Date(event.end_date)
-    const currentDate = new Date()
-    
-    // Determine event status
-    const isEventEnded = endDate < currentDate
-    
-    // Format dates
-    const formatDate = (date) => {
-      return date.toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-      })
-    }
-    
-    const formatTime = (date) => {
-      return date.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      })
-    }
-
-    // Create date range string
-    const startDateStr = formatDate(startDate)
-    const endDateStr = formatDate(endDate)
-    const dateRange = startDateStr === endDateStr ? startDateStr : `${startDateStr} - ${endDateStr}`
-
-    // Debug image URL selection
-    const selectedImage = event.cover_image_url || ""
-
-    return {
-      id: event.id,
-      name: event.name,
-      location: event.location,
-      date: dateRange,
-      time: formatTime(startDate),
-      totalRevenue: `$${event.total_revenue?.toFixed(2) || '0.00'}`,
-      booking: event.total_booking?.toString() || '0',
-      tickets: event.total_ticket?.toString() || '0',
-      status: isEventEnded ? 'ended' : 'active',
-      image: selectedImage,
-      category: event.category_name
-    }
-  })
+  return formattedEvents.value.map(event => ({
+    ...event,
+    image: event.image || img // Fallback to default image
+  }))
 })
 
 const visibleEvents = computed(() => {
@@ -212,12 +181,33 @@ function viewReport(event) {
   // For example: navigateTo(`/admin/event/${event.id}/report`)
 }
 
-function handleImageError(event) {
-  console.log('🚫 Image failed to load:', event.target.src)
+function handleRecentImageError(event) {
+  console.log('🚫 Recent event image failed to load:', event.target.src)
   // Set fallback image when the original image fails to load
-  event.target.src = fallbackImage
-  console.log('🔄 Using fallback image:', fallbackImage)
+  event.target.src = img
+  console.log('🔄 Using fallback image for recent event:', img)
+  
+  // Optional: Add error class for styling
+  event.target.classList.add('image-error')
 }
+
+// Load recent events when component mounts
+onMounted(async () => {
+  const result = await loadEvents()
+  
+  if (!result.success) {
+    toast.error(result.message)
+  } else if (result.count === 0) {
+    toast.info('No recent events found')
+  } else {
+    toast.success(`Loaded ${result.count} recent events`)
+    
+    // Log dashboard summary if available
+    if (result.summary) {
+      console.log('📊 Dashboard Summary:', result.summary)
+    }
+  }
+})
 
 </script>
 
