@@ -2292,6 +2292,19 @@ if (Array.isArray(settingsData.provide_special_assistance)) {
   normalizedData.provide_special_assistance = []
 }
 
+    // Email and SMS reminder fields
+    normalizedData.is_send_email_reminder = settingsData.is_send_email_reminder !== undefined ? 
+      (settingsData.is_send_email_reminder ? 1 : 0) : 
+      (settingsData.isSendEmailReminder ? 1 : 0);
+    
+    normalizedData.email_reminder_date = settingsData.email_reminder_date || settingsData.emailReminderDate || null;
+    
+    normalizedData.is_send_sms_reminder = settingsData.is_send_sms_reminder !== undefined ? 
+      (settingsData.is_send_sms_reminder ? 1 : 0) : 
+      (settingsData.isSendSmsReminder ? 1 : 0);
+    
+    normalizedData.sms_reminder_date = settingsData.sms_reminder_date || settingsData.smsReminderDate || null;
+
     // Ensure maximum_age is null when age verification is disabled
     if (normalizedData.is_required_age_verification === 0) {
       normalizedData.maximum_age = null
@@ -2310,12 +2323,37 @@ if (Array.isArray(settingsData.provide_special_assistance)) {
       }
     }
 
+    // Format email reminder date properly for API
+    if (normalizedData.email_reminder_date) {
+      if (normalizedData.email_reminder_date instanceof Date) {
+        normalizedData.email_reminder_date = normalizedData.email_reminder_date.toISOString().slice(0, 19).replace('T', ' ')
+      }
+    }
+
+    // Format SMS reminder date properly for API
+    if (normalizedData.sms_reminder_date) {
+      if (normalizedData.sms_reminder_date instanceof Date) {
+        normalizedData.sms_reminder_date = normalizedData.sms_reminder_date.toISOString().slice(0, 19).replace('T', ' ')
+      }
+    }
+
 
 
     const headers = await createAuthHeaders()
     if (!headers) {
       throw new Error('Authentication required')
     }
+
+    // Debug: Log the normalized data being sent to API
+    console.log('🔍 API normalizedData being sent:', normalizedData);
+    console.log('📧 Email reminder in normalizedData:', {
+      is_send_email_reminder: normalizedData.is_send_email_reminder,
+      email_reminder_date: normalizedData.email_reminder_date
+    });
+    console.log('📱 SMS reminder in normalizedData:', {
+      is_send_sms_reminder: normalizedData.is_send_sms_reminder,
+      sms_reminder_date: normalizedData.sms_reminder_date
+    });
     
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/settings`, {
       method: 'POST',

@@ -68,6 +68,11 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       requireAgeVerification: false,
       minimumAgeOptions: null,
       requiredIdentityDocuments: [],
+      // Email and SMS reminder fields
+      isSendEmailReminder: false,
+      emailReminderDate: null,
+      isSendSmsReminder: false,
+      smsReminderDate: null,
       lastSaved: null,
       isComplete: false
     }
@@ -196,6 +201,11 @@ export const useEventTabsStore = defineStore('eventTabs', () => {
       requireAgeVerification: false,
       minimumAgeOptions: null,
       requiredIdentityDocuments: [],
+      // Email and SMS reminder fields
+      isSendEmailReminder: false,
+      emailReminderDate: null,
+      isSendSmsReminder: false,
+      smsReminderDate: null,
       lastSaved: null,
       isComplete: false
     }
