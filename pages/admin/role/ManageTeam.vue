@@ -191,16 +191,26 @@
   </template>
 </Column>
 
-          <Column field="status" header="Status" class="text-[12px] border-b border-gray-300">
-            <template #body="{ data }">
-              <span :class="['px-2 rounded-full text-xs', {
-                'bg-green-50 border border-green-400 text-green-700': data.status === 'Active',
-                'bg-gray-50 border border-gray-400 text-gray-700': data.status === 'Inactive'
-              }]">
-                {{ data.status }}
-              </span>
-            </template>
-          </Column>
+         <Column field="status" header="Status" class="text-[12px] border-b border-gray-300">
+  <template #body="{ data }">
+    <span
+      :class="[
+        'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-200',
+        {
+          'bg-green-50  text-green-700': data.status === 'Active',
+          'bg-gray-50 text-gray-700': data.status === 'Inactive'
+        }
+      ]"
+    >
+      <Icon
+        name="radix-icons:dot-filled"
+        class="w-3.5 h-3.5"
+      />
+      {{ data.status }}
+    </span>
+  </template>
+</Column>
+
           <Column header="Actions" class="text-[12px] border-b border-gray-300">
             <template #body="{ data }">
              <Button

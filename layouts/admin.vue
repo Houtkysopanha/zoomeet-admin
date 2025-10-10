@@ -109,5 +109,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+
 /* Add any additional scoped styles if needed */
 </style>

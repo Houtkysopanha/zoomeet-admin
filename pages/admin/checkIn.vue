@@ -152,7 +152,7 @@
               </div>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label for="bookingReferenceEmail" class="block text-gray-700 text-sm font-medium mb-2">Booking reference</label>
+                  <label for="bookingReferenceEmail" class="block text-gray-700 text-sm font-medium mb-2">Booking Reference No.</label>
                   <InputText
                     id="bookingReferenceEmail"
                     v-model="bookingReferenceEmail"
@@ -170,7 +170,7 @@
                   </div>
                 </div>
                 <div>
-                  <label for="ticketIdEmail" class="block text-gray-700 text-sm font-medium mb-2">Ticket ID</label>
+                  <label for="ticketIdEmail" class="block text-gray-700 text-sm font-medium mb-2">Ticket No.</label>
                   <InputText
                     id="ticketIdEmail"
                     v-model="ticketIdEmail"
