@@ -1,5 +1,5 @@
 <template>
-  <div class="p-4 bg-[#F8F8FF] min-h-screen">
+  <div class="p-4 bg-[#F8F8FF] min-h-screen w-full min-w-0 overflow-x-hidden">
 
     <!-- Sale Report Header -->
     <div class="mb-6 flex items-center justify-between">
@@ -17,12 +17,14 @@
         </div>
       </div>
     </div>
-      <Button
-        label="Export"
-        icon="pi pi-download"
-        class="bg-purple-600 text-white px-6 py-3 rounded-full hover:bg-purple-700"
-        @click="exportReport"
-      />
+      <div class="flex gap-2">
+        <Button
+          label="Export"
+          icon="pi pi-download"
+          class="bg-purple-600 text-white px-6 py-3 rounded-full hover:bg-purple-700"
+          @click="exportReport"
+        />
+      </div>
     </div>
 
     <!-- Search and Filters -->
@@ -56,54 +58,19 @@
       </div>
     </div>
 
-    <!-- Event Cards -->
-    <div class="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="bg-white rounded-2xl p-2 shadow-sm border border-gray-200 flex items-center space-x-4">
-        <img :src="poster" alt="Event" class="w-30 rounded-2xl object-cover" />
-        <div class="flex-1">
-          <h3 class="font-medium text-gray-900 text-sm mb-1">Navigating the future of cybersecurity in Cambodia 2015</h3>
-         <div class="flex items-center text-xs text-gray-500 mb-1">
-                <Icon name="heroicons:map-pin" class="w-3 h-3 mr-1" />
-                Hayatt Regency, Phnom Penh
-              </div>
-              <div class="flex items-center text-xs text-gray-500">
-                <Icon name="heroicons:calendar" class="w-3 h-3 mr-1" />
-               10:00 AM GMT+7
-              </div>
-        </div>
-      </div>
-       <div class="bg-white rounded-2xl p-2 shadow-sm border border-gray-200 flex items-center space-x-4">
-        <img :src="poster" alt="Event" class="w-30 rounded-2xl object-cover" />
-        <div class="flex-1">
-          <h3 class="font-medium text-gray-900 text-sm mb-1">Navigating the future of cybersecurity in Cambodia 2015</h3>
-         <div class="flex items-center text-xs text-gray-500 mb-1">
-                <Icon name="heroicons:map-pin" class="w-3 h-3 mr-1" />
-                Hayatt Regency, Phnom Penh
-              </div>
-              <div class="flex items-center text-xs text-gray-500">
-                <Icon name="wi:time-9" class="w-3 h-3 mr-1" />
-               10:00 AM GMT+7
-              </div>
-        </div>
-      </div>
-       <div class="bg-white rounded-2xl p-2 shadow-sm border border-gray-200 flex items-center space-x-4">
-        <img :src="poster" alt="Event" class="w-30 rounded-2xl object-cover" />
-        <div class="flex-1">
-          <h3 class="font-medium text-gray-900 text-sm mb-1">Navigating the future of cybersecurity in Cambodia 2015</h3>
-         <div class="flex items-center text-xs text-gray-500 mb-1">
-                <Icon name="heroicons:map-pin" class="w-3 h-3 mr-1" />
-                Hayatt Regency, Phnom Penh
-              </div>
-              <div class="flex items-center text-xs text-gray-500">
-                <Icon name="heroicons:calendar" class="w-3 h-3 mr-1" />
-               10:00 AM GMT+7
-              </div>
-        </div>
-      </div>
+    <!-- Events Section with Fixed Height Container -->
+    <div class="mb-6 h-48">
+      <EventCards 
+        :events="events"
+        :selected-event="selectedEvent"
+        :loading="loading"
+        @select-event="selectEvent"
+        class="h-full"
+      />
     </div>
 
     <!-- Sale Overtime Section -->
-    <div class="mb-8">
+    <div class="mb-8 w-full min-w-0">
       <!-- Sale Overtime Header with Controls -->
       <div class="flex items-center justify-between mb-6">
         <h2 class="text-xl font-semibold text-gray-900">Sale Overtime</h2>
@@ -114,83 +81,112 @@
             optionLabel="label"
             optionValue="value"
             placeholder="Today"
-            class="w-32 rounded-xl border border-gray-300 bg-[#F5F5F5]"
+            class="w-32 rounded-full border border-gray-300 bg-white"
           />
           <Button
             label="Filters"
             icon="pi pi-filter"
-            class="p-button-outlined text-purple-600 border-purple-600 hover:bg-purple-50 px-4 py-2 rounded-xl"
+            class="p-button-outlined text-white border-purple-600 bg-purple-600 hover:bg-purple-600 px-4 py-2 rounded-full"
             @click="toggleOvertimeFilters"
           />
         </div>
       </div>
       
-      <div class="grid grid-cols-1 lg:grid-cols-2 bg-white rounded-2xl">
-        <!-- Paid and confirmed -->
-        <div class="p-6 ">
-          <div class="mb-6 flex justify-between rounded-lg px-1 py-1 items-center bg-[#F9F7FD] m-auto">
-            <h3 class="text-sm font-medium text-gray-900 ">Paid and confirmed</h3>
-            <h3 class="text-md font-bold text-purple-900 ">1000</h3>
-          </div>
-          <div class="grid grid-cols-3 gap-4">
-            <div class="text-start">
-              <div class="flex items-center justify-start mb-2">
-                <Icon name="material-symbols-light:receipt-rounded" class="w-6 h-6 text-purple-700 mr-1" />
-                <span class="text-md  font-medium  text-purple-700 ">Bookings</span>
-              </div>
-              <p class="text-xl ml-5 font-semibold text-gray-900">1,000</p>
-            </div>
-            <div class="text-center border-x border-gray-400">
-              <div class="flex items-center justify-center mb-2">
-                <Icon name="heroicons:ticket-solid" class="w-6 h-6 text-purple-700 mr-1" />
-                <span class="text-md  font-medium  text-purple-700 ">Tickets</span>
-              </div>
-              <p class="text-xl font-semibold text-gray-900">1,500</p>
-            </div>
-            <div class="text-end">
-              <div class="flex items-center justify-end mb-2">
-               <Icon name="tabler:coin-filled" class="w-6 h-6 text-purple-700 mr-1" />
-                <span class="text-md  font-medium  text-purple-700 ">Amounts</span>
-              </div>
-              <p class="text-xl font-semibold mr-4 text-gray-900">$2,000</p>
-            </div>
-          </div>
+     <div class="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] bg-white rounded-2xl w-full min-w-0">
+  <!-- Paid and confirmed -->
+  <div class="p-6">
+    <div class="mb-6 flex justify-between rounded-lg px-1 py-1 items-center bg-[#F9F7FD] m-auto">
+      <h3 class="text-sm font-medium text-gray-900">Paid and confirmed</h3>
+      <h3 class="text-md font-bold text-purple-800">
+        {{ salesOvertimeData?.summary_paid?.total_booking || 0 }}
+      </h3>
+    </div>
+
+    <div class="grid grid-cols-3 gap-4">
+      <div class="text-start">
+        <div class="flex items-center justify-start mb-2">
+          <Icon name="material-symbols-light:receipt-rounded" class="w-6 h-6 text-purple-700 mr-1" />
+          <span class="text-md font-medium text-purple-700">Bookings</span>
         </div>
-        <!-- Pending for cash payment -->
-         <div class="p-6  ">
-          <div class="mb-6 flex justify-between rounded-lg px-1 py-1 items-center bg-[#F9F7FD] m-auto">
-            <h3 class="text-sm font-medium text-gray-900 ">Pending for cash payment</h3>
-            <h3 class="text-md font-bold text-purple-900 ">1000</h3>
-          </div>
-          <div class="grid grid-cols-3 gap-4">
-            <div class="text-start">
-              <div class="flex items-center justify-start mb-2">
-                <Icon name="material-symbols-light:receipt-rounded" class="w-6 h-6 text-purple-700 mr-1" />
-                <span class="text-md  font-medium  text-purple-700 ">Bookings</span>
-              </div>
-              <p class="text-xl ml-5 font-semibold text-gray-900">1,000</p>
-            </div>
-            <div class="text-center border-x border-gray-400">
-              <div class="flex items-center justify-center mb-2">
-                <Icon name="heroicons:ticket-solid" class="w-6 h-6 text-purple-700 mr-1" />
-                <span class="text-md  font-medium  text-purple-700 ">Tickets</span>
-              </div>
-              <p class="text-xl font-semibold text-gray-900">1,500</p>
-            </div>
-            <div class="text-end">
-              <div class="flex items-center justify-end mb-2">
-               <Icon name="tabler:coin-filled" class="w-6 h-6 text-purple-700 mr-1" />
-                <span class="text-md  font-medium  text-purple-700 ">Amounts</span>
-              </div>
-              <p class="text-xl font-semibold mr-4 text-gray-900">$2,000</p>
-            </div>
-          </div>
-        </div>
+        <p class="text-xl ml-5 font-semibold text-gray-900">
+          {{ salesOvertimeData?.summary_paid?.total_booking || 0 }}
+        </p>
       </div>
+
+      <div class="text-center border-x border-gray-300">
+        <div class="flex items-center justify-center mb-2">
+          <Icon name="heroicons:ticket-solid" class="w-6 h-6 text-purple-700 mr-1" />
+          <span class="text-md font-medium text-purple-700">Tickets</span>
+        </div>
+        <p class="text-xl font-semibold text-gray-900">
+          {{ salesOvertimeData?.summary_paid?.total_ticket || 0 }}
+        </p>
+      </div>
+
+      <div class="text-end">
+        <div class="flex items-center justify-end mb-2">
+          <Icon name="tabler:coin-filled" class="w-6 h-6 text-purple-700 mr-1" />
+          <span class="text-md font-medium text-purple-700">Revenue</span>
+        </div>
+        <p class="text-xl font-semibold mr-4 text-gray-900">
+          ${{ salesOvertimeData?.summary_paid?.total_revenue || 0 }}
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Divider (custom height and padding) -->
+  <div class="hidden lg:flex justify-center items-center">
+    <div class="h-[70%] w-px bg-gray-300"></div>
+  </div>
+
+  <!-- Pending for cash payment -->
+  <div class="p-6">
+    <div class="mb-6 flex justify-between rounded-lg px-1 py-1 items-center bg-[#F9F7FD] m-auto">
+      <h3 class="text-sm font-medium text-gray-900">Pending for cash payment</h3>
+      <h3 class="text-md font-bold text-purple-800">
+        {{ salesOvertimeData?.summary_pending?.total_booking || 0 }}
+      </h3>
+    </div>
+
+    <div class="grid grid-cols-3 gap-4">
+      <div class="text-start">
+        <div class="flex items-center justify-start mb-2">
+          <Icon name="material-symbols-light:receipt-rounded" class="w-6 h-6 text-purple-700 mr-1" />
+          <span class="text-md font-medium text-purple-700">Bookings</span>
+        </div>
+        <p class="text-xl ml-5 font-semibold text-gray-900">
+          {{ salesOvertimeData?.summary_pending?.total_booking || 0 }}
+        </p>
+      </div>
+
+      <div class="text-center border-x border-gray-300">
+        <div class="flex items-center justify-center mb-2">
+          <Icon name="heroicons:ticket-solid" class="w-6 h-6 text-purple-700 mr-1" />
+          <span class="text-md font-medium text-purple-700">Tickets</span>
+        </div>
+        <p class="text-xl font-semibold text-gray-900">
+          {{ salesOvertimeData?.summary_pending?.total_ticket || 0 }}
+        </p>
+      </div>
+
+      <div class="text-end">
+        <div class="flex items-center justify-end mb-2">
+          <Icon name="tabler:coin-filled" class="w-6 h-6 text-purple-700 mr-1" />
+          <span class="text-md font-medium text-purple-700">Revenue</span>
+        </div>
+        <p class="text-xl font-semibold mr-4 text-gray-900">
+          ${{ salesOvertimeData?.summary_pending?.total_revenue || 0 }}
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
     </div>
 
     <!-- List Sale Section -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 w-full min-w-0 overflow-hidden">
       <!-- Header with filters -->
       <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
         <h2 class="text-lg font-semibold text-gray-900">List Sale</h2>
@@ -232,17 +228,18 @@
       </div>
 
       <!-- Data Table -->
-      <div class="overflow-hidden">
+      <div class="overflow-x-auto overflow-y-hidden">
         <DataTable 
           :value="salesData" 
           :paginator="true" 
           :rows="itemsPerPage"
           :totalRecords="totalRecords"
-          class="p-datatable-gridlines"
+          class="p-datatable-gridlines min-w-full"
           scrollable 
           responsiveLayout="scroll"
+          scrollHeight="flex"
         >
-          <Column field="bookingName" header="Booking name" sortable class="text-[12px] text-start border-b border-gray-300">
+                    <Column field="bookingName" header="Booking name" sortable class="text-[12px] text-start border-b border-gray-300">
             <template #body="slotProps">
               <div class="py-2">
                 <p class="font-medium text-gray-900">{{ slotProps.data.name }}</p>
@@ -259,7 +256,7 @@
           
           <Column field="purchaseDate" header="Purchase Date" sortable class="text-[12px] text-start border-b border-gray-300">
             <template #body="slotProps">
-              <span class="text-gray-700">{{ formatDate(slotProps.data.purchaseDate) }}</span>
+              <span class="text-gray-700">{{ slotProps.data.purchaseDate }}</span>
             </template>
           </Column>
           
@@ -271,9 +268,16 @@
           
           <Column field="typeTicket" header="Type of Ticket" class="text-[12px] text-start border-b border-gray-300">
             <template #body="slotProps">
-              <span class="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                {{ slotProps.data.typeTicket }}
-              </span>
+              <div class="flex flex-wrap gap-1">
+                <span 
+                  v-for="ticketType in getTicketTypes(slotProps.data.typeTicket)" 
+                  :key="ticketType"
+                  :class="getTicketTypeClass(ticketType)"
+                  class="px-2 py-1 rounded-full text-xs font-medium"
+                >
+                  {{ ticketType }}
+                </span>
+              </div>
             </template>
           </Column>
           
@@ -289,13 +293,29 @@
             </template>
           </Column>
           
-          <Column field="status" header="Status" class="text-[12px] text-start border-b border-gray-300">
-            <template #body="slotProps">
-              <span :class="getStatusClass(slotProps.data.status)" class="px-2 py-1 rounded-full text-xs font-medium">
-                {{ slotProps.data.status }}
-              </span>
-            </template>
-          </Column>
+         <Column
+  field="status"
+  header="Status"
+  class="text-[12px] text-start border-b border-gray-300"
+>
+  <template #body="slotProps">
+    <div class="flex items-center">
+      <span
+        :class="[
+          'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium',
+          getStatusClass(slotProps.data.status)
+        ]"
+      >
+        <Icon
+          name="radix-icons:dot-filled"
+          class="w-4 h-4"
+        />
+        {{ slotProps.data.status }}
+      </span>
+    </div>
+  </template>
+</Column>
+
           
           <Column header="Actions" class="text-[12px] text-start border-b border-gray-300">
             <template #body="slotProps">
@@ -316,24 +336,37 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import Breadcrumb from '~/components/common/Breadcrumb.vue'
+import EventCards from '~/components/common/EventCards.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
 import Menu from 'primevue/menu'
 import Dropdown from 'primevue/dropdown'
 import { useToast } from 'primevue/usetoast'
+import { useRoute } from 'vue-router'
+import { fetchEvents, fetchSalesOvertimeReport, fetchSalesReportList } from '~/composables/api.js'
 import poster from "@/assets/image/poster-manage-booking.png"
 const toast = useToast()
 
 // Data
 const itemsPerPage = ref(10)
-const totalRecords = ref(206)
+const totalRecords = ref(0)
 const searchQuery = ref('')
 const selectedMonth = ref('October')
 const selectedYear = ref('2025')
 const selectedPeriod = ref('Today')
+
+// New reactive data for events and sales
+const events = ref([])
+const selectedEvent = ref(null)
+const salesOvertimeData = ref(null)
+const salesListData = ref([])
+const currentPage = ref(1)
+const loading = ref(false)
+const sortOption = ref('')
+const totalItems = ref(0)
 
 // Dropdown options
 const periodOptions = ref([
@@ -367,135 +400,151 @@ const yearOptions = ref([
   { label: '2026', value: '2026' }
 ])
 
-// Sample sales data matching the image
-const salesData = ref([
-  {
-    name: 'Sovanpunchauth',
-    phone: '012345678',
-    bookingRefNo: 'BK789456',
-    purchaseDate: 'Aug 3, 2025 | 09:15AM',
-    noTicket: 10,
-    typeTicket: 'Premium',
-    payment: 'Cash',
-    amount: 250,
-    status: 'PENDING'
-  },
-  {
-    name: 'Sovanvicha',
-    phone: '012345678',
-    bookingRefNo: 'BK789456',
-    purchaseDate: 'Aug 3, 2025 | 09:15AM',
-    noTicket: 10,
-    typeTicket: 'Premium',
-    payment: 'ABA Bank',
-    amount: 120,
-    status: 'PAID'
-  },
-  {
-    name: 'Tom Tony',
-    phone: 'voltonnextgen@.com',
-    bookingRefNo: 'BK789456',
-    purchaseDate: 'Aug 3, 2025 | 09:15AM',
-    noTicket: 20,
-    typeTicket: 'Premium',
-    payment: 'Cash',
-    amount: 120,
-    status: 'PENDING'
-  },
-  {
-    name: 'Pleung Prakika',
-    phone: '012345678',
-    bookingRefNo: 'BK789456',
-    purchaseDate: 'Aug 3, 2025 | 09:15AM',
-    noTicket: 20,
-    typeTicket: 'Premium',
-    payment: 'ABA Bank',
-    amount: 120,
-    status: 'PAID'
-  },
-  {
-    name: 'Seng Sivmey',
-    phone: '012345678',
-    bookingRefNo: 'BK789456',
-    purchaseDate: 'Aug 3, 2025 | 09:15AM',
-    noTicket: 10,
-    typeTicket: 'Premium',
-    payment: 'ABA Bank',
-    amount: 120,
-    status: 'PAID'
-  },
-  {
-    name: 'Pleung Phalisa',
-    phone: 'pleungphals@gmail.com',
-    bookingRefNo: 'BK789456',
-    purchaseDate: 'Aug 3, 2025 | 09:15AM',
-    noTicket: 2,
-    typeTicket: 'Premium',
-    payment: 'ABA Bank',
-    amount: 120,
-    status: 'PAID'
-  },
-  {
-    name: 'Ly Sokmey',
-    phone: '012345678',
-    bookingRefNo: 'BK789456',
-    purchaseDate: 'Aug 3, 2025 | 09:15AM',
-    noTicket: 8,
-    typeTicket: 'Premium',
-    payment: 'ABA Bank',
-    amount: 120,
-    status: 'PAID'
-  },
-  {
-    name: 'Som Lydara',
-    phone: 'somlydara@gmail.com',
-    bookingRefNo: 'BK789456',
-    purchaseDate: 'Aug 3, 2025 | 09:15AM',
-    noTicket: 6,
-    typeTicket: 'Premium',
-    payment: 'ABA Bank',
-    amount: 120,
-    status: 'PAID'
-  },
-  {
-    name: 'Mey Lykonika',
-    phone: '012345678',
-    bookingRefNo: 'BK789456',
-    purchaseDate: 'Aug 3, 2025 | 09:15AM',
-    noTicket: 5,
-    typeTicket: 'Premium',
-    payment: 'Cash',
-    amount: 120,
-    status: 'PENDING'
-  },
-  {
-    name: 'Ty Lynney',
-    phone: 'ty.lynney@gmail.com',
-    bookingRefNo: 'BK789456',
-    purchaseDate: 'Aug 3, 2025 | 09:15AM',
-    noTicket: 15,
-    typeTicket: 'Premium',
-    payment: 'Cash',
-    amount: 120,
-    status: 'PENDING'
-  }
+// Sort and pagination options
+const sortOptions = ref([
+  { label: 'Newest First', value: 'newest' },
+  { label: 'Oldest First', value: 'oldest' },
+  { label: 'Highest Amount', value: 'amount_desc' },
+  { label: 'Lowest Amount', value: 'amount_asc' }
 ])
 
+const pageOptions = ref([
+  { label: '10', value: 10 },
+  { label: '25', value: 25 },
+  { label: '50', value: 50 },
+  { label: '100', value: 100 }
+])
+
+// Computed property for transformed sales data
+const salesData = computed(() => {
+  return salesListData.value.map(item => ({
+    id: item.id,
+    name: item.customer_name,
+    phone: item.customer_phone_number || item.customer_email,
+    bookingRefNo: item.order_number,
+    purchaseDate: formatDate(item.created_at),
+    noTicket: item.total_ticket,
+    typeTicket: item.ticket_types?.join(', ') || '-',
+    payment: formatPaymentMethod(item.payment_method),
+    amount: item.total_amount,
+    status: item.status.toUpperCase()
+  }))
+})
+
 // Methods
+const loadEvents = async () => {
+  try {
+    loading.value = true
+    
+    const response = await fetchEvents()
+    
+    // Handle different possible response structures
+    let eventData = []
+    if (response && response.data && response.data.success) {
+      // Response structure: { data: { success: true, data: [...] } }
+      eventData = response.data.data || []
+    } else if (response && response.success) {
+      // Response structure: { success: true, data: [...] }
+      eventData = response.data || []
+    } else if (response && Array.isArray(response)) {
+      // Response structure: [...]
+      eventData = response
+    } else if (response && response.data && Array.isArray(response.data)) {
+      // Response structure: { data: [...] }
+      eventData = response.data
+    }
+    
+    events.value = eventData
+    
+    // Select first event by default if available
+    if (events.value.length > 0 && !selectedEvent.value) {
+      selectEvent(events.value[0])
+    }
+    
+    if (events.value.length === 0) {
+      toast.add({
+        severity: 'info',
+        summary: 'No Events',
+        detail: 'No events found in your account',
+        life: 3000
+      })
+    }
+  } catch (error) {
+    console.error('❌ Error loading events:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: `Failed to load events: ${error.message}`,
+      life: 5000
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+const selectEvent = async (event) => {
+  selectedEvent.value = event
+  await Promise.all([
+    loadSalesOvertimeData(event.id),
+    loadSalesListData(event.id)
+  ])
+}
+
+const loadSalesOvertimeData = async (eventId) => {
+  try {
+    const response = await fetchSalesOvertimeReport(eventId)
+    if (response && response.success) {
+      salesOvertimeData.value = response.data
+    }
+  } catch (error) {
+    console.error('Error loading sales overtime data:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to load sales overtime data',
+      life: 3000
+    })
+  }
+}
+
+const loadSalesListData = async (eventId, page = 1) => {
+  try {
+    loading.value = true
+    const response = await fetchSalesReportList(eventId, page, itemsPerPage.value)
+    if (response && response.success) {
+      salesListData.value = response.data.items || []
+      totalRecords.value = response.data.paginate?.total || 0
+      totalItems.value = response.data.paginate?.total || 0
+      currentPage.value = response.data.paginate?.current_page || 1
+    }
+  } catch (error) {
+    console.error('Error loading sales list data:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to load sales list data',
+      life: 3000
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
 const exportReport = () => {
+  if (!selectedEvent.value) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Warning',
+      detail: 'Please select an event first',
+      life: 3000
+    })
+    return
+  }
+  
   toast.add({ 
     severity: 'info', 
     summary: 'Export Report', 
-    detail: 'Sale report exported successfully', 
-    life: 3000 
-  })
-}
-
-const filterToday = () => {
-  toast.add({ 
-    severity: 'info', 
-    summary: 'Filter Applied', 
-    detail: 'Showing today\'s sales', 
+    detail: `Sale report for ${selectedEvent.value.name} exported successfully`, 
     life: 3000 
   })
 }
@@ -519,19 +568,81 @@ const toggleOvertimeFilters = () => {
 }
 
 const formatDate = (dateString) => {
-  return dateString
+  if (!dateString) return '-'
+  try {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch (error) {
+    return dateString
+  }
+}
+
+
+
+const formatPaymentMethod = (method) => {
+  const methodMap = {
+    'offline': 'Cash',
+    'abapay': 'ABA Bank',
+    'cash': 'Cash'
+  }
+  return methodMap[method] || method
 }
 
 const getStatusClass = (status) => {
-  switch (status) {
+  switch (status?.toUpperCase()) {
+    case 'COMPLETED':
     case 'PAID':
-      return 'bg-green-100 text-green-800'
+      return 'bg-green-50 text-green-800'
     case 'PENDING':
-      return 'bg-yellow-100 text-yellow-800'
+      return 'bg-yellow-50 text-yellow-800'
+    case 'CANCELED':
     case 'FAILED':
-      return 'bg-red-100 text-red-800'
+      return 'bg-red-50 text-red-800'
     default:
-      return 'bg-gray-100 text-gray-800'
+      return 'bg-gray-50 text-gray-800'
+  }
+}
+
+const getTicketTypes = (typeTicketString) => {
+  if (!typeTicketString || typeTicketString === '-') return []
+  return typeTicketString.split(', ').map(type => type.trim()).filter(type => type.length > 0)
+}
+
+const getTicketTypeClass = (ticketType) => {
+  const type = ticketType.toLowerCase()
+  switch (type) {
+    case 'premium':
+      return 'bg-purple-100 text-purple-800'
+    case 'executive':
+      return 'bg-purple-100 text-purple-800'
+    case 'normal':
+    case 'standard':
+      return 'bg-purple-100 text-purple-800'
+    case 'vip':
+      return 'bg-purple-100 text-purple-800'
+    case 'early bird':
+      return 'bg-purple-100 text-purple-800'
+    default:
+      return 'bg-purple-100 text-purple-800'
+  }
+}
+
+const applySort = () => {
+  if (selectedEvent.value) {
+    loadSalesListData(selectedEvent.value.id, currentPage.value)
+  }
+}
+
+const applyPageChange = () => {
+  currentPage.value = 1
+  if (selectedEvent.value) {
+    loadSalesListData(selectedEvent.value.id, 1)
   }
 }
 
@@ -543,6 +654,45 @@ const toggleMenu = (event, data) => {
     life: 3000 
   })
 }
+
+// Watch for pagination changes
+watch([currentPage, itemsPerPage], () => {
+  if (selectedEvent.value) {
+    loadSalesListData(selectedEvent.value.id, currentPage.value)
+  }
+})
+
+// Load events on component mount
+onMounted(async () => {
+  // Get eventId from URL query parameters
+  const route = useRoute()
+  const eventIdFromUrl = route.query.eventId
+    
+  // Load events first
+  await loadEvents()
+  
+  // If eventId is provided in URL, select that event
+  if (eventIdFromUrl && events.value.length > 0) {
+    const targetEvent = events.value.find(event => event.id.toString() === eventIdFromUrl.toString())
+    if (targetEvent) {
+      await selectEvent(targetEvent)
+      
+      toast.add({
+        severity: 'success',
+        summary: 'Event Selected',
+        detail: `Viewing report for: ${targetEvent.name}`,
+        life: 3000
+      })
+    } else {
+      toast.add({
+        severity: 'warn',
+        summary: 'Event Not Found',
+        detail: 'The requested event was not found',
+        life: 3000
+      })
+    }
+  }
+})
 
 definePageMeta({
   layout: "admin",
@@ -583,12 +733,9 @@ definePageMeta({
 :deep(.p-button-outlined) {
   border-width: 1px;
   border-style: solid;
-  background: transparent;
 }
 
-:deep(.p-button-outlined:hover) {
-  background-color: rgba(124, 58, 237, 0.05);
-}
+
 
 /* Search and filter styling */
 .input-search {
@@ -597,17 +744,48 @@ definePageMeta({
   outline: none;
 }
 
-.select-standard {
-  @apply border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white;
+/* .select-standard {
+  @apply border border-gray-300 my-3 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white;
+} */
+
+
+
+
+/* Layout Protection Styles */
+.layout-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
 }
 
+.section-container {
+  flex-shrink: 0;
+  width: 100%;
+  min-width: 0;
+}
 
+.data-table-container {
+  min-width: 800px; /* Ensure minimum table width */
+}
 
-/* Status badge styling */
-.px-2 {
-  border-radius: 9999px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.025em;
+/* Keep only non-event related scrollbar utilities */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+/* DataTable responsive protection */
+:deep(.p-datatable-wrapper) {
+  min-width: 100%;
+  overflow-x: auto;
+}
+
+:deep(.p-datatable-table) {
+  min-width: 800px;
 }
 </style>

@@ -71,17 +71,17 @@ export const useUpcomingEvents = () => {
   })
 
   // Load upcoming events
-  const loadEvents = async (startDate = null) => {
+  const loadEvents = async (selectedDate = null) => {
     isLoading.value = true
     error.value = null
     
     try {
-      // Use provided startDate or default to today
-      const dateToUse = startDate || new Date()
+      // Use provided selectedDate or default to today
+      const dateToUse = selectedDate || new Date()
       
-      // Ensure we never request past dates
-      const today = new Date()
-      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+            // Ensure we never request past dates (use actual current date)
+      const actualToday = new Date() // Actual current date - dynamic
+      const todayStart = new Date(actualToday.getFullYear(), actualToday.getMonth(), actualToday.getDate())
       const requestStart = new Date(dateToUse.getFullYear(), dateToUse.getMonth(), dateToUse.getDate())
       
       if (requestStart < todayStart) {
@@ -94,28 +94,30 @@ export const useUpcomingEvents = () => {
         }
       }
 
-      const formattedDate = requestStart.toISOString().split('T')[0]
-      console.log('🔄 Loading upcoming events for date:', formattedDate)
+      // Format date safely without timezone issues
+      const year = requestStart.getFullYear()
+      const month = String(requestStart.getMonth() + 1).padStart(2, '0')
+      const day = String(requestStart.getDate()).padStart(2, '0')
+      const formattedDate = `${year}-${month}-${day}`
       
       const response = await fetchUpcomingEvents(requestStart)
       
       if (response.success && response.data) {
         upcomingEvents.value = response.data
         lastFetchDate.value = formattedDate
-        console.log('✅ Upcoming events loaded:', response.data.length, 'events')
-        
+
         return {
           success: true,
           message: 'Events loaded successfully',
           count: response.data.length
         }
       } else {
-        console.warn('⚠️ No upcoming events found:', response.message)
+        console.warn('⚠️ No upcoming events found for', formattedDate, ':', response.message)
         upcomingEvents.value = []
         
         return {
-          success: false,
-          message: response.message || 'No upcoming events found',
+          success: true, // Change to success since no events is a valid state
+          message: response.message || 'No upcoming events found for the selected date',
           count: 0
         }
       }

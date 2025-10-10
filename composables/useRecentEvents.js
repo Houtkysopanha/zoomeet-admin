@@ -87,7 +87,6 @@ export const useRecentEvents = () => {
     error.value = null
     
     try {
-      console.log('🔄 Loading recent events from dashboard')
       
       const response = await fetchRecentEvents()
       
@@ -95,7 +94,6 @@ export const useRecentEvents = () => {
         recentEvents.value = response.data
         dashboardSummary.value = response.summary
         lastFetchTime.value = new Date().toISOString()
-        console.log('✅ Recent events loaded:', response.data.length, 'events')
         
         return {
           success: true,

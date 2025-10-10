@@ -249,18 +249,26 @@ export async function fetchEvents() {
   const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
 
+
   try {
     
     // Create headers with authenticated token using async refresh
     const headers = await createAuthHeaders()
     if (!headers) {
+      console.log('❌ fetchEvents - No auth headers available')
       return { status: 401, data: { success: false, data: [], message: 'Authentication required' } }
     }
 
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/events`, {
+
+    const url = `${API_ADMIN_BASE_URL}/events`
+
+
+    const response = await $fetch(url, {
       method: 'GET',
       headers
     })
+
+
 
     // Validate and log each event ID
     if (response && Array.isArray(response.data)) {
@@ -1797,19 +1805,12 @@ export async function fetchDashboardData() {
 
     const url = normalizeApiUrl(API_ADMIN_BASE_URL, '/dashboard')
     
-    console.log('🔄 Fetching dashboard data from:', url)
-    console.log('🔑 Using headers:', { ...headers, Authorization: headers.Authorization ? '[REDACTED]' : 'Not set' })
     
     const response = await $fetch(url, {
       headers,
       method: 'GET'
     })
 
-    console.log('✅ Dashboard API response received:', {
-      success: response?.success,
-      hasData: !!response?.data,
-      dataKeys: response?.data ? Object.keys(response.data) : []
-    })
     
     // Validate response structure
     if (!response || typeof response !== 'object') {
@@ -1843,7 +1844,6 @@ export async function fetchDashboardData() {
       data: error.data || null
     }
     
-    console.error('📊 Dashboard API Error Details:', errorInfo)
     throw errorInfo
   }
 }
@@ -3668,7 +3668,7 @@ export async function resetPasswordWithToken(identifier, newPassword, confirmPas
 }
 
 // Fetch upcoming events with start date parameter
-export async function fetchUpcomingEvents(startDate = null) {
+export async function fetchUpcomingEvents(selectedDate = null) {
   const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
 
@@ -3682,45 +3682,112 @@ export async function fetchUpcomingEvents(startDate = null) {
       throw new Error('Unable to create authentication headers')
     }
 
-    // Build query parameters
+    // Use provided selectedDate or default to today
+    const dateToUse = selectedDate || new Date()
+
+    
+    // Ensure we never request past dates - use actual current date as minimum
+    const actualToday = new Date() // Actual current date - dynamic
+    const todayDateOnly = new Date(actualToday.getFullYear(), actualToday.getMonth(), actualToday.getDate())
+    const requestDateOnly = new Date(dateToUse.getFullYear(), dateToUse.getMonth(), dateToUse.getDate())
+    
+    const requestDate = requestDateOnly < todayDateOnly ? todayDateOnly : dateToUse
+    
+
+    // Format selected date as YYYY-MM-DD (avoid timezone issues)
+    const year = requestDate.getFullYear()
+    const month = String(requestDate.getMonth() + 1).padStart(2, '0')
+    const day = String(requestDate.getDate()).padStart(2, '0')
+    const formattedDate = `${year}-${month}-${day}`
+    
+
+    // Build the API URL with required start_date parameter
     const params = new URLSearchParams()
-    
-    // Use provided startDate or default to today
-    const dateToUse = startDate || new Date()
-    
-    // Ensure we never request past dates - use today as minimum
-    const today = new Date()
-    const requestDate = dateToUse < today ? today : dateToUse
-    
-    // Format date as YYYY-MM-DD
-    const formattedDate = requestDate.toISOString().split('T')[0]
     params.append('start_date', formattedDate)
+    
+    const url = `${API_ADMIN_BASE_URL}/dashboard/up-comming-event?${params.toString()}`
 
-    const queryString = params.toString()
-    const url = `${API_ADMIN_BASE_URL}/dashboard/up-comming-event${queryString ? `?${queryString}` : ''}`
-
-    console.log('🔄 Fetching upcoming events from:', url)
 
     const response = await $fetch(url, {
       method: 'GET',
       headers
     })
 
-    console.log('✅ Upcoming events fetched successfully:', response)
+
 
     // Validate and return response
     if (response && response.success && Array.isArray(response.data)) {
-      // Filter out any events that have already ended (additional client-side filtering)
-      const currentTime = new Date()
-      const filteredEvents = response.data.filter(event => {
-        const eventEndDate = new Date(event.end_date)
-        return eventEndDate >= currentTime
+      
+      // The API now returns events based on start_date parameter
+      // But we still need to check if multi-day events should be shown
+      const selectedDateTime = new Date(requestDate.getFullYear(), requestDate.getMonth(), requestDate.getDate())
+
+      
+      // Get all upcoming events to check for multi-day events that might span to our selected date
+      const allEventsUrl = `${API_ADMIN_BASE_URL}/dashboard/up-comming-event`
+      
+      let allEventsResponse
+      try {
+        allEventsResponse = await $fetch(allEventsUrl, {
+          method: 'GET',
+          headers
+        })
+      } catch (error) {
+        allEventsResponse = { success: false, data: [] }
+      }
+      
+      // Combine events from specific date API call with multi-day events
+      let combinedEvents = [...response.data]
+      
+      if (allEventsResponse && allEventsResponse.success && Array.isArray(allEventsResponse.data)) {
+        
+        allEventsResponse.data.forEach(event => {
+          try {
+            const eventStartDate = new Date(event.start_date)
+            const eventEndDate = new Date(event.end_date)
+            
+            if (isNaN(eventStartDate.getTime()) || isNaN(eventEndDate.getTime())) {
+              return // Skip invalid dates
+            }
+            
+            const startDateOnly = new Date(eventStartDate.getFullYear(), eventStartDate.getMonth(), eventStartDate.getDate())
+            const endDateOnly = new Date(eventEndDate.getFullYear(), eventEndDate.getMonth(), eventEndDate.getDate())
+            
+            // Check if selected date falls within this event's range
+            const isWithinRange = selectedDateTime.getTime() >= startDateOnly.getTime() && selectedDateTime.getTime() <= endDateOnly.getTime()
+            
+            // Check if event hasn't ended yet
+            const actualToday = new Date() // Actual current date - dynamic
+            const todayEndOfDay = new Date(actualToday.getFullYear(), actualToday.getMonth(), actualToday.getDate(), 23, 59, 59, 999)
+            const eventEndOfDay = new Date(endDateOnly.getFullYear(), endDateOnly.getMonth(), endDateOnly.getDate(), 23, 59, 59, 999)
+            const hasntEnded = eventEndOfDay >= todayEndOfDay
+            
+            if (isWithinRange && hasntEnded) {
+              // Check if this event is already in our combined list
+              const alreadyExists = combinedEvents.some(existingEvent => existingEvent.id === event.id)
+              if (!alreadyExists) {
+                combinedEvents.push(event)
+              }
+            }
+          } catch (parseError) {
+            console.warn(`⚠️ Error processing event "${event.name}":`, parseError)
+          }
+        })
+      }
+      
+      // Remove duplicates based on event ID
+      const uniqueEvents = combinedEvents.filter((event, index, self) => 
+        index === self.findIndex(e => e.id === event.id)
+      )
+            
+      // Log which events are being returned
+      uniqueEvents.forEach(event => {
       })
 
       return {
         success: true,
         message: response.message || 'Upcoming events retrieved successfully',
-        data: filteredEvents
+        data: uniqueEvents
       }
     } else {
       console.warn('⚠️ Unexpected response structure:', response)
@@ -3773,14 +3840,11 @@ export async function fetchRecentEvents() {
       throw new Error('Unable to create authentication headers')
     }
 
-    console.log('🔄 Fetching recent events from dashboard')
 
     const response = await $fetch(`${API_ADMIN_BASE_URL}/dashboard`, {
       method: 'GET',
       headers
     })
-
-    console.log('✅ Recent events fetched successfully:', response)
 
     // Validate and return response
     if (response && response.success && response.data && Array.isArray(response.data.recently_event)) {
@@ -3928,5 +3992,76 @@ export async function updateOrderStatus(orderId, status, paymentMethod = null, t
     }
     
     throw new Error(userMessage)
+  }
+}
+
+// ============= SALES REPORT API FUNCTIONS =============
+
+// Fetch sales report overtime data for a specific event
+export async function fetchSalesOvertimeReport(eventId) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  if (!validateUUID(eventId)) {
+    throw new Error('Invalid event ID format')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      handleAuthRedirect()
+      return null
+    }
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/report/sale-report/${eventId}`, {
+      method: 'GET',
+      headers
+    })
+
+    return response
+  } catch (error) {
+    console.error('Error fetching sales overtime report:', error)
+    throw error
+  }
+}
+
+// Fetch sales report list data for a specific event
+export async function fetchSalesReportList(eventId, page = 1, perPage = 10) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  if (!validateUUID(eventId)) {
+    throw new Error('Invalid event ID format')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      handleAuthRedirect()
+      return null
+    }
+
+    const params = new URLSearchParams({
+      page: page.toString(),
+      per_page: perPage.toString()
+    })
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/report/sale-report/${eventId}/list?${params}`, {
+      method: 'GET',
+      headers
+    })
+
+    return response
+  } catch (error) {
+    console.error('Error fetching sales report list:', error)
+    throw error
   }
 }

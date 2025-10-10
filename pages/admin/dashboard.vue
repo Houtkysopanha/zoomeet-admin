@@ -12,16 +12,6 @@
             ]"
             class="mb-2"
           />
-          <Button
-            icon="pi pi-refresh"
-            :loading="isLoading"
-            size="small"
-            text
-            rounded
-            @click="refreshDashboard"
-            class="text-gray-500 hover:text-purple-600"
-            v-tooltip="'Refresh dashboard data'"
-          />
         </div>
 
         <!-- Right: Controls -->
@@ -301,18 +291,9 @@ async function fetchUserInfo() {
 async function loadDashboardData() {
   try {
     isLoading.value = true
-    console.log('🔄 Loading dashboard data...')
     
     const response = await fetchDashboardData()
-    console.log('📊 Dashboard API Response:', response)
-    console.log('🔍 Recent events structure check:', {
-      hasData: !!response?.data,
-      hasSummary: !!response?.data?.summary,
-      hasRecentlyEvent: !!response?.data?.summary?.recently_event,
-      recentlyEventType: typeof response?.data?.summary?.recently_event,
-      recentlyEventLength: response?.data?.summary?.recently_event?.length || 0,
-      firstEventSample: response?.data?.summary?.recently_event?.[0] || null
-    })
+
     
     if (response && response.success && response.data) {
       dashboardData.value = response.data
@@ -343,9 +324,7 @@ async function loadDashboardData() {
           weekChange: 'Total attendees' 
         },
       ]
-      
-      console.log('✅ Dashboard data loaded successfully with stats:', eventStats.value)
-      
+            
       // Show success message only on manual refresh (not on initial load)
       if (isManualRefresh.value) {
         toast.add({
@@ -383,7 +362,6 @@ async function loadDashboardData() {
     ]
   } finally {
     isLoading.value = false
-    console.log('🏁 Dashboard loading completed. isLoading:', isLoading.value)
   }
 }
 
@@ -419,12 +397,6 @@ const handleClickOutside = (event) => {
 let interval = null
 
 onMounted(async () => {
-  console.log('🚀 Dashboard component mounted')
-  console.log('🔧 API Configuration:', {
-    apiBaseUrl: config.public.apiBaseUrl,
-    apiAdminBaseUrl: config.public.apiAdminBaseUrl,
-    environment: config.public.environment
-  })
   
   await fetchUserInfo()
   await loadDashboardData()

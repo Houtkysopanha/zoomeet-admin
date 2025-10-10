@@ -1,7 +1,9 @@
 <template>
   <div class="bg-white rounded-2xl shadow-sm border border-gray-200  p-4 sm:p-6 max-w-4xl mx-auto h-[calc(80vh-8rem)] overflow-hidden flex flex-col">
     <!-- Header -->
-    <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-4 sm:mb-6">Upcoming events</h2>
+    <div class="flex items-center justify-between mb-4 sm:mb-6">
+      <h2 class="text-lg sm:text-xl font-semibold text-gray-800">Upcoming events</h2>
+    </div>
 
     <!-- Month Navigation -->
     <div class="flex items-center justify-between mb-4 sm:mb-6 bg-color">
@@ -115,36 +117,42 @@
     <div v-else class="flex-1 overflow-y-auto pr-1">
       <div class="space-y-4 pb-4">
         <div 
-          v-for="(event) in events" 
-          :key="event.id"
-          class="flex items-start space-x-4 rounded-lg hover:bg-gray-50 transition-all duration-200 cursor-pointer group"
-          @click="viewEvent(event)"
-        >
-          <!-- Event Image -->
-          <div class="flex-shrink-0">
-                          <img 
-                :src="event.image || img" 
-                :alt="event.title"
-                class="w-36 h-full rounded-lg object-cover shadow-md group-hover:shadow-lg transition-shadow duration-200"
-                @error="handleUpcomingImageError"
-              />
-          </div>
+  v-for="event in events" 
+  :key="event.id"
+  class="flex items-center gap-4 rounded-xl bg-white  "
+  @click="viewEvent(event)"
+>
+  <!-- Event Image -->
+  <div class="flex-shrink-0 w-28 h-20">
+    <img 
+      :src="event.image || img" 
+      :alt="event.title"
+      class="w-full h-full rounded-lg object-cover shadow-sm "
+      @error="handleUpcomingImageError"
+    />
+  </div>
 
-          <!-- Event Details -->
-          <div class="flex-1 min-w-0">
-            <h4 class="text-sm font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors duration-200">
-              {{ event.title }}
-            </h4>
-            <div class="flex items-center text-xs text-gray-500 mb-1">
-              <i class="pi pi-map-marker text-xs mr-2"></i>
-              <span>{{ event.location }}</span>
-            </div>
-            <div class="flex items-center text-xs text-gray-500 mb-1">
-              <i class="pi pi-clock text-xs mr-2"></i>
-              <span>{{ event.time }}</span>
-            </div>
-          </div>
-        </div>
+  <!-- Event Details -->
+  <div class="flex-1 min-w-0">
+    <h4 
+      class="text-base font-normal text-gray-900 mb-1 truncate group-hover:text-blue-600 transition-colors duration-200"
+      :title="event.title"
+    >
+      {{ event.title }}
+    </h4>
+
+    <div class="flex items-center text-xs text-[#002B59B2] mb-1">
+      <i class="pi pi-map-marker text-sm mr-2 text-[#002B59B2]"></i>
+      <span class="truncate">{{ event.location || 'Location TBD' }}</span>
+    </div>
+
+    <div class="flex items-center text-xs text-[#002B59B2]">
+      <i class="pi pi-clock text-sm mr-2 text-[#002B59B2]"></i>
+      <span>{{ event.time || 'Time TBD' }}</span>
+    </div>
+  </div>
+</div>
+
       </div>
       <!-- Note Icon as Scroll Cue -->
       <div v-if="events.length > 4" class="flex justify-center mt-4 text-gray-400">
@@ -163,8 +171,10 @@ import img from '@/assets/image/poster-manage-booking.png'
 
 const toast = useToast()
 const isLoadingMore = ref(false)
-const currentDate = ref(new Date(2025, 6, 1)) // July 1, 2025 (month is 0-indexed) 
-const selectedDay = ref(6) // Start with July 6th as shown in UI
+// Use actual current date - this will be dynamic and respond to real time
+const today = new Date() // Dynamic current date
+const currentDate = ref(new Date(today.getFullYear(), today.getMonth(), 1)) // Start of current month
+const selectedDate = ref(new Date(today)) // Start with today's date
 const daysContainer = ref(null)
 
 // Use the upcoming events composable
@@ -177,10 +187,14 @@ const {
 
 // Use formatted events from composable with fallback image
 const events = computed(() => {
-  return formattedEvents.value.map(event => ({
+  
+  const eventsWithFallback = formattedEvents.value.map(event => ({
     ...event,
     image: event.image || img // Fallback to default image
   }))
+  
+  
+  return eventsWithFallback
 })
 
 // Computed properties
@@ -192,10 +206,23 @@ const currentMonthYear = computed(() => {
 const calendarDays = computed(() => {
   const year = currentDate.value.getFullYear()
   const month = currentDate.value.getMonth()
-  const today = new Date()
+  // Use actual current date for dynamic filtering
+  const actualToday = new Date()
+  const todayStart = new Date(actualToday.getFullYear(), actualToday.getMonth(), actualToday.getDate())
   
-  // Start from the selected day in the current month, or day 1 if selectedDay is not set
-  const startDay = selectedDay.value || 1
+  // Start from a few days before selected date to show context, but ensure we don't go to past
+  let startDay = 1
+  if (selectedDate.value.getFullYear() === year && selectedDate.value.getMonth() === month) {
+    startDay = Math.max(1, selectedDate.value.getDate() - 2)
+  }
+  
+  // Make sure we don't start from a past date
+  const startDate = new Date(year, month, startDay)
+  if (startDate < todayStart) {
+    startDay = todayStart.getDate()
+  }
+  
+
   
   // Create consecutive days starting from startDay
   const days = []
@@ -206,14 +233,14 @@ const calendarDays = computed(() => {
     
     // Check if this date is valid for the current month
     if (date.getMonth() === month) {
-      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
       const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate())
       
       // Only show today and future dates
       if (dateStart >= todayStart) {
         const dayName = date.toLocaleDateString('en-US', { weekday: 'short' })
         const isToday = dateStart.getTime() === todayStart.getTime()
-        const isSelected = selectedDay.value === dayNumber
+        const selectedDateStart = new Date(selectedDate.value.getFullYear(), selectedDate.value.getMonth(), selectedDate.value.getDate())
+        const isSelected = dateStart.getTime() === selectedDateStart.getTime()
         
         days.push({
           dayName,
@@ -240,14 +267,14 @@ const currentDayOffset = ref(0)
 // Methods
 const previousMonth = async () => {
   const newDate = new Date(currentDate.value)
-  const today = new Date()
+  const actualToday = new Date() // Use actual current date
   
   // Prevent going to months that are entirely in the past
   newDate.setMonth(newDate.getMonth() - 1)
   
   // Check if the new month is entirely in the past
   const lastDayOfNewMonth = new Date(newDate.getFullYear(), newDate.getMonth() + 1, 0)
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  const todayStart = new Date(actualToday.getFullYear(), actualToday.getMonth(), actualToday.getDate())
   
   if (lastDayOfNewMonth < todayStart) {
     toast.warn('Cannot navigate to past months. Only current and future months are allowed.')
@@ -258,12 +285,12 @@ const previousMonth = async () => {
   toast.info(`Switched to ${currentMonthYear.value}`)
   
   // Find the first valid day (today or later) in the new month
-  const isCurrentMonth = newDate.getFullYear() === today.getFullYear() && newDate.getMonth() === today.getMonth()
-  const startDay = isCurrentMonth ? today.getDate() : 1
-  
-  selectedDay.value = startDay
+  const isCurrentMonth = newDate.getFullYear() === actualToday.getFullYear() && newDate.getMonth() === actualToday.getMonth()
+  const startDay = isCurrentMonth ? actualToday.getDate() : 1
   
   const startDate = new Date(newDate.getFullYear(), newDate.getMonth(), startDay)
+  selectedDate.value = startDate
+  
   const result = await loadEvents(startDate)
   if (!result.success) {
     toast.warn(result.message)
@@ -277,13 +304,13 @@ const nextMonth = async () => {
   toast.info(`Switched to ${currentMonthYear.value}`)
   
   // Reset to first day of new month or today, whichever is later
-  const today = new Date()
+  const actualToday = new Date() // Use actual current date
   const firstDayOfMonth = new Date(newDate.getFullYear(), newDate.getMonth(), 1)
-  const startDay = today > firstDayOfMonth ? today.getDate() : 1
-  
-  selectedDay.value = startDay
+  const startDay = actualToday > firstDayOfMonth ? actualToday.getDate() : 1
   
   const startDate = new Date(newDate.getFullYear(), newDate.getMonth(), startDay)
+  selectedDate.value = startDate
+  
   const result = await loadEvents(startDate)
   if (!result.success) {
     toast.warn(result.message)
@@ -291,22 +318,24 @@ const nextMonth = async () => {
 }
 
 const selectDay = async (day) => {
-  selectedDay.value = parseInt(day.date)
-  
   // Use the full date from the day object to ensure correct date
-  const selectedDate = day.fullDate
+  const selectedDateValue = day.fullDate
   
   // Check if the selected date is not in the past
-  const today = new Date()
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  const actualToday = new Date() // Use actual current date
+  const todayStart = new Date(actualToday.getFullYear(), actualToday.getMonth(), actualToday.getDate())
   
-  if (selectedDate < todayStart) {
+  if (selectedDateValue < todayStart) {
     toast.warn('Cannot select past dates. Please select today or future dates.')
     return
   }
   
+  // Update the selected date
+  selectedDate.value = new Date(selectedDateValue)
+
+  
   // Load events for the selected date
-  const result = await loadEvents(selectedDate)
+  const result = await loadEvents(selectedDateValue)
   if (!result.success) {
     toast.warn(result.message)
   } else if (result.count === 0) {
@@ -323,41 +352,51 @@ function viewEvent(event) {
 }
 
 function handleUpcomingImageError(event) {
-  console.log('🚫 Upcoming event image failed to load:', event.target.src)
   // Set fallback image when the original image fails to load
   event.target.src = img
-  console.log('🔄 Using fallback image for upcoming event:', img)
   
   // Optional: Add error class for styling
   event.target.classList.add('image-error')
 }
 
 const previousDays = async () => {
-  // Move the start day back by 3 days
-  const newStartDay = Math.max(1, selectedDay.value - 3)
-  selectedDay.value = newStartDay
+  // Move the selected date back by 3 days
+  const newDate = new Date(selectedDate.value)
+  newDate.setDate(newDate.getDate() - 3)
   
-  // Load events for the new start day
-  const newDate = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth(), newStartDay)
-  const today = new Date()
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  // Ensure we don't go to past dates
+  const actualToday = new Date() // Use actual current date
+  const todayStart = new Date(actualToday.getFullYear(), actualToday.getMonth(), actualToday.getDate())
   
-  if (newDate >= todayStart) {
-    const result = await loadEvents(newDate)
-    if (result.success && result.count > 0) {
-      toast.success(`Found ${result.count} event(s) for ${newDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`)
-    }
+  if (newDate < todayStart) {
+    newDate.setTime(todayStart.getTime())
+  }
+  
+  selectedDate.value = newDate
+  
+  // Update current month if needed
+  if (newDate.getMonth() !== currentDate.value.getMonth() || newDate.getFullYear() !== currentDate.value.getFullYear()) {
+    currentDate.value = new Date(newDate.getFullYear(), newDate.getMonth(), 1)
+  }
+  
+  const result = await loadEvents(newDate)
+  if (result.success && result.count > 0) {
+    toast.success(`Found ${result.count} event(s) for ${newDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`)
   }
 }
 
 const nextDays = async () => {
-  // Move the start day forward by 3 days
-  const daysInMonth = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() + 1, 0).getDate()
-  const newStartDay = Math.min(daysInMonth - 6, selectedDay.value + 3)
-  selectedDay.value = newStartDay
+  // Move the selected date forward by 3 days
+  const newDate = new Date(selectedDate.value)
+  newDate.setDate(newDate.getDate() + 3)
   
-  // Load events for the new start day
-  const newDate = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth(), newStartDay)
+  selectedDate.value = newDate
+  
+  // Update current month if needed
+  if (newDate.getMonth() !== currentDate.value.getMonth() || newDate.getFullYear() !== currentDate.value.getFullYear()) {
+    currentDate.value = new Date(newDate.getFullYear(), newDate.getMonth(), 1)
+  }
+  
   const result = await loadEvents(newDate)
   if (result.success && result.count > 0) {
     toast.success(`Found ${result.count} event(s) for ${newDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`)
@@ -372,25 +411,42 @@ const scrollDaysContainer = (direction) => {
   }
 }
 
+// Method to refresh with current actual date
+const refreshWithCurrentDate = async () => {
+  const actualNow = new Date()
+  
+  // Update component state
+  currentDate.value = new Date(actualNow.getFullYear(), actualNow.getMonth(), 1)
+  selectedDate.value = new Date(actualNow)
+  
+  // Reload events
+  const result = await loadEvents(selectedDate.value)
+  if (result.success && result.count > 0) {
+    toast.success(`Refreshed: Found ${result.count} event(s) for today`)
+  } else if (result.count === 0) {
+    toast.info('Refreshed: No events found for today')
+  }
+}
+
 onMounted(async () => {
-  // Initialize with the UI pattern (July 6-12, 2025) but respect current date logic
-  const today = new Date()
-  const targetDate = new Date(2025, 6, 6) // July 6, 2025 as shown in UI
+  // Use the actual current date - dynamic and real-time
+  const actualCurrentDate = new Date()
   
-  // Use today's date if we're past the target date, otherwise use target date
-  const dateToUse = today > targetDate ? today : targetDate
   
-  // Set the current month and selected day
-  currentDate.value = new Date(dateToUse.getFullYear(), dateToUse.getMonth(), 1)
-  selectedDay.value = dateToUse.getDate()
+  // Set the current month and selected date to today
+  currentDate.value = new Date(actualCurrentDate.getFullYear(), actualCurrentDate.getMonth(), 1)
+  selectedDate.value = new Date(actualCurrentDate)
   
-  // Load events for the selected date
-  const result = await loadEvents(dateToUse)
+  
+  // Load events for today's date first
+  const result = await loadEvents(selectedDate.value)
   
   if (!result.success) {
+    console.error('❌ Failed to load initial events:', result.message)
     toast.error(result.message)
   } else if (result.count === 0) {
-    toast.info(`No upcoming events found for ${dateToUse.toLocaleDateString()}`)
+    console.log('ℹ️ No events found for initial date:', selectedDate.value.toDateString())
+    toast.info(`No upcoming events found for ${selectedDate.value.toLocaleDateString()}`)
   } else {
     toast.success(`Loaded ${result.count} upcoming events`)
   }

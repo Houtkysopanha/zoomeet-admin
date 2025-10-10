@@ -44,47 +44,58 @@
       >
         <!-- Event Header -->
         <div class="flex items-start justify-between mb-4">
-          <div class="flex items-start space-x-3 flex-1">
-            <div class="w-36 h-full rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 relative">
-              <img
-                :src="event.image || img"
-                class="w-full h-full object-cover"
-                :alt="event.name || 'Event image'"
-                @error="handleRecentImageError"
-              />
-            </div>
-            <div class="flex-1 min-w-0">
-              <h3 class="text-sm font-medium text-gray-900 leading-tight mb-2">
-                {{ event.name }}
-              </h3>
-              <div class="flex items-center text-xs text-gray-500 mb-1">
-                <Icon name="heroicons:map-pin" class="w-3 h-3 mr-1" />
-                {{ event.location }}
-              </div>
-              <div class="flex items-center text-xs text-gray-500">
-                <Icon name="heroicons:calendar" class="w-3 h-3 mr-1" />
-                {{ event.date }} | {{ event.time }}
-              </div>
-            </div>
-          </div>
-          <span
-            :class="[
-              'px-2 py-1 rounded-full text-xs font-medium',
-              event.status === 'ended' 
-                ? 'bg-gray-100 text-gray-600' 
-                : 'bg-green-100 text-green-600'
-            ]"
-          >
-            {{ event.status === 'ended' ? 'Event has Ended' : 'Active' }}
-          </span>
+         <div class="flex items-stretch space-x-3 flex-1">
+  <!-- Image -->
+  <div class="w-36 h-24 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 relative">
+    <img
+      :src="event.image || img"
+      class="w-full h-full object-cover"
+      :alt="event.name || 'Event image'"
+      @error="handleRecentImageError"
+    />
+  </div>
+
+  <!-- Text -->
+  <div class="flex flex-col mt-1 justify-between flex-1 min-w-0 py-1">
+    <div>
+      <h3 class="text-md font-normal text-gray-900 leading-tight mb-2 truncate">
+        {{ event.name }}
+      </h3>
+      <div class="flex items-center text-sm text-[#002B59B2] mb-2">
+        <Icon name="heroicons:map-pin" class="w-4 h-4 mr-1" />
+        <span class="truncate">{{ event.location }}</span>
+      </div>
+      <div class="flex items-center text-sm text-[#002B59B2]">
+        <Icon name="heroicons:calendar" class="w-4 h-4 mr-1" />
+        <span class="truncate">{{ event.date }} | {{ event.time }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+        <span
+  :class="[
+    'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium',
+    event.status === 'ended'
+      ? 'bg-gray-50 text-gray-600'
+      : 'bg-green-50 text-green-600'
+  ]"
+>
+  <Icon
+    name="radix-icons:dot-filled"
+    class="w-3.5 h-3.5"
+  />
+  {{ event.status === 'ended' ? 'Event has Ended' : 'Active' }}
+</span>
+
         </div>
 
        <!-- Event Metrics -->
   <div class="flex justify-between items-center gap-10 text-center mx-4">
     <!-- Total Revenue -->
     <div>
-      <div class="text-sm text-gray-500 mb-1">Total Revenue</div>
-      <div class="text-xl font-semibold text-gray-900">{{ event.totalRevenue }}</div>
+      <div class="text-sm text-black mb-1">Total Revenue</div>
+      <div class="text-xl font-bold text-gray-900">{{ event.totalRevenue }}</div>
     </div>
 
     <!-- Divider -->
@@ -92,8 +103,8 @@
 
     <!-- Booking -->
     <div >
-      <div class="text-sm text-gray-500 mb-1">Booking</div>
-      <div class="text-xl font-semibold text-gray-900">{{ event.booking }}</div>
+      <div class="text-sm text-black mb-1">Booking</div>
+      <div class="text-xl font-bold text-gray-900">{{ event.booking }}</div>
     </div>
 
     <!-- Divider -->
@@ -101,8 +112,8 @@
 
     <!-- Tickets -->
     <div>
-      <div class="text-sm text-gray-500 mb-1">Tickets</div>
-      <div class="text-xl font-semibold text-gray-900">{{ event.tickets }}</div>
+      <div class="text-sm text-black mb-1">Tickets</div>
+      <div class="text-xl font-bold text-gray-900">{{ event.tickets }}</div>
     </div>
   </div>
 
@@ -175,18 +186,13 @@ function showMore() {
 }
 
 function viewReport(event) {
-  // Handle view report action
-  console.log('View report for:', event.name, 'Event ID:', event.id)
-  // You can add navigation to event report page here
-  // For example: navigateTo(`/admin/event/${event.id}/report`)
+  // Handle view report action  // Navigate to sale report page with the event ID
+  navigateTo(`/admin/report/saleReport?eventId=${event.id}`)
 }
 
 function handleRecentImageError(event) {
-  console.log('🚫 Recent event image failed to load:', event.target.src)
   // Set fallback image when the original image fails to load
-  event.target.src = img
-  console.log('🔄 Using fallback image for recent event:', img)
-  
+  event.target.src = img  
   // Optional: Add error class for styling
   event.target.classList.add('image-error')
 }
@@ -204,7 +210,6 @@ onMounted(async () => {
     
     // Log dashboard summary if available
     if (result.summary) {
-      console.log('📊 Dashboard Summary:', result.summary)
     }
   }
 })
