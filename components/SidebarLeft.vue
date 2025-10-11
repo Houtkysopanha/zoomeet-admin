@@ -45,12 +45,12 @@
               >
                 {{ item.text }}
               </span>
-              <span
+              <!-- <span
                 v-if="item.count"
                 class="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full flex-shrink-0"
               >
                 {{ item.count }}
-              </span>
+              </span> -->
             </NuxtLink>
           </template>
           <template v-else>
