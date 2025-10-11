@@ -2416,16 +2416,6 @@ if (Array.isArray(settingsData.provide_special_assistance)) {
       throw new Error('Authentication required')
     }
 
-    // Debug: Log the normalized data being sent to API
-    console.log('🔍 API normalizedData being sent:', normalizedData);
-    console.log('📧 Email reminder in normalizedData:', {
-      is_send_email_reminder: normalizedData.is_send_email_reminder,
-      email_reminder_date: normalizedData.email_reminder_date
-    });
-    console.log('📱 SMS reminder in normalizedData:', {
-      is_send_sms_reminder: normalizedData.is_send_sms_reminder,
-      sms_reminder_date: normalizedData.sms_reminder_date
-    });
     
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/settings`, {
       method: 'POST',

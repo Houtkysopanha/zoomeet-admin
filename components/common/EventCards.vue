@@ -1,5 +1,5 @@
 <template>
-  <div class="mb-8">
+  <div class="max-w-[90rem]">
     <div v-if="loading && events.length === 0" class="text-center py-8">
       <p class="text-gray-500">Loading events...</p>
     </div>
@@ -15,7 +15,7 @@
             v-for="event in events"
             :key="event.id"
             :class="[
-              'event-card bg-white rounded-2xl shadow-sm border border-gray-200 flex items-center space-x-4 cursor-pointer transition-all duration-200 hover:shadow-md h-24 p-2 min-w-[350px]',
+              'event-card bg-white rounded-2xl shadow-sm border border-gray-200 flex items-center space-x-4 cursor-pointer transition-all duration-200 hover:shadow-md h-24 p-2 min-w-[280px] sm:min-w-[320px] lg:min-w-[350px]',
               selectedEvent?.id === event.id
                 ? 'ring-2 ring-purple-500 bg-purple-50'
                 : 'hover:bg-gray-50'

@@ -1,51 +1,48 @@
 <template>
-  <div class="p-4 bg-[#F8F8FF] min-h-screen w-full min-w-0 overflow-x-hidden">
+  <div class="p-3 sm:p-4 lg:p-6 bg-[#F8F8FF] min-h-screen w-full max-w-none">
 
     <!-- Sale Report Header -->
-    <div class="mb-6 flex items-center justify-between">
+    <div class="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
      <!-- Breadcrumb -->
-    <div class="mb-6">
-      <div class="flex items-center justify-between">
-        <div>
-          <Breadcrumb
-            :items="[
-              { text: 'Report' },
-              { text: 'Sale Report' }
-            ]"
-            class="mb-2"
-          />
-        </div>
+      <div>
+        <Breadcrumb
+          :items="[
+            { text: 'Report' },
+            { text: 'Sale Report' }
+          ]"
+          class="mb-2"
+        />
       </div>
-    </div>
+      
       <div class="flex gap-2">
         <Button
           label="Export"
           icon="pi pi-download"
-          class="bg-purple-600 text-white px-6 py-3 rounded-full hover:bg-purple-700"
+          class="bg-purple-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-full hover:bg-purple-700 text-sm sm:text-base"
           @click="exportReport"
         />
       </div>
     </div>
 
     <!-- Search and Filters -->
-    <div class="mb-6 flex items-center justify-between">
-      <div class="relative flex-1 max-w-md">
-        <Icon name="i-heroicons-magnifying-glass" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+    <div class="mb-4 sm:mb-6 flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-0 lg:justify-between">
+      <div class="relative flex-1 max-w-none lg:max-w-md">
+        <Icon name="i-heroicons-magnifying-glass" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 sm:w-5 h-4 sm:h-5" />
         <input
           v-model="searchQuery"
           type="text"
           placeholder="Search"
-          class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-full focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-transparent"
+          class="w-full pl-9 sm:pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-full focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-transparent text-sm sm:text-base"
         />
       </div>
-      <div class="flex items-center space-x-4 ml-4">
+      <div class="flex items-center gap-3 sm:gap-4 lg:ml-4">
         <Dropdown
           v-model="selectedMonth"
           :options="monthOptions"
           optionLabel="label"
           optionValue="value"
           placeholder="October"
-          class="w-32 rounded-xl border border-gray-300 bg-[#F5F5F5]"
+          class="w-28 sm:w-32 rounded-xl border border-gray-300 bg-[#F5F5F5] text-sm"
         />
         <Dropdown
           v-model="selectedYear"
@@ -53,13 +50,13 @@
           optionLabel="label"
           optionValue="value"
           placeholder="2025"
-          class="w-24 rounded-xl border border-gray-300 bg-[#F5F5F5]"
+          class="w-20 sm:w-24 rounded-xl border border-gray-300 bg-[#F5F5F5] text-sm"
         />
       </div>
     </div>
 
     <!-- Events Section with Fixed Height Container -->
-    <div class="mb-6 h-48">
+    <div class="mb-4 sm:mb-6 h-40 sm:h-48 w-full overflow-hidden">
       <EventCards 
         :events="events"
         :selected-event="selectedEvent"
@@ -70,65 +67,65 @@
     </div>
 
     <!-- Sale Overtime Section -->
-    <div class="mb-8 w-full min-w-0">
+    <div class="mb-6 sm:mb-8 w-full min-w-0">
       <!-- Sale Overtime Header with Controls -->
-      <div class="flex items-center justify-between mb-6">
-        <h2 class="text-xl font-semibold text-gray-900">Sale Overtime</h2>
-        <div class="flex items-center space-x-4">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6">
+        <h2 class="text-lg sm:text-xl font-semibold text-gray-900">Sale Overtime</h2>
+        <div class="flex items-center gap-3 sm:gap-4">
           <Dropdown
             v-model="selectedPeriod"
             :options="periodOptions"
             optionLabel="label"
             optionValue="value"
             placeholder="Today"
-            class="w-32 rounded-full border border-gray-300 bg-white"
+            class="w-28 sm:w-32 rounded-full border border-gray-300 bg-white text-sm"
           />
           <Button
             label="Filters"
             icon="pi pi-filter"
-            class="p-button-outlined text-white border-purple-600 bg-purple-600 hover:bg-purple-600 px-4 py-2 rounded-full"
+            class="p-button-outlined text-white border-purple-600 bg-purple-600 hover:bg-purple-600 px-3 sm:px-4 py-2 rounded-full text-sm"
             @click="toggleOvertimeFilters"
           />
         </div>
       </div>
       
-     <div class="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] bg-white rounded-2xl w-full min-w-0">
+     <div class="grid grid-cols-1 xl:grid-cols-[1fr_auto_1fr] bg-white rounded-2xl w-full min-w-0 overflow-hidden">
   <!-- Paid and confirmed -->
-  <div class="p-6">
-    <div class="mb-6 flex justify-between rounded-lg px-1 py-1 items-center bg-[#F9F7FD] m-auto">
-      <h3 class="text-sm font-medium text-gray-900">Paid and confirmed</h3>
-      <h3 class="text-md font-bold text-purple-800">
+  <div class="p-4 sm:p-6">
+    <div class="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:justify-between rounded-lg px-2 sm:px-1 py-2 sm:py-1 items-start sm:items-center bg-[#F9F7FD] m-auto gap-2 sm:gap-0">
+      <h3 class="text-xs sm:text-sm font-medium text-gray-900">Paid and confirmed</h3>
+      <h3 class="text-sm sm:text-md font-bold text-purple-800">
         {{ salesOvertimeData?.summary_paid?.total_booking || 0 }}
       </h3>
     </div>
 
-    <div class="grid grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
       <div class="text-start">
         <div class="flex items-center justify-start mb-2">
-          <Icon name="material-symbols-light:receipt-rounded" class="w-6 h-6 text-purple-700 mr-1" />
-          <span class="text-md font-medium text-purple-700">Bookings</span>
+          <Icon name="material-symbols-light:receipt-rounded" class="w-5 sm:w-6 h-5 sm:h-6 text-purple-700 mr-1" />
+          <span class="text-sm sm:text-md font-medium text-purple-700">Bookings</span>
         </div>
-        <p class="text-xl ml-5 font-semibold text-gray-900">
+        <p class="text-lg sm:text-xl ml-0 sm:ml-5 font-semibold text-gray-900">
           {{ salesOvertimeData?.summary_paid?.total_booking || 0 }}
         </p>
       </div>
 
-      <div class="text-center border-x border-gray-300">
-        <div class="flex items-center justify-center mb-2">
-          <Icon name="heroicons:ticket-solid" class="w-6 h-6 text-purple-700 mr-1" />
-          <span class="text-md font-medium text-purple-700">Tickets</span>
+      <div class="text-start sm:text-center sm:border-x border-gray-300 sm:px-2">
+        <div class="flex items-center justify-start sm:justify-center mb-2">
+          <Icon name="heroicons:ticket-solid" class="w-5 sm:w-6 h-5 sm:h-6 text-purple-700 mr-1" />
+          <span class="text-sm sm:text-md font-medium text-purple-700">Tickets</span>
         </div>
-        <p class="text-xl font-semibold text-gray-900">
+        <p class="text-lg sm:text-xl font-semibold text-gray-900">
           {{ salesOvertimeData?.summary_paid?.total_ticket || 0 }}
         </p>
       </div>
 
-      <div class="text-end">
-        <div class="flex items-center justify-end mb-2">
-          <Icon name="tabler:coin-filled" class="w-6 h-6 text-purple-700 mr-1" />
-          <span class="text-md font-medium text-purple-700">Revenue</span>
+      <div class="text-start sm:text-end">
+        <div class="flex items-center justify-start sm:justify-end mb-2">
+          <Icon name="tabler:coin-filled" class="w-5 sm:w-6 h-5 sm:h-6 text-purple-700 mr-1" />
+          <span class="text-sm sm:text-md font-medium text-purple-700">Revenue</span>
         </div>
-        <p class="text-xl font-semibold mr-4 text-gray-900">
+        <p class="text-lg sm:text-xl font-semibold mr-0 sm:mr-4 text-gray-900">
           ${{ salesOvertimeData?.summary_paid?.total_revenue || 0 }}
         </p>
       </div>
@@ -136,46 +133,51 @@
   </div>
 
   <!-- Divider (custom height and padding) -->
-  <div class="hidden lg:flex justify-center items-center">
+  <div class="hidden xl:flex justify-center items-center">
     <div class="h-[70%] w-px bg-gray-300"></div>
+  </div>
+  
+  <!-- Mobile/Tablet Divider -->
+  <div class="xl:hidden w-full">
+    <div class="h-px bg-gray-300 mx-4"></div>
   </div>
 
   <!-- Pending for cash payment -->
-  <div class="p-6">
-    <div class="mb-6 flex justify-between rounded-lg px-1 py-1 items-center bg-[#F9F7FD] m-auto">
-      <h3 class="text-sm font-medium text-gray-900">Pending for cash payment</h3>
-      <h3 class="text-md font-bold text-purple-800">
+  <div class="p-4 sm:p-6">
+    <div class="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:justify-between rounded-lg px-2 sm:px-1 py-2 sm:py-1 items-start sm:items-center bg-[#F9F7FD] m-auto gap-2 sm:gap-0">
+      <h3 class="text-xs sm:text-sm font-medium text-gray-900">Pending for cash payment</h3>
+      <h3 class="text-sm sm:text-md font-bold text-purple-800">
         {{ salesOvertimeData?.summary_pending?.total_booking || 0 }}
       </h3>
     </div>
 
-    <div class="grid grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
       <div class="text-start">
         <div class="flex items-center justify-start mb-2">
-          <Icon name="material-symbols-light:receipt-rounded" class="w-6 h-6 text-purple-700 mr-1" />
-          <span class="text-md font-medium text-purple-700">Bookings</span>
+          <Icon name="material-symbols-light:receipt-rounded" class="w-5 sm:w-6 h-5 sm:h-6 text-purple-700 mr-1" />
+          <span class="text-sm sm:text-md font-medium text-purple-700">Bookings</span>
         </div>
-        <p class="text-xl ml-5 font-semibold text-gray-900">
+        <p class="text-lg sm:text-xl ml-0 sm:ml-5 font-semibold text-gray-900">
           {{ salesOvertimeData?.summary_pending?.total_booking || 0 }}
         </p>
       </div>
 
-      <div class="text-center border-x border-gray-300">
-        <div class="flex items-center justify-center mb-2">
-          <Icon name="heroicons:ticket-solid" class="w-6 h-6 text-purple-700 mr-1" />
-          <span class="text-md font-medium text-purple-700">Tickets</span>
+      <div class="text-start sm:text-center sm:border-x border-gray-300 sm:px-2">
+        <div class="flex items-center justify-start sm:justify-center mb-2">
+          <Icon name="heroicons:ticket-solid" class="w-5 sm:w-6 h-5 sm:h-6 text-purple-700 mr-1" />
+          <span class="text-sm sm:text-md font-medium text-purple-700">Tickets</span>
         </div>
-        <p class="text-xl font-semibold text-gray-900">
+        <p class="text-lg sm:text-xl font-semibold text-gray-900">
           {{ salesOvertimeData?.summary_pending?.total_ticket || 0 }}
         </p>
       </div>
 
-      <div class="text-end">
-        <div class="flex items-center justify-end mb-2">
-          <Icon name="tabler:coin-filled" class="w-6 h-6 text-purple-700 mr-1" />
-          <span class="text-md font-medium text-purple-700">Revenue</span>
+      <div class="text-start sm:text-end">
+        <div class="flex items-center justify-start sm:justify-end mb-2">
+          <Icon name="tabler:coin-filled" class="w-5 sm:w-6 h-5 sm:h-6 text-purple-700 mr-1" />
+          <span class="text-sm sm:text-md font-medium text-purple-700">Revenue</span>
         </div>
-        <p class="text-xl font-semibold mr-4 text-gray-900">
+        <p class="text-lg sm:text-xl font-semibold mr-0 sm:mr-4 text-gray-900">
           ${{ salesOvertimeData?.summary_pending?.total_revenue || 0 }}
         </p>
       </div>
@@ -188,43 +190,48 @@
     <!-- List Sale Section -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 w-full min-w-0 overflow-hidden">
       <!-- Header with filters -->
-      <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-        <h2 class="text-lg font-semibold text-gray-900">List Sale</h2>
-        <!-- Filters and Search -->
-   <div class="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 w-full lg:w-auto">
-        <div class="relative w-full sm:w-auto">
-          <Dropdown
-            v-model="sortOption"
-            :options="sortOptions"
-            optionLabel="label"
-            optionValue="value"
-            class="w-full sm:w-32 lg:w-40 p-dropdown-sm border bg-transparent border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-            @change="applySort"
-          >
-            <template #value="slotProps">
-              <span v-if="slotProps.value" class="text-sm lg:text-base">{{ slotProps.value }}</span>
-              <span v-else class="text-sm lg:text-base text-black">Sort</span>
-            </template>
-          </Dropdown>
-        </div>
+      <div class="px-4 sm:px-6 py-4 border-b border-gray-200">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <h2 class="text-lg font-semibold text-gray-900">List Sale</h2>
+          
+          <!-- Filters and Search -->
+          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 w-full lg:w-auto">
+            <div class="relative w-full sm:w-auto">
+              <Dropdown
+                v-model="sortOption"
+                :options="sortOptions"
+                optionLabel="label"
+                optionValue="value"
+                class="w-full sm:w-32 lg:w-40 p-dropdown-sm border bg-transparent border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                @change="applySort"
+              >
+                <template #value="slotProps">
+                  <span v-if="slotProps.value" class="text-sm">{{ slotProps.value }}</span>
+                  <span v-else class="text-sm text-black">Sort</span>
+                </template>
+              </Dropdown>
+            </div>
 
-        <div class="flex items-center space-x-2 lg:space-x-4 w-full sm:w-auto">
-          <p class="text-sm lg:text-xl font-normal text-gray-700 whitespace-nowrap">Show</p>
-          <Dropdown
-            v-model="itemsPerPage"
-            :options="pageOptions"
-            optionLabel="label"
-            optionValue="value"
-            placeholder=""
-            class="w-20 lg:w-24 border border-gray-300 bg-transparent rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-            @change="applyPageChange"
-          />
-        </div>
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+              <p class="text-sm font-normal text-gray-700 whitespace-nowrap">Show</p>
+              <Dropdown
+                v-model="itemsPerPage"
+                :options="pageOptions"
+                optionLabel="label"
+                optionValue="value"
+                placeholder=""
+                class="w-20 border border-gray-300 bg-transparent rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                @change="applyPageChange"
+              />
+            </div>
 
-        <span class="text-xs lg:text-lg text-gray-700 border-l pl-2 border-gray-500 whitespace-nowrap">
-          {{ searchQuery ? `Filtered: ${totalItems} results` : `Show ${currentPage * itemsPerPage - (itemsPerPage - 1)} to ${Math.min(currentPage * itemsPerPage, totalItems)} of ${totalItems}` }}
-        </span>
-      </div>
+            <div class="hidden sm:block w-px h-6 bg-gray-300"></div>
+            
+            <span class="text-xs sm:text-sm text-gray-700 whitespace-nowrap">
+              {{ searchQuery ? `Filtered: ${totalItems} results` : `Show ${currentPage * itemsPerPage - (itemsPerPage - 1)} to ${Math.min(currentPage * itemsPerPage, totalItems)} of ${totalItems}` }}
+            </span>
+          </div>
+        </div>
       </div>
 
       <!-- Data Table -->
@@ -234,9 +241,12 @@
           :paginator="true" 
           :rows="itemsPerPage"
           :totalRecords="totalRecords"
-          class="p-datatable-gridlines min-w-full"
-          scrollable 
-          responsiveLayout="scroll"
+          :lazy="true"
+          :loading="loading"
+          @page="onPageChange"
+          paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
+          class="p-datatable-sm shadow-md overflow-hidden min-w-full"
+          :scrollable="true"
           scrollHeight="flex"
         >
                     <Column field="bookingName" header="Booking name" sortable class="text-[12px] text-start border-b border-gray-300">
@@ -510,15 +520,37 @@ const loadSalesOvertimeData = async (eventId) => {
 const loadSalesListData = async (eventId, page = 1) => {
   try {
     loading.value = true
+    console.log('🔄 Loading sales list data:', { eventId, page, itemsPerPage: itemsPerPage.value })
+    
     const response = await fetchSalesReportList(eventId, page, itemsPerPage.value)
+    console.log('📋 Sales list response:', response)
+    
     if (response && response.success) {
       salesListData.value = response.data.items || []
       totalRecords.value = response.data.paginate?.total || 0
       totalItems.value = response.data.paginate?.total || 0
-      currentPage.value = response.data.paginate?.current_page || 1
+      currentPage.value = response.data.paginate?.current_page || page
+      
+      console.log('✅ Sales list data loaded:', {
+        itemsCount: salesListData.value.length,
+        totalRecords: totalRecords.value,
+        currentPage: currentPage.value,
+        itemsPerPage: itemsPerPage.value
+      })
+    } else {
+      console.warn('⚠️ Invalid sales list response:', response)
+      salesListData.value = []
+      totalRecords.value = 0
+      totalItems.value = 0
+      currentPage.value = 1
     }
   } catch (error) {
-    console.error('Error loading sales list data:', error)
+    console.error('❌ Error loading sales list data:', error)
+    salesListData.value = []
+    totalRecords.value = 0
+    totalItems.value = 0
+    currentPage.value = 1
+    
     toast.add({
       severity: 'error',
       summary: 'Error',
@@ -640,6 +672,7 @@ const applySort = () => {
 }
 
 const applyPageChange = () => {
+  console.log('📄 Apply page change - items per page changed to:', itemsPerPage.value)
   currentPage.value = 1
   if (selectedEvent.value) {
     loadSalesListData(selectedEvent.value.id, 1)
@@ -653,6 +686,25 @@ const toggleMenu = (event, data) => {
     detail: `Menu opened for ${data.name}`, 
     life: 3000 
   })
+}
+
+// Handle pagination changes from DataTable
+const onPageChange = (event) => {
+  console.log('📄 Page change event:', event)
+  
+  const newPage = event.page + 1 // PrimeVue uses 0-based indexing, but our API uses 1-based
+  const newRows = event.rows
+  
+  if (newRows !== itemsPerPage.value) {
+    itemsPerPage.value = newRows
+  }
+  
+  if (newPage !== currentPage.value) {
+    currentPage.value = newPage
+    if (selectedEvent.value) {
+      loadSalesListData(selectedEvent.value.id, newPage)
+    }
+  }
 }
 
 // Watch for pagination changes
@@ -700,7 +752,7 @@ definePageMeta({
 </script>
 
 <style scoped>
-/* DataTable styling to match project theme */
+/* DataTable Header Styling */
 :deep(.p-datatable .p-datatable-thead > tr) {
   background-color: #F6F9F9;
   color: #667085;
@@ -710,18 +762,18 @@ definePageMeta({
   background-color: transparent;
   color: inherit;
   transition: background-color 0.3s ease;
-  padding-top: 1rem;
-  padding-bottom: 1rem;
-  font-weight: 600;
-  font-size: 12px;
 }
 
+:deep(.p-datatable .p-datatable-thead > td:hover) {
+  background-color: #6A3ABF;
+}
+
+/* DataTable Body Styling */
 :deep(.p-datatable .p-datatable-tbody > tr > td) {
   background-color: white;
   color: #1F2937;
   padding-top: 20px;
   padding-bottom: 20px;
-  font-size: 12px;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr:hover > td) {
@@ -729,63 +781,89 @@ definePageMeta({
   transition: background-color 0.3s ease;
 }
 
-/* Button styling */
-:deep(.p-button-outlined) {
-  border-width: 1px;
-  border-style: solid;
-}
-
-
-
-/* Search and filter styling */
-.input-search {
-  @apply w-full pl-12 pr-4 py-3 border-0 rounded-none focus:ring-0 focus:border-0;
+/* Pagination Styling - Match Event Page Style */
+:deep(.p-paginator) {
+  padding: 1rem;
+  border: none;
   background: transparent;
-  outline: none;
-}
-
-/* .select-standard {
-  @apply border border-gray-300 my-3 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white;
-} */
-
-
-
-
-/* Layout Protection Styles */
-.layout-container {
   display: flex;
-  flex-direction: column;
-  width: 100%;
-  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
 }
 
-.section-container {
+:deep(.p-paginator .p-paginator-pages) {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+:deep(.p-paginator .p-paginator-pages .p-paginator-page.p-highlight) {
+  @apply bg-gradient-to-tr from-[#4D66A6] to-[#B61EEB] text-white border-none;
+  border-color: linear-gradient(79deg, #4D66A6 7.31%, #B61EEB 98.95%);
+  border-radius: 10px;
+  color: white;
+}
+
+:deep(.p-paginator .p-paginator-pages .p-paginator-page) {
+  border-radius: 8px;
+  margin: 0 2px;
+  min-width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
   flex-shrink: 0;
-  width: 100%;
-  min-width: 0;
 }
 
-.data-table-container {
-  min-width: 800px; /* Ensure minimum table width */
+:deep(.p-paginator .p-paginator-pages .p-paginator-page:hover) {
+  background-color: #F3F4F6;
+  transform: translateY(-1px);
 }
 
-/* Keep only non-event related scrollbar utilities */
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
+:deep(.p-paginator .p-paginator-first),
+:deep(.p-paginator .p-paginator-prev),
+:deep(.p-paginator .p-paginator-next),
+:deep(.p-paginator .p-paginator-last) {
+  border-radius: 8px;
+  margin: 0 2px;
+  min-width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
 }
 
-.scrollbar-hide {
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
+:deep(.p-paginator .p-paginator-first:hover),
+:deep(.p-paginator .p-paginator-prev:hover),
+:deep(.p-paginator .p-paginator-next:hover),
+:deep(.p-paginator .p-paginator-last:hover) {
+  background-color: #F3F4F6;
+  transform: translateY(-1px);
 }
 
-/* DataTable responsive protection */
-:deep(.p-datatable-wrapper) {
-  min-width: 100%;
-  overflow-x: auto;
+:deep(.p-paginator .p-dropdown) {
+  border-radius: 8px;
+  border: 1px solid #D1D5DB;
+  margin-left: 0.5rem;
 }
 
-:deep(.p-datatable-table) {
-  min-width: 800px;
+/* Ensure paginator elements are inline */
+:deep(.p-paginator .p-paginator-element) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Fix for pagination wrapper */
+:deep(.p-paginator-content) {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: nowrap;
 }
 </style>
+
