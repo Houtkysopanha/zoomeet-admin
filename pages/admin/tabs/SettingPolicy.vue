@@ -253,6 +253,78 @@
           </div>
         </div>
       </div>
+
+       <div class="border border-gray-200 my-10"></div>
+
+      <!-- Email and SMS Reminder Settings -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+        <div>
+          <div class="flex items-start mb-4">
+            <Checkbox
+              v-model="settings.isSendEmailReminder"
+              :binary="true"
+              inputId="sendEmailReminder"
+              class="mt-1"
+            />
+            <label for="sendEmailReminder" class="ml-2">
+              <span class="block font-medium text-gray-700">
+                Send Email Reminder
+              </span>
+              <span class="block text-xs text-gray-500 mt-1">
+                Send event reminder by email
+              </span>
+            </label>
+          </div>
+
+          <div v-if="settings.isSendEmailReminder">
+            <label class="block text-sm font-medium text-gray-700 mb-2"
+              >Email Reminder Date</label
+            >
+            <Calendar
+              v-model="settings.emailReminderDate"
+              showIcon
+              placeholder="31/07/2025"
+              iconDisplay="input"
+              class="w-full"
+              dateFormat="dd/mm/yy"
+            />
+          </div>
+        </div>
+
+        <div>
+          <div class="flex items-start mb-4">
+            <Checkbox
+              v-model="settings.isSendSmsReminder"
+              :binary="true"
+              inputId="sendSmsReminder"
+              class="mt-1"
+            />
+            <label for="sendSmsReminder" class="ml-2">
+              <span class="block font-medium text-gray-700">
+                Send SMS Reminder
+              </span>
+              <span class="block text-xs text-gray-500 mt-1">
+                Send event reminder by SMS
+              </span>
+            </label>
+          </div>
+
+          <div v-if="settings.isSendSmsReminder">
+            <label class="block text-sm font-medium text-gray-700 mb-2"
+              >SMS Reminder Date</label
+            >
+            <Calendar
+              v-model="settings.smsReminderDate"
+              showIcon
+              placeholder="31/07/2025"
+              iconDisplay="input"
+              class="w-full"
+              dateFormat="dd/mm/yy"
+            />
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </template>
@@ -303,6 +375,11 @@ const settings = ref({
   minimumAgeOptions: null,
   requiredIdentityDocuments: reactive([]),
   provideSpecialAssistance: reactive([]),
+  // Email and SMS reminder fields
+  isSendEmailReminder: false,
+  emailReminderDate: null,
+  isSendSmsReminder: false,
+  smsReminderDate: null,
 });
 
 const refundPolicyOptions = ref(["Refund", "Not Refund"]);
@@ -441,6 +518,11 @@ const loadSettingsFromAPI = async () => {
   provideSpecialAssistance: reactive(Array.isArray(apiData.provide_special_assistance)
     ? apiData.provide_special_assistance
     : (apiData.provide_special_assistance ? [apiData.provide_special_assistance] : [])),
+  // Email and SMS reminder fields
+  isSendEmailReminder: Boolean(apiData.is_send_email_reminder),
+  emailReminderDate: parseAPIDate(apiData.email_reminder_date),
+  isSendSmsReminder: Boolean(apiData.is_send_sms_reminder),
+  smsReminderDate: parseAPIDate(apiData.sms_reminder_date),
 };
 
 
@@ -555,7 +637,27 @@ const saveSettingsToAPI = async () => {
       provide_special_assistance: Array.isArray(settings.value.provideSpecialAssistance) 
         ? settings.value.provideSpecialAssistance.filter(assistance => assistance && assistance.trim() !== '') 
         : [],
+      // Email and SMS reminder fields
+      is_send_email_reminder: settings.value.isSendEmailReminder ? 1 : 0,
+      email_reminder_date: formatDateForAPI(settings.value.emailReminderDate),
+      is_send_sms_reminder: settings.value.isSendSmsReminder ? 1 : 0,
+      sms_reminder_date: formatDateForAPI(settings.value.smsReminderDate),
     };
+
+    // Debug: Log the complete apiData to see what's being sent
+    console.log("🔍 API Data being sent:", apiData);
+    console.log("📧 Email reminder values:", {
+      isSendEmailReminder: settings.value.isSendEmailReminder,
+      emailReminderDate: settings.value.emailReminderDate,
+      is_send_email_reminder: apiData.is_send_email_reminder,
+      email_reminder_date: apiData.email_reminder_date
+    });
+    console.log("📱 SMS reminder values:", {
+      isSendSmsReminder: settings.value.isSendSmsReminder,
+      smsReminderDate: settings.value.smsReminderDate,
+      is_send_sms_reminder: apiData.is_send_sms_reminder,
+      sms_reminder_date: apiData.sms_reminder_date
+    });
 
 
 
@@ -631,6 +733,11 @@ const handleSaveCurrentTab = (event) => {
     provideSpecialAssistance: Array.isArray(settings.value.provideSpecialAssistance) 
       ? [...settings.value.provideSpecialAssistance] 
       : [],
+    // Email and SMS reminder fields
+    isSendEmailReminder: settings.value.isSendEmailReminder,
+    emailReminderDate: settings.value.emailReminderDate,
+    isSendSmsReminder: settings.value.isSendSmsReminder,
+    smsReminderDate: settings.value.smsReminderDate,
     lastSaved: new Date().toISOString(),
     hasSettings: areSettingsComplete.value,
     eventId: currentEventId.value,
@@ -716,6 +823,46 @@ watch(
     }
   }
 );
+
+// Watch email reminder to clear date when unchecked
+watch(
+  () => settings.value.isSendEmailReminder,
+  (newValue) => {
+    if (!newValue) {
+      settings.value.emailReminderDate = null;
+    }
+  }
+);
+
+// Watch SMS reminder to clear date when unchecked
+watch(
+  () => settings.value.isSendSmsReminder,
+  (newValue) => {
+    if (!newValue) {
+      settings.value.smsReminderDate = null;
+    }
+  }
+);
+
+// Debug function to test API data construction
+const testApiData = () => {
+  console.log("🧪 Testing API Data Construction");
+  console.log("Current settings:", {
+    isSendEmailReminder: settings.value.isSendEmailReminder,
+    emailReminderDate: settings.value.emailReminderDate,
+    isSendSmsReminder: settings.value.isSendSmsReminder,
+    smsReminderDate: settings.value.smsReminderDate
+  });
+  
+  const testApiData = {
+    is_send_email_reminder: settings.value.isSendEmailReminder ? 1 : 0,
+    email_reminder_date: settings.value.emailReminderDate,
+    is_send_sms_reminder: settings.value.isSendSmsReminder ? 1 : 0,
+    sms_reminder_date: settings.value.smsReminderDate,
+  };
+  
+  console.log("Test API data:", testApiData);
+};
 
 // Event listeners for parent component actions
 const handleSaveSettings = async () => {

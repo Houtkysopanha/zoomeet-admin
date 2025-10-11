@@ -881,6 +881,7 @@
 
               <!-- Phone Input -->
               <div v-if="resetPasswordForm.loginType === 'phone'">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
                 <PhoneNumber
                   v-model="resetPasswordForm.identifier"
                   placeholder="Enter your phone number"
@@ -1578,7 +1579,7 @@ const handleCompleteBooking = async (bookingDetails) => {
         : (bookingDetails.transactionId && String(bookingDetails.transactionId).trim() 
            ? String(bookingDetails.transactionId).trim() 
            : generateTransactionId()),
-      phone_number: activeTab.value === 'phone' ? customerInfo.value?.phoneNumber?.trim() || null : null,
+      phone_number: activeTab.value === 'phone' ? customerInfo.value?.phoneNumber?.replace(/^\+/, '')?.trim() || null : null,
       email: activeTab.value === 'email' ? customerInfo.value?.email?.trim() : null, 
       full_name: customerInfo.value?.fullName?.trim() || '',
       customer_id: currentCustomerId.value // IMPORTANT: Link order to existing customer if found
@@ -1750,7 +1751,7 @@ const saveCustomerInfo = async () => {
       // User exists - store customer_id and show Account Found modal
       currentCustomerId.value = customerCheck.customer_id;
       existingUserData.value = {
-        identifier: customerCheck.identifier || '',
+        identifier: identifier, // Use the cleaned identifier (without + prefix for phone)
         fullName: customerCheck.full_name || customerCheck.name || '', // Use name from API response
         name: customerCheck.full_name || customerCheck.name || '', // Also store as name for compatibility
         loginType: customerCheck.loginType || activeTab.value || 'phone',
@@ -1985,7 +1986,7 @@ const handleRegisterAccount = async () => {
     
     if (registerActiveTab.value === 'phone') {
       // Send Firebase Phone OTP
-      identifier = registerForm.value.phoneNumber;
+      identifier = registerForm.value.phoneNumber.replace(/^\+/, '');
       otpResult = await sendOtp(identifier);
     } else if (registerActiveTab.value === 'email') {
       // Send Firebase Email OTP
@@ -2049,7 +2050,7 @@ const handleVerifyRegistrationOTP = async () => {
     
     if (registerActiveTab.value === 'phone') {
       // Verify Firebase Phone OTP
-      identifier = registerForm.value.phoneNumber;
+      identifier = registerForm.value.phoneNumber.replace(/^\+/, '');
       otpResult = await submitOtp(registerForm.value.otp, registerForm.value.firstName, registerForm.value.lastName, identifier);
     } else if (registerActiveTab.value === 'email') {
       // Verify Firebase Email OTP
@@ -2153,7 +2154,7 @@ const handleResendRegistrationOTP = async () => {
     
     if (registerActiveTab.value === 'phone') {
       // Resend Firebase Phone OTP
-      identifier = registerForm.value.phoneNumber;
+      identifier = registerForm.value.phoneNumber.replace(/^\+/, '');
       await sendOtp(identifier);
     } else if (registerActiveTab.value === 'email') {
       // Resend Firebase Email OTP
@@ -2291,7 +2292,7 @@ const handleResetPassword = () => {
     showConfirmPassword: false,
     otp: "",
     idToken: "",
-    loginType: existingUserData.value?.login_type || 'phone'
+    loginType: existingUserData.value?.loginType || 'phone'
   };
   resetPasswordError.value = "";
   resetPasswordSuccess.value = "";
@@ -2344,7 +2345,7 @@ const handleSendResetPasswordOTP = async () => {
   try {
     if (resetPasswordForm.value.loginType === 'phone') {
       // Send phone OTP using Firebase
-      await sendOtp(resetPasswordForm.value.identifier);
+      await sendOtp(resetPasswordForm.value.identifier.replace(/^\+/, ''));
     } else {
       // Send email OTP
       await sendEmailOtp(resetPasswordForm.value.identifier);
@@ -2381,7 +2382,7 @@ const handleVerifyResetPasswordOTP = async () => {
         resetPasswordForm.value.otp,
         '', // firstName not needed for reset
         '', // lastName not needed for reset
-        resetPasswordForm.value.identifier
+        resetPasswordForm.value.identifier.replace(/^\+/, '')
       );
     } else {
       // Verify email OTP
@@ -2425,7 +2426,7 @@ const handleResendResetPasswordOTP = async () => {
 
   try {
     if (resetPasswordForm.value.loginType === 'phone') {
-      await sendOtp(resetPasswordForm.value.identifier);
+      await sendOtp(resetPasswordForm.value.identifier.replace(/^\+/, ''));
     } else {
       await sendEmailOtp(resetPasswordForm.value.identifier);
     }

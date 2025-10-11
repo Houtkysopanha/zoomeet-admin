@@ -5,7 +5,7 @@
     <div class="">
       <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <!-- Left: Title -->
-        <div class="">
+        <div class="flex items-center gap-3">
           <Breadcrumb
             :items="[
               { text: 'Dashboard' }
@@ -82,7 +82,7 @@
       </div>
 
       <div class="border border-gray-200 mt-4 lg:mt-5 mb-6 lg:mb-10"></div>
-       <div class="mb-6 p-6 bg-[#E6F2FF] border border-purple-600 rounded-2xl">
+       <!-- <div class="mb-6 p-6 bg-[#E6F2FF] border border-purple-600 rounded-2xl">
       <div class="flex items-center">
         <Icon name="heroicons:exclamation-triangle" class="w-8 h-8 text-yellow-600 mr-4" />
         <div>
@@ -96,10 +96,10 @@
           </div>
         </div>
       </div>
-    </div>
+    </div> -->
        <!-- Dashboard Disabled Notice -->
-      <div class="opacity-30 pointer-events-none">
-        <!-- <div> -->
+      <!-- <div class="opacity-30 pointer-events-none"> -->
+        <div>
 
 
     <!-- Event Stats -->
@@ -108,7 +108,7 @@
         v-for="(stat, index) in eventStats"
         :key="index"
         :title="stat.title"
-        :count="stat.count"
+        :count="isLoading ? '...' : stat.count"
         :icon="stat.icon"
         :weekChange="stat.weekChange"
       />
@@ -117,7 +117,7 @@
     <!-- Recent and Coming Events -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6 lg:mb-8 mt-4 lg:mt-5">
       <div class="lg:col-span-2">
-        <RecentEvent />
+        <RecentEvent :recentEvents="dashboardData?.summary?.recently_event || []" :isLoading="isLoading" />
       </div>
       <div class="lg:col-span-1">
         <ComingEvent />
@@ -134,23 +134,30 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import Calendar from 'primevue/calendar'
+import Button from 'primevue/button'
 import Breadcrumb from '~/components/common/Breadcrumb.vue'
 import CardCommon from '~/components/common/CardCommon.vue'
 import { useToast } from 'primevue/usetoast'
 import RecentEvent from './RecentEvent.vue'
 import ComingEvent from './ComingEvent.vue'
+import { fetchDashboardData } from '~/composables/api.js'
 const { clearAuth } = useAuth()
 const config = useRuntimeConfig() // add this at the top of script setup
 
 const router = useRouter()
 const toast = useToast()
 
-const eventStats = [
-  { title: 'Total Revenue', count: '28', icon: 'lsicon:amount-dollar-filled', weekChange: '+20.1% from last month' },
-  { title: 'Complete Event', count: '23', icon: 'material-symbols-light:order-approve', weekChange: 'Need registration' },
-  { title: 'Ongoing', count: '5', icon: 'majesticons:ticket', weekChange: '+180 from last week' },
-  { title: 'Draft', count: '24', icon: 'mdi:invoice-text-check', weekChange: '2 everning running' },
-]
+// Dashboard data
+const dashboardData = ref(null)
+const isLoading = ref(true)
+const isManualRefresh = ref(false)
+
+const eventStats = ref([
+  { title: 'Total Revenue', count: '0', icon: 'lsicon:amount-dollar-filled', weekChange: 'Loading...' },
+  { title: 'Total Booking', count: '0', icon: 'material-symbols-light:order-approve', weekChange: 'Loading...' },
+  { title: 'Number of Event', count: '0', icon: 'majesticons:ticket', weekChange: 'Loading...' },
+  { title: 'Audience', count: '0', icon: 'fluent:people-audience-20-filled', weekChange: 'Loading...' },
+])
 
 
 const dateRange = ref(null)
@@ -280,6 +287,90 @@ async function fetchUserInfo() {
   }
 }
 
+// Fetch dashboard data
+async function loadDashboardData() {
+  try {
+    isLoading.value = true
+    
+    const response = await fetchDashboardData()
+
+    
+    if (response && response.success && response.data) {
+      dashboardData.value = response.data
+      // Update event stats with real data
+      eventStats.value = [
+        { 
+          title: 'Total Revenue', 
+          count: `$${response.data.summary.total_revenue?.toFixed(2) || '0.00'}`, 
+          icon: 'lsicon:amount-dollar-filled', 
+          weekChange: 'Updated from API' 
+        },
+        { 
+          title: 'Total Booking', 
+          count: response.data.summary.total_booking?.toString() || '0', 
+          icon: 'material-symbols-light:order-approve', 
+          weekChange: 'Active bookings' 
+        },
+        { 
+          title: 'Number of Event', 
+          count: response.data.summary.total_event?.toString() || '0', 
+          icon: 'majesticons:ticket', 
+          weekChange: 'Events created' 
+        },
+        { 
+          title: 'Audience', 
+          count: response.data.summary.total_audience?.toString() || '0', 
+          icon: 'fluent:people-audience-20-filled', 
+          weekChange: 'Total attendees' 
+        },
+      ]
+            
+      // Show success message only on manual refresh (not on initial load)
+      if (isManualRefresh.value) {
+        toast.add({
+          severity: 'success',
+          summary: 'Dashboard Updated',
+          detail: 'Dashboard data refreshed successfully',
+          life: 3000,
+        })
+        isManualRefresh.value = false
+      }
+    } else {
+      console.warn('⚠️ Invalid API response format:', response)
+      throw new Error('Invalid response format')
+    }
+  } catch (error) {
+    console.error('❌ Failed to load dashboard data:', error)
+    
+    // Show more specific error messages
+    const errorMessage = error.message || 'Unknown error occurred'
+    const statusCode = error.status || 'Unknown'
+    
+    toast.add({
+      severity: 'error',
+      summary: 'Dashboard Error',
+      detail: `Failed to load dashboard data (${statusCode}): ${errorMessage}`,
+      life: 7000,
+    })
+    
+    // Keep default error state
+    eventStats.value = [
+      { title: 'Total Revenue', count: 'Error', icon: 'lsicon:amount-dollar-filled', weekChange: 'Failed to load' },
+      { title: 'Total Booking', count: 'Error', icon: 'material-symbols-light:order-approve', weekChange: 'Failed to load' },
+      { title: 'Number of Event', count: 'Error', icon: 'majesticons:ticket', weekChange: 'Failed to load' },
+      { title: 'Audience', count: 'Error', icon: 'fluent:people-audience-20-filled', weekChange: 'Failed to load' },
+    ]
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Manual refresh function
+const refreshDashboard = () => {
+  isManualRefresh.value = true
+  loadDashboardData()
+}
+
 const updateDateTime = () => {
   const now = new Date()
   currentDate.value = now.toLocaleDateString('en-US', {
@@ -306,7 +397,9 @@ const handleClickOutside = (event) => {
 let interval = null
 
 onMounted(async () => {
+  
   await fetchUserInfo()
+  await loadDashboardData()
   updateDateTime()
   interval = setInterval(updateDateTime, 1000)
   document.addEventListener('click', handleClickOutside)

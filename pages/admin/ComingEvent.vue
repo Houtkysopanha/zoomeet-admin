@@ -1,10 +1,12 @@
 <template>
   <div class="bg-white rounded-2xl shadow-sm border border-gray-200  p-4 sm:p-6 max-w-4xl mx-auto h-[calc(80vh-8rem)] overflow-hidden flex flex-col">
     <!-- Header -->
-    <h2 class="text-lg sm:text-xl font-semibold text-gray-800 mb-4 sm:mb-6">Upcoming events</h2>
+    <div class="flex items-center justify-between mb-4 sm:mb-6">
+      <h2 class="text-lg sm:text-xl font-semibold text-gray-800">Upcoming events</h2>
+    </div>
 
     <!-- Month Navigation -->
-    <div class="flex items-center justify-between mb-4 sm:mb-6 bg-color mx-5">
+    <div class="flex items-center justify-between mb-4 sm:mb-6 bg-color">
       <Button 
         icon="pi pi-chevron-left" 
         text 
@@ -28,7 +30,7 @@
 
     <!-- Calendar Days Navigation -->
     <!-- Calendar Days Navigation -->
-    <div class="flex items-center justify-between mb-4">
+    <div class="flex items-center justify-between mb-7">
       <Button 
         icon="pi pi-chevron-left"
         text 
@@ -43,15 +45,30 @@
             v-for="day in visibleDays" 
             :key="day.date"
             class="flex flex-col items-center justify-center cursor-pointer transition-all duration-200 w-20 h-14 p-4"
-            :class="day.isSelected ? 'selected-day' : 'calendar-day'"
+            :class="{
+              'selected-day': day.isSelected,
+              'calendar-day': !day.isSelected && !day.isToday,
+              'today-day': day.isToday && !day.isSelected
+            }"
             @click="selectDay(day)"
           >
-            <span class="text-base sm:text-md font-normal" :class="day.isSelected ? 'text-white' : 'text-gray-600'">
+            <span class="text-base sm:text-md font-normal" 
+                  :class="{
+                    'text-white': day.isSelected,
+                    'text-blue-600': day.isToday && !day.isSelected,
+                    'text-gray-600': !day.isSelected && !day.isToday
+                  }">
               {{ day.dayName }}
             </span>
-            <span class="text-2xl sm:text-lg font-bold" :class="day.isSelected ? 'text-white' : 'text-gray-800'">
+            <span class="text-2xl sm:text-lg font-bold" 
+                  :class="{
+                    'text-white': day.isSelected,
+                    'text-blue-600': day.isToday && !day.isSelected,
+                    'text-gray-800': !day.isSelected && !day.isToday
+                  }">
               {{ day.date }}
             </span>
+            <div v-if="day.isToday && !day.isSelected" class="w-1 h-1 bg-blue-600 rounded-full mt-1"></div>
           </div>
         </div>
       </div>
@@ -64,39 +81,78 @@
         class="text-gray-500 hover:text-gray-700 border rounded-md w-6 h-6"
       />
     </div>
+    <!-- Loading State -->
+    <div v-if="isLoading" class="flex-1 flex items-center justify-center">
+      <div class="text-center">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+        <p class="text-gray-500">Loading upcoming events...</p>
+      </div>
+    </div>
+
+    <!-- Error State -->
+    <div v-else-if="error" class="flex-1 flex items-center justify-center">
+      <div class="text-center">
+        <i class="pi pi-exclamation-triangle text-4xl text-red-400 mb-4"></i>
+        <p class="text-red-500 text-lg mb-2">Error Loading Events</p>
+        <p class="text-gray-400 text-sm mb-4">{{ error }}</p>
+        <Button
+          label="Try Again"
+          icon="pi pi-refresh"
+          class="p-button-sm"
+          @click="loadEvents()"
+        />
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div v-else-if="events.length === 0" class="flex-1 flex items-center justify-center">
+      <div class="text-center">
+        <i class="pi pi-calendar text-4xl text-gray-400 mb-4"></i>
+        <p class="text-gray-500 text-lg mb-2">No upcoming events</p>
+        <p class="text-gray-400 text-sm">No events found for the selected date.</p>
+      </div>
+    </div>
+
     <!-- Events Scroll Area with Note Icon -->
-    <div class="flex-1 overflow-y-auto pr-1">
+    <div v-else class="flex-1 overflow-y-auto pr-1">
       <div class="space-y-4 pb-4">
         <div 
-          v-for="(event) in events" 
-          :key="event.id"
-          class="flex items-start space-x-4 rounded-lg hover:bg-gray-50 transition-all duration-200 cursor-pointer group"
-          @click="viewEvent(event)"
-        >
-          <!-- Event Image -->
-          <div class="flex-shrink-0">
-            <img 
-              :src="event.image" 
-              :alt="event.title"
-              class="w-20 h-20 rounded-lg object-cover shadow-md group-hover:shadow-lg transition-shadow duration-200"
-            />
-          </div>
+  v-for="event in events" 
+  :key="event.id"
+  class="flex items-center gap-4 rounded-xl bg-white  "
+  @click="viewEvent(event)"
+>
+  <!-- Event Image -->
+  <div class="flex-shrink-0 w-28 h-20">
+    <img 
+      :src="event.image || img" 
+      :alt="event.title"
+      class="w-full h-full rounded-lg object-cover shadow-sm "
+      @error="handleUpcomingImageError"
+    />
+  </div>
 
-          <!-- Event Details -->
-          <div class="flex-1 min-w-0">
-            <h4 class="text-sm font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors duration-200">
-              {{ event.title }}
-            </h4>
-            <div class="flex items-center text-xs text-gray-500 mb-1">
-              <i class="pi pi-map-marker text-xs mr-2"></i>
-              <span>{{ event.location }}</span>
-            </div>
-            <div class="flex items-center text-xs text-gray-500">
-              <i class="pi pi-clock text-xs mr-2"></i>
-              <span>{{ event.time }}</span>
-            </div>
-          </div>
-        </div>
+  <!-- Event Details -->
+  <div class="flex-1 min-w-0">
+    <h4 
+      class="text-base font-normal text-gray-900 mb-1 truncate group-hover:text-blue-600 transition-colors duration-200"
+      :title="event.title"
+    >
+      {{ event.title }}
+    </h4>
+
+    <div class="flex items-center text-xs text-[#002B59B2] mb-1">
+      <i class="pi pi-map-marker text-sm mr-2 text-[#002B59B2]"></i>
+      <span class="truncate">{{ event.location || 'Location TBD' }}</span>
+    </div>
+
+    <div class="flex items-center text-xs text-[#002B59B2]">
+      <i class="pi pi-clock text-sm mr-2 text-[#002B59B2]"></i>
+      <span>{{ event.time || 'Time TBD' }}</span>
+    </div>
+  </div>
+</div>
+
       </div>
       <!-- Note Icon as Scroll Cue -->
       <div v-if="events.length > 4" class="flex justify-center mt-4 text-gray-400">
@@ -107,81 +163,39 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import Button from 'primevue/button'
 import { useToast } from 'primevue/usetoast'
-const toast = useToast()
-const isLoadingMore = ref(false)
-const currentDate = ref(new Date(2025, 6, 6)) // July 6, 2025 (month is 0-indexed)
-const selectedDay = ref(6)
+import { useUpcomingEvents } from '@/composables/useUpcomingEvents.js'
 import img from '@/assets/image/poster-manage-booking.png'
 
-// Sample event data
-const events = ref([
-  {
-    id: 1,
-    title: 'Navigating the future of cybersecurity in Cambodia 2015',
-    location: 'Hyatt Regency, Phnom Penh',
-    time: '10:00 AM GMT+7',
-    image: img
-  },
-  {
-    id: 2,
-    title: 'Navigating the future of cybersecurity in Cambodia 2015',
-    location: 'Hyatt Regency, Phnom Penh',
-    time: '10:00 AM GMT+7',
-    image: img
-  },
-  {
-    id: 3,
-    title: 'Navigating the future of cybersecurity in Cambodia 2015',
-    location: 'Hyatt Regency, Phnom Penh',
-    time: '10:00 AM GMT+7',
-    image: img
-  },
-  {
-    id: 4,
-    title: 'Navigating the future of cybersecurity in Cambodia 2015',
-    location: 'Hyatt Regency, Phnom Penh',
-    time: '10:00 AM GMT+7',
-    image: img
-  },
-  {
-    id: 5,
-    title: 'Digital Innovation Summit 2025',
-    location: 'Sofitel Phnom Penh Phokeethra',
-    time: '2:00 PM GMT+7',
-    image: img
-  },
-  {
-    id: 6,
-    title: 'Southeast Asia Tech Conference',
-    location: 'NagaWorld Hotel & Entertainment Complex',
-    time: '9:00 AM GMT+7',
-    image: img
-  },
-   {
-    id: 7,
-    title: 'Southeast Asia Tech Conference',
-    location: 'NagaWorld Hotel & Entertainment Complex',
-    time: '9:00 AM GMT+7',
-    image: img
-  },
-   {
-    id: 8,
-    title: 'Southeast Asia Tech Conference',
-    location: 'NagaWorld Hotel & Entertainment Complex',
-    time: '9:00 AM GMT+7',
-    image: img
-  },
-  {
-    id: 9,
-    title: 'Southeast Asia Tech Conference',
-    location: 'NagaWorld Hotel & Entertainment Complex',
-    time: '9:00 AM GMT+7',
-    image: img
-  }
-])
+const toast = useToast()
+const isLoadingMore = ref(false)
+// Use actual current date - this will be dynamic and respond to real time
+const today = new Date() // Dynamic current date
+const currentDate = ref(new Date(today.getFullYear(), today.getMonth(), 1)) // Start of current month
+const selectedDate = ref(new Date(today)) // Start with today's date
+const daysContainer = ref(null)
+
+// Use the upcoming events composable
+const { 
+  formattedEvents, 
+  isLoading, 
+  error, 
+  loadEvents 
+} = useUpcomingEvents()
+
+// Use formatted events from composable with fallback image
+const events = computed(() => {
+  
+  const eventsWithFallback = formattedEvents.value.map(event => ({
+    ...event,
+    image: event.image || img // Fallback to default image
+  }))
+  
+  
+  return eventsWithFallback
+})
 
 // Computed properties
 const currentMonthYear = computed(() => {
@@ -190,13 +204,56 @@ const currentMonthYear = computed(() => {
 })
 
 const calendarDays = computed(() => {
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-  const startDate = 6 // Starting from July 6th
-  return days.map((dayName, index) => ({
-    dayName,
-    date: String(startDate + index).padStart(2, '0'),
-    isSelected: selectedDay.value === startDate + index
-  }))
+  const year = currentDate.value.getFullYear()
+  const month = currentDate.value.getMonth()
+  // Use actual current date for dynamic filtering
+  const actualToday = new Date()
+  const todayStart = new Date(actualToday.getFullYear(), actualToday.getMonth(), actualToday.getDate())
+  
+  // Start from a few days before selected date to show context, but ensure we don't go to past
+  let startDay = 1
+  if (selectedDate.value.getFullYear() === year && selectedDate.value.getMonth() === month) {
+    startDay = Math.max(1, selectedDate.value.getDate() - 2)
+  }
+  
+  // Make sure we don't start from a past date
+  const startDate = new Date(year, month, startDay)
+  if (startDate < todayStart) {
+    startDay = todayStart.getDate()
+  }
+  
+
+  
+  // Create consecutive days starting from startDay
+  const days = []
+  
+  for (let i = 0; i < 7; i++) {
+    const dayNumber = startDay + i
+    const date = new Date(year, month, dayNumber)
+    
+    // Check if this date is valid for the current month
+    if (date.getMonth() === month) {
+      const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+      
+      // Only show today and future dates
+      if (dateStart >= todayStart) {
+        const dayName = date.toLocaleDateString('en-US', { weekday: 'short' })
+        const isToday = dateStart.getTime() === todayStart.getTime()
+        const selectedDateStart = new Date(selectedDate.value.getFullYear(), selectedDate.value.getMonth(), selectedDate.value.getDate())
+        const isSelected = dateStart.getTime() === selectedDateStart.getTime()
+        
+        days.push({
+          dayName,
+          date: String(dayNumber).padStart(2, '0'),
+          fullDate: date,
+          isSelected: isSelected,
+          isToday: isToday
+        })
+      }
+    }
+  }
+  
+  return days
 })
 
 const visibleDays = computed(() => {
@@ -208,40 +265,141 @@ const visibleDays = computed(() => {
 const currentDayOffset = ref(0)
 
 // Methods
-const previousMonth = () => {
+const previousMonth = async () => {
   const newDate = new Date(currentDate.value)
+  const actualToday = new Date() // Use actual current date
+  
+  // Prevent going to months that are entirely in the past
   newDate.setMonth(newDate.getMonth() - 1)
+  
+  // Check if the new month is entirely in the past
+  const lastDayOfNewMonth = new Date(newDate.getFullYear(), newDate.getMonth() + 1, 0)
+  const todayStart = new Date(actualToday.getFullYear(), actualToday.getMonth(), actualToday.getDate())
+  
+  if (lastDayOfNewMonth < todayStart) {
+    toast.warn('Cannot navigate to past months. Only current and future months are allowed.')
+    return
+  }
+  
   currentDate.value = newDate
   toast.info(`Switched to ${currentMonthYear.value}`)
+  
+  // Find the first valid day (today or later) in the new month
+  const isCurrentMonth = newDate.getFullYear() === actualToday.getFullYear() && newDate.getMonth() === actualToday.getMonth()
+  const startDay = isCurrentMonth ? actualToday.getDate() : 1
+  
+  const startDate = new Date(newDate.getFullYear(), newDate.getMonth(), startDay)
+  selectedDate.value = startDate
+  
+  const result = await loadEvents(startDate)
+  if (!result.success) {
+    toast.warn(result.message)
+  }
 }
 
-const nextMonth = () => {
+const nextMonth = async () => {
   const newDate = new Date(currentDate.value)
   newDate.setMonth(newDate.getMonth() + 1)
   currentDate.value = newDate
   toast.info(`Switched to ${currentMonthYear.value}`)
-}
-
-const selectDay = (day) => {
-  selectedDay.value = parseInt(day.date)
-  toast.success(`Selected ${day.dayName}, ${day.date}`)
-}
-
-const viewEvent = (event) => {
-  toast.info(`Opening: ${event.title}`)
-}
-
-const previousDays = () => {
-  if (currentDayOffset.value > 0) {
-    currentDayOffset.value -= 2
-    scrollDaysContainer(-1)
+  
+  // Reset to first day of new month or today, whichever is later
+  const actualToday = new Date() // Use actual current date
+  const firstDayOfMonth = new Date(newDate.getFullYear(), newDate.getMonth(), 1)
+  const startDay = actualToday > firstDayOfMonth ? actualToday.getDate() : 1
+  
+  const startDate = new Date(newDate.getFullYear(), newDate.getMonth(), startDay)
+  selectedDate.value = startDate
+  
+  const result = await loadEvents(startDate)
+  if (!result.success) {
+    toast.warn(result.message)
   }
 }
 
-const nextDays = () => {
-  if (currentDayOffset.value + 5 < calendarDays.value.length) {
-    currentDayOffset.value += 2
-    scrollDaysContainer(1)
+const selectDay = async (day) => {
+  // Use the full date from the day object to ensure correct date
+  const selectedDateValue = day.fullDate
+  
+  // Check if the selected date is not in the past
+  const actualToday = new Date() // Use actual current date
+  const todayStart = new Date(actualToday.getFullYear(), actualToday.getMonth(), actualToday.getDate())
+  
+  if (selectedDateValue < todayStart) {
+    toast.warn('Cannot select past dates. Please select today or future dates.')
+    return
+  }
+  
+  // Update the selected date
+  selectedDate.value = new Date(selectedDateValue)
+
+  
+  // Load events for the selected date
+  const result = await loadEvents(selectedDateValue)
+  if (!result.success) {
+    toast.warn(result.message)
+  } else if (result.count === 0) {
+    toast.info(`No upcoming events found for ${day.dayName}, ${day.date}`)
+  } else {
+    toast.success(`Found ${result.count} event(s) for ${day.dayName}, ${day.date}`)
+  }
+}
+
+function viewEvent(event) {
+  toast.info(`Opening: ${event.title}`)
+  // You can add navigation to event details here
+  // For example: navigateTo(`/admin/events/${event.id}`)
+}
+
+function handleUpcomingImageError(event) {
+  // Set fallback image when the original image fails to load
+  event.target.src = img
+  
+  // Optional: Add error class for styling
+  event.target.classList.add('image-error')
+}
+
+const previousDays = async () => {
+  // Move the selected date back by 3 days
+  const newDate = new Date(selectedDate.value)
+  newDate.setDate(newDate.getDate() - 3)
+  
+  // Ensure we don't go to past dates
+  const actualToday = new Date() // Use actual current date
+  const todayStart = new Date(actualToday.getFullYear(), actualToday.getMonth(), actualToday.getDate())
+  
+  if (newDate < todayStart) {
+    newDate.setTime(todayStart.getTime())
+  }
+  
+  selectedDate.value = newDate
+  
+  // Update current month if needed
+  if (newDate.getMonth() !== currentDate.value.getMonth() || newDate.getFullYear() !== currentDate.value.getFullYear()) {
+    currentDate.value = new Date(newDate.getFullYear(), newDate.getMonth(), 1)
+  }
+  
+  const result = await loadEvents(newDate)
+  if (result.success && result.count > 0) {
+    toast.success(`Found ${result.count} event(s) for ${newDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`)
+  }
+}
+
+const nextDays = async () => {
+  // Move the selected date forward by 3 days
+  const newDate = new Date(selectedDate.value)
+  newDate.setDate(newDate.getDate() + 3)
+  
+  selectedDate.value = newDate
+  
+  // Update current month if needed
+  if (newDate.getMonth() !== currentDate.value.getMonth() || newDate.getFullYear() !== currentDate.value.getFullYear()) {
+    currentDate.value = new Date(newDate.getFullYear(), newDate.getMonth(), 1)
+  }
+  
+  const result = await loadEvents(newDate)
+  if (result.success && result.count > 0) {
+    toast.success(`Found ${result.count} event(s) for ${newDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`)
   }
 }
 
@@ -253,16 +411,52 @@ const scrollDaysContainer = (direction) => {
   }
 }
 
-onMounted(() => {
-  // Ensure days container is referenced
-  // No motion due to previous issues
+// Method to refresh with current actual date
+const refreshWithCurrentDate = async () => {
+  const actualNow = new Date()
+  
+  // Update component state
+  currentDate.value = new Date(actualNow.getFullYear(), actualNow.getMonth(), 1)
+  selectedDate.value = new Date(actualNow)
+  
+  // Reload events
+  const result = await loadEvents(selectedDate.value)
+  if (result.success && result.count > 0) {
+    toast.success(`Refreshed: Found ${result.count} event(s) for today`)
+  } else if (result.count === 0) {
+    toast.info('Refreshed: No events found for today')
+  }
+}
+
+onMounted(async () => {
+  // Use the actual current date - dynamic and real-time
+  const actualCurrentDate = new Date()
+  
+  
+  // Set the current month and selected date to today
+  currentDate.value = new Date(actualCurrentDate.getFullYear(), actualCurrentDate.getMonth(), 1)
+  selectedDate.value = new Date(actualCurrentDate)
+  
+  
+  // Load events for today's date first
+  const result = await loadEvents(selectedDate.value)
+  
+  if (!result.success) {
+    console.error('❌ Failed to load initial events:', result.message)
+    toast.error(result.message)
+  } else if (result.count === 0) {
+    console.log('ℹ️ No events found for initial date:', selectedDate.value.toDateString())
+    toast.info(`No upcoming events found for ${selectedDate.value.toLocaleDateString()}`)
+  } else {
+    toast.success(`Loaded ${result.count} upcoming events`)
+  }
 })
 </script>
 
 <style scoped>
 /* Calendar Day Styling */
 .calendar-day {
-  @apply bg-white border border-gray-200 rounded-lg px-4 py-3 hover:bg-gray-50 hover:border-gray-300;
+  @apply bg-[#E9EBF8] border border-gray-200 rounded-lg px-4 py-3 hover:bg-gray-50 hover:border-gray-300;
   @apply transition-all duration-200;
 }
 
@@ -276,6 +470,12 @@ onMounted(() => {
 /* Event Card Hover Effects */
 .group:hover img {
   transform: scale(1.05);
+}
+
+/* Image Error Handling */
+.image-error {
+  opacity: 0.7;
+  filter: grayscale(20%);
 }
 
 /* Smooth transitions for all interactive elements */
@@ -292,6 +492,10 @@ onMounted(() => {
   @apply bg-custom-gradient rounded-lg px-4 py-3 shadow-lg text-white;
 }
 
+.today-day {
+  @apply bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 hover:bg-blue-100 hover:border-blue-300;
+}
+
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
@@ -301,5 +505,7 @@ onMounted(() => {
 }
 .bg-color {
   background-color: #F6F9F9;
+  padding: 10px;
+  border-radius: 10px;
 }
 </style>

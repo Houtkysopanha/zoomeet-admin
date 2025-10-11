@@ -249,18 +249,26 @@ export async function fetchEvents() {
   const config = useRuntimeConfig()
   const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
 
+
   try {
     
     // Create headers with authenticated token using async refresh
     const headers = await createAuthHeaders()
     if (!headers) {
+      console.log('❌ fetchEvents - No auth headers available')
       return { status: 401, data: { success: false, data: [], message: 'Authentication required' } }
     }
 
-    const response = await $fetch(`${API_ADMIN_BASE_URL}/events`, {
+
+    const url = `${API_ADMIN_BASE_URL}/events`
+
+
+    const response = await $fetch(url, {
       method: 'GET',
       headers
     })
+
+
 
     // Validate and log each event ID
     if (response && Array.isArray(response.data)) {
@@ -1776,6 +1784,70 @@ export async function checkSlugAvailability(slug, currentEventId = null) {
     }
   }
 }
+
+// Fetch dashboard data
+export async function fetchDashboardData() {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!API_ADMIN_BASE_URL) {
+    console.error('❌ API Admin Base URL is not configured')
+    throw new Error('API Admin Base URL is not configured')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      console.warn('⚠️ No auth headers available')
+      handleAuthRedirect()
+      return null
+    }
+
+    const url = normalizeApiUrl(API_ADMIN_BASE_URL, '/dashboard')
+    
+    
+    const response = await $fetch(url, {
+      headers,
+      method: 'GET'
+    })
+
+    
+    // Validate response structure
+    if (!response || typeof response !== 'object') {
+      throw new Error('Invalid response format: not an object')
+    }
+    
+    if (!response.success) {
+      throw new Error(`API returned success=false: ${response.message || 'Unknown error'}`)
+    }
+    
+    if (!response.data) {
+      throw new Error('API response missing data field')
+    }
+
+    return response
+
+  } catch (error) {
+    console.error('❌ Dashboard data fetch failed:', error)
+    
+    if (error.status === 401 || error.statusCode === 401) {
+      console.log('🔒 Authentication failed, redirecting to login')
+      handleAuthRedirect()
+      return null
+    }
+    
+    // Enhanced error information
+    const errorInfo = {
+      message: error.message || 'Failed to fetch dashboard data',
+      status: error.status || error.statusCode || 500,
+      url: error.request?.responseURL || 'unknown',
+      data: error.data || null
+    }
+    
+    throw errorInfo
+  }
+}
+
 // Fetch List organizer
 export async function fetchEventOrganizers(eventId) {
   const config = useRuntimeConfig()
@@ -2292,6 +2364,19 @@ if (Array.isArray(settingsData.provide_special_assistance)) {
   normalizedData.provide_special_assistance = []
 }
 
+    // Email and SMS reminder fields
+    normalizedData.is_send_email_reminder = settingsData.is_send_email_reminder !== undefined ? 
+      (settingsData.is_send_email_reminder ? 1 : 0) : 
+      (settingsData.isSendEmailReminder ? 1 : 0);
+    
+    normalizedData.email_reminder_date = settingsData.email_reminder_date || settingsData.emailReminderDate || null;
+    
+    normalizedData.is_send_sms_reminder = settingsData.is_send_sms_reminder !== undefined ? 
+      (settingsData.is_send_sms_reminder ? 1 : 0) : 
+      (settingsData.isSendSmsReminder ? 1 : 0);
+    
+    normalizedData.sms_reminder_date = settingsData.sms_reminder_date || settingsData.smsReminderDate || null;
+
     // Ensure maximum_age is null when age verification is disabled
     if (normalizedData.is_required_age_verification === 0) {
       normalizedData.maximum_age = null
@@ -2310,12 +2395,27 @@ if (Array.isArray(settingsData.provide_special_assistance)) {
       }
     }
 
+    // Format email reminder date properly for API
+    if (normalizedData.email_reminder_date) {
+      if (normalizedData.email_reminder_date instanceof Date) {
+        normalizedData.email_reminder_date = normalizedData.email_reminder_date.toISOString().slice(0, 19).replace('T', ' ')
+      }
+    }
+
+    // Format SMS reminder date properly for API
+    if (normalizedData.sms_reminder_date) {
+      if (normalizedData.sms_reminder_date instanceof Date) {
+        normalizedData.sms_reminder_date = normalizedData.sms_reminder_date.toISOString().slice(0, 19).replace('T', ' ')
+      }
+    }
+
 
 
     const headers = await createAuthHeaders()
     if (!headers) {
       throw new Error('Authentication required')
     }
+
     
     const response = await $fetch(`${API_ADMIN_BASE_URL}/events/${eventId}/settings`, {
       method: 'POST',
@@ -3595,6 +3695,231 @@ export async function resetPasswordWithToken(identifier, newPassword, confirmPas
   }
 }
 
+// Fetch upcoming events with start date parameter
+export async function fetchUpcomingEvents(selectedDate = null) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!API_ADMIN_BASE_URL) {
+    throw new Error('API admin base URL is not configured.')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Unable to create authentication headers')
+    }
+
+    // Use provided selectedDate or default to today
+    const dateToUse = selectedDate || new Date()
+
+    
+    // Ensure we never request past dates - use actual current date as minimum
+    const actualToday = new Date() // Actual current date - dynamic
+    const todayDateOnly = new Date(actualToday.getFullYear(), actualToday.getMonth(), actualToday.getDate())
+    const requestDateOnly = new Date(dateToUse.getFullYear(), dateToUse.getMonth(), dateToUse.getDate())
+    
+    const requestDate = requestDateOnly < todayDateOnly ? todayDateOnly : dateToUse
+    
+
+    // Format selected date as YYYY-MM-DD (avoid timezone issues)
+    const year = requestDate.getFullYear()
+    const month = String(requestDate.getMonth() + 1).padStart(2, '0')
+    const day = String(requestDate.getDate()).padStart(2, '0')
+    const formattedDate = `${year}-${month}-${day}`
+    
+
+    // Build the API URL with required start_date parameter
+    const params = new URLSearchParams()
+    params.append('start_date', formattedDate)
+    
+    const url = `${API_ADMIN_BASE_URL}/dashboard/up-comming-event?${params.toString()}`
+
+
+    const response = await $fetch(url, {
+      method: 'GET',
+      headers
+    })
+
+
+
+    // Validate and return response
+    if (response && response.success && Array.isArray(response.data)) {
+      
+      // The API now returns events based on start_date parameter
+      // But we still need to check if multi-day events should be shown
+      const selectedDateTime = new Date(requestDate.getFullYear(), requestDate.getMonth(), requestDate.getDate())
+
+      
+      // Get all upcoming events to check for multi-day events that might span to our selected date
+      const allEventsUrl = `${API_ADMIN_BASE_URL}/dashboard/up-comming-event`
+      
+      let allEventsResponse
+      try {
+        allEventsResponse = await $fetch(allEventsUrl, {
+          method: 'GET',
+          headers
+        })
+      } catch (error) {
+        allEventsResponse = { success: false, data: [] }
+      }
+      
+      // Combine events from specific date API call with multi-day events
+      let combinedEvents = [...response.data]
+      
+      if (allEventsResponse && allEventsResponse.success && Array.isArray(allEventsResponse.data)) {
+        
+        allEventsResponse.data.forEach(event => {
+          try {
+            const eventStartDate = new Date(event.start_date)
+            const eventEndDate = new Date(event.end_date)
+            
+            if (isNaN(eventStartDate.getTime()) || isNaN(eventEndDate.getTime())) {
+              return // Skip invalid dates
+            }
+            
+            const startDateOnly = new Date(eventStartDate.getFullYear(), eventStartDate.getMonth(), eventStartDate.getDate())
+            const endDateOnly = new Date(eventEndDate.getFullYear(), eventEndDate.getMonth(), eventEndDate.getDate())
+            
+            // Check if selected date falls within this event's range
+            const isWithinRange = selectedDateTime.getTime() >= startDateOnly.getTime() && selectedDateTime.getTime() <= endDateOnly.getTime()
+            
+            // Check if event hasn't ended yet
+            const actualToday = new Date() // Actual current date - dynamic
+            const todayEndOfDay = new Date(actualToday.getFullYear(), actualToday.getMonth(), actualToday.getDate(), 23, 59, 59, 999)
+            const eventEndOfDay = new Date(endDateOnly.getFullYear(), endDateOnly.getMonth(), endDateOnly.getDate(), 23, 59, 59, 999)
+            const hasntEnded = eventEndOfDay >= todayEndOfDay
+            
+            if (isWithinRange && hasntEnded) {
+              // Check if this event is already in our combined list
+              const alreadyExists = combinedEvents.some(existingEvent => existingEvent.id === event.id)
+              if (!alreadyExists) {
+                combinedEvents.push(event)
+              }
+            }
+          } catch (parseError) {
+            console.warn(`⚠️ Error processing event "${event.name}":`, parseError)
+          }
+        })
+      }
+      
+      // Remove duplicates based on event ID
+      const uniqueEvents = combinedEvents.filter((event, index, self) => 
+        index === self.findIndex(e => e.id === event.id)
+      )
+            
+      // Log which events are being returned
+      uniqueEvents.forEach(event => {
+      })
+
+      return {
+        success: true,
+        message: response.message || 'Upcoming events retrieved successfully',
+        data: uniqueEvents
+      }
+    } else {
+      console.warn('⚠️ Unexpected response structure:', response)
+      return {
+        success: false,
+        message: 'Invalid response format',
+        data: []
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Fetch upcoming events error:', error)
+    
+    // Handle authentication errors specifically
+    if (error.status === 401) {
+      console.error('❌ Authentication failed, redirecting to login')
+      handleAuthRedirect()
+      throw new Error('Authentication required')
+    }
+    
+    // Don't expose technical details to users
+    let userMessage = 'Failed to load upcoming events. Please try again.'
+    if (error.status === 403) {
+      userMessage = 'You do not have permission to view upcoming events.'
+    } else if (error.status === 500) {
+      userMessage = 'Server error occurred. Please try again later.'
+    }
+    
+    return {
+      status: error?.status || 500,
+      success: false,
+      message: userMessage,
+      data: []
+    }
+  }
+}
+
+// Fetch recent events with dashboard data
+export async function fetchRecentEvents() {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!API_ADMIN_BASE_URL) {
+    throw new Error('API admin base URL is not configured.')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      throw new Error('Unable to create authentication headers')
+    }
+
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/dashboard`, {
+      method: 'GET',
+      headers
+    })
+
+    // Validate and return response
+    if (response && response.success && response.data && Array.isArray(response.data.recently_event)) {
+      return {
+        success: true,
+        message: response.message || 'Recent events retrieved successfully',
+        data: response.data.recently_event,
+        summary: response.data.summary || null
+      }
+    } else {
+      console.warn('⚠️ Unexpected response structure:', response)
+      return {
+        success: false,
+        message: 'Invalid response format',
+        data: [],
+        summary: null
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Fetch recent events error:', error)
+    
+    // Handle authentication errors specifically
+    if (error.status === 401) {
+      console.error('❌ Authentication failed, redirecting to login')
+      handleAuthRedirect()
+      throw new Error('Authentication required')
+    }
+    
+    // Don't expose technical details to users
+    let userMessage = 'Failed to load recent events. Please try again.'
+    if (error.status === 403) {
+      userMessage = 'You do not have permission to view recent events.'
+    } else if (error.status === 500) {
+      userMessage = 'Server error occurred. Please try again later.'
+    }
+    
+    return {
+      status: error?.status || 500,
+      success: false,
+      message: userMessage,
+      data: [],
+      summary: null
+    }
+  }
+}
+
 // Update order status (for completing cash payments)
 export async function updateOrderStatus(orderId, status, paymentMethod = null, ticketTypes = null, remark = null) {
   const config = useRuntimeConfig()
@@ -3695,5 +4020,76 @@ export async function updateOrderStatus(orderId, status, paymentMethod = null, t
     }
     
     throw new Error(userMessage)
+  }
+}
+
+// ============= SALES REPORT API FUNCTIONS =============
+
+// Fetch sales report overtime data for a specific event
+export async function fetchSalesOvertimeReport(eventId) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  if (!validateUUID(eventId)) {
+    throw new Error('Invalid event ID format')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      handleAuthRedirect()
+      return null
+    }
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/report/sale-report/${eventId}`, {
+      method: 'GET',
+      headers
+    })
+
+    return response
+  } catch (error) {
+    console.error('Error fetching sales overtime report:', error)
+    throw error
+  }
+}
+
+// Fetch sales report list data for a specific event
+export async function fetchSalesReportList(eventId, page = 1, perPage = 10) {
+  const config = useRuntimeConfig()
+  const API_ADMIN_BASE_URL = config.public.apiAdminBaseUrl
+
+  if (!eventId) {
+    throw new Error('Event ID is required')
+  }
+
+  if (!validateUUID(eventId)) {
+    throw new Error('Invalid event ID format')
+  }
+
+  try {
+    const headers = await createAuthHeaders()
+    if (!headers) {
+      handleAuthRedirect()
+      return null
+    }
+
+    const params = new URLSearchParams({
+      page: page.toString(),
+      per_page: perPage.toString()
+    })
+
+    const response = await $fetch(`${API_ADMIN_BASE_URL}/report/sale-report/${eventId}/list?${params}`, {
+      method: 'GET',
+      headers
+    })
+
+    return response
+  } catch (error) {
+    console.error('Error fetching sales report list:', error)
+    throw error
   }
 }

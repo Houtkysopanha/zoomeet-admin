@@ -187,10 +187,20 @@
         class="text-[12px] border-b border-gray-300"
       >
         <template #body="slotProps">
-          <span :class="getStatusClass(slotProps.data.status)">{{
-            slotProps.data.status
-          }}</span>
-        </template>
+  <span
+    :class="[
+      'inline-flex items-center py-1 rounded-full text-xs font-medium transition-colors duration-200',
+      getStatusClass(slotProps.data.status)
+    ]"
+  >
+    <Icon
+      name="radix-icons:dot-filled"
+      class="w-3.5 h-3.5"
+    />
+    {{ slotProps.data.status }}
+  </span>
+</template>
+
       </Column>
 
       <Column
@@ -579,12 +589,12 @@ const formatCurrency = (value) => `$${value.toLocaleString()}`
 
 const getStatusClass = (status) => {
   const classes = {
-    Active: 'bg-green-50 border border-green-400 text-green-700 px-2 rounded-full',
-    Pending: 'bg-yellow-50 border border-yellow-400 text-yellow-700 px-2 rounded-full',
-    Completed: 'bg-gray-50 border border-gray-400 text-gray-700 px-2 rounded-full',
-    Draft: 'bg-gray-50 border border-gray-400 text-gray-700 px-3 rounded-full',
+    Active: 'bg-green-50  text-green-700 px-2 rounded-full',
+    Pending: 'bg-yellow-50 text-yellow-700 px-2 rounded-full',
+    Completed: 'bg-gray-50  text-gray-700 px-2 rounded-full',
+    Draft: 'bg-gray-50  text-gray-700 px-3 rounded-full',
   }
-  return classes[status] || 'bg-gray-50 border border-gray-400 text-gray-700 px-3 rounded-full'
+  return classes[status] || 'bg-gray-50  text-gray-700 px-3 rounded-full'
 }
 
 const toggleFilters = () => {
