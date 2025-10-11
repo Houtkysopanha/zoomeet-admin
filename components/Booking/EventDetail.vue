@@ -80,8 +80,9 @@
           </button>
           <button
             @click="activeDetailTab = 'breakout'"
+            disabled= "false"
             :class="[
-              'flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-full font-semibold transition-all duration-300 ease-in-out',
+              'flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-full font-semibold transition-all duration-300 ease-in-out cursor-not-allowed',
               activeDetailTab === 'breakout'
                 ? 'bg-gradient-to-r from-purple-600 to-purple-400 text-white shadow-md'
                 : 'text-gray-600 hover:text-purple-600 hover:bg-white',
