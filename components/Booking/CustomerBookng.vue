@@ -881,7 +881,6 @@
 
               <!-- Phone Input -->
               <div v-if="resetPasswordForm.loginType === 'phone'">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
                 <PhoneNumber
                   v-model="resetPasswordForm.identifier"
                   placeholder="Enter your phone number"

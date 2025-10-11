@@ -2265,7 +2265,7 @@ export async function getEventSettings(eventId) {
         success: true,
         data: {
           registration_dateline: null,
-          qrcode_available_hours: 48,
+          qrcode_available_hours: 0,
           max_ticket_per_person: 5,
           refund_policy_id: null,
           ticket_transfer_deadline: null,
@@ -2307,7 +2307,7 @@ export async function saveEventSettings(eventId, settingsData) {
    // Build normalizedData
 const normalizedData = {
   registration_dateline: settingsData.registration_dateline || settingsData.registrationDeadline || null,
-  qrcode_available_hours: parseInt(settingsData.qrcode_available_hours || 48),
+  qrcode_available_hours: parseInt(settingsData.qrcode_available_hours || 0),
   max_ticket_per_person: parseInt(settingsData.max_ticket_per_person || 5),
   refund_policy_id: settingsData.refund_policy_id || (settingsData.refundPolicy === 'Full Refund' ? 1 : settingsData.refundPolicy === 'Not Refund' ? 2 : null),
   ticket_transfer_deadline: settingsData.ticket_transfer_deadline || null,

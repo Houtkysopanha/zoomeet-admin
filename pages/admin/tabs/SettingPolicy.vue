@@ -73,7 +73,7 @@
               <Dropdown
                 v-model="settings.qrcodeAvailableHours"
                 :options="qrcodeAvailableOptions"
-                placeholder="48 hours before event starts"
+                placeholder="Select QR code available"
                 class="w-full"
               />
               <div
@@ -85,14 +85,14 @@
                 <div class="flex items-center space-x-2">
                   <InputNumber
                     v-model="settings.customQrcodeHours"
-                    :min="1"
+                    :min="0"
                     :max="8760"
                     placeholder="168"
                     class="flex-1"
                   />
                 </div>
                 <small class="text-gray-500"
-                  >Enter custom hours (1 week = 168 hours)</small
+                  >Enter custom hours (0 = immediately, 1 week = 168 hours)</small
                 >
               </div>
             </div>
@@ -365,7 +365,7 @@ const settings = ref({
   maxTicketPerPerson: 5,
   ticketTransferDeadline: null,
   allowTicketTransfer: false,
-  qrcodeAvailableHours: "48 hours before event starts",
+  qrcodeAvailableHours: "Immediately After Registration",
   customQrcodeHours: 168, // Default to 1 week (168 hours)
   requireTermsConditions: false,
   termsAndConditions: "",
@@ -394,6 +394,7 @@ const minimumAgeOptions = ref([
 ]);
 
 const qrcodeAvailableOptions = ref([
+  "Immediately After Registration",
   "24 hours before event starts",
   "48 hours before event starts",
   "72 hours before event starts",
@@ -494,7 +495,8 @@ const loadSettingsFromAPI = async () => {
   ticketTransferDeadline: parseAPIDate(apiData.ticket_transfer_deadline),
   allowTicketTransfer: Boolean(apiData.is_allow_ticket_transfer) || Boolean(apiData.ticket_transfer_deadline),
   qrcodeAvailableHours: (() => {
-    const hours = apiData.qrcode_available_hours ?? 48;
+    const hours = apiData.qrcode_available_hours ?? 0;
+    if (hours === 0) return "Immediately After Registration";
     if (hours === 24) return "24 hours before event starts";
     if (hours === 48) return "48 hours before event starts";
     if (hours === 72) return "72 hours before event starts";
@@ -599,11 +601,31 @@ const saveSettingsToAPI = async () => {
       ),
       is_allow_ticket_transfer: settings.value.allowTicketTransfer ? 1 : 0,
       qrcode_available_hours: (() => {
-        if (
-          settings.value.qrcodeAvailableHours === "Custom QR code available"
-        ) {
-          return parseInt(settings.value.customQrcodeHours) || 168;
+        console.log("🔍 QR Code Debug:", {
+          qrcodeAvailableHours: settings.value.qrcodeAvailableHours,
+          customQrcodeHours: settings.value.customQrcodeHours,
+          customQrcodeHoursType: typeof settings.value.customQrcodeHours,
+          qrcodeAvailableHoursLength: settings.value.qrcodeAvailableHours?.length,
+          qrcodeAvailableHoursCharCodes: settings.value.qrcodeAvailableHours?.split('').map(c => c.charCodeAt(0))
+        });
+        
+        // Check for "Immediately After Registration"
+        const isImmediate = settings.value.qrcodeAvailableHours === "Immediately After Registration";
+        
+        // Check for "Custom QR code available"
+        const isCustom = settings.value.qrcodeAvailableHours === "Custom QR code available";
+        console.log("🔍 Checking Custom QR code available:", isCustom);
+        console.log("🔍 Expected: 'Custom QR code available'");
+        console.log("🔍 Actual: '" + settings.value.qrcodeAvailableHours + "'");
+        console.log("🔍 String match:", settings.value.qrcodeAvailableHours === "Custom QR code available");
+        
+        if (isCustom) {
+          const customHours = parseInt(settings.value.customQrcodeHours);
+          const result = isNaN(customHours) ? 168 : customHours;
+
+          return result;
         }
+        
         const match = settings.value.qrcodeAvailableHours?.match(/(\d+)/);
         if (match) {
           const hours = parseInt(match[1]);
@@ -611,9 +633,12 @@ const saveSettingsToAPI = async () => {
           if (settings.value.qrcodeAvailableHours.includes("week")) {
             return hours * 7 * 24;
           }
+          console.log(`✅ Using matched hours: ${hours}`);
           return hours;
         }
-        return 48; // Default
+        
+        console.log("⚠️ Using default: 0");
+        return 0; // Default
       })(),
       is_required_terms_condition: settings.value.requireTermsConditions ? 1 : 0,
       terms_and_condition: settings.value.termsAndConditions || "",
@@ -643,25 +668,6 @@ const saveSettingsToAPI = async () => {
       is_send_sms_reminder: settings.value.isSendSmsReminder ? 1 : 0,
       sms_reminder_date: formatDateForAPI(settings.value.smsReminderDate),
     };
-
-    // Debug: Log the complete apiData to see what's being sent
-    console.log("🔍 API Data being sent:", apiData);
-    console.log("📧 Email reminder values:", {
-      isSendEmailReminder: settings.value.isSendEmailReminder,
-      emailReminderDate: settings.value.emailReminderDate,
-      is_send_email_reminder: apiData.is_send_email_reminder,
-      email_reminder_date: apiData.email_reminder_date
-    });
-    console.log("📱 SMS reminder values:", {
-      isSendSmsReminder: settings.value.isSendSmsReminder,
-      smsReminderDate: settings.value.smsReminderDate,
-      is_send_sms_reminder: apiData.is_send_sms_reminder,
-      sms_reminder_date: apiData.sms_reminder_date
-    });
-
-
-
-  
     const response = await saveEventSettings(currentEventId.value, apiData);
 
     if (response) {
@@ -846,14 +852,7 @@ watch(
 
 // Debug function to test API data construction
 const testApiData = () => {
-  console.log("🧪 Testing API Data Construction");
-  console.log("Current settings:", {
-    isSendEmailReminder: settings.value.isSendEmailReminder,
-    emailReminderDate: settings.value.emailReminderDate,
-    isSendSmsReminder: settings.value.isSendSmsReminder,
-    smsReminderDate: settings.value.smsReminderDate
-  });
-  
+
   const testApiData = {
     is_send_email_reminder: settings.value.isSendEmailReminder ? 1 : 0,
     email_reminder_date: settings.value.emailReminderDate,
@@ -913,8 +912,8 @@ watch(
             tabData.ticketTransferDeadline
           ),
           qrcodeAvailableHours:
-            tabData.qrcodeAvailableHours || "48 hours before event starts",
-          customQrcodeHours: tabData.customQrcodeHours || 168,
+            tabData.qrcodeAvailableHours ?? "Immediately After Registration",
+          customQrcodeHours: tabData.customQrcodeHours ?? 168,
           allowTicketTransfer: tabData.allowTicketTransfer || false,
           requireTermsConditions: tabData.requireTermsConditions || false,
           termsAndConditions: tabData.termsAndConditions || "",
@@ -963,8 +962,8 @@ onMounted(async () => {
           settingsData.ticketTransferDeadline
         ),
         qrcodeAvailableHours:
-          settingsData.qrcodeAvailableHours || "48 hours before event starts",
-        customQrcodeHours: settingsData.customQrcodeHours || 168,
+          settingsData.qrcodeAvailableHours ?? "Immediately After Registration",
+        customQrcodeHours: settingsData.customQrcodeHours ?? 168,
         allowTicketTransfer: settingsData.allowTicketTransfer || false,
         requireTermsConditions: settingsData.requireTermsConditions || false,
         termsAndConditions: settingsData.termsAndConditions || "",
