@@ -517,9 +517,13 @@ const loadSalesOvertimeData = async (eventId) => {
   }
 }
 
-const loadSalesListData = async (eventId, page = 1) => {
+const loadSalesListData = async (eventId, page = 1, showLoading = true) => {
   try {
-    loading.value = true
+    // Only show loading spinner for initial load or event changes, not pagination
+    if (showLoading) {
+      loading.value = true
+    }
+    
     console.log('🔄 Loading sales list data:', { eventId, page, itemsPerPage: itemsPerPage.value })
     
     const response = await fetchSalesReportList(eventId, page, itemsPerPage.value)
@@ -558,7 +562,9 @@ const loadSalesListData = async (eventId, page = 1) => {
       life: 3000
     })
   } finally {
-    loading.value = false
+    if (showLoading) {
+      loading.value = false
+    }
   }
 }
 
@@ -667,7 +673,8 @@ const getTicketTypeClass = (ticketType) => {
 
 const applySort = () => {
   if (selectedEvent.value) {
-    loadSalesListData(selectedEvent.value.id, currentPage.value)
+    // Show loading when sorting as it changes data order
+    loadSalesListData(selectedEvent.value.id, currentPage.value, true)
   }
 }
 
@@ -675,7 +682,8 @@ const applyPageChange = () => {
   console.log('📄 Apply page change - items per page changed to:', itemsPerPage.value)
   currentPage.value = 1
   if (selectedEvent.value) {
-    loadSalesListData(selectedEvent.value.id, 1)
+    // Show loading only when changing items per page (this affects data structure)
+    loadSalesListData(selectedEvent.value.id, 1, true)
   }
 }
 
@@ -702,7 +710,8 @@ const onPageChange = (event) => {
   if (newPage !== currentPage.value) {
     currentPage.value = newPage
     if (selectedEvent.value) {
-      loadSalesListData(selectedEvent.value.id, newPage)
+      // Don't show loading spinner for pagination changes - better UX
+      loadSalesListData(selectedEvent.value.id, newPage, false)
     }
   }
 }
@@ -710,7 +719,8 @@ const onPageChange = (event) => {
 // Watch for pagination changes
 watch([currentPage, itemsPerPage], () => {
   if (selectedEvent.value) {
-    loadSalesListData(selectedEvent.value.id, currentPage.value)
+    // Don't show loading for watch-triggered changes (handled by individual methods)
+    loadSalesListData(selectedEvent.value.id, currentPage.value, false)
   }
 })
 
@@ -790,12 +800,14 @@ definePageMeta({
   align-items: center;
   justify-content: center;
   gap: 0.25rem;
+  flex-wrap: wrap;
 }
 
 :deep(.p-paginator .p-paginator-pages) {
   display: flex;
   align-items: center;
   gap: 0.25rem;
+  flex-wrap: nowrap;
 }
 
 :deep(.p-paginator .p-paginator-pages .p-paginator-page.p-highlight) {
@@ -803,6 +815,7 @@ definePageMeta({
   border-color: linear-gradient(79deg, #4D66A6 7.31%, #B61EEB 98.95%);
   border-radius: 10px;
   color: white;
+  box-shadow: 0 2px 8px rgba(77, 102, 166, 0.3);
 }
 
 :deep(.p-paginator .p-paginator-pages .p-paginator-page) {
@@ -813,13 +826,18 @@ definePageMeta({
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
+  cursor: pointer;
+  border: 1px solid transparent;
+  font-weight: 500;
 }
 
-:deep(.p-paginator .p-paginator-pages .p-paginator-page:hover) {
+:deep(.p-paginator .p-paginator-pages .p-paginator-page:hover:not(.p-highlight)) {
   background-color: #F3F4F6;
   transform: translateY(-1px);
+  border-color: #E5E7EB;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 :deep(.p-paginator .p-paginator-first),
@@ -833,7 +851,7 @@ definePageMeta({
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
 }
 
@@ -845,10 +863,26 @@ definePageMeta({
   transform: translateY(-1px);
 }
 
+:deep(.p-paginator .p-paginator-first:disabled),
+:deep(.p-paginator .p-paginator-prev:disabled),
+:deep(.p-paginator .p-paginator-next:disabled),
+:deep(.p-paginator .p-paginator-last:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 :deep(.p-paginator .p-dropdown) {
   border-radius: 8px;
-  border: 1px solid #D1D5DB;
   margin-left: 0.5rem;
+  background-color: white;
+  transition: all 0.2s ease;
+}
+
+:deep(.p-paginator .p-dropdown:hover) {
+  border-color: #6366F1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
 /* Ensure paginator elements are inline */
@@ -864,6 +898,30 @@ definePageMeta({
   align-items: center;
   gap: 0.25rem;
   flex-wrap: nowrap;
+}
+
+/* Responsive pagination */
+@media (max-width: 640px) {
+  :deep(.p-paginator) {
+    padding: 0.75rem 0.5rem;
+    gap: 0.125rem;
+  }
+  
+  :deep(.p-paginator .p-paginator-pages .p-paginator-page),
+  :deep(.p-paginator .p-paginator-first),
+  :deep(.p-paginator .p-paginator-prev),
+  :deep(.p-paginator .p-paginator-next),
+  :deep(.p-paginator .p-paginator-last) {
+    min-width: 36px;
+    height: 36px;
+    margin: 0 1px;
+    font-size: 0.875rem;
+  }
+  
+  :deep(.p-paginator .p-dropdown) {
+    margin-left: 0.25rem;
+    font-size: 0.875rem;
+  }
 }
 </style>
 

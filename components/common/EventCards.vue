@@ -131,29 +131,14 @@ const formatEventDate = (dateString) => {
   /* min-width is defined in the template via Tailwind min-w-[350px] */
 }
 
-/* optional: hide scrollbar visually but keep scrolling */
+/* Hide scrollbar completely while keeping scroll functionality */
 .event-scroll-container::-webkit-scrollbar {
-  height: 6px;
-}
-.event-scroll-container::-webkit-scrollbar-track {
-  background: transparent;
-}
-.event-scroll-container::-webkit-scrollbar-thumb {
-  background: rgba(0,0,0,0.08);
-  border-radius: 999px;
-}
-.event-scroll-container::-webkit-scrollbar-thumb:hover {
-  background: rgba(0,0,0,0.12);
+  display: none;
 }
 
 /* Firefox and IE/Edge */
 .event-scroll-container {
   -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: thin;    /* Firefox (thin) */
+  scrollbar-width: none;    /* Firefox - completely hidden */
 }
-
-/* you can override to fully hide scrollbar if desired:
-.event-scroll-container { scrollbar-width: none; }
-.event-scroll-container::-webkit-scrollbar { display: none; }
-*/
 </style>
